@@ -381,18 +381,29 @@ def are_push_notifications_enabled() -> bool:
 
 # Attendance
 @frappe.whitelist()
-def get_attendance_calendar_events(employee: str, from_date: str, to_date: str) -> dict[str, str]:
+def get_attendance_calendar_events(employee: str, from_date: str, to_date: str) -> dict:
 	holidays = get_holidays_for_calendar(employee, from_date, to_date)
 	attendance = get_attendance_for_calendar(employee, from_date, to_date)
+	shifts = get_shifts_for_calendar(employee, from_date, to_date)
 	events = {}
 
 	date = getdate(from_date)
 	while date_diff(to_date, date) >= 0:
 		date_str = date.strftime("%Y-%m-%d")
+		event = {}
+		
+		# 考勤状态
 		if date in attendance:
-			events[date_str] = attendance[date]
+			event["attendance"] = attendance[date]
 		elif date in holidays:
-			events[date_str] = "Holiday"
+			event["attendance"] = "Holiday"
+		
+		# 排班信息
+		if date_str in shifts:
+			event["shift"] = shifts[date_str]
+		
+		if event:
+			events[date_str] = event
 		date = add_days(date, 1)
 
 	return events
@@ -416,6 +427,53 @@ def get_holidays_for_calendar(employee: str, from_date: str, to_date: str) -> li
 		)
 
 	return []
+
+
+def get_shifts_for_calendar(employee: str, from_date: str, to_date: str) -> dict:
+	"""获取指定日期范围内的排班信息"""
+	ShiftAssignment = frappe.qb.DocType("Shift Assignment")
+	ShiftType = frappe.qb.DocType("Shift Type")
+	
+	shifts = (
+		frappe.qb.select(
+			ShiftAssignment.start_date,
+			ShiftAssignment.end_date,
+			ShiftType.name.as_("shift_type"),
+			ShiftType.start_time,
+			ShiftType.end_time,
+			ShiftType.color,
+		)
+		.from_(ShiftAssignment)
+		.join(ShiftType)
+		.on(ShiftAssignment.shift_type == ShiftType.name)
+		.where(
+			(ShiftAssignment.employee == employee)
+			& (ShiftAssignment.status == "Active")
+			& (ShiftAssignment.docstatus == 1)
+			& (ShiftAssignment.start_date <= to_date)
+			& ((ShiftAssignment.end_date >= from_date) | (ShiftAssignment.end_date.isnull()))
+		)
+	).run(as_dict=True)
+	
+	result = {}
+	for shift in shifts:
+		start_date = getdate(shift.start_date)
+		end_date = getdate(shift.end_date) if shift.end_date else getdate(to_date)
+		to_date_obj = getdate(to_date)
+		
+		date = start_date
+		while date <= end_date and date <= to_date_obj:
+			if date >= getdate(from_date):
+				date_str = date.strftime("%Y-%m-%d")
+				result[date_str] = {
+					"shift_type": shift.shift_type,
+					"start_time": str(shift.start_time) if shift.start_time else None,
+					"end_time": str(shift.end_time) if shift.end_time else None,
+					"color": shift.color,
+				}
+			date = add_days(date, 1)
+	
+	return result
 
 
 @frappe.whitelist()

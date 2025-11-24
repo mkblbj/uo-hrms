@@ -11617,3 +11617,19 @@ msgstr "纬度"
 #: frontend/src/data/config/requestSummaryFields.js
 msgid "Longitude"
 msgstr "经度"
+
+#: frontend/src/components/AttendanceCalendar.vue
+msgid "Attendance Status"
+msgstr "考勤状态"
+
+#: frontend/src/components/AttendanceCalendar.vue
+msgid "Shift Information"
+msgstr "排班信息"
+
+#: frontend/src/components/AttendanceCalendar.vue
+msgid "No attendance or shift information for this date"
+msgstr "该日期暂无考勤和排班信息"
+
+#: frontend/src/components/AttendanceCalendar.vue
+msgid "Scheduled"
+msgstr "已排班"
