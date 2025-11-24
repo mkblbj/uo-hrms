@@ -283,6 +283,65 @@ def get_weather_forecast() -> dict:
 
 
 @frappe.whitelist()
+def get_employee_work_status():
+	"""
+	获取当前员工的工作状态（是否正在上班）
+	基于最后一次打卡记录判断：
+	- 如果最后一次是 IN，则认为正在上班
+	- 如果最后一次是 OUT，则认为不在上班
+	- 如果今天没有打卡，则认为不在上班
+	"""
+	from frappe.utils import today, now_datetime
+	
+	employee = frappe.db.get_value(
+		"Employee",
+		{"user_id": frappe.session.user, "status": "Active"},
+		["name", "employee_name"],
+		as_dict=True
+	)
+	
+	if not employee:
+		return {
+			"is_working": False,
+			"status": "not_employee",
+			"last_checkin": None
+		}
+	
+	# 获取今天最后一次打卡记录
+	last_checkin = frappe.db.get_all(
+		"Employee Checkin",
+		filters={
+			"employee": employee.name,
+			"time": [">=", today()]
+		},
+		fields=["name", "log_type", "time"],
+		order_by="time desc",
+		limit=1
+	)
+	
+	if not last_checkin:
+		return {
+			"is_working": False,
+			"status": "no_checkin_today",
+			"last_checkin": None,
+			"employee_name": employee.employee_name
+		}
+	
+	last_log = last_checkin[0]
+	is_working = last_log.log_type == "IN"
+	
+	return {
+		"is_working": is_working,
+		"status": "working" if is_working else "off_work",
+		"last_checkin": {
+			"log_type": last_log.log_type,
+			"time": str(last_log.time)
+		},
+		"employee_name": employee.employee_name
+	}
+
+
+@frappe.whitelist()
 def get_hr_settings() -> dict:
 	settings = frappe.db.get_singles_dict("HR Settings", cast=True)
 	return frappe._dict(

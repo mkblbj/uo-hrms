@@ -2,25 +2,25 @@
 	<div class="flex flex-col bg-gray-50 rounded w-full py-6 px-4 border-none gap-3">
 		<!-- 欢迎和打卡 -->
 		<div class="bg-white rounded-lg p-4 shadow-sm">
-			<h2 class="text-lg font-bold text-gray-900">
+		<h2 class="text-lg font-bold text-gray-900">
 				{{ getGreeting() }} {{ employee?.data?.first_name }}さん 👋
-			</h2>
+		</h2>
 			<div class="font-medium text-sm text-gray-500 mt-1 mb-3">
 				{{ formatDate() }}
 			</div>
 
 			<!-- 扫码打卡按钮 - 移到名字下方 -->
 			<template v-if="settings.data?.allow_employee_checkin_from_mobile_app">
-				<Button
+			<Button
 					class="w-full drop-shadow-sm py-4 text-base border-2 border-blue-500"
-					variant="outline"
-					@click="openQRScanner"
-				>
-					<template #prefix>
-						<FeatherIcon name="maximize" class="w-4" />
-					</template>
-					{{ __("Scan QR Code to {0}", [nextAction.label]) }}
-				</Button>
+				variant="outline"
+				@click="openQRScanner"
+			>
+				<template #prefix>
+					<FeatherIcon name="maximize" class="w-4" />
+				</template>
+				{{ __("Scan QR Code to {0}", [nextAction.label]) }}
+			</Button>
 				
 				<div class="font-medium text-xs text-gray-400 mt-2 text-center" v-if="lastLog">
 					<span>{{ __("Last {0} was at {1}", [__(lastLogType), formatTimestamp(lastLog.time)]) }}</span>
@@ -29,7 +29,7 @@
 						<span @click="navigate" class="underline text-blue-500">{{ __("View List") }}</span>
 					</router-link>
 				</div>
-			</template>
+		</template>
 		</div>
 
 		<!-- 天气卡片 -->
@@ -207,6 +207,11 @@ const submitLog = (logType) => {
 		},
 		{
 			onSuccess() {
+				// 发送全局事件通知工作状态徽章更新
+				window.dispatchEvent(new CustomEvent("checkin-status-changed", {
+					detail: { log_type: logType }
+				}))
+				
 				modalController.dismiss()
 				toast({
 					title: __("Success"),
@@ -302,6 +307,11 @@ const handleQRScanSuccess = async (token, latitude = null, longitude = null) => 
 			
 			// 刷新打卡记录列表
 			checkins.reload()
+			
+			// 发送全局事件通知工作状态徽章更新
+			window.dispatchEvent(new CustomEvent("checkin-status-changed", {
+				detail: { log_type: nextAction.value.action }
+			}))
 			
 			// 关闭扫码窗口
 			showQRScanner.value = false

@@ -10,6 +10,7 @@
 							</h2>
 						</div>
 						<div class="flex flex-row items-center gap-3 ml-auto">
+							<WorkStatusBadge />
 							<router-link
 								:to="{ name: 'Notifications' }"
 								v-slot="{ navigate }"
@@ -53,10 +54,12 @@ import { IonHeader, IonContent, IonPage } from "@ionic/vue"
 import { FeatherIcon, Avatar } from "frappe-ui"
 
 import { unreadNotificationsCount } from "@/data/notifications"
+import WorkStatusBadge from "@/components/WorkStatusBadge.vue"
 
 import { inject } from "vue"
 
 const user = inject("$user")
+const __ = inject("$translate")
 
 const props = defineProps({
 	pageTitle: {
