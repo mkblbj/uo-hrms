@@ -80,6 +80,209 @@ def get_all_employees() -> list[dict]:
 
 # HR Settings
 @frappe.whitelist()
+def get_employee_dashboard_stats() -> dict:
+	"""
+	获取员工仪表盘统计数据
+	包括：本月出勤天数、工作时长、今日打卡记录等
+	"""
+	from datetime import datetime
+	from frappe.utils import get_first_day, get_last_day, now_datetime, time_diff_in_hours
+	
+	current_user = frappe.session.user
+	employee = frappe.db.get_value(
+		"Employee",
+		{"user_id": current_user, "status": "Active"},
+		["name", "employee_name"],
+		as_dict=True
+	)
+	
+	if not employee:
+		return {}
+	
+	# 获取本月日期范围
+	today = datetime.now().date()
+	month_start = get_first_day(today)
+	month_end = get_last_day(today)
+	
+	# 本月出勤统计
+	attendance_stats = frappe.db.sql("""
+		SELECT 
+			COUNT(*) as total_days,
+			SUM(CASE WHEN status IN ('Present', 'Work From Home') THEN 1 ELSE 0 END) as present_days,
+			SUM(CASE WHEN status = 'Absent' THEN 1 ELSE 0 END) as absent_days,
+			SUM(CASE WHEN status = 'On Leave' THEN 1 ELSE 0 END) as leave_days,
+			SUM(CASE WHEN status = 'Half Day' THEN 0.5 ELSE 0 END) as half_days
+		FROM `tabAttendance`
+		WHERE employee = %s 
+		AND attendance_date BETWEEN %s AND %s
+		AND docstatus = 1
+	""", (employee.name, month_start, month_end), as_dict=True)[0]
+	
+	# 今日打卡记录
+	today_checkins = frappe.get_all(
+		"Employee Checkin",
+		filters={
+			"employee": employee.name,
+			"time": [">=", today]
+		},
+		fields=["log_type", "time"],
+		order_by="time asc"
+	)
+	
+	# 计算今日工作时长
+	today_hours = 0
+	if len(today_checkins) >= 2:
+		# 找到第一个IN和最后一个OUT
+		first_in = next((c for c in today_checkins if c.log_type == "IN"), None)
+		last_out = next((c for c in reversed(today_checkins) if c.log_type == "OUT"), None)
+		
+		if first_in and last_out:
+			today_hours = time_diff_in_hours(last_out.time, first_in.time)
+		elif first_in:
+			# 如果只有IN，计算到现在的时长
+			today_hours = time_diff_in_hours(now_datetime(), first_in.time)
+	
+	# 本月总工作时长（基于打卡记录）
+	month_checkins = frappe.db.sql("""
+		SELECT DATE(time) as date, log_type, MIN(time) as first_in, MAX(time) as last_out
+		FROM `tabEmployee Checkin`
+		WHERE employee = %s
+		AND time BETWEEN %s AND %s
+		GROUP BY DATE(time), log_type
+		ORDER BY date, time
+	""", (employee.name, month_start, month_end), as_dict=True)
+	
+	# 简化计算：按天统计，每天第一个IN到最后一个OUT
+	month_hours = 0
+	checkins_by_date = {}
+	for c in month_checkins:
+		date_str = str(c.date)
+		if date_str not in checkins_by_date:
+			checkins_by_date[date_str] = {"in": None, "out": None}
+		if c.log_type == "IN" and not checkins_by_date[date_str]["in"]:
+			checkins_by_date[date_str]["in"] = c.first_in
+		if c.log_type == "OUT":
+			checkins_by_date[date_str]["out"] = c.last_out
+	
+	for date, times in checkins_by_date.items():
+		if times["in"] and times["out"]:
+			month_hours += time_diff_in_hours(times["out"], times["in"])
+	
+	return {
+		"employee_name": employee.employee_name,
+		"month_present": attendance_stats.present_days or 0,
+		"month_absent": attendance_stats.absent_days or 0,
+		"month_leave": attendance_stats.leave_days or 0,
+		"month_half_days": attendance_stats.half_days or 0,
+		"today_hours": round(today_hours, 1),
+		"month_hours": round(month_hours, 1),
+		"today_checkins": len(today_checkins),
+		"first_checkin_today": today_checkins[0].time if today_checkins else None,
+		"last_checkin_today": today_checkins[-1].time if today_checkins else None
+	}
+
+
+@frappe.whitelist()
+def get_weather_data() -> dict:
+	"""
+	获取当前天气数据（使用 WeatherAPI.com）
+	包含今天的最高/最低温度
+	"""
+	import requests
+	from datetime import datetime
+	
+	# WeatherAPI 配置
+	API_KEY = "a45ee3456cd14c498f681427250405"
+	LAT = 34.66497
+	LON = 135.15820
+	
+	# 获取用户语言设置
+	user_lang = frappe.local.lang or "ja"
+	lang_map = {
+		"zh": "zh",
+		"ja": "ja",
+		"en": "en"
+	}
+	weather_lang = lang_map.get(user_lang, "ja")
+	
+	try:
+		# 使用 forecast API 获取今天的最高/最低温
+		today = datetime.now().strftime("%Y-%m-%d")
+		url = f"http://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={LAT},{LON}&dt={today}&lang={weather_lang}&aqi=no"
+		response = requests.get(url, timeout=5)
+		response.raise_for_status()
+		data = response.json()
+		
+		current = data["current"]
+		today_forecast = data["forecast"]["forecastday"][0]["day"] if data.get("forecast") and data["forecast"].get("forecastday") else None
+		
+		result = {
+			"temp_c": current["temp_c"],
+			"condition": {
+				"text": current["condition"]["text"],
+				"icon": f"https:{current['condition']['icon']}"
+			}
+		}
+		
+		# 如果有今天的预报数据，添加最高/最低温
+		if today_forecast:
+			result["maxtemp_c"] = today_forecast["maxtemp_c"]
+			result["mintemp_c"] = today_forecast["mintemp_c"]
+		
+		return result
+	except Exception as e:
+		frappe.log_error(f"Weather API Error: {str(e)}", "Weather Widget")
+		return None
+
+
+@frappe.whitelist()
+def get_weather_forecast() -> dict:
+	"""
+	获取明天的天气预报（使用 WeatherAPI.com）
+	"""
+	import requests
+	from datetime import datetime, timedelta
+	
+	# WeatherAPI 配置
+	API_KEY = "a45ee3456cd14c498f681427250405"
+	LAT = 34.66497
+	LON = 135.15820
+	
+	# 获取用户语言设置
+	user_lang = frappe.local.lang or "ja"
+	lang_map = {
+		"zh": "zh",
+		"ja": "ja",
+		"en": "en"
+	}
+	weather_lang = lang_map.get(user_lang, "ja")
+	
+	try:
+		# 获取明天的日期
+		tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+		
+		url = f"http://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={LAT},{LON}&dt={tomorrow}&lang={weather_lang}&aqi=no"
+		response = requests.get(url, timeout=5)
+		response.raise_for_status()
+		data = response.json()
+		
+		if data.get("forecast") and data["forecast"].get("forecastday"):
+			day_data = data["forecast"]["forecastday"][0]["day"]
+			return {
+				"maxtemp_c": day_data["maxtemp_c"],
+				"mintemp_c": day_data["mintemp_c"],
+				"condition": {
+					"text": day_data["condition"]["text"],
+					"icon": f"https:{day_data['condition']['icon']}"
+				}
+			}
+		return None
+	except Exception as e:
+		frappe.log_error(f"Weather Forecast API Error: {str(e)}", "Weather Widget")
+		return None
+
+
+@frappe.whitelist()
 def get_hr_settings() -> dict:
 	settings = frappe.db.get_singles_dict("HR Settings", cast=True)
 	return frappe._dict(
@@ -808,3 +1011,11 @@ def get_allowed_states_for_workflow(workflow: dict, user_id: str) -> list[str]:
 @frappe.whitelist()
 def get_permitted_fields_for_write(doctype: str) -> list[str]:
 	return get_permitted_fields(doctype, permission_type="write")
+
+
+# QR Attendance - 动态二维码打卡
+from hrms.api.qr_attendance import (
+	generate_qr_token,
+	qr_checkin,
+	get_checkin_locations
+)

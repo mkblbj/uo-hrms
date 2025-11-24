@@ -11475,3 +11475,145 @@ msgstr "{} 未认领"
 msgid "{} {} open for this position."
 msgstr "该职位有{}个{}空缺"
 
+
+# QR Attendance Translations
+#: hrms/api/qr_attendance.py
+msgid "Check-in location {0} does not exist"
+msgstr "打卡地点 {0} 不存在"
+
+#: hrms/api/qr_attendance.py
+msgid "Check-in location {0} is disabled"
+msgstr "打卡地点 {0} 已禁用"
+
+#: hrms/api/qr_attendance.py
+msgid "Please login before checking in"
+msgstr "请先登录系统再扫码打卡"
+
+#: hrms/api/qr_attendance.py
+msgid "Invalid QR code format, please scan again"
+msgstr "二维码格式无效，请重新扫码"
+
+#: hrms/api/qr_attendance.py
+msgid "Check-in location does not exist"
+msgstr "打卡地点不存在"
+
+#: hrms/api/qr_attendance.py
+msgid "Check-in location is disabled"
+msgstr "打卡地点已禁用"
+
+#: hrms/api/qr_attendance.py
+msgid "QR code is about to expire, please check in soon"
+msgstr "二维码即将过期，请尽快打卡"
+
+#: hrms/api/qr_attendance.py
+msgid "QR code has expired or is invalid, please scan again"
+msgstr "二维码已过期或无效，请重新扫码"
+
+#: hrms/api/qr_attendance.py
+msgid "Your account is not linked to an employee profile, please contact HR"
+msgstr "您的账号未关联员工档案，请联系 HR"
+
+#: hrms/api/qr_attendance.py
+msgid "checked in"
+msgstr "签到"
+
+#: hrms/api/qr_attendance.py
+msgid "checked out"
+msgstr "签退"
+
+#: hrms/api/qr_attendance.py
+msgid "You have already {0} within the last 5 minutes, please do not check in repeatedly"
+msgstr "您在 5 分钟内已经{0}过，请勿重复打卡"
+
+#: hrms/api/qr_attendance.py
+msgid "Check-in"
+msgstr "签到"
+
+#: hrms/api/qr_attendance.py
+msgid "Check-out"
+msgstr "签退"
+
+#: hrms/api/qr_attendance.py
+msgid "{0} successful"
+msgstr "{0}成功"
+
+# Frontend QR Scanner Translations
+#: frontend/src/components/QRScannerModal.vue
+msgid "Scan QR Code"
+msgstr "扫描二维码"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Position the QR code within the frame"
+msgstr "将二维码对准框内"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Start Scanning"
+msgstr "开始扫描"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Unable to access camera, please check permissions"
+msgstr "无法访问摄像头，请检查权限"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Verifying..."
+msgstr "正在验证..."
+
+#: frontend/src/components/CheckInPanel.vue
+msgid "Scan QR Code to {0}"
+msgstr "扫码{0}"
+
+
+msgid "Camera permission denied, please enable it in settings"
+msgstr "摄像头权限被拒绝,请在设置中启用"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Camera permission is required to scan QR codes"
+msgstr "需要摄像头权限才能扫描二维码"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Grant Camera Permission"
+msgstr "授予摄像头权限"
+
+#: frontend/src/components/CheckInPanel.vue
+msgid "View List"
+msgstr "查看列表"
+
+#: frontend/src/components/CheckInPanel.vue
+msgid "Unable to retrieve your location"
+msgstr "无法获取您的位置"
+
+#: frontend/src/components/EmployeeCheckinItem.vue
+msgid "Log Type"
+msgstr "打卡类型"
+
+#: frontend/src/components/EmployeeCheckinItem.vue
+msgid "Check In"
+msgstr "签到"
+
+#: frontend/src/components/EmployeeCheckinItem.vue
+msgid "Check Out"
+msgstr "签退"
+
+#: frontend/src/views/attendance/EmployeeCheckinList.vue
+msgid "Employee Checkin History"
+msgstr "打卡记录"
+
+#: frontend/src/data/config/requestSummaryFields.js
+msgid "ID"
+msgstr "编号"
+
+#: frontend/src/data/config/requestSummaryFields.js
+msgid "Date"
+msgstr "日期"
+
+#: frontend/src/data/config/requestSummaryFields.js
+msgid "Time"
+msgstr "时间"
+
+#: frontend/src/data/config/requestSummaryFields.js
+msgid "Latitude"
+msgstr "纬度"
+
+#: frontend/src/data/config/requestSummaryFields.js
+msgid "Longitude"
+msgstr "经度"

@@ -1,19 +1,19 @@
 app_name = "hrms"
-app_title = "Frappe HR"
-app_publisher = "Frappe Technologies Pvt. Ltd."
-app_description = "Modern HR and Payroll Software"
-app_email = "contact@frappe.io"
-app_license = "GNU General Public License (v3)"
+app_title = "UO HR"
+app_publisher = "株式会社UO"
+app_description = "UO人力资源管理系统"
+app_email = "hr@uo.co.jp"
+app_license = "Proprietary"
 required_apps = ["frappe/erpnext"]
-source_link = "http://github.com/frappe/hrms"
-app_logo_url = "/assets/hrms/images/frappe-hr-logo.svg"
+source_link = "http://github.com/uo/hrms"
+app_logo_url = "/assets/hrms/images/uo-hr-logo.svg"
 app_home = "/app/overview"
 
 add_to_apps_screen = [
 	{
 		"name": "hrms",
-		"logo": "/assets/hrms/images/frappe-hr-logo.svg",
-		"title": "Frappe HR",
+		"logo": "/assets/hrms/images/uo-hr-logo.svg",
+		"title": "UO HR",
 		"route": "/app/overview",
 		"has_permission": "hrms.hr.utils.check_app_permission",
 	}
@@ -183,6 +183,9 @@ doc_events = {
 		"on_submit": "hrms.hr.doctype.expense_claim.expense_claim.update_payment_for_expense_claim",
 		"on_cancel": "hrms.hr.doctype.expense_claim.expense_claim.update_payment_for_expense_claim",
 		"on_update_after_submit": "hrms.hr.doctype.expense_claim.expense_claim.update_payment_for_expense_claim",
+	},
+	"Unreconcile Payment": {
+		"on_submit": "hrms.hr.doctype.expense_claim.expense_claim.update_payment_for_expense_claim",
 	},
 	"Journal Entry": {
 		"validate": "hrms.hr.doctype.expense_claim.expense_claim.validate_expense_claim_in_jv",

@@ -1,9 +1,9 @@
 [project]
 name = "hrms"
 authors = [
-    { name = "Frappe Technologies Pvt Ltd", email = "developers@frappe.io" },
+    { name = "株式会社UO", email = "hr@uo.co.jp" },
 ]
-description = "Open Source HR & Payroll Software"
+description = "UO人力资源管理系统"
 requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]
@@ -63,9 +63,9 @@ section-order = [
 
 
 [project.urls]
-Homepage = "https://frappe.io/hr"
-Repository = "https://github.com/frappe/hrms.git"
-"Bug Reports" = "https://github.com/frappe/hrms/issues"
+Homepage = "https://uo.co.jp/hr"
+Repository = "https://github.com/uo/hrms.git"
+"Bug Reports" = "https://github.com/uo/hrms/issues"
 
 
 [tool.bench.frappe-dependencies]

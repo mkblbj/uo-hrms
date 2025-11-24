@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Check-in</title>
+<style>
+    body {
+        background-color: #f8f9fa;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+    }
+    .container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 40px 20px;
+        text-align: center;
+    }
+    .card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        padding: 40px;
+    }
+    h1 {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 30px;
+        color: #333;
+    }
+    .location-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .location-item {
+        display: block;
+        padding: 15px;
+        margin-bottom: 10px;
+        background: #fff;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        text-decoration: none;
+        color: #495057;
+        transition: all 0.2s;
+    }
+    .location-item:hover {
+        border-color: #adb5bd;
+        background: #f8f9fa;
+        transform: translateY(-1px);
+    }
+    .location-name {
+        font-weight: 600;
+        font-size: 16px;
+    }
+    #qrcode {
+        margin: 20px auto;
+        display: flex;
+        justify-content: center;
+    }
+    .timer {
+        font-size: 14px;
+        color: #868e96;
+        margin-top: 20px;
+    }
+    .back-link {
+        display: inline-block;
+        margin-top: 30px;
+        color: #adb5bd;
+        text-decoration: none;
+        font-size: 14px;
+    }
+    .back-link:hover {
+        color: #495057;
+    }
+    /* Toast 通知样式 - 醒目版本 */
+    .toast-container {
+        position: fixed;
+        bottom: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10000;
+        max-width: 90%;
+        width: auto;
+    }
+    .toast {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 16px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        padding: 20px 24px;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        border: 3px solid rgba(255,255,255,0.3);
+        min-width: 320px;
+        backdrop-filter: blur(10px);
+    }
+    .toast.checkout {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    .toast-avatar {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid rgba(255,255,255,0.8);
+        flex-shrink: 0;
+        background: rgba(255,255,255,0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        font-weight: bold;
+        color: white;
+    }
+    .toast-content {
+        flex: 1;
+        color: white;
+    }
+    .toast-title {
+        font-weight: 700;
+        font-size: 20px;
+        color: white;
+        margin-bottom: 6px;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    .toast-message {
+        font-size: 16px;
+        color: rgba(255,255,255,0.95);
+        line-height: 1.4;
+    }
+    .toast-close {
+        background: rgba(255,255,255,0.2);
+        border: none;
+        font-size: 24px;
+        color: white;
+        cursor: pointer;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        flex-shrink: 0;
+        transition: all 0.2s;
+    }
+    .toast-close:hover {
+        background: rgba(255,255,255,0.3);
+        transform: scale(1.1);
+    }
+    @keyframes bounceIn {
+        0% {
+            transform: scale(0.3);
+            opacity: 0;
+        }
+        50% {
+            transform: scale(1.05);
+        }
+        70% {
+            transform: scale(0.9);
+        }
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+    @keyframes bounceOut {
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        100% {
+            transform: scale(0.3);
+            opacity: 0;
+        }
+    }
+    .toast.hiding {
+        animation: bounceOut 0.3s ease-out forwards;
+    }
+</style>
+</head>
+<body>
+<div class="container">
+    {% if not location_name %}
+        <!-- 地点列表页面 -->
+        <h1>打刻場所を選択</h1>
+        <div class="card">
+            <div class="location-list">
+                {% for loc in locations %}
+                <a href="/qr_display?location={{ loc.location_name }}" class="location-item">
+                    <div class="location-name">{{ loc.description or loc.location_name }}</div>
+                </a>
+                {% endfor %}
+                {% if not locations %}
+                <p style="color: #868e96;">利用可能な場所がありません</p>
+                {% endif %}
+            </div>
+        </div>
+    {% else %}
+        <!-- 二維码展示页面 -->
+        <div class="card">
+            <h1>{{ description or location_name }}</h1>
+            <div id="qrcode"></div>
+            <div class="timer" id="timer">更新中...</div>
+        </div>
+        <a href="/qr_display" class="back-link">← 他の場所を選択</a>
+    {% endif %}
+</div>
+
+<!-- Toast 通知容器 -->
+<div id="toast-container" class="toast-container"></div>
+
+{% if location_name %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+(function() {
+    const LOCATION_NAME = "{{ location_name }}";
+    const INITIAL_TOKEN = "{{ initial_token }}";
+    let REFRESH_INTERVAL = {{ refresh_interval }};
+    let qrcode = null;
+    let secondsLeft = REFRESH_INTERVAL;
+
+    function updateQRCode(token) {
+                if (!qrcode) {
+                    qrcode = new QRCode(document.getElementById("qrcode"), {
+                        text: token,
+                        width: 280,
+                        height: 280,
+                        colorDark: "#000000",
+                        colorLight: "#ffffff",
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                } else {
+                    qrcode.clear();
+                    qrcode.makeCode(token);
+                }
+                secondsLeft = REFRESH_INTERVAL;
+    }
+
+    function refreshQRCode() {
+        fetch('/api/method/hrms.api.qr_attendance.generate_qr_token?location_name=' + encodeURIComponent(LOCATION_NAME), {
+            method: 'GET'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message && data.message.token) {
+                updateQRCode(data.message.token);
+                REFRESH_INTERVAL = data.message.expires_in || 30;
+            } else {
+                console.error("无法获取二维码");
+            }
+        })
+        .catch(error => {
+            console.error("刷新二维码失败:", error);
+        });
+    }
+
+    function startTimer() {
+        setInterval(function() {
+            secondsLeft -= 1;
+            if (secondsLeft <= 0) {
+                refreshQRCode();
+            }
+            const timer = document.getElementById("timer");
+            if (timer) {
+                timer.innerText = (secondsLeft > 0 ? secondsLeft : 0) + "秒後に更新";
+            }
+        }, 1000);
+    }
+
+    // Toast 通知功能
+    function showToast(data) {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+        
+        const toast = document.createElement('div');
+        toast.className = 'toast' + (data.log_type === 'OUT' ? ' checkout' : '');
+        
+        // 头像或首字母
+        let avatarHTML = '';
+        if (data.employee_image) {
+            avatarHTML = `<img src="${data.employee_image}" class="toast-avatar" alt="${data.employee_name}">`;
+        } else {
+            const initial = data.employee_name ? data.employee_name.charAt(0) : '社';
+            avatarHTML = `<div class="toast-avatar">${initial}</div>`;
+        }
+        
+        const actionText = data.action_ja || (data.log_type === 'IN' ? '出勤' : '退勤');
+        const message = data.message_ja || `${data.employee_name}さんが${actionText}しました。お疲れ様です！`;
+        
+        toast.innerHTML = `
+            ${avatarHTML}
+            <div class="toast-content">
+                <div class="toast-title">${data.employee_name || '社員'}さん</div>
+                <div class="toast-message">${message}</div>
+            </div>
+            <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+        `;
+        
+        container.appendChild(toast);
+        
+        // 7秒后自动消失
+        setTimeout(() => {
+            toast.classList.add('hiding');
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.remove();
+                }
+            }, 300);
+        }, 7000);
+    }
+
+    // 轮询方式获取最新打卡记录
+    let lastCheckinTime = null;
+    let pollingInterval = null;
+    
+    function pollForCheckins() {
+        if (!LOCATION_NAME) return;
+        
+        // 清除之前的轮询
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+        }
+        
+        pollingInterval = setInterval(function() {
+            fetch(`/api/method/hrms.api.qr_attendance.get_recent_checkins?location=${encodeURIComponent(LOCATION_NAME)}&limit=1`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message && data.message.length > 0) {
+                        const checkin = data.message[0];
+                        const checkinTime = new Date(checkin.time);
+                        
+                        // 只显示新的打卡记录（最近30秒内的）
+                        if (!lastCheckinTime || checkinTime > lastCheckinTime) {
+                            const now = new Date();
+                            const diff = (now - checkinTime) / 1000; // 秒
+                            
+                            if (diff < 30) { // 只显示30秒内的新记录
+                                const actionText = checkin.log_type === 'IN' ? '出勤' : '退勤';
+                                showToast({
+                                    employee_name: checkin.employee_name,
+                                    employee_image: checkin.employee_image,
+                                    log_type: checkin.log_type,
+                                    action_ja: actionText,
+                                    message_ja: `${checkin.employee_name}さんが${actionText}しました。お疲れ様です！`,
+                                    location: LOCATION_NAME
+                                });
+                                lastCheckinTime = checkinTime;
+                            }
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Polling failed:', error);
+                });
+        }, 3000); // 每3秒轮询一次
+    }
+    
+    // WebSocket 实时通知（如果可用，优先使用）
+    function initRealtimeNotifications() {
+        if (!LOCATION_NAME) return;
+        
+        // 尝试加载 Socket.IO（如果页面已加载）
+        if (typeof io !== 'undefined') {
+            try {
+                const siteName = window.location.pathname.split('/')[1] || 'hrms.localhost';
+                const host = window.location.hostname;
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const port = window.location.port ? `:${window.location.port}` : '';
+                
+                const socket = io(`${protocol}//${host}${port}/${siteName}`, {
+                    withCredentials: true,
+                    reconnectionAttempts: 5,
+                });
+                
+                socket.on('connect', function() {
+                    console.log('WebSocket connected for QR checkin notifications');
+                    // 加入基于location的房间
+                    socket.emit('join_room', `qr_location_${LOCATION_NAME}`);
+                });
+                
+                socket.on('qr_checkin_notification', function(data) {
+                    console.log('QR checkin notification received:', data);
+                    // 只显示当前location的通知
+                    if (data.location === LOCATION_NAME) {
+                        showToast(data);
+                    }
+                });
+                
+                socket.on('disconnect', function() {
+                    console.log('WebSocket disconnected, falling back to polling');
+                    pollForCheckins();
+                });
+                
+                // WebSocket连接成功，不使用轮询
+                return;
+            } catch (e) {
+                console.error('WebSocket connection failed:', e);
+            }
+        }
+        
+        // 如果WebSocket不可用，使用轮询
+        pollForCheckins();
+    }
+
+    // 页面加载时显示初始 token
+    window.addEventListener('DOMContentLoaded', function() {
+        updateQRCode(INITIAL_TOKEN);
+        startTimer();
+        initRealtimeNotifications();
+    });
+})();
+</script>
+{% endif %}
+
+</body>
+</html>
