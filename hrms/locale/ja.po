@@ -686,3 +686,27 @@ msgstr "この日付には勤怠またはシフト情報がありません"
 #: frontend/src/components/AttendanceCalendar.vue
 msgid "Scheduled"
 msgstr "シフト予定"
+
+#: hrms/api/qr_attendance.py
+msgid "You just checked in {0} minutes ago. Please wait at least 15 minutes before checking out."
+msgstr "{0}分前にチェックインしたばかりです。チェックアウトするには少なくとも15分お待ちください。"
+
+#: hrms/api/qr_attendance.py
+msgid "You just checked out {0} minutes ago. Please wait at least 5 minutes before checking in."
+msgstr "{0}分前にチェックアウトしたばかりです。チェックインするには少なくとも5分お待ちください。"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Confirm Check In"
+msgstr "チェックイン確認"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Confirm Check Out"
+msgstr "チェックアウト確認"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Cancel"
+msgstr "キャンセル"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Unknown Location"
+msgstr "不明な場所"

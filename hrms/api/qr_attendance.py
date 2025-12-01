@@ -187,7 +187,31 @@ def qr_checkin(token: str, log_type: str = "IN", latitude: float = None, longitu
 	if not employee:
 		frappe.throw(_("Your account is not linked to an employee profile, please contact HR"))
 	
-	# 6. 防重复打卡检查(5分钟内不能重复相同类型的打卡)
+	# 6. 获取上次打卡记录，用于间隔检查
+	last_checkin = frappe.db.get_value(
+		"Employee Checkin",
+		{"employee": employee},
+		["log_type", "time"],
+		order_by="time desc"
+	)
+	
+	if last_checkin:
+		last_type, last_time = last_checkin
+		minutes_since = (now_datetime() - get_datetime(last_time)).total_seconds() / 60
+		
+		# 签到后 15 分钟内不能签退（防止误操作）
+		if last_type == "IN" and log_type == "OUT" and minutes_since < 15:
+			frappe.throw(
+				_("You just checked in {0} minutes ago. Please wait at least 15 minutes before checking out.").format(int(minutes_since))
+			)
+		
+		# 签退后 5 分钟内不能签到（防止误操作）
+		if last_type == "OUT" and log_type == "IN" and minutes_since < 5:
+			frappe.throw(
+				_("You just checked out {0} minutes ago. Please wait at least 5 minutes before checking in.").format(int(minutes_since))
+			)
+	
+	# 7. 防重复打卡检查(5分钟内不能重复相同类型的打卡)
 	recent_checkin = frappe.db.get_all(
 		"Employee Checkin",
 		filters={
@@ -202,7 +226,7 @@ def qr_checkin(token: str, log_type: str = "IN", latitude: float = None, longitu
 		action = _("checked in") if log_type == "IN" else _("checked out")
 		frappe.throw(_("You have already {0} within the last 5 minutes, please do not check in repeatedly").format(action))
 	
-	# 7. 地理位置验证（如果启用了地理位置追踪）
+	# 8. 地理位置验证（如果启用了地理位置追踪）
 	allow_geolocation_tracking = frappe.db.get_single_value("HR Settings", "allow_geolocation_tracking")
 	
 	if allow_geolocation_tracking:
@@ -234,7 +258,7 @@ def qr_checkin(token: str, log_type: str = "IN", latitude: float = None, longitu
 						)
 					)
 	
-	# 8. 创建 Employee Checkin (复用标准流程)
+	# 9. 创建 Employee Checkin (复用标准流程)
 	# 注意: 这里直接调用标准 DocType,会自动触发:
 	#   - validate_active_employee
 	#   - validate_duplicate_log
@@ -265,7 +289,7 @@ def qr_checkin(token: str, log_type: str = "IN", latitude: float = None, longitu
 		# 捕获验证错误(如重复打卡、员工不活跃、地理位置超出范围等)
 		frappe.throw(str(e))
 	
-	# 9. 记录审计日志
+	# 10. 记录审计日志
 	try:
 		client_ip = frappe.local.request_ip or frappe.local.request.remote_addr or "Unknown"
 		geo_info = ""
@@ -290,7 +314,7 @@ def qr_checkin(token: str, log_type: str = "IN", latitude: float = None, longitu
 			title="QR Checkin Audit Log Error"
 		)
 	
-	# 10. 发送实时通知到二维码展示页面（公共房间，无需登录）
+	# 11. 发送实时通知到二维码展示页面（公共房间，无需登录）
 	try:
 		action_text_ja = "出勤" if log_type == "IN" else "退勤"
 		
@@ -396,4 +420,30 @@ def get_recent_checkins(location: str = None, limit: int = 5):
 			checkin["employee_image"] = employee_image
 	
 	return checkins
+
+
+@frappe.whitelist(allow_guest=False)
+def get_location_info(location_name: str):
+	"""
+	获取打卡地点信息（用于扫码确认页面显示）
+	
+	Args:
+		location_name: 地点名称
+	
+	Returns:
+		{
+			"name": "office-10F",
+			"description": "10楼办公室打卡点",
+			"enabled": 1
+		}
+	"""
+	if not frappe.db.exists("QR Checkin Location", location_name):
+		return {"name": location_name, "description": location_name}
+	
+	doc = frappe.get_doc("QR Checkin Location", location_name)
+	return {
+		"name": doc.name,
+		"description": doc.description or doc.name,
+		"enabled": doc.enabled
+	}
 

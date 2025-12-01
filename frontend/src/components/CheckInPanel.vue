@@ -99,6 +99,7 @@
 
 	<!-- 扫码模态框 -->
 	<QRScannerModal
+		ref="qrScannerRef"
 		:is-open="showQRScanner"
 		:log-type="nextAction.action"
 		@close="showQRScanner = false"
@@ -127,6 +128,7 @@ const latitude = ref(0)
 const longitude = ref(0)
 const locationStatus = ref("")
 const showQRScanner = ref(false)
+const qrScannerRef = ref(null)
 const settings = createResource({
 	url: "hrms.api.get_hr_settings",
 	auto: true,
@@ -274,6 +276,10 @@ const handleQRScanSuccess = async (token, latitude = null, longitude = null) => 
 					position: "bottom-center",
 					iconClasses: "text-red-500"
 				})
+				// 重置 scanner 的 submitting 状态
+				if (qrScannerRef.value) {
+					qrScannerRef.value.submitting = false
+				}
 				return
 			}
 		}
@@ -351,6 +357,11 @@ const handleQRScanSuccess = async (token, latitude = null, longitude = null) => 
 			position: "bottom-center",
 			iconClasses: "text-red-500"
 		})
+	} finally {
+		// 无论成功失败，都重置 scanner 的 submitting 状态
+		if (qrScannerRef.value) {
+			qrScannerRef.value.submitting = false
+		}
 	}
 }
 

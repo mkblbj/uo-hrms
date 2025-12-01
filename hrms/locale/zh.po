@@ -11633,3 +11633,27 @@ msgstr "该日期暂无考勤和排班信息"
 #: frontend/src/components/AttendanceCalendar.vue
 msgid "Scheduled"
 msgstr "已排班"
+
+#: hrms/api/qr_attendance.py
+msgid "You just checked in {0} minutes ago. Please wait at least 15 minutes before checking out."
+msgstr "您刚刚在 {0} 分钟前签到，请等待至少 15 分钟后再签退。"
+
+#: hrms/api/qr_attendance.py
+msgid "You just checked out {0} minutes ago. Please wait at least 5 minutes before checking in."
+msgstr "您刚刚在 {0} 分钟前签退，请等待至少 5 分钟后再签到。"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Confirm Check In"
+msgstr "确认签到"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Confirm Check Out"
+msgstr "确认签退"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Cancel"
+msgstr "取消"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Unknown Location"
+msgstr "未知地点"
