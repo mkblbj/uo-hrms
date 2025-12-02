@@ -447,3 +447,91 @@ def get_location_info(location_name: str):
 		"enabled": doc.enabled
 	}
 
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def get_employees_at_work(location: str = None):
+	"""
+	获取当前在上班的员工列表（已签到但未签退）
+	
+	可用于其他应用调用，如门禁系统、会议室预约等
+	
+	Args:
+		location: 可选，筛选特定打卡地点的员工
+	
+	Returns:
+		{
+			"count": 5,
+			"employees": [
+				{
+					"employee": "HR-EMP-00001",
+					"employee_name": "山田太郎",
+					"department": "技術部",
+					"designation": "エンジニア",
+					"image": "/files/employee.jpg",
+					"checkin_time": "2025-12-01 09:00:00",
+					"location": "office-10F"
+				},
+				...
+			]
+		}
+	
+	API 调用示例:
+		GET /api/method/hrms.api.qr_attendance.get_employees_at_work
+		GET /api/method/hrms.api.qr_attendance.get_employees_at_work?location=office-10F
+	"""
+	today = frappe.utils.today()
+	
+	# 子查询：获取每个员工今天最后一次打卡记录
+	# 使用 SQL 直接查询，效率更高
+	sql = """
+		SELECT 
+			ec.employee,
+			ec.employee_name,
+			ec.log_type,
+			ec.time,
+			ec.device_id as location,
+			e.department,
+			e.designation,
+			e.image
+		FROM `tabEmployee Checkin` ec
+		INNER JOIN `tabEmployee` e ON e.name = ec.employee
+		WHERE ec.time = (
+			SELECT MAX(ec2.time) 
+			FROM `tabEmployee Checkin` ec2 
+			WHERE ec2.employee = ec.employee 
+			AND DATE(ec2.time) = %s
+		)
+		AND DATE(ec.time) = %s
+		AND ec.log_type = 'IN'
+		AND e.status = 'Active'
+	"""
+	
+	params = [today, today]
+	
+	if location:
+		sql += " AND ec.device_id = %s"
+		params.append(location)
+	
+	sql += " ORDER BY ec.time DESC"
+	
+	results = frappe.db.sql(sql, params, as_dict=True)
+	
+	# 格式化返回数据
+	employees = []
+	for row in results:
+		# 只保留时间部分 (HH:MM:SS)
+		checkin_time = str(row.time).split(" ")[1] if " " in str(row.time) else str(row.time)
+		employees.append({
+			"employee": row.employee,
+			"employee_name": row.employee_name,
+			"department": row.department,
+			"designation": row.designation,
+			"image": row.image,
+			"checkin_time": checkin_time,
+			"location": row.location
+		})
+	
+	return {
+		"count": len(employees),
+		"employees": employees
+	}

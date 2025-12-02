@@ -1,37 +1,19 @@
 <template>
-	<div v-if="weather.data" class="weather-simple">
-		<div class="weather-column">
-			<div class="weather-item today">
-				<div class="weather-header">
-					<span class="weather-label">{{ getLabel('today') }}</span>
-					<img :src="weather.data.condition.icon" :alt="weather.data.condition.text" class="weather-icon-small" />
-				</div>
-				<div class="weather-info">
-					<div class="temp-range">
-						<span class="weather-temp">{{ Math.round(weather.data.temp_c) }}°C</span>
-						<span v-if="weather.data.maxtemp_c && weather.data.mintemp_c" class="temp-minmax">
-							{{ Math.round(weather.data.maxtemp_c) }}° / {{ Math.round(weather.data.mintemp_c) }}°
-						</span>
-					</div>
-					<span class="weather-desc">{{ weather.data.condition.text }}</span>
-				</div>
-			</div>
-			<div v-if="forecast.data" class="weather-item tomorrow">
-				<div class="weather-header">
-					<span class="weather-label">{{ getLabel('tomorrow') }}</span>
-					<img :src="forecast.data.condition.icon" :alt="forecast.data.condition.text" class="weather-icon-small" />
-				</div>
-				<div class="weather-info">
-					<div class="temp-range">
-						<span class="weather-temp">{{ Math.round(forecast.data.maxtemp_c) }}° / {{ Math.round(forecast.data.mintemp_c) }}°</span>
-					</div>
-					<span class="weather-desc">{{ forecast.data.condition.text }}</span>
-				</div>
-			</div>
+	<div v-if="weather.data" class="weather-row">
+		<!-- 今天 -->
+		<div class="weather-cell">
+			<span class="weather-label">{{ getLabel('today') }}</span>
+			<span class="weather-temp">{{ Math.round(weather.data.temp_c) }}°</span>
+			<img :src="weather.data.condition.icon" :alt="weather.data.condition.text" class="weather-icon" />
 		</div>
-	</div>
-	<div v-else-if="weather.loading" class="weather-simple loading">
-		<span class="loading-text">{{ __("Loading weather...") }}</span>
+		<!-- 分隔线 -->
+		<div class="weather-divider"></div>
+		<!-- 明天 -->
+		<div v-if="forecast.data" class="weather-cell right">
+			<span class="weather-label">{{ getLabel('tomorrow') }}</span>
+			<span class="weather-temp">{{ Math.round(forecast.data.maxtemp_c) }}°/{{ Math.round(forecast.data.mintemp_c) }}°</span>
+			<img :src="forecast.data.condition.icon" :alt="forecast.data.condition.text" class="weather-icon" />
+		</div>
 	</div>
 </template>
 
@@ -72,89 +54,47 @@ function getLabel(key) {
 </script>
 
 <style scoped>
-.weather-simple {
+.weather-row {
 	background: white;
-	border-radius: 10px;
-	padding: 12px;
-	box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-	border: 1px solid #e5e7eb;
-}
-
-.weather-simple.loading {
+	border-radius: 12px;
+	padding: 12px 16px;
 	display: flex;
 	align-items: center;
-	justify-content: center;
-	min-height: 70px;
+	box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
 
-.loading-text {
-	color: #9ca3af;
-	font-size: 13px;
-}
-
-.weather-column {
-	display: flex;
-	flex-direction: column;
-	gap: 10px;
-}
-
-.weather-item {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-}
-
-.weather-item.tomorrow {
-	padding-top: 10px;
-	border-top: 1px solid #e5e7eb;
-}
-
-.weather-header {
+.weather-cell {
+	flex: 1;
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
+	gap: 6px;
+}
+
+.weather-cell.right {
+	justify-content: flex-end;
+}
+
+.weather-divider {
+	width: 1px;
+	height: 32px;
+	background: #e5e7eb;
+	margin: 0 16px;
 }
 
 .weather-label {
-	font-size: 11px;
-	font-weight: 600;
+	font-size: 13px;
+	font-weight: 500;
 	color: #6b7280;
-	text-transform: uppercase;
-	letter-spacing: 0.5px;
-}
-
-.weather-icon-small {
-	width: 32px;
-	height: 32px;
-	flex-shrink: 0;
-}
-
-.weather-info {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-}
-
-.temp-range {
-	display: flex;
-	align-items: baseline;
-	gap: 8px;
 }
 
 .weather-temp {
-	font-size: 20px;
+	font-size: 18px;
 	font-weight: 700;
 	color: #111827;
 }
 
-.temp-minmax {
-	font-size: 14px;
-	font-weight: 500;
-	color: #9ca3af;
-}
-
-.weather-desc {
-	font-size: 13px;
-	color: #6b7280;
+.weather-icon {
+	width: 28px;
+	height: 28px;
 }
 </style>
