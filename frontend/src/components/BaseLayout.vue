@@ -5,12 +5,12 @@
 				<div class="flex flex-col bg-white shadow-sm p-4">
 					<div class="flex flex-row justify-between items-center">
 						<div class="flex flex-row items-center gap-2">
+							<img src="/uo-hr-logo.png" class="h-7 w-7 object-contain" alt="Logo" />
 							<h2 class="text-xl font-bold text-gray-900">
 								{{ props.pageTitle || __("UO HR") }}
 							</h2>
 						</div>
 						<div class="flex flex-row items-center gap-3 ml-auto">
-							<WorkStatusBadge />
 							<router-link
 								:to="{ name: 'Notifications' }"
 								v-slot="{ navigate }"
@@ -54,7 +54,6 @@ import { IonHeader, IonContent, IonPage } from "@ionic/vue"
 import { FeatherIcon, Avatar } from "frappe-ui"
 
 import { unreadNotificationsCount } from "@/data/notifications"
-import WorkStatusBadge from "@/components/WorkStatusBadge.vue"
 
 import { inject } from "vue"
 

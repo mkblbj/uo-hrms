@@ -1,5 +1,24 @@
 <template>
 	<div class="flex flex-col bg-gray-50 rounded w-full py-6 px-4 border-none gap-3">
+		<!-- 工作状态卡片 -->
+		<div
+			v-if="workStatus.data"
+			:class="[
+				'w-full rounded-lg px-4 py-3 flex items-center gap-3 shadow-sm transition-all duration-300',
+				workStatus.data.is_working
+					? 'bg-gradient-to-r from-green-500 to-green-600'
+					: 'bg-gradient-to-r from-gray-500 to-gray-600'
+			]"
+		>
+			<span
+				:class="[
+					'w-2.5 h-2.5 rounded-full flex-shrink-0',
+					workStatus.data.is_working ? 'bg-white animate-pulse' : 'bg-gray-300'
+				]"
+			></span>
+			<span class="text-white font-semibold text-sm">{{ getStatusText() }}</span>
+		</div>
+
 		<!-- 欢迎和打卡 -->
 		<div class="bg-white rounded-lg p-4 shadow-sm">
 		<h2 class="text-lg font-bold text-gray-900">
@@ -9,27 +28,38 @@
 				{{ formatDate() }}
 			</div>
 
-			<!-- 扫码打卡按钮 - 移到名字下方 -->
+			<!-- 扫码打卡按钮 -->
 			<template v-if="settings.data?.allow_employee_checkin_from_mobile_app">
-			<Button
-					class="w-full drop-shadow-sm py-4 text-base border-2 border-blue-500"
-				variant="outline"
-				@click="openQRScanner"
-			>
-				<template #prefix>
-					<FeatherIcon name="maximize" class="w-4" />
-				</template>
-				{{ __("Scan QR Code to {0}", [nextAction.label]) }}
-			</Button>
+				<button
+					class="checkin-btn"
+					@click="openQRScanner"
+				>
+					<div class="checkin-btn-content">
+						<svg class="checkin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M3 7V5a2 2 0 0 1 2-2h2"/>
+							<path d="M17 3h2a2 2 0 0 1 2 2v2"/>
+							<path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
+							<path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
+							<rect x="7" y="7" width="10" height="10" rx="1"/>
+						</svg>
+						<div class="checkin-text">
+							<span class="checkin-title">{{ getCheckinButtonText() }}</span>
+							<span class="checkin-desc">{{ getCheckinButtonDesc() }}</span>
+						</div>
+					</div>
+					<svg class="checkin-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<path d="M9 18l6-6-6-6"/>
+					</svg>
+				</button>
 				
-				<div class="font-medium text-xs text-gray-400 mt-2 text-center" v-if="lastLog">
+				<div class="font-medium text-xs text-gray-400 mt-3 text-center" v-if="lastLog">
 					<span>{{ __("Last {0} was at {1}", [__(lastLogType), formatTimestamp(lastLog.time)]) }}</span>
 					<span class="whitespace-pre"> · </span>
 					<router-link :to="{ name: 'EmployeeCheckinListView' }" v-slot="{ navigate }">
 						<span @click="navigate" class="underline text-blue-500">{{ __("View List") }}</span>
 					</router-link>
 				</div>
-		</template>
+			</template>
 		</div>
 
 		<!-- 天气卡片 -->
@@ -137,6 +167,12 @@ const settings = createResource({
 const dashboardStats = createResource({
 	url: "hrms.api.get_employee_dashboard_stats",
 	auto: true,
+})
+
+const workStatus = createResource({
+	url: "hrms.api.get_employee_work_status",
+	auto: true,
+	cache: false,
 })
 
 const checkins = createListResource({
@@ -365,6 +401,14 @@ const handleQRScanSuccess = async (token, latitude = null, longitude = null) => 
 	}
 }
 
+// 监听打卡状态变化事件
+const handleCheckinStatusChange = () => {
+	workStatus.reload()
+}
+
+// 每30秒刷新一次工作状态
+let refreshInterval = null
+
 onMounted(() => {
 	socket.emit("doctype_subscribe", DOCTYPE)
 	socket.on("list_update", (data) => {
@@ -372,11 +416,24 @@ onMounted(() => {
 			checkins.reload()
 		}
 	})
+	
+	// 定时刷新工作状态
+	refreshInterval = setInterval(() => {
+		workStatus.reload()
+	}, 30000)
+	
+	// 监听打卡事件
+	window.addEventListener('checkin-status-changed', handleCheckinStatusChange)
 })
 
 onBeforeUnmount(() => {
 	socket.emit("doctype_unsubscribe", DOCTYPE)
 	socket.off("list_update")
+	
+	if (refreshInterval) {
+		clearInterval(refreshInterval)
+	}
+	window.removeEventListener('checkin-status-changed', handleCheckinStatusChange)
 })
 
 // 辅助函数
@@ -465,6 +522,46 @@ function getStatsLabel(key) {
 	
 	return labels[key]?.[lang] || labels[key]?.ja || key
 }
+
+function getStatusText() {
+	if (!workStatus.data) return ""
+	
+	const lang = frappe.boot?.lang || "ja"
+	
+	if (workStatus.data.is_working) {
+		if (lang === "ja") return "勤務中"
+		if (lang === "zh") return "上班中"
+		return "Working"
+	} else {
+		if (lang === "ja") return "退勤済"
+		if (lang === "zh") return "已下班"
+		return "Off Work"
+	}
+}
+
+function getCheckinButtonText() {
+	const lang = frappe.boot?.lang || "ja"
+	const isCheckIn = nextAction.value.action === "IN"
+	
+	if (lang === "ja") {
+		return isCheckIn ? "QRコードで出勤" : "QRコードで退勤"
+	} else if (lang === "zh") {
+		return isCheckIn ? "扫码签到" : "扫码签退"
+	}
+	return isCheckIn ? "Scan QR to Check In" : "Scan QR to Check Out"
+}
+
+function getCheckinButtonDesc() {
+	const lang = frappe.boot?.lang || "ja"
+	const isCheckIn = nextAction.value.action === "IN"
+	
+	if (lang === "ja") {
+		return isCheckIn ? "カメラを起動して出勤打刻します" : "カメラを起動して退勤打刻します"
+	} else if (lang === "zh") {
+		return "启动相机扫描二维码打卡"
+	}
+	return "Open camera to scan QR code"
+}
 </script>
 
 <style scoped>
@@ -472,5 +569,96 @@ function getStatsLabel(key) {
 	display: grid;
 	grid-template-columns: repeat(2, 1fr);
 	gap: 10px;
+}
+
+@keyframes pulse {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.5;
+	}
+}
+
+.animate-pulse {
+	animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* 扫码打卡按钮 */
+.checkin-btn {
+	width: 100%;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 16px 20px;
+	background: rgba(37, 99, 235, 0.08);
+	border: 1px solid rgba(37, 99, 235, 0.3);
+	border-radius: 12px;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.checkin-btn:hover {
+	background: #2563EB;
+	border-color: #2563EB;
+}
+
+.checkin-btn:hover .checkin-icon,
+.checkin-btn:hover .checkin-title,
+.checkin-btn:hover .checkin-arrow {
+	color: white;
+}
+
+.checkin-btn:hover .checkin-desc {
+	color: rgba(255, 255, 255, 0.8);
+}
+
+.checkin-btn:active {
+	background: #1d4ed8;
+	transform: scale(0.99);
+}
+
+.checkin-btn-content {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.checkin-icon {
+	width: 28px;
+	height: 28px;
+	color: #2563EB;
+	flex-shrink: 0;
+	transition: color 0.2s ease;
+}
+
+.checkin-text {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+}
+
+.checkin-title {
+	font-size: 16px;
+	font-weight: 700;
+	color: #2563EB;
+	line-height: 1.3;
+	transition: color 0.2s ease;
+}
+
+.checkin-desc {
+	font-size: 12px;
+	color: #9CA3AF;
+	line-height: 1.3;
+	transition: color 0.2s ease;
+}
+
+.checkin-arrow {
+	width: 20px;
+	height: 20px;
+	color: rgba(37, 99, 235, 0.5);
+	flex-shrink: 0;
+	transition: color 0.2s ease;
 }
 </style>
