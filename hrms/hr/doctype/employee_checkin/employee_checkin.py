@@ -51,12 +51,28 @@ class EmployeeCheckin(Document):
 
 	def validate_time_change(self):
 		if self.attendance and self.has_value_changed("time"):
-			frappe.throw(
-				title=_("Cannot Modify Time"),
-				msg=_(
-					"An attendance record is linked to this checkin. Please cancel the attendance before modifying time."
+			# Auto-cancel the linked attendance when time is changed
+			self._cancel_linked_attendance()
+	
+	def _cancel_linked_attendance(self):
+		"""Cancel the linked attendance record when checkin time is modified"""
+		if not self.attendance:
+			return
+		
+		attendance_doc = frappe.get_doc("Attendance", self.attendance)
+		if attendance_doc.docstatus == 1:  # Submitted
+			attendance_doc.flags.ignore_permissions = True
+			attendance_doc.cancel()
+			frappe.msgprint(
+				_("Attendance {0} has been cancelled due to checkin time modification. Please recalculate attendance.").format(
+					frappe.bold(self.attendance)
 				),
+				alert=True,
+				indicator="orange"
 			)
+		
+		# Clear the attendance link
+		self.attendance = None
 
 	@frappe.whitelist()
 	def set_geolocation(self):

@@ -2,13 +2,96 @@
 # For license information, please see license.txt
 
 
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from itertools import groupby
 
 import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import add_days, cint, create_batch, get_datetime, get_time, getdate, time_diff
+
+
+def round_time_to_precision(dt: datetime, precision_minutes: int, direction: str) -> datetime:
+	"""
+	Round datetime to the specified precision.
+	
+	Args:
+		dt: datetime object to round
+		precision_minutes: rounding precision (15, 30, or 60 minutes)
+		direction: 'up' for check-in (round up), 'down' for check-out (round down)
+	
+	Returns:
+		Rounded datetime
+	
+	Examples (precision=15):
+		Check-in  9:00  -> 9:00
+		Check-in  9:01  -> 9:15
+		Check-in  9:12  -> 9:15
+		Check-in  9:16  -> 9:30
+		Check-out 18:00 -> 18:00
+		Check-out 17:59 -> 17:45
+		Check-out 17:47 -> 17:45
+	"""
+	if not dt or not precision_minutes:
+		return dt
+	
+	precision_minutes = int(precision_minutes)
+	minutes = dt.minute
+	remainder = minutes % precision_minutes
+	
+	if direction == 'up':  # Check-in: round up
+		if remainder == 0:
+			return dt.replace(second=0, microsecond=0)
+		add_minutes = precision_minutes - remainder
+		return dt.replace(second=0, microsecond=0) + timedelta(minutes=add_minutes)
+	else:  # Check-out: round down
+		return dt.replace(second=0, microsecond=0) - timedelta(minutes=remainder)
+
+
+def calculate_lunch_overlap_hours(
+	in_time: datetime,
+	out_time: datetime,
+	lunch_start: time,
+	lunch_end: time
+) -> float:
+	"""
+	Calculate the overlap hours between work period and lunch break.
+	
+	Args:
+		in_time: Check-in datetime
+		out_time: Check-out datetime
+		lunch_start: Lunch break start time
+		lunch_end: Lunch break end time
+	
+	Returns:
+		Overlap hours (float), 0 if no overlap
+	
+	Examples (lunch 12:00-13:00):
+		9:00-18:00  -> 1.0 (full overlap)
+		9:00-12:00  -> 0.0 (no overlap)
+		13:00-18:00 -> 0.0 (no overlap)
+		11:30-12:30 -> 0.5 (partial overlap)
+		11:30-14:00 -> 1.0 (full lunch included)
+	"""
+	if not in_time or not out_time or not lunch_start or not lunch_end:
+		return 0
+	
+	# Convert lunch times to datetime on the same date as in_time
+	work_date = in_time.date()
+	lunch_start_dt = datetime.combine(work_date, get_time(lunch_start))
+	lunch_end_dt = datetime.combine(work_date, get_time(lunch_end))
+	
+	# If out_time is before lunch starts or in_time is after lunch ends, no overlap
+	if out_time <= lunch_start_dt or in_time >= lunch_end_dt:
+		return 0
+	
+	# Calculate actual overlap
+	overlap_start = max(in_time, lunch_start_dt)
+	overlap_end = min(out_time, lunch_end_dt)
+	
+	if overlap_end > overlap_start:
+		return (overlap_end - overlap_start).total_seconds() / 3600
+	return 0
 
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 from erpnext.setup.doctype.holiday_list.holiday_list import is_holiday
@@ -190,17 +273,56 @@ class ShiftType(Document):
 		total_working_hours, in_time, out_time = calculate_working_hours(
 			logs, self.determine_check_in_and_check_out, self.working_hours_calculation_based_on
 		)
+		
+		# Apply time rounding if enabled
+		if cint(self.enable_time_rounding) and self.rounding_precision and in_time and out_time:
+			rounded_in_time = round_time_to_precision(in_time, self.rounding_precision, 'up')
+			rounded_out_time = round_time_to_precision(out_time, self.rounding_precision, 'down')
+			
+			# Recalculate working hours with rounded times
+			if rounded_out_time > rounded_in_time:
+				total_working_hours = (rounded_out_time - rounded_in_time).total_seconds() / 3600
+			else:
+				total_working_hours = 0
+			
+			# Use rounded times for late_entry/early_exit check
+			in_time_for_check = rounded_in_time
+			out_time_for_check = rounded_out_time
+		else:
+			in_time_for_check = in_time
+			out_time_for_check = out_time
+		
+		# Apply lunch break deduction if enabled
+		if cint(self.enable_lunch_deduction) and self.lunch_start and self.lunch_end and in_time and out_time:
+			# Use rounded times if rounding is enabled
+			check_in = rounded_in_time if cint(self.enable_time_rounding) and self.rounding_precision else in_time
+			check_out = rounded_out_time if cint(self.enable_time_rounding) and self.rounding_precision else out_time
+			
+			lunch_overlap = calculate_lunch_overlap_hours(
+				check_in, check_out, self.lunch_start, self.lunch_end
+			)
+			total_working_hours = max(0, total_working_hours - lunch_overlap)
+		
+		# Final rounding: ensure working hours is a multiple of precision (in hours)
+		if cint(self.enable_time_rounding) and self.rounding_precision:
+			precision_hours = int(self.rounding_precision) / 60  # e.g., 15 min = 0.25 hours
+			# Round down to nearest precision unit
+			total_working_hours = int(total_working_hours / precision_hours) * precision_hours
+		
+		# Round working hours to 2 decimal places
+		total_working_hours = round(total_working_hours, 2)
+		
 		if (
 			cint(self.enable_late_entry_marking)
-			and in_time
-			and in_time > logs[0].shift_start + timedelta(minutes=cint(self.late_entry_grace_period))
+			and in_time_for_check
+			and in_time_for_check > logs[0].shift_start + timedelta(minutes=cint(self.late_entry_grace_period))
 		):
 			late_entry = True
 
 		if (
 			cint(self.enable_early_exit_marking)
-			and out_time
-			and out_time < logs[0].shift_end - timedelta(minutes=cint(self.early_exit_grace_period))
+			and out_time_for_check
+			and out_time_for_check < logs[0].shift_end - timedelta(minutes=cint(self.early_exit_grace_period))
 		):
 			early_exit = True
 

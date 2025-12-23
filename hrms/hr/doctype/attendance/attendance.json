@@ -81,7 +81,7 @@
    "fieldname": "working_hours",
    "fieldtype": "Float",
    "label": "Working Hours",
-   "precision": "1",
+   "precision": "2",
    "read_only": 1
   },
   {
