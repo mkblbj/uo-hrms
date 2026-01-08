@@ -19,6 +19,7 @@ def execute(filters=None):
 
 def get_columns(filters):
     return [
+        # 左侧核心列：员工基本信息 + 关键统计
         {
             "label": _("员工编号"),
             "fieldname": "employee",
@@ -32,6 +33,26 @@ def get_columns(filters):
             "width": 150,
         },
         {
+            "label": _("总工时"),
+            "fieldname": "total_working_hours",
+            "fieldtype": "Float",
+            "precision": 2,
+            "width": 100,
+        },
+        {
+            "label": _("出勤天数"),
+            "fieldname": "present_days",
+            "fieldtype": "Int",
+            "width": 80,
+        },
+        {
+            "label": _("缺勤天数"),
+            "fieldname": "absent_days",
+            "fieldtype": "Int",
+            "width": 80,
+        },
+        # 右侧次要列
+        {
             "label": _("部门"),
             "fieldname": "department",
             "fieldtype": "Link",
@@ -39,47 +60,28 @@ def get_columns(filters):
             "width": 120,
         },
         {
-            "label": _("出勤天数"),
-            "fieldname": "present_days",
-            "fieldtype": "Int",
-            "width": 100,
-        },
-        {
-            "label": _("缺勤天数"),
-            "fieldname": "absent_days",
-            "fieldtype": "Int",
-            "width": 100,
-        },
-        {
             "label": _("请假天数"),
             "fieldname": "leave_days",
             "fieldtype": "Int",
-            "width": 100,
+            "width": 80,
         },
         {
             "label": _("半天"),
             "fieldname": "half_days",
             "fieldtype": "Int",
-            "width": 100,
-        },
-        {
-            "label": _("总工时"),
-            "fieldname": "total_working_hours",
-            "fieldtype": "Float",
-            "precision": 2,
-            "width": 120,
+            "width": 60,
         },
         {
             "label": _("迟到次数"),
             "fieldname": "late_entries",
             "fieldtype": "Int",
-            "width": 100,
+            "width": 80,
         },
         {
             "label": _("早退次数"),
             "fieldname": "early_exits",
             "fieldtype": "Int",
-            "width": 100,
+            "width": 80,
         },
     ]
 

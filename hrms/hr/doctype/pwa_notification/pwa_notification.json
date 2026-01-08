@@ -7,11 +7,18 @@
  "editable_grid": 1,
  "engine": "InnoDB",
  "field_order": [
+  "send_to_all",
   "to_user",
   "column_break_otsw",
   "from_user",
-  "section_break_wsgn",
+  "recipients_section",
+  "recipients",
+  "message_section",
   "message",
+  "html_section",
+  "use_html_source",
+  "html_source",
+  "section_break_wsgn",
   "read",
   "section_break_xdby",
   "reference_document_type",
@@ -20,6 +27,33 @@
  ],
  "fields": [
   {
+   "default": "0",
+   "description": "勾选后将发送给所有员工",
+   "fieldname": "send_to_all",
+   "fieldtype": "Check",
+   "label": "Send to All Employees"
+  },
+  {
+   "collapsible": 1,
+   "depends_on": "eval:!doc.send_to_all && !doc.to_user",
+   "description": "选择多个接收用户（与单选用户二选一）",
+   "fieldname": "recipients_section",
+   "fieldtype": "Section Break",
+   "label": "多选接收用户"
+  },
+  {
+   "fieldname": "recipients",
+   "fieldtype": "Table MultiSelect",
+   "label": "接收用户列表",
+   "options": "PWA Notification Recipient"
+  },
+  {
+   "fieldname": "message_section",
+   "fieldtype": "Section Break",
+   "label": "消息内容"
+  },
+  {
+   "default": "Administrator",
    "fetch_from": "from_employee.user_id",
    "fieldname": "from_user",
    "fieldtype": "Link",
@@ -29,6 +63,7 @@
    "options": "User"
   },
   {
+   "depends_on": "eval:!doc.send_to_all",
    "fetch_from": "to_employee.user_id",
    "fieldname": "to_user",
    "fieldtype": "Link",
@@ -45,7 +80,28 @@
   {
    "fieldname": "message",
    "fieldtype": "Text Editor",
-   "label": "Message"
+   "label": "Message",
+   "description": "使用富文本编辑器编辑消息内容"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "html_section",
+   "fieldtype": "Section Break",
+   "label": "HTML 源代码模式"
+  },
+  {
+   "default": "0",
+   "fieldname": "use_html_source",
+   "fieldtype": "Check",
+   "label": "使用 HTML 源代码",
+   "description": "勾选后将使用下方的 HTML 源代码，忽略上方的富文本内容"
+  },
+  {
+   "depends_on": "eval:doc.use_html_source",
+   "fieldname": "html_source",
+   "fieldtype": "Code",
+   "label": "HTML 源代码",
+   "options": "HTML"
   },
   {
    "default": "0",
@@ -91,13 +147,27 @@
  "owner": "Administrator",
  "permissions": [
   {
+   "create": 1,
+   "delete": 1,
    "email": 1,
    "export": 1,
    "print": 1,
    "read": 1,
    "report": 1,
    "role": "System Manager",
-   "share": 1
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "HR Manager",
+   "share": 1,
+   "write": 1
   },
   {
    "email": 1,

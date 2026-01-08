@@ -1,7 +1,7 @@
 <template>
 	<ion-page>
 		<ion-header class="ion-no-border">
-			<div class="w-full sm:w-96">
+			<div class="w-full">
 				<div class="flex flex-col bg-white shadow-sm p-4">
 					<div class="flex flex-row justify-between items-center">
 						<div class="flex flex-row items-center gap-2">
@@ -20,8 +20,9 @@
 									<FeatherIcon name="bell" class="h-6 w-6" />
 									<span
 										v-if="unreadNotificationsCount.data"
-										class="absolute top-0 right-0.5 inline-block w-2 h-2 bg-red-600 rounded-full border border-white"
+										class="notification-badge"
 									>
+										{{ unreadNotificationsCount.data > 99 ? '99+' : unreadNotificationsCount.data }}
 									</span>
 								</span>
 							</router-link>
@@ -41,8 +42,8 @@
 			</div>
 		</ion-header>
 
-		<ion-content class="ion-no-padding">
-			<div class="flex flex-col h-screen w-screen sm:w-96">
+		<ion-content class="ion-no-padding" :fullscreen="true">
+			<div class="content-wrapper">
 				<slot name="body"></slot>
 			</div>
 		</ion-content>
@@ -68,3 +69,31 @@ const props = defineProps({
 	},
 })
 </script>
+
+<style scoped>
+.content-wrapper {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+	overflow: hidden;
+}
+
+.notification-badge {
+	position: absolute;
+	top: -6px;
+	right: -6px;
+	min-width: 18px;
+	height: 18px;
+	padding: 0 5px;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 18px;
+	text-align: center;
+	color: white;
+	background: #ef4444;
+	border-radius: 9px;
+	border: 2px solid white;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+</style>

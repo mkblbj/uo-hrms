@@ -104,19 +104,23 @@ def get_employee_dashboard_stats() -> dict:
 	month_start = get_first_day(today)
 	month_end = get_last_day(today)
 	
-	# 本月出勤统计
+	# 本月出勤统计 + 工时（从 Attendance 表获取，使用班次计算后的 working_hours）
 	attendance_stats = frappe.db.sql("""
 		SELECT 
 			COUNT(*) as total_days,
 			SUM(CASE WHEN status IN ('Present', 'Work From Home') THEN 1 ELSE 0 END) as present_days,
 			SUM(CASE WHEN status = 'Absent' THEN 1 ELSE 0 END) as absent_days,
 			SUM(CASE WHEN status = 'On Leave' THEN 1 ELSE 0 END) as leave_days,
-			SUM(CASE WHEN status = 'Half Day' THEN 0.5 ELSE 0 END) as half_days
+			SUM(CASE WHEN status = 'Half Day' THEN 0.5 ELSE 0 END) as half_days,
+			SUM(COALESCE(working_hours, 0)) as month_hours
 		FROM `tabAttendance`
 		WHERE employee = %s 
 		AND attendance_date BETWEEN %s AND %s
 		AND docstatus = 1
 	""", (employee.name, month_start, month_end), as_dict=True)[0]
+	
+	# 本月总工时（从考勤记录获取，已包含班次的时间舍入和午餐扣除）
+	month_hours = float(attendance_stats.month_hours or 0)
 	
 	# 今日打卡记录
 	today_checkins = frappe.get_all(
@@ -129,44 +133,26 @@ def get_employee_dashboard_stats() -> dict:
 		order_by="time asc"
 	)
 	
-	# 计算今日工作时长
-	today_hours = 0
-	if len(today_checkins) >= 2:
-		# 找到第一个IN和最后一个OUT
-		first_in = next((c for c in today_checkins if c.log_type == "IN"), None)
-		last_out = next((c for c in reversed(today_checkins) if c.log_type == "OUT"), None)
-		
-		if first_in and last_out:
-			today_hours = time_diff_in_hours(last_out.time, first_in.time)
-		elif first_in:
-			# 如果只有IN，计算到现在的时长
-			today_hours = time_diff_in_hours(now_datetime(), first_in.time)
+	# 今日工时：优先从考勤记录获取，否则实时计算
+	today_attendance = frappe.db.get_value(
+		"Attendance",
+		{"employee": employee.name, "attendance_date": today, "docstatus": 1},
+		"working_hours"
+	)
 	
-	# 本月总工作时长（基于打卡记录）
-	month_checkins = frappe.db.sql("""
-		SELECT DATE(time) as date, log_type, MIN(time) as first_in, MAX(time) as last_out
-		FROM `tabEmployee Checkin`
-		WHERE employee = %s
-		AND time BETWEEN %s AND %s
-		GROUP BY DATE(time), log_type
-		ORDER BY date, time
-	""", (employee.name, month_start, month_end), as_dict=True)
-	
-	# 简化计算：按天统计，每天第一个IN到最后一个OUT
-	month_hours = 0
-	checkins_by_date = {}
-	for c in month_checkins:
-		date_str = str(c.date)
-		if date_str not in checkins_by_date:
-			checkins_by_date[date_str] = {"in": None, "out": None}
-		if c.log_type == "IN" and not checkins_by_date[date_str]["in"]:
-			checkins_by_date[date_str]["in"] = c.first_in
-		if c.log_type == "OUT":
-			checkins_by_date[date_str]["out"] = c.last_out
-	
-	for date, times in checkins_by_date.items():
-		if times["in"] and times["out"]:
-			month_hours += time_diff_in_hours(times["out"], times["in"])
+	if today_attendance:
+		today_hours = float(today_attendance)
+	else:
+		# 还没有考勤记录，实时计算（未扣除午餐）
+		today_hours = 0
+		if len(today_checkins) >= 2:
+			first_in = next((c for c in today_checkins if c.log_type == "IN"), None)
+			last_out = next((c for c in reversed(today_checkins) if c.log_type == "OUT"), None)
+			
+			if first_in and last_out:
+				today_hours = time_diff_in_hours(last_out.time, first_in.time)
+			elif first_in:
+				today_hours = time_diff_in_hours(now_datetime(), first_in.time)
 	
 	return {
 		"employee_name": employee.employee_name,
@@ -174,8 +160,8 @@ def get_employee_dashboard_stats() -> dict:
 		"month_absent": attendance_stats.absent_days or 0,
 		"month_leave": attendance_stats.leave_days or 0,
 		"month_half_days": attendance_stats.half_days or 0,
-		"today_hours": round(today_hours, 1),
-		"month_hours": round(month_hours, 1),
+		"today_hours": round(today_hours, 2),
+		"month_hours": round(month_hours, 2),
 		"today_checkins": len(today_checkins),
 		"first_checkin_today": today_checkins[0].time if today_checkins else None,
 		"last_checkin_today": today_checkins[-1].time if today_checkins else None
@@ -392,9 +378,13 @@ def get_attendance_calendar_events(employee: str, from_date: str, to_date: str) 
 		date_str = date.strftime("%Y-%m-%d")
 		event = {}
 		
-		# 考勤状态
+		# 考勤状态和签到签退记录
 		if date in attendance:
-			event["attendance"] = attendance[date]
+			att = attendance[date]
+			event["attendance"] = att["status"]
+			event["in_time"] = att["in_time"]
+			event["out_time"] = att["out_time"]
+			event["working_hours"] = att["working_hours"]
 		elif date in holidays:
 			event["attendance"] = "Holiday"
 		
@@ -409,13 +399,29 @@ def get_attendance_calendar_events(employee: str, from_date: str, to_date: str) 
 	return events
 
 
-def get_attendance_for_calendar(employee: str, from_date: str, to_date: str) -> list[dict[str, str]]:
+def get_attendance_for_calendar(employee: str, from_date: str, to_date: str) -> dict:
 	attendance = frappe.get_all(
 		"Attendance",
 		{"employee": employee, "attendance_date": ["between", [from_date, to_date]], "docstatus": 1},
-		["attendance_date", "status"],
+		["attendance_date", "status", "in_time", "out_time", "working_hours"],
 	)
-	return {d["attendance_date"]: d["status"] for d in attendance}
+	result = {}
+	for d in attendance:
+		# in_time 和 out_time 是 datetime 格式，需要提取时间部分
+		in_time = None
+		out_time = None
+		if d["in_time"]:
+			in_time = str(d["in_time"])[11:16] if len(str(d["in_time"])) > 11 else str(d["in_time"])[:5]
+		if d["out_time"]:
+			out_time = str(d["out_time"])[11:16] if len(str(d["out_time"])) > 11 else str(d["out_time"])[:5]
+		
+		result[d["attendance_date"]] = {
+			"status": d["status"],
+			"in_time": in_time,
+			"out_time": out_time,
+			"working_hours": d["working_hours"]
+		}
+	return result
 
 
 def get_holidays_for_calendar(employee: str, from_date: str, to_date: str) -> list[str]:
@@ -1092,6 +1098,31 @@ def _download_pdf(doctype: str, docname: str) -> str:
 	content_type = frappe.local.response.type
 
 	return f"data:{content_type};base64," + base64content.decode("utf-8")
+
+
+# Latest Notification
+@frappe.whitelist()
+def get_latest_notification() -> dict:
+	"""获取当前用户的最新一条通知"""
+	user = frappe.session.user
+	
+	notification = frappe.db.get_value(
+		"PWA Notification",
+		{"to_user": user},
+		["name", "message", "from_user", "creation", "read", "use_html_source", "html_source"],
+		order_by="creation desc",
+		as_dict=True
+	)
+	
+	if notification:
+		# 根据 use_html_source 选择显示内容
+		if notification.get("use_html_source") and notification.get("html_source"):
+			notification["display_message"] = notification["html_source"]
+		else:
+			notification["display_message"] = notification["message"]
+		return notification
+	
+	return frappe._dict()
 
 
 # Workflow

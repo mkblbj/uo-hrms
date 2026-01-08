@@ -31,30 +31,30 @@
 
         .container {
             width: 100%;
-            padding: 24px 16px;
+            padding: 12px;
         }
 
         .card {
             max-width: 420px;
             margin: 0 auto;
-            padding: 22px 22px 20px;
-            border-radius: 24px;
+            padding: 16px 16px 14px;
+            border-radius: 20px;
             background: #ffffff;
             box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
         }
 
         .card-header {
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             color: var(--text-sub);
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             display: flex;
             align-items: center;
             justify-content: space-between;
         }
 
         .card-header span:last-child {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 500;
         }
 
@@ -62,55 +62,54 @@
         .time-block {
             text-align: center;
             background: #f5f5fb;
-            border-radius: 18px;
-            padding: 8px 12px;
-            margin-bottom: 18px;
+            border-radius: 14px;
+            padding: 6px 10px;
+            margin-bottom: 10px;
         }
 
         .time-date {
-            font-size: 12px;
+            font-size: 11px;
             color: var(--text-sub);
             letter-spacing: 0.03em;
         }
 
         .time-clock {
-            margin-top: 2px;
-            font-size: 24px;
+            margin-top: 1px;
+            font-size: 22px;
             font-weight: 700;
-            letter-spacing: 0.12em;
+            letter-spacing: 0.1em;
             color: var(--brand);
             font-variant-numeric: tabular-nums;
         }
 
         /* 地点显示 */
         .qr-location {
-            margin-top: 2px;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
-            font-size: 16px;
+            gap: 5px;
+            font-size: 15px;
             font-weight: 600;
         }
 
         .qr-location-icon {
-            font-size: 18px;
+            font-size: 16px;
         }
 
         .qr-status {
-            margin-top: 4px;
+            margin-top: 3px;
             text-align: center;
-            font-size: 12px;
+            font-size: 11px;
             color: var(--text-sub);
         }
 
         /* QR + 方形倒计时边框 */
         .qr-code-wrapper {
-            margin-top: 22px;
-            padding: 16px 16px 12px;
-            border-radius: 18px;
+            margin-top: 12px;
+            padding: 12px 12px 10px;
+            border-radius: 16px;
             background: #ffffff;
-            box-shadow: 0 16px 40px rgba(15, 23, 42, 0.13);
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -118,8 +117,8 @@
 
         .qr-timer-ring {
             position: relative;
-            width: 240px;
-            height: 240px;
+            width: 280px;
+            height: 280px;
         }
 
         .qr-ring-svg {
@@ -154,12 +153,12 @@
 
         #qrcode img, #qrcode canvas {
             display: block;
-            width: 160px !important;
-            height: 160px !important;
+            width: 220px !important;
+            height: 220px !important;
         }
 
         .qr-seconds-label {
-            margin-top: 12px;
+            margin-top: 10px;
             text-align: center;
             font-size: 12px;
             color: var(--text-sub);
@@ -173,11 +172,11 @@
         }
 
         .qr-instruction {
-            margin-top: 10px;
+            margin-top: 8px;
             text-align: center;
-            font-size: 11px;
+            font-size: 10px;
             color: var(--text-sub);
-            line-height: 1.6;
+            line-height: 1.5;
         }
 
         /* 链接样式 */
@@ -321,18 +320,65 @@
             animation: fadeOut 0.3s ease-out forwards;
         }
 
-        @media (max-width: 460px) {
+        /* iPhone 优化 - 让二维码尽可能大 */
+        @media (max-width: 480px) {
+            .container {
+                padding: 8px;
+            }
             .card {
-                padding: 18px 16px;
-                border-radius: 20px;
+                padding: 12px 12px 10px;
+                border-radius: 18px;
+            }
+            .card-header {
+                font-size: 11px;
+                margin-bottom: 6px;
+            }
+            .time-block {
+                padding: 5px 8px;
+                margin-bottom: 8px;
+                border-radius: 12px;
+            }
+            .time-date {
+                font-size: 10px;
+            }
+            .time-clock {
+                font-size: 20px;
+            }
+            .qr-location {
+                font-size: 14px;
+            }
+            .qr-status {
+                font-size: 10px;
+                margin-top: 2px;
+            }
+            .qr-code-wrapper {
+                margin-top: 10px;
+                padding: 10px 10px 8px;
+                box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
             }
             .qr-timer-ring {
-                width: 210px;
-                height: 210px;
+                width: calc(100vw - 80px);
+                height: calc(100vw - 80px);
+                max-width: 320px;
+                max-height: 320px;
             }
             #qrcode img, #qrcode canvas {
-                width: 140px !important;
-                height: 140px !important;
+                width: calc(100vw - 130px) !important;
+                height: calc(100vw - 130px) !important;
+                max-width: 260px !important;
+                max-height: 260px !important;
+            }
+            .qr-seconds-label {
+                margin-top: 8px;
+                font-size: 11px;
+            }
+            .qr-instruction {
+                margin-top: 6px;
+                font-size: 9px;
+            }
+            .back-link {
+                margin-top: 12px;
+                font-size: 12px;
             }
         }
     </style>
@@ -465,8 +511,8 @@
             container.innerHTML = '';
             qrcode = new QRCode(container, {
                 text: token,
-                width: 160,
-                height: 160,
+                width: 260,
+                height: 260,
                 colorDark: "#000000",
                 colorLight: "#ffffff",
                 correctLevel: QRCode.CorrectLevel.H
@@ -634,6 +680,45 @@
         }, 3000);
     }
 
+    // === 页面可见性检测（解决后台恢复问题）===
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            console.log('Page visible, refreshing QR...');
+            refreshQRCode();
+            updateClock();
+        }
+        
+    });
+
+    // === 网络恢复检测 ===
+    window.addEventListener('online', function() {
+        console.log('Network restored, refreshing QR...');
+        refreshQRCode();
+    });
+
+    // === 屏幕常亮 (Wake Lock API) ===
+    let wakeLock = null;
+    async function requestWakeLock() {
+        if ('wakeLock' in navigator) {
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Wake Lock activated');
+                wakeLock.addEventListener('release', () => {
+                    console.log('Wake Lock released');
+                });
+            } catch (e) {
+                console.log('Wake Lock failed:', e);
+            }
+        }
+    }
+    
+    // 页面恢复可见时重新请求 Wake Lock
+    document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'visible' && !wakeLock) {
+            await requestWakeLock();
+        }
+    });
+
     // Init
     window.addEventListener('DOMContentLoaded', function() {
         initRing();
@@ -641,6 +726,7 @@
         updateTimerText();
         startTimer();
         initRealtime();
+        requestWakeLock(); // 保持屏幕常亮
     });
 })();
 </script>

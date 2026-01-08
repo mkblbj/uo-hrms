@@ -1,7 +1,7 @@
 {
  "app": "hrms",
  "charts": [],
- "content": "[{\"id\":\"pu9Ft3mUeT\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Your Shortcuts</b></span>\",\"col\":12}},{\"id\":\"-xxN9AyGlK\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Employee\",\"col\":3}},{\"id\":\"mYg4h6H7aX\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"HR Dashboard\",\"col\":3}},{\"id\":\"OBOPP0dnjY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payroll Dashboard\",\"col\":3}},{\"id\":\"zyVHu4rF3u\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"HSmKHOvqMN\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>Reports &amp; Masters</b></span>\",\"col\":12}},{\"id\":\"lKeffKf1va\",\"type\":\"card\",\"data\":{\"card_name\":\"Setup\",\"col\":4}},{\"id\":\"UnVtsnxLo_\",\"type\":\"card\",\"data\":{\"card_name\":\"Employee\",\"col\":4}},{\"id\":\"YXISc0V2sT\",\"type\":\"card\",\"data\":{\"card_name\":\"Leaves\",\"col\":4}},{\"id\":\"TH5ZW37wDA\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}},{\"id\":\"vx8pBTHNsf\",\"type\":\"card\",\"data\":{\"card_name\":\"Attendance\",\"col\":4}},{\"id\":\"wv3Sy37NgW\",\"type\":\"card\",\"data\":{\"card_name\":\"Expense Claim\",\"col\":4}},{\"id\":\"v82YqH3rek\",\"type\":\"card\",\"data\":{\"card_name\":\"Key Reports\",\"col\":4}},{\"id\":\"60GScqYEk0\",\"type\":\"card\",\"data\":{\"card_name\":\"Other Reports\",\"col\":4}}]",
+ "content": "[{\"id\":\"pu9Ft3mUeT\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>\u5feb\u901f\u8bbf\u95ee</b></span>\",\"col\":12}},{\"id\":\"-xxN9AyGlK\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Employee\",\"col\":3}},{\"id\":\"mYg4h6H7aX\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"HR Dashboard\",\"col\":3}},{\"id\":\"OBOPP0dnjY\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Payroll Dashboard\",\"col\":3}},{\"id\":\"pwa_notify_01\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"PWA\u901a\u77e5\u7ba1\u7406\",\"col\":3}},{\"id\":\"zyVHu4rF3u\",\"type\":\"spacer\",\"data\":{\"col\":12}},{\"id\":\"HSmKHOvqMN\",\"type\":\"header\",\"data\":{\"text\":\"<span class=\\\"h4\\\"><b>\u62a5\u8868 &amp; \u4e3b\u6570\u636e</b></span>\",\"col\":12}},{\"id\":\"lKeffKf1va\",\"type\":\"card\",\"data\":{\"card_name\":\"Setup\",\"col\":4}},{\"id\":\"UnVtsnxLo_\",\"type\":\"card\",\"data\":{\"card_name\":\"Employee\",\"col\":4}},{\"id\":\"YXISc0V2sT\",\"type\":\"card\",\"data\":{\"card_name\":\"Leaves\",\"col\":4}},{\"id\":\"TH5ZW37wDA\",\"type\":\"card\",\"data\":{\"card_name\":\"Settings\",\"col\":4}},{\"id\":\"vx8pBTHNsf\",\"type\":\"card\",\"data\":{\"card_name\":\"Attendance\",\"col\":4}},{\"id\":\"wv3Sy37NgW\",\"type\":\"card\",\"data\":{\"card_name\":\"Expense Claim\",\"col\":4}},{\"id\":\"v82YqH3rek\",\"type\":\"card\",\"data\":{\"card_name\":\"Key Reports\",\"col\":4}},{\"id\":\"60GScqYEk0\",\"type\":\"card\",\"data\":{\"card_name\":\"Other Reports\",\"col\":4}}]",
  "creation": "2020-03-02 15:48:58.322521",
  "custom_blocks": [],
  "docstatus": 0,
@@ -384,7 +384,7 @@
    "type": "Link"
   }
  ],
- "modified": "2025-01-16 11:34:44.156649",
+ "modified": "2025-12-24 13:44:02.130275",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Overview",
@@ -417,6 +417,13 @@
    "label": "Employee",
    "link_to": "Employee",
    "stats_filter": "{\"status\":\"Active\"}",
+   "type": "DocType"
+  },
+  {
+   "color": "Blue",
+   "doc_view": "List",
+   "label": "PWA\u901a\u77e5\u7ba1\u7406",
+   "link_to": "PWA Notification",
    "type": "DocType"
   }
  ],

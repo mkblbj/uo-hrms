@@ -2,15 +2,15 @@
 	<div v-if="weather.data" class="weather-row">
 		<!-- 今天 -->
 		<div class="weather-cell">
-			<span class="weather-label">{{ getLabel('today') }}</span>
+					<span class="weather-label">{{ getLabel('today') }}</span>
 			<span class="weather-temp">{{ Math.round(weather.data.temp_c) }}°</span>
 			<img :src="weather.data.condition.icon" :alt="weather.data.condition.text" class="weather-icon" />
-		</div>
+				</div>
 		<!-- 分隔线 -->
 		<div class="weather-divider"></div>
 		<!-- 明天 -->
 		<div v-if="forecast.data" class="weather-cell right">
-			<span class="weather-label">{{ getLabel('tomorrow') }}</span>
+					<span class="weather-label">{{ getLabel('tomorrow') }}</span>
 			<span class="weather-temp">{{ Math.round(forecast.data.maxtemp_c) }}°/{{ Math.round(forecast.data.mintemp_c) }}°</span>
 			<img :src="forecast.data.condition.icon" :alt="forecast.data.condition.text" class="weather-icon" />
 		</div>

@@ -143,6 +143,10 @@ function markAsRead(name) {
 }
 
 function getItemRoute(item) {
+	// 如果没有关联文档类型，跳转到通知详情页
+	if (!item.reference_document_type) {
+		return { name: "NotificationDetail", params: { id: item.name } }
+	}
 	return {
 		name: `${item.reference_document_type.replace(/\s+/g, "")}DetailView`,
 		params: { id: item.reference_document_name },

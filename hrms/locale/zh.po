@@ -356,7 +356,7 @@ msgstr "在{1}至{2}期间存在{0}（"
 #: hrms/hr/report/monthly_attendance_sheet/monthly_attendance_sheet.py:732
 #: hrms/payroll/doctype/payroll_settings/payroll_settings.json
 msgid "Absent"
-msgstr "缺勤"
+msgstr "未出勤"
 
 #. Label of the absent_days (Float) field in DocType 'Salary Slip'
 #: hrms/payroll/doctype/salary_slip/salary_slip.json

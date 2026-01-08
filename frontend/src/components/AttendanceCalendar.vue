@@ -1,65 +1,84 @@
 <template>
-	<div class="flex flex-col w-full gap-5" v-if="calendarEvents.data">
-		<div class="text-lg text-gray-800 font-bold">{{ __("Attendance Calendar") }}</div>
-
-		<div class="flex flex-col gap-6 bg-white py-6 px-3.5 rounded-lg border-none">
-			<!-- Month Change -->
-			<div class="flex flex-row justify-between items-center px-4">
-				<Button
-					icon="chevron-left"
-					variant="ghost"
-					@click="firstOfMonth = firstOfMonth.subtract(1, 'M')"
-				/>
-				<span class="text-lg text-gray-800 font-bold">
-					{{ firstOfMonth.format("MMMM") }} {{ firstOfMonth.format("YYYY") }}
-				</span>
-				<Button
-					icon="chevron-right"
-					variant="ghost"
-					@click="firstOfMonth = firstOfMonth.add(1, 'M')"
-				/>
-			</div>
-
-			<!-- Calendar -->
-			<div class="grid grid-cols-7 gap-y-3">
-				<div
-					v-for="day in DAYS"
-					class="flex justify-center text-gray-600 text-sm font-medium leading-6"
-				>
-					{{ day }}
-				</div>
-				<div v-for="_ in firstOfMonth.get('d')" />
-				<div v-for="index in firstOfMonth.endOf('M').get('D')">
-					<div
-						class="h-10 w-10 flex rounded-full mx-auto relative cursor-pointer transition-all hover:scale-110"
-						:class="getDateClasses(index)"
-						@click="showDateDetail(index)"
-					>
-						<!-- 排班指示器 -->
-						<span
-							v-if="hasShift(index)"
-							class="absolute top-0 right-0 h-2.5 w-2.5 rounded-full bg-blue-500 border border-white"
-							:class="getEventOnDate(index)?.attendance ? '' : 'h-3 w-3 bg-blue-600'"
-						/>
-						<span class="text-gray-800 text-sm font-medium m-auto">
-							{{ index }}
-						</span>
-					</div>
-				</div>
-			</div>
-
-			<hr />
-
-			<!-- Summary -->
-			<div class="grid grid-cols-4 mx-2">
-				<div v-for="status in summaryStatuses" class="flex flex-col gap-1">
-					<div class="flex flex-row gap-1 items-center">
-						<span class="rounded full h-3 w-3" :class="colorMap[status]" />
-						<span class="text-gray-600 text-sm font-medium leading-5"> {{ __(status) }} </span>
-					</div>
-					<span class="text-gray-800 text-base font-semibold leading-6 mx-auto">
-						{{ summary[status] || 0 }}
+	<div class="calendar-wrapper" v-if="calendarEvents.data">
+		<div class="calendar-section">
+			<div class="section-title">{{ getTitle('calendar') }}</div>
+			<div class="calendar-card">
+				<!-- Month Change -->
+				<div class="month-nav">
+					<Button
+						icon="chevron-left"
+						variant="ghost"
+						@click="firstOfMonth = firstOfMonth.subtract(1, 'M')"
+					/>
+					<span class="month-label">
+						{{ firstOfMonth.format("YYYY年M月") }}
 					</span>
+					<Button
+						icon="chevron-right"
+						variant="ghost"
+						@click="firstOfMonth = firstOfMonth.add(1, 'M')"
+					/>
+				</div>
+
+				<!-- Calendar -->
+				<div class="calendar-grid">
+					<div v-for="day in DAYS" class="day-header">
+						{{ day }}
+					</div>
+					<div v-for="_ in firstOfMonth.get('d')" class="day-cell" />
+					<div v-for="index in firstOfMonth.endOf('M').get('D')" class="day-cell">
+						<div
+							class="day-circle"
+							:class="getDateClasses(index)"
+							@click="showDateDetail(index)"
+						>
+							<span
+								v-if="hasShift(index)"
+								class="shift-indicator"
+								:class="getEventOnDate(index)?.attendance ? '' : 'shift-only'"
+							/>
+							<span class="day-number">{{ index }}</span>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- 月度统计卡片 -->
+		<div class="stats-section">
+			<div class="stats-row">
+				<div class="stat-card">
+					<div class="stat-icon present-icon">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+							<polyline points="22 4 12 14.01 9 11.01"/>
+						</svg>
+					</div>
+					<div class="stat-info">
+						<div class="stat-value">{{ summary['Present'] || 0 }}<span class="stat-unit">{{ getTitle('days') }}</span></div>
+						<div class="stat-label">{{ getTitle('present') }}</div>
+					</div>
+				</div>
+				<div class="stat-card">
+					<div class="stat-icon hours-icon">
+						<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+							<circle cx="12" cy="12" r="10"/>
+							<polyline points="12 6 12 12 16 14"/>
+						</svg>
+					</div>
+					<div class="stat-info">
+						<div class="stat-value">{{ totalHours }}<span class="stat-unit">h</span></div>
+						<div class="stat-label">{{ getTitle('hours') }}</div>
+					</div>
+				</div>
+			</div>
+
+			<!-- 图例 -->
+			<div class="legend-row">
+				<div v-for="status in summaryStatuses" class="legend-item">
+					<span class="legend-dot" :class="colorMap[status]" />
+					<span class="legend-label">{{ __(status) }}</span>
+					<span class="legend-count">{{ summary[status] || 0 }}</span>
 				</div>
 			</div>
 		</div>
@@ -73,36 +92,47 @@
 			</h2>
 		</template>
 		<template #body-content>
-			<div class="space-y-4" v-if="selectedDateData">
+			<div class="space-y-3" v-if="selectedDateData">
 				<!-- 考勤状态 -->
-				<div v-if="selectedDateData.attendance" class="mb-4">
-					<div class="text-sm text-gray-600 mb-1">{{ __("Attendance Status") }}</div>
-					<div class="font-medium text-gray-800">{{ __(selectedDateData.attendance) }}</div>
+				<div v-if="selectedDateData.attendance" class="detail-item">
+					<div class="detail-label">{{ __("Attendance Status") }}</div>
+					<div class="detail-value" :class="getStatusClass(selectedDateData.attendance)">
+						{{ __(selectedDateData.attendance) }}
+					</div>
+				</div>
+
+				<!-- 签到签退记录 -->
+				<div v-if="selectedDateData.in_time || selectedDateData.out_time" class="detail-item">
+					<div class="detail-label">签到 / 签退</div>
+					<div class="detail-value">
+						<span class="text-green-600">{{ selectedDateData.in_time || "--:--" }}</span>
+						<span class="mx-2 text-gray-400">→</span>
+						<span class="text-red-600">{{ selectedDateData.out_time || "--:--" }}</span>
+					</div>
+				</div>
+
+				<!-- 工作时长 -->
+				<div v-if="selectedDateData.working_hours" class="detail-item">
+					<div class="detail-label">{{ __("Working Hours") }}</div>
+					<div class="detail-value text-purple-600 font-bold">
+						{{ selectedDateData.working_hours }}h
+					</div>
 				</div>
 
 				<!-- 排班信息 -->
-				<div v-if="selectedDateData.shift" class="mb-4">
-					<div class="text-sm text-gray-600 mb-1">{{ __("Shift Information") }}</div>
-					<div
-						v-if="selectedDateData.shift.start_time && selectedDateData.shift.end_time"
-						class="font-medium text-gray-800"
-					>
+				<div v-if="selectedDateData.shift" class="detail-item">
+					<div class="detail-label">{{ __("Shift") }}</div>
+					<div class="detail-value text-blue-600">
 						{{ formatTime(selectedDateData.shift.start_time) }} - {{ formatTime(selectedDateData.shift.end_time) }}
-					</div>
-					<div
-						v-else
-						class="font-medium text-gray-800"
-					>
-						{{ __("Scheduled") }}
 					</div>
 				</div>
 
 				<!-- 空状态 -->
 				<div
 					v-if="!selectedDateData.attendance && !selectedDateData.shift"
-					class="text-gray-500 text-sm"
+					class="text-gray-400 text-sm text-center py-4"
 				>
-					{{ __("No attendance or shift information for this date") }}
+					{{ __("No records") }}
 				</div>
 			</div>
 		</template>
@@ -130,8 +160,8 @@ const colorMap = {
 	Holiday: "bg-gray-300",
 }
 
-// __("Present"), __("Half Day"), __("Absent"), __("On Leave"), __("Work From Home")
-const summaryStatuses = ["Present", "Half Day", "Absent", "On Leave"]
+// __("Present"), __("Absent"), __("On Leave"), __("Work From Home")
+const summaryStatuses = ["Present", "Absent", "On Leave"]
 
 const summary = computed(() => {
 	const summary = {}
@@ -157,6 +187,27 @@ const summary = computed(() => {
 
 	return summary
 })
+
+const totalHours = computed(() => {
+	let hours = 0
+	for (const event of Object.values(calendarEvents.data || {})) {
+		if (event && typeof event === "object" && event.working_hours) {
+			hours += parseFloat(event.working_hours) || 0
+		}
+	}
+	return hours.toFixed(1)
+})
+
+const getTitle = (key) => {
+	const lang = frappe?.boot?.lang || "ja"
+	const titles = {
+		calendar: { ja: "考勤日历", zh: "考勤日历", en: "Attendance Calendar" },
+		present: { ja: "今月の出勤", zh: "本月出勤", en: "Days Present" },
+		hours: { ja: "勤務時間", zh: "工作时长", en: "Working Hours" },
+		days: { ja: "日", zh: "天", en: "" }
+	}
+	return titles[key]?.[lang] || titles[key]?.ja || key
+}
 
 watch(
 	() => firstOfMonth.value,
@@ -219,17 +270,20 @@ const formatTime = (timeStr) => {
 	return timeStr.substring(0, 5)
 }
 
-const getFirstLetter = (s) => Array.from(s.trim())[0] // Unicode
+const getStatusClass = (status) => {
+	const classes = {
+		"Present": "text-green-600",
+		"Work From Home": "text-green-600",
+		"Absent": "text-red-600",
+		"On Leave": "text-blue-600",
+		"Half Day": "text-orange-500",
+		"Holiday": "text-gray-500"
+	}
+	return classes[status] || "text-gray-800"
+}
 
-const DAYS = [
-	getFirstLetter(__("Sunday")),
-	getFirstLetter(__("Monday")),
-	getFirstLetter(__("Tuesday")),
-	getFirstLetter(__("Wednesday")),
-	getFirstLetter(__("Thursday")),
-	getFirstLetter(__("Friday")),
-	getFirstLetter(__("Saturday")),
-]
+// 日语简写星期（日、月、火、水、木、金、土）
+const DAYS = ["日", "月", "火", "水", "木", "金", "土"]
 
 //resources
 const calendarEvents = createResource({
@@ -245,3 +299,282 @@ const calendarEvents = createResource({
 	},
 })
 </script>
+
+<style scoped>
+.calendar-wrapper {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	height: 100%;
+	min-height: 0;
+	gap: 8px;
+}
+
+.calendar-section {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+
+.section-title {
+	font-size: 13px;
+	font-weight: 600;
+	color: #374151;
+	margin-bottom: 4px;
+	flex-shrink: 0;
+}
+
+.calendar-card {
+	background: white;
+	border-radius: 12px;
+	padding: 12px 14px;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	min-height: 0;
+	overflow: hidden;
+}
+
+.month-nav {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 6px;
+	flex-shrink: 0;
+}
+
+.month-label {
+	font-size: 16px;
+	font-weight: 700;
+	color: #111827;
+}
+
+.calendar-grid {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 6px 4px;
+	flex: 1;
+	align-content: start;
+	min-height: 0;
+}
+
+.day-header {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	font-size: 12px;
+	font-weight: 600;
+	color: #9ca3af;
+	padding: 4px 0;
+}
+
+.day-cell {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	aspect-ratio: 1;
+}
+
+.day-circle {
+	width: 100%;
+	max-width: 38px;
+	aspect-ratio: 1;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	position: relative;
+	cursor: pointer;
+	transition: all 0.15s;
+	border: 2px solid #d1d5db;
+	background: white;
+}
+
+.day-circle:hover {
+	transform: scale(1.08);
+	box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* 出勤状态颜色 */
+.day-circle.bg-green-300 {
+	background: #86efac;
+	border-color: #22c55e;
+}
+
+.day-circle.bg-red-200 {
+	background: #fecaca;
+	border-color: #ef4444;
+}
+
+.day-circle.bg-blue-300 {
+	background: #93c5fd;
+	border-color: #3b82f6;
+}
+
+.day-circle.bg-yellow-200 {
+	background: #fef08a;
+	border-color: #eab308;
+}
+
+.day-circle.bg-gray-300 {
+	background: #d1d5db;
+	border-color: #9ca3af;
+}
+
+.day-number {
+	font-size: 14px;
+	font-weight: 600;
+	color: #374151;
+}
+
+.shift-indicator {
+	position: absolute;
+	top: 0;
+	right: 0;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: #3b82f6;
+	border: 1px solid white;
+}
+
+.shift-indicator.shift-only {
+	width: 7px;
+	height: 7px;
+	background: #2563eb;
+}
+
+/* 统计区域 */
+.stats-section {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	flex-shrink: 0;
+}
+
+.stats-row {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 6px;
+}
+
+.stat-card {
+	background: white;
+	border-radius: 10px;
+	padding: 10px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.stat-icon {
+	width: 36px;
+	height: 36px;
+	border-radius: 8px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+}
+
+.stat-icon svg {
+	width: 18px;
+	height: 18px;
+}
+
+.present-icon {
+	background: rgba(16, 185, 129, 0.1);
+	color: #10b981;
+}
+
+.hours-icon {
+	background: rgba(139, 92, 246, 0.1);
+	color: #8b5cf6;
+}
+
+.stat-info {
+	display: flex;
+	flex-direction: column;
+	gap: 1px;
+}
+
+.stat-value {
+	font-size: 18px;
+	font-weight: 700;
+	color: #111827;
+	line-height: 1;
+}
+
+.stat-unit {
+	font-size: 12px;
+	font-weight: 500;
+	color: #6b7280;
+	margin-left: 1px;
+}
+
+.stat-label {
+	font-size: 10px;
+	color: #6b7280;
+}
+
+/* 图例 */
+.legend-row {
+	display: flex;
+	justify-content: space-around;
+	background: white;
+	border-radius: 8px;
+	padding: 8px 4px;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.legend-item {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+}
+
+.legend-dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+}
+
+.legend-label {
+	font-size: 10px;
+	color: #6b7280;
+	text-align: center;
+}
+
+.legend-count {
+	font-size: 14px;
+	font-weight: 700;
+	color: #111827;
+}
+
+/* Dialog 样式 */
+.detail-item {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 12px 0;
+	border-bottom: 1px solid #f3f4f6;
+}
+
+.detail-item:last-child {
+	border-bottom: none;
+}
+
+.detail-label {
+	font-size: 14px;
+	color: #6b7280;
+}
+
+.detail-value {
+	font-size: 16px;
+	font-weight: 600;
+}
+</style>

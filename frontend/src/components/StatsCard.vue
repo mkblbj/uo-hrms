@@ -30,10 +30,10 @@ const colorClass = computed(() => `color-${props.color}`)
 <style scoped>
 .stats-card {
 	background: white;
-	border-radius: 10px;
-	padding: 12px 14px;
-	box-shadow: 0 2px 6px rgba(0,0,0,0.05);
-	border-left: 3px solid;
+	border-radius: 12px;
+	padding: 16px 18px;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+	border-left: 4px solid;
 	transition: all 0.2s;
 }
 
@@ -101,11 +101,11 @@ const colorClass = computed(() => `color-${props.color}`)
 }
 
 .stats-value {
-	font-size: 22px;
+	font-size: 28px;
 	font-weight: 700;
 	color: #111827;
-	line-height: 1;
-	margin-bottom: 2px;
+	line-height: 1.2;
+	margin-bottom: 4px;
 }
 
 .stats-subtitle {
