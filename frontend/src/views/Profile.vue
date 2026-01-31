@@ -95,6 +95,11 @@
 							</div>
 						</div>
 
+						<!-- NFC Passkey Manager -->
+						<div class="w-full my-4">
+							<PasskeyManager />
+						</div>
+
 						<Button
 							@click="logout"
 							variant="outline"
@@ -146,6 +151,7 @@ import { showErrorAlert } from "@/utils/dialogs"
 import { formatCurrency } from "@/utils/formatters"
 
 import ProfileInfoModal from "@/components/ProfileInfoModal.vue"
+import PasskeyManager from "@/components/PasskeyManager.vue"
 
 import { arePushNotificationsEnabled } from "@/data/notifications"
 

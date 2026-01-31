@@ -1167,3 +1167,14 @@ from hrms.api.qr_attendance import (
 	qr_checkin,
 	get_checkin_locations
 )
+
+# Passkey/WebAuthn - NFC 打卡
+from hrms.api.passkey import (
+	register_options as passkey_register_options,
+	register_complete as passkey_register_complete,
+	auth_options as passkey_auth_options,
+	passkey_checkin,
+	get_my_passkeys,
+	delete_passkey,
+	check_passkey_registered,
+)

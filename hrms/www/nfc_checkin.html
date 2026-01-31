@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NFC チェックイン - UO HR</title>
+    <link rel="icon" href="/assets/hrms/images/favicon.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 24px;
+            padding: 40px 30px;
+            max-width: 380px;
+            width: 100%;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .location-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 24px;
+        }
+        
+        .status-verifying .icon {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto 24px;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .status-verifying .icon::before {
+            content: "";
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 4px solid #e0e0e0;
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .status-verifying .icon::after {
+            content: "🔐";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 36px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .status-verifying h2 {
+            color: #333;
+            font-size: 22px;
+            margin-bottom: 8px;
+        }
+        
+        .status-verifying p {
+            color: #666;
+            font-size: 15px;
+        }
+        
+        .status-success .icon {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 24px;
+            animation: pop 0.3s ease;
+        }
+        
+        @keyframes pop {
+            0% { transform: scale(0); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .status-success .icon::after {
+            content: "✓";
+            color: white;
+            font-size: 48px;
+            font-weight: bold;
+        }
+        
+        .status-success h2 {
+            color: #4CAF50;
+            font-size: 28px;
+            margin-bottom: 16px;
+        }
+        
+        .status-success .employee-name {
+            font-size: 20px;
+            color: #333;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .status-success .time {
+            font-size: 32px;
+            color: #667eea;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .status-success .date {
+            font-size: 14px;
+            color: #888;
+        }
+        
+        .status-error .icon {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 24px;
+        }
+        
+        .status-error .icon::after {
+            content: "✕";
+            color: white;
+            font-size: 48px;
+            font-weight: bold;
+        }
+        
+        .status-error h2 {
+            color: #f44336;
+            font-size: 24px;
+            margin-bottom: 12px;
+        }
+        
+        .status-error p {
+            color: #666;
+            font-size: 15px;
+            line-height: 1.6;
+        }
+        
+        .retry-btn, .qr-btn {
+            display: inline-block;
+            margin-top: 24px;
+            padding: 14px 32px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            border: none;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .retry-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .qr-btn {
+            background: #f5f5f5;
+            color: #333;
+            margin-left: 12px;
+        }
+        
+        .retry-btn:hover, .qr-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .buttons {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        
+        .status-not-registered .icon {
+            width: 100px;
+            height: 100px;
+            background: #f5f5f5;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0 auto 24px;
+        }
+        
+        .status-not-registered .icon::after {
+            content: "🔑";
+            font-size: 42px;
+        }
+        
+        .status-not-registered h2 {
+            color: #333;
+            font-size: 22px;
+            margin-bottom: 12px;
+        }
+        
+        .status-not-registered p {
+            color: #666;
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+        
+        .register-btn {
+            display: inline-block;
+            margin-top: 24px;
+            padding: 14px 32px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="location-badge" id="location-badge">📍 Loading...</div>
+        
+        <div id="status-verifying" class="status-verifying">
+            <div class="icon"></div>
+            <h2>本人確認中</h2>
+            <p>FaceID / 指紋 / PIN で確認してください</p>
+        </div>
+        
+        <div id="status-success" class="status-success hidden">
+            <div class="icon"></div>
+            <h2 id="success-title">チェックイン成功</h2>
+            <div class="employee-name" id="employee-name"></div>
+            <div class="time" id="checkin-time"></div>
+            <div class="date" id="checkin-date"></div>
+        </div>
+        
+        <div id="status-error" class="status-error hidden">
+            <div class="icon"></div>
+            <h2>チェックイン失敗</h2>
+            <p id="error-message"></p>
+            <div class="buttons">
+                <button class="retry-btn" onclick="doCheckin()">再試行</button>
+                <a class="qr-btn" href="/hr">QRコードでチェックイン</a>
+            </div>
+        </div>
+        
+        <div id="status-not-registered" class="status-not-registered hidden">
+            <div class="icon"></div>
+            <h2>Passkey 登録が必要です</h2>
+            <p>まだ Passkey を登録していません。</p>
+            <p>HR システムで FaceID / 指紋を登録してください。</p>
+            <a class="register-btn" href="/hr">登録画面へ</a>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/@simplewebauthn/browser@9.0.0/dist/bundle/index.umd.min.js"></script>
+    
+    <script>
+        console.log('[NFC] Page loaded');
+        
+        // 检查 SimpleWebAuthn 是否加载
+        if (!window.SimpleWebAuthnBrowser) {
+            console.error('[NFC] SimpleWebAuthn not loaded!');
+            showError('システムライブラリの読み込みに失敗しました。ページを更新してください');
+        }
+        
+        const { startAuthentication } = window.SimpleWebAuthnBrowser || {};
+        
+        if (!startAuthentication) {
+            console.error('[NFC] startAuthentication not available');
+            showError('ブラウザが生体認証に対応していません。Chrome/Safari をご利用ください');
+        }
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const checkinLocation = urlParams.get('loc') || urlParams.get('location') || 'unknown';
+        
+        console.log('[NFC] Location:', checkinLocation);
+        
+        document.getElementById('location-badge').textContent = '📍 ' + checkinLocation;
+        
+        function showStatus(status) {
+            document.getElementById('status-verifying').classList.add('hidden');
+            document.getElementById('status-success').classList.add('hidden');
+            document.getElementById('status-error').classList.add('hidden');
+            document.getElementById('status-not-registered').classList.add('hidden');
+            document.getElementById('status-' + status).classList.remove('hidden');
+        }
+        
+        function showSuccess(data) {
+            showStatus('success');
+            
+            const title = data.log_type === 'IN' ? 'チェックイン成功 ✨' : 'チェックアウト成功 👋';
+            document.getElementById('success-title').textContent = title;
+            document.getElementById('employee-name').textContent = data.employee_name;
+            
+            const timeStr = data.time;
+            const timeParts = timeStr.split(' ');
+            if (timeParts.length >= 2) {
+                document.getElementById('checkin-time').textContent = timeParts[1].substring(0, 5);
+                document.getElementById('checkin-date').textContent = timeParts[0];
+            } else {
+                document.getElementById('checkin-time').textContent = timeStr;
+                document.getElementById('checkin-date').textContent = '';
+            }
+        }
+        
+        function showError(message) {
+            showStatus('error');
+            document.getElementById('error-message').textContent = message;
+        }
+        
+        function getCSRFToken() {
+            const cookies = document.cookie.split(';');
+            for (let cookie of cookies) {
+                const [name, value] = cookie.trim().split('=');
+                if (name === 'csrf_token') return decodeURIComponent(value);
+            }
+            return '';
+        }
+        
+        function extractErrorMessage(exc) {
+            if (typeof exc === 'string') {
+                const match = exc.match(/ValidationError:\s*(.+)/);
+                if (match) return match[1];
+                const lines = exc.split('\n');
+                for (let line of lines) {
+                    if (line.includes('Error:')) {
+                        return line.split('Error:')[1].trim();
+                    }
+                }
+                return lines[0];
+            }
+            return '不明なエラー';
+        }
+        
+        async function doCheckin() {
+            console.log('[NFC] Starting checkin...');
+            showStatus('verifying');
+            
+            try {
+                // 获取地理位置
+                console.log('[NFC] Step 0: Getting geolocation...');
+                let latitude = null;
+                let longitude = null;
+                
+                try {
+                    const position = await new Promise((resolve, reject) => {
+                        navigator.geolocation.getCurrentPosition(resolve, reject, {
+                            enableHighAccuracy: true,
+                            timeout: 10000,
+                            maximumAge: 0
+                        });
+                    });
+                    latitude = position.coords.latitude;
+                    longitude = position.coords.longitude;
+                    console.log('[NFC] Got location:', latitude, longitude);
+                } catch (geoErr) {
+                    console.error('[NFC] Geolocation error:', geoErr);
+                    showError('位置情報を取得できません。ブラウザの位置情報アクセスを許可してください');
+                    return;
+                }
+                
+                console.log('[NFC] Step 1: Getting auth options...');
+                const optionsRes = await fetch('/api/method/hrms.api.passkey.auth_options', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Frappe-CSRF-Token': getCSRFToken()
+                    },
+                    body: JSON.stringify({ location: checkinLocation })
+                });
+                
+                console.log('[NFC] Options response status:', optionsRes.status);
+                const optionsData = await optionsRes.json();
+                console.log('[NFC] Options data:', optionsData);
+                
+                if (optionsData.exc) {
+                    throw new Error(extractErrorMessage(optionsData.exc));
+                }
+                
+                const options = optionsData.message;
+                console.log('[NFC] Options:', options);
+                
+                console.log('[NFC] Step 2: Starting authentication...');
+                let credential;
+                try {
+                    credential = await startAuthentication(options);
+                    console.log('[NFC] Authentication successful');
+                } catch (authErr) {
+                    console.error('[NFC] Authentication error:', authErr);
+                    if (authErr.name === 'NotAllowedError') {
+                        showError('認証がキャンセルされたか、タイムアウトしました');
+                        return;
+                    }
+                    throw authErr;
+                }
+                
+                console.log('[NFC] Step 3: Submitting checkin...');
+                const checkinRes = await fetch('/api/method/hrms.api.passkey.passkey_checkin', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Frappe-CSRF-Token': getCSRFToken()
+                    },
+                    body: JSON.stringify({
+                        credential: JSON.stringify(credential),
+                        location: checkinLocation,
+                        latitude: latitude,
+                        longitude: longitude
+                    })
+                });
+                
+                console.log('[NFC] Checkin response status:', checkinRes.status);
+                const result = await checkinRes.json();
+                console.log('[NFC] Checkin result:', result);
+                
+                if (result.exc) {
+                    if (result.exc.includes('not found') || result.exc.includes('Please register')) {
+                        showStatus('not-registered');
+                        return;
+                    }
+                    throw new Error(extractErrorMessage(result.exc));
+                }
+                
+                if (result.message && result.message.status === 'ok') {
+                    console.log('[NFC] Checkin successful!');
+                    showSuccess(result.message);
+                } else {
+                    showError(result.message?.message || 'チェックインに失敗しました');
+                }
+                
+            } catch (err) {
+                console.error('[NFC] Checkin error:', err);
+                
+                const errMsg = err.message || '';
+                if (errMsg.includes('not found') || errMsg.includes('register')) {
+                    showStatus('not-registered');
+                    return;
+                }
+                
+                showError(errMsg || 'チェックインに失敗しました。再試行してください');
+            }
+        }
+        
+        // 标记是否已执行过
+        let hasExecuted = false;
+        let isFirstLoad = true;
+        
+        function startCheckin() {
+            console.log('[NFC] Starting checkin flow...');
+            
+            setTimeout(function() {
+                console.log('[NFC] Calling doCheckin()');
+                doCheckin();
+            }, 300);
+        }
+        
+        // Safari bfcache 恢复时重新执行（必须在前）
+        window.addEventListener('pageshow', function(event) {
+            console.log('[NFC] pageshow event, persisted:', event.persisted);
+            if (event.persisted && !isFirstLoad) {
+                // 从缓存恢复（非首次加载），重新执行
+                console.log('[NFC] Restored from cache, re-executing...');
+                startCheckin();
+            }
+        });
+        
+        // 正常加载
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                console.log('[NFC] DOM loaded');
+                isFirstLoad = false;
+                startCheckin();
+            });
+        } else {
+            // 脚本加载晚了，DOM 已经 ready
+            console.log('[NFC] DOM already ready');
+            isFirstLoad = false;
+            startCheckin();
+        }
+    </script>
+</body>
+</html>

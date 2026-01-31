@@ -19,6 +19,7 @@
 					</header>
 
 					<div class="flex flex-col gap-5 my-4 w-full p-4">
+						<!-- Push Notifications -->
 						<div class="flex flex-col bg-white rounded">
 							<Switch
 								size="md"
@@ -40,6 +41,9 @@
 								{{ pushNotificationState ? __("Disabling Push Notifications...") : __("Enabling Push Notifications...") }}
 							</span>
 						</div>
+
+						<!-- Passkey Manager for NFC Check-in -->
+						<PasskeyManager />
 					</div>
 				</div>
 			</div>
@@ -55,6 +59,7 @@ import { FeatherIcon, Switch, toast, LoadingIndicator } from "frappe-ui"
 import { computed, inject, ref } from "vue"
 
 import { arePushNotificationsEnabled } from "@/data/notifications"
+import PasskeyManager from "@/components/PasskeyManager.vue"
 
 const __ = inject("$translate")
 const router = useRouter()
