@@ -182,7 +182,7 @@ def register_complete(credential: str, device_name: str = None):
     return {"status": "ok", "message": _("Passkey registered successfully")}
 
 
-@frappe.whitelist(allow_guest=True, methods=['POST', 'GET'])
+@frappe.whitelist(allow_guest=True, methods=['POST', 'GET'], xss_safe=True)
 def auth_options(location: str = None):
     """
     步骤3: 获取 Passkey 验证选项（NFC 打卡时调用）
@@ -216,7 +216,7 @@ def auth_options(location: str = None):
     return options
 
 
-@frappe.whitelist(allow_guest=True, methods=['POST'])
+@frappe.whitelist(allow_guest=True, methods=['POST'], xss_safe=True)
 def passkey_checkin(credential: str, location: str, latitude: float = None, longitude: float = None):
     """
     步骤4: 使用 Passkey 验证并打卡

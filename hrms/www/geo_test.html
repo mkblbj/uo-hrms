@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>定位诊断</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; padding: 20px; background: #f5f5f7; color: #1d1d1f; }
+h1 { font-size: 20px; margin-bottom: 16px; }
+.card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+.card h2 { font-size: 14px; color: #86868b; margin-bottom: 8px; }
+.card p { font-size: 15px; line-height: 1.6; }
+.status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 13px; font-weight: 600; }
+.ok { background: #d4edda; color: #155724; }
+.fail { background: #f8d7da; color: #721c24; }
+.warn { background: #fff3cd; color: #856404; }
+.loading { background: #cce5ff; color: #004085; }
+button { width: 100%; padding: 14px; font-size: 16px; font-weight: 600; border: none; border-radius: 10px; background: #007aff; color: #fff; cursor: pointer; margin-top: 8px; }
+button:active { opacity: 0.7; }
+#log { font-size: 13px; font-family: monospace; white-space: pre-wrap; word-break: break-all; line-height: 1.5; max-height: 300px; overflow-y: auto; }
+</style>
+</head>
+<body>
+<h1>📍 定位诊断工具</h1>
+
+<div class="card">
+	<h2>环境检测</h2>
+	<p>HTTPS: <span id="https-status" class="status loading">检测中...</span></p>
+	<p>Geolocation API: <span id="geo-api" class="status loading">检测中...</span></p>
+	<p>User Agent: <span id="ua" style="font-size:12px;color:#86868b;"></span></p>
+</div>
+
+<div class="card">
+	<h2>权限状态</h2>
+	<p>Permissions API: <span id="perm-status" class="status loading">检测中...</span></p>
+</div>
+
+<div class="card">
+	<h2>定位测试</h2>
+	<button onclick="runTest()">开始定位测试</button>
+	<div id="result" style="margin-top: 12px;"></div>
+</div>
+
+<div class="card">
+	<h2>详细日志</h2>
+	<p id="log">等待测试...</p>
+</div>
+
+<script>
+const ERROR_MAP = {
+	1: 'PERMISSION_DENIED — 权限被拒绝。请检查：iOS 设置 → 隐私与安全 → 定位服务 → Safari浏览器 → 设为"使用App期间"，并开启"精确位置"',
+	2: 'POSITION_UNAVAILABLE — 无法获取位置。可能原因：GPS信号弱、室内环境、或系统定位服务被关闭。请检查：iOS 设置 → 隐私与安全 → 定位服务 → 确认总开关已开启',
+	3: 'TIMEOUT — 定位超时。请到室外或窗边开阔处重试'
+};
+
+function log(msg) {
+	const el = document.getElementById('log');
+	const time = new Date().toLocaleTimeString();
+	el.textContent += `\n[${time}] ${msg}`;
+	el.scrollTop = el.scrollHeight;
+}
+
+function setStatus(id, text, cls) {
+	const el = document.getElementById(id);
+	el.textContent = text;
+	el.className = 'status ' + cls;
+}
+
+// 环境检测
+(function checkEnv() {
+	const isHTTPS = location.protocol === 'https:' || location.hostname === 'localhost';
+	setStatus('https-status', isHTTPS ? '✓ 安全连接' : '✗ 非HTTPS（定位可能被阻止）', isHTTPS ? 'ok' : 'fail');
+	log('协议: ' + location.protocol + ' 主机: ' + location.hostname);
+
+	const hasGeo = !!navigator.geolocation;
+	setStatus('geo-api', hasGeo ? '✓ 支持' : '✗ 不支持', hasGeo ? 'ok' : 'fail');
+	log('Geolocation API: ' + (hasGeo ? '有' : '无'));
+
+	document.getElementById('ua').textContent = navigator.userAgent;
+	log('UA: ' + navigator.userAgent);
+})();
+
+// 权限检测
+(async function checkPermission() {
+	if (!navigator.permissions) {
+		setStatus('perm-status', 'Permissions API 不可用（Safari正常）', 'warn');
+		log('Permissions API 不可用（Safari 不支持此API，属正常现象）');
+		return;
+	}
+	try {
+		const result = await navigator.permissions.query({ name: 'geolocation' });
+		const map = { granted: '✓ 已授权', denied: '✗ 已拒绝', prompt: '待询问' };
+		const cls = { granted: 'ok', denied: 'fail', prompt: 'warn' };
+		setStatus('perm-status', map[result.state] || result.state, cls[result.state] || 'warn');
+		log('权限状态: ' + result.state);
+	} catch (e) {
+		setStatus('perm-status', '查询失败: ' + e.message, 'warn');
+		log('权限查询出错: ' + e.message);
+	}
+})();
+
+// 定位测试
+function runTest() {
+	const resultEl = document.getElementById('result');
+	resultEl.innerHTML = '<span class="status loading">正在获取定位...</span>';
+
+	if (!navigator.geolocation) {
+		resultEl.innerHTML = '<span class="status fail">Geolocation API 不可用</span>';
+		return;
+	}
+
+	const startTime = Date.now();
+	log('--- 开始定位测试 ---');
+	log('选项: enableHighAccuracy=true, timeout=20000, maximumAge=0');
+
+	navigator.geolocation.getCurrentPosition(
+		(pos) => {
+			const elapsed = Date.now() - startTime;
+			resultEl.innerHTML = `<span class="status ok">✓ 定位成功 (${elapsed}ms)</span>
+				<p style="margin-top:8px;font-size:14px;">
+					纬度: ${pos.coords.latitude.toFixed(6)}<br>
+					经度: ${pos.coords.longitude.toFixed(6)}<br>
+					精度: ${pos.coords.accuracy?.toFixed(0)}m<br>
+					海拔: ${pos.coords.altitude?.toFixed(1) ?? '无'}<br>
+					时间戳: ${new Date(pos.timestamp).toLocaleString()}
+				</p>`;
+			log(`成功! 耗时 ${elapsed}ms`);
+			log(`坐标: ${pos.coords.latitude}, ${pos.coords.longitude}`);
+			log(`精度: ${pos.coords.accuracy}m`);
+		},
+		(err) => {
+			const elapsed = Date.now() - startTime;
+			const detail = ERROR_MAP[err.code] || '未知错误';
+			resultEl.innerHTML = `<span class="status fail">✗ 定位失败 (${elapsed}ms)</span>
+				<p style="margin-top:8px;font-size:14px;">
+					错误码: ${err.code}<br>
+					错误信息: ${err.message}<br>
+					<strong style="color:#c00;">${detail}</strong>
+				</p>`;
+			log(`失败! 耗时 ${elapsed}ms`);
+			log(`错误码: ${err.code} — ${err.message}`);
+			log(`诊断: ${detail}`);
+		},
+		{
+			enableHighAccuracy: true,
+			timeout: 20000,
+			maximumAge: 0
+		}
+	);
+
+	// 低精度备用测试
+	setTimeout(() => {
+		log('--- 低精度备用测试 ---');
+		log('选项: enableHighAccuracy=false, timeout=15000');
+		navigator.geolocation.getCurrentPosition(
+			(pos) => {
+				log(`低精度成功: ${pos.coords.latitude}, ${pos.coords.longitude} 精度${pos.coords.accuracy}m`);
+				if (resultEl.querySelector('.fail')) {
+					resultEl.innerHTML += `<p style="margin-top:8px;font-size:14px;color:#155724;">
+						⚠️ 低精度模式可以定位：${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)} (精度${pos.coords.accuracy?.toFixed(0)}m)
+					</p>`;
+				}
+			},
+			(err) => {
+				log(`低精度也失败: 错误码${err.code} — ${err.message}`);
+			},
+			{ enableHighAccuracy: false, timeout: 15000, maximumAge: 30000 }
+		);
+	}, 1000);
+}
+</script>
+</body>
+</html>

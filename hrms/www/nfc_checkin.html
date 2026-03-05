@@ -287,10 +287,16 @@
         </div>
     </div>
 
+    <script>
+        // Frappe 模板注入 CSRF token（在 Jinja 渲染时替换）
+        window.__CSRF_TOKEN = "{{ frappe.session.csrf_token or '' }}";
+    </script>
     <script src="https://unpkg.com/@simplewebauthn/browser@9.0.0/dist/bundle/index.umd.min.js"></script>
     
+    {% raw %}
     <script>
         console.log('[NFC] Page loaded');
+        console.log('[NFC] CSRF token from template:', window.__CSRF_TOKEN ? 'found' : 'NOT FOUND');
         
         // 检查 SimpleWebAuthn 是否加载
         if (!window.SimpleWebAuthnBrowser) {
@@ -344,11 +350,29 @@
         }
         
         function getCSRFToken() {
+            // 1. 从 Frappe 模板注入获取（最可靠）
+            if (window.__CSRF_TOKEN && window.__CSRF_TOKEN.length > 5) {
+                return window.__CSRF_TOKEN;
+            }
+            
+            // 2. 从 Frappe 全局变量获取
+            if (window.frappe && window.frappe.csrf_token) {
+                return window.frappe.csrf_token;
+            }
+            
+            // 3. 从 cookie 获取
             const cookies = document.cookie.split(';');
             for (let cookie of cookies) {
-                const [name, value] = cookie.trim().split('=');
-                if (name === 'csrf_token') return decodeURIComponent(value);
+                const parts = cookie.trim().split('=');
+                if (parts[0] === 'csrf_token') {
+                    const token = decodeURIComponent(parts.slice(1).join('='));
+                    if (token && token !== 'undefined' && token !== 'null') {
+                        return token;
+                    }
+                }
             }
+            
+            console.warn('[NFC] No CSRF token found');
             return '';
         }
         
@@ -395,14 +419,11 @@
                 }
                 
                 console.log('[NFC] Step 1: Getting auth options...');
-                const optionsRes = await fetch('/api/method/hrms.api.passkey.auth_options', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Frappe-CSRF-Token': getCSRFToken()
-                    },
-                    body: JSON.stringify({ location: checkinLocation })
-                });
+                const csrfToken = getCSRFToken();
+                console.log('[NFC] CSRF token:', csrfToken ? 'found (' + csrfToken.substring(0, 8) + '...)' : 'NOT FOUND');
+                
+                // 用 GET 获取 auth options（GET 不需要 CSRF）
+                const optionsRes = await fetch('/api/method/hrms.api.passkey.auth_options?location=' + encodeURIComponent(checkinLocation));
                 
                 console.log('[NFC] Options response status:', optionsRes.status);
                 const optionsData = await optionsRes.json();
@@ -430,19 +451,46 @@
                 }
                 
                 console.log('[NFC] Step 3: Submitting checkin...');
-                const checkinRes = await fetch('/api/method/hrms.api.passkey.passkey_checkin', {
+                const checkinPayload = {
+                    credential: JSON.stringify(credential),
+                    location: checkinLocation,
+                    latitude: latitude,
+                    longitude: longitude
+                };
+                
+                const checkinHeaders = {
+                    'Content-Type': 'application/json',
+                    'X-Frappe-CSRF-Token': getCSRFToken()
+                };
+                
+                let checkinRes = await fetch('/api/method/hrms.api.passkey.passkey_checkin', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Frappe-CSRF-Token': getCSRFToken()
-                    },
-                    body: JSON.stringify({
-                        credential: JSON.stringify(credential),
-                        location: checkinLocation,
-                        latitude: latitude,
-                        longitude: longitude
-                    })
+                    headers: checkinHeaders,
+                    body: JSON.stringify(checkinPayload)
                 });
+                
+                // CSRF 失败时，先 GET 首页刷新 token 再重试一次
+                if (checkinRes.status === 400 || checkinRes.status === 403) {
+                    console.log('[NFC] CSRF failed, refreshing token...');
+                    try {
+                        const refreshRes = await fetch('/api/method/frappe.auth.get_csrf_token');
+                        const refreshData = await refreshRes.json();
+                        if (refreshData.message) {
+                            window.__CSRF_TOKEN = refreshData.message;
+                            console.log('[NFC] Got new CSRF token, retrying...');
+                            checkinRes = await fetch('/api/method/hrms.api.passkey.passkey_checkin', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-Frappe-CSRF-Token': refreshData.message
+                                },
+                                body: JSON.stringify(checkinPayload)
+                            });
+                        }
+                    } catch (refreshErr) {
+                        console.error('[NFC] Token refresh failed:', refreshErr);
+                    }
+                }
                 
                 console.log('[NFC] Checkin response status:', checkinRes.status);
                 const result = await checkinRes.json();
@@ -513,5 +561,6 @@
             startCheckin();
         }
     </script>
+    {% endraw %}
 </body>
 </html>
