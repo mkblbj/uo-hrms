@@ -4,13 +4,23 @@
 			<div class="w-full">
 				<div class="flex flex-col bg-white shadow-sm p-4">
 					<div class="flex flex-row justify-between items-center">
-						<div class="flex flex-row items-center gap-2">
+						<div class="flex flex-row items-center gap-2 min-w-0">
+							<button
+								v-if="props.backRoute"
+								@click="goBack"
+								class="flex h-9 w-9 items-center justify-center rounded-full text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+							>
+								<svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+								</svg>
+							</button>
 							<img src="/uo-hr-logo.png" class="h-7 w-7 object-contain" alt="Logo" />
-							<h2 class="text-xl font-bold text-gray-900">
+							<h2 class="text-xl font-bold text-gray-900 truncate">
 								{{ props.pageTitle || __("UO HR") }}
 							</h2>
 						</div>
 						<div class="flex flex-row items-center gap-3 ml-auto">
+							<AppLanguageSwitcher v-if="!props.backRoute" />
 							<router-link
 								:to="{ name: 'Notifications' }"
 								v-slot="{ navigate }"
@@ -53,13 +63,16 @@
 <script setup>
 import { IonHeader, IonContent, IonPage } from "@ionic/vue"
 import { FeatherIcon, Avatar } from "frappe-ui"
+import { useRouter } from "vue-router"
 
+import AppLanguageSwitcher from "@/components/AppLanguageSwitcher.vue"
 import { unreadNotificationsCount } from "@/data/notifications"
 
 import { inject } from "vue"
 
 const user = inject("$user")
 const __ = inject("$translate")
+const router = useRouter()
 
 const props = defineProps({
 	pageTitle: {
@@ -67,16 +80,26 @@ const props = defineProps({
 		required: false,
 		default: "",
 	},
+	backRoute: {
+		type: String,
+		required: false,
+		default: "",
+	},
 })
+
+function goBack() {
+	if (!props.backRoute) return
+	router.replace(props.backRoute)
+}
 </script>
 
 <style scoped>
 .content-wrapper {
 	display: flex;
 	flex-direction: column;
-	height: 100%;
+	min-height: 100%;
 	width: 100%;
-	overflow: hidden;
+	overflow-x: hidden;
 }
 
 .notification-badge {
