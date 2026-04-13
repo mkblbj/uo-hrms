@@ -3,6 +3,7 @@ from frappe import _
 from frappe.model import get_permitted_fields
 from frappe.model.workflow import get_workflow_name
 from frappe.query_builder import Order
+from frappe.translate import get_all_translations
 from frappe.utils import add_days, date_diff, getdate, strip_html
 
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
@@ -25,6 +26,27 @@ SUPPORTED_FIELD_TYPES = [
 	"Datetime",
 	"Currency",
 ]
+
+SUPPORTED_PWA_LANGUAGES = {"zh", "ja", "en"}
+
+
+def normalize_pwa_language(lang: str | None) -> str:
+	normalized = (lang or "").strip().replace("_", "-").lower()
+	if not normalized:
+		return ""
+	return normalized.split("-", 1)[0]
+
+
+@frappe.whitelist()
+def get_pwa_translations(lang: str) -> dict[str, str]:
+	normalized_lang = normalize_pwa_language(lang)
+	if normalized_lang not in SUPPORTED_PWA_LANGUAGES:
+		frappe.throw(
+			_("Unsupported PWA language: {0}").format(lang),
+			frappe.ValidationError,
+		)
+
+	return get_all_translations(normalized_lang) or {}
 
 
 @frappe.whitelist()
