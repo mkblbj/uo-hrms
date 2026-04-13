@@ -5,18 +5,18 @@
 			statusClasses[status] || 'bg-gray-100 text-gray-600',
 		]"
 	>
-		{{ statusLabels[status] || status }}
+		{{ statusLabels[status]?.[getLang()] || statusLabels[status]?.zh || __(status) }}
 	</span>
 </template>
 
 <script setup>
 import { inject } from "vue"
 
-const __ = inject("$translate")
-
 defineProps({
 	status: { type: String, required: true },
 })
+
+const __ = inject("$translate")
 
 const statusClasses = {
 	Draft: "bg-gray-100 text-gray-600",
@@ -27,10 +27,14 @@ const statusClasses = {
 }
 
 const statusLabels = {
-	Draft: __("Draft"),
-	Collecting: __("Collecting"),
-	Scheduling: __("Scheduling"),
-	Published: __("Published"),
-	Closed: __("Closed"),
+	Draft: { zh: "草稿", ja: "下書き", en: "Draft" },
+	Collecting: { zh: "征集中", ja: "募集中", en: "Collecting" },
+	Scheduling: { zh: "排班中", ja: "編成中", en: "Scheduling" },
+	Published: { zh: "已发布", ja: "公開済み", en: "Published" },
+	Closed: { zh: "已关闭", ja: "終了", en: "Closed" },
+}
+
+function getLang() {
+	return frappe?.boot?.lang || "zh"
 }
 </script>

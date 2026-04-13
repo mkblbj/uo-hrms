@@ -1,23 +1,23 @@
 <template>
-	<BaseLayout :pageTitle="__('Submit Preference')" :backRoute="'/dashboard/work-roster'">
+	<BaseLayout :pageTitle="t('pageTitle')" :backRoute="'/dashboard/work-roster'">
 		<template #body>
 			<div class="flex flex-col px-4 py-4 space-y-4">
 				<div v-if="periodResource.loading" class="text-center py-10">
-					<div class="text-gray-400">{{ __("Loading...") }}</div>
+					<div class="text-gray-400">{{ t("loading") }}</div>
 				</div>
 
 				<template v-else-if="period">
 					<div class="text-center">
 						<div class="text-lg font-semibold text-gray-800">{{ period.title }}</div>
 						<div class="text-sm text-gray-500 mt-1">
-							{{ __("Deadline") }}: {{ formatDate(period.preference_deadline) }}
+							{{ t("deadline") }}：{{ formatDate(period.preference_deadline) }}
 						</div>
 					</div>
 
 					<!-- Month Navigation -->
 					<div class="flex items-center justify-between px-2">
 						<div class="text-base font-semibold text-gray-800">
-							{{ period.year }}{{ __("年") }}{{ period.month }}{{ __("月") }}
+							{{ formatMonthTitle(period.year, period.month) }}
 						</div>
 					</div>
 
@@ -46,7 +46,6 @@
 									'aspect-square rounded-lg flex flex-col items-center justify-center text-sm relative transition-all',
 									getDayClasses(day),
 								]"
-								:disabled="day.isHoliday && !day.isWeeklyOff"
 							>
 								<span :class="getDayNumberClasses(day)">{{ day.date }}</span>
 								<span
@@ -70,14 +69,50 @@
 					<ion-modal
 						:is-open="showSlotSelector"
 						@didDismiss="showSlotSelector = false"
-						:initial-breakpoint="0.5"
-						:breakpoints="[0, 0.5, 0.75]"
+						:initial-breakpoint="0.82"
+						:breakpoints="[0, 0.5, 0.82, 1]"
 					>
-						<div class="p-4 space-y-3">
+						<div class="p-4 space-y-3 overflow-y-auto max-h-[85vh] pb-8">
 							<div class="text-base font-semibold text-gray-800 text-center">
-								{{ selectedDay ? `${period.month}/${selectedDay.date}` : "" }} - {{ __("Select Shift") }}
+								{{ selectedDay ? `${period.month}/${selectedDay.date}` : "" }} - {{ t("chooseShift") }}
 							</div>
 							<div class="space-y-2">
+								<button
+									@click="showCustomTime = !showCustomTime"
+									class="w-full flex items-center justify-center p-3 rounded-lg border border-dashed border-blue-300 text-blue-600 hover:bg-blue-50 transition"
+								>
+									{{ showCustomTime ? t("hideCustomTime") : t("useCustomTime") }}
+								</button>
+
+								<div v-if="showCustomTime" class="space-y-2 p-3 bg-gray-50 rounded-lg">
+									<div class="flex gap-2">
+										<div class="flex-1">
+											<label class="text-xs text-gray-500">{{ t("startTime") }}</label>
+											<input
+												v-model="customStart"
+												type="time"
+												class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+											/>
+										</div>
+										<div class="flex-1">
+											<label class="text-xs text-gray-500">{{ t("endTime") }}</label>
+											<input
+												v-model="customEnd"
+												type="time"
+												class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+											/>
+										</div>
+									</div>
+									<Button
+										@click="selectCustomTime"
+										variant="solid"
+										class="w-full py-2"
+										:disabled="!customStart || !customEnd"
+									>
+										{{ t("saveCustomTime") }}
+									</Button>
+								</div>
+
 								<button
 									v-for="slot in shiftSlots.data || []"
 									:key="slot.name"
@@ -97,47 +132,11 @@
 								</button>
 
 								<button
-									@click="showCustomTime = true"
-									class="w-full flex items-center justify-center p-3 rounded-lg border border-dashed border-gray-300 text-gray-500 hover:bg-gray-50 transition"
-								>
-									{{ __("Custom Time") }}
-								</button>
-
-								<div v-if="showCustomTime" class="space-y-2 p-3 bg-gray-50 rounded-lg">
-									<div class="flex gap-2">
-										<div class="flex-1">
-											<label class="text-xs text-gray-500">{{ __("Start") }}</label>
-											<input
-												v-model="customStart"
-												type="time"
-												class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-											/>
-										</div>
-										<div class="flex-1">
-											<label class="text-xs text-gray-500">{{ __("End") }}</label>
-											<input
-												v-model="customEnd"
-												type="time"
-												class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
-											/>
-										</div>
-									</div>
-									<Button
-										@click="selectCustomTime"
-										variant="solid"
-										class="w-full py-2"
-										:disabled="!customStart || !customEnd"
-									>
-										{{ __("Confirm") }}
-									</Button>
-								</div>
-
-								<button
 									v-if="isDateSelected(selectedDay)"
 									@click="removeDate(selectedDay)"
 									class="w-full flex items-center justify-center p-3 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition"
 								>
-									{{ __("Remove") }}
+									{{ t("removeSelection") }}
 								</button>
 							</div>
 						</div>
@@ -145,10 +144,10 @@
 
 					<!-- Notes -->
 					<div class="space-y-1">
-						<label class="text-sm font-medium text-gray-700">{{ __("Notes") }}</label>
+						<label class="text-sm font-medium text-gray-700">{{ t("notes") }}</label>
 						<textarea
 							v-model="notes"
-							:placeholder="__('Any special requests or notes...')"
+							:placeholder="t('notesPlaceholder')"
 							class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none"
 							rows="2"
 						/>
@@ -157,7 +156,7 @@
 					<!-- Summary -->
 					<div class="bg-gray-50 rounded-lg p-3">
 						<div class="text-sm font-medium text-gray-700 mb-2">
-							{{ __("Selected") }}: {{ selectedDates.length }} {{ __("days") }}
+							{{ t("selectedDays", { count: selectedDates.length }) }}
 						</div>
 						<div class="flex flex-wrap gap-1">
 							<span
@@ -166,7 +165,7 @@
 								class="inline-flex items-center px-2 py-1 rounded-md text-xs bg-blue-100 text-blue-700"
 							>
 								{{ formatFullDate(sel.date) }}
-								<span class="ml-1 text-blue-500">{{ sel.slotName || __("Custom") }}</span>
+								<span class="ml-1 text-blue-500">{{ sel.slotName || t("custom") }}</span>
 							</span>
 						</div>
 					</div>
@@ -179,7 +178,7 @@
 						:loading="submitting"
 						:disabled="selectedDates.length === 0"
 					>
-						{{ existingPref ? __("Update Preference") : __("Submit Preference") }}
+						{{ existingPref ? t("updatePreference") : t("submitPreference") }}
 					</Button>
 				</template>
 			</div>
@@ -190,12 +189,12 @@
 <script setup>
 import { ref, computed, inject, onMounted, watch } from "vue"
 import { useRoute, useRouter } from "vue-router"
-import { createResource, Button } from "frappe-ui"
-import { IonModal } from "@ionic/vue"
+import { createResource, Button, toast } from "frappe-ui"
+import { IonModal, onIonViewWillEnter } from "@ionic/vue"
 import BaseLayout from "@/components/BaseLayout.vue"
 
-const __ = inject("$translate")
 const dayjs = inject("$dayjs")
+const __ = inject("$translate")
 const route = useRoute()
 const router = useRouter()
 
@@ -210,7 +209,43 @@ const submitting = ref(false)
 const existingPref = ref(null)
 const selections = ref({})
 
-const weekdayHeaders = ["日", "月", "火", "水", "木", "金", "土"]
+const labels = {
+	pageTitle: { zh: "提交排班意愿", ja: "シフト希望提出", en: "Submit Roster Preference" },
+	loading: { zh: "加载中...", ja: "読み込み中...", en: "Loading..." },
+	deadline: { zh: "截止时间", ja: "締切", en: "Deadline" },
+	chooseShift: { zh: "选择班次", ja: "シフトを選択", en: "Choose Shift" },
+	hideCustomTime: { zh: "收起自定义时间", ja: "カスタム時間を閉じる", en: "Hide Custom Time" },
+	useCustomTime: { zh: "使用自定义时间", ja: "カスタム時間を使う", en: "Use Custom Time" },
+	startTime: { zh: "开始时间", ja: "開始時間", en: "Start Time" },
+	endTime: { zh: "结束时间", ja: "終了時間", en: "End Time" },
+	saveCustomTime: { zh: "保存自定义时间", ja: "カスタム時間を保存", en: "Save Custom Time" },
+	removeSelection: { zh: "移除当天选择", ja: "当日の選択を削除", en: "Remove Selection" },
+	notes: { zh: "备注", ja: "備考", en: "Notes" },
+	notesPlaceholder: { zh: "可填写特殊说明，例如希望连班、只想上半天等", ja: "連勤希望や半日希望などの補足を入力できます", en: "Add notes such as back-to-back shifts or half-day preference" },
+	selectedDays: { zh: "已选择：{count} 天", ja: "{count} 日を選択済み", en: "{count} day(s) selected" },
+	custom: { zh: "自定义", ja: "カスタム", en: "Custom" },
+	updatePreference: { zh: "更新意愿", ja: "希望を更新", en: "Update Preference" },
+	submitPreference: { zh: "提交意愿", ja: "希望を提出", en: "Submit Preference" },
+	timeOrderError: { zh: "结束时间必须晚于开始时间", ja: "終了時間は開始時間より後である必要があります", en: "End time must be later than start time" },
+	submitSuccess: { zh: "排班意愿提交成功", ja: "シフト希望を提出しました", en: "Roster preference submitted" },
+	submitFailed: { zh: "提交失败，请稍后重试", ja: "提出に失敗しました。しばらくしてから再試行してください", en: "Submission failed. Please try again later." },
+}
+const weekdayHeaderMap = {
+	zh: ["日", "一", "二", "三", "四", "五", "六"],
+	ja: ["日", "月", "火", "水", "木", "金", "土"],
+	en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+}
+const weekdayHeaders = computed(() => weekdayHeaderMap[getLang()] || weekdayHeaderMap.zh)
+
+function getLang() {
+	return frappe?.boot?.lang || "zh"
+}
+
+function t(key, params = null) {
+	const text = labels[key]?.[getLang()] || labels[key]?.zh || __(key)
+	if (!params) return text
+	return text.replace(/\{(\w+)\}/g, (_, name) => `${params[name] ?? ""}`)
+}
 
 const periodResource = createResource({
 	url: "work_roster.api.preference.get_current_period",
@@ -224,8 +259,7 @@ const period = computed(() => {
 
 const shiftSlots = createResource({
 	url: "work_roster.api.preference.get_shift_slots",
-	auto: true,
-	cache: "wr:shift_slots",
+	auto: false,
 })
 
 const existingPrefResource = createResource({
@@ -242,13 +276,16 @@ onMounted(() => {
 	periodResource.fetch()
 })
 
+onIonViewWillEnter(() => {
+	periodResource.fetch()
+})
+
 watch(period, (p) => {
 	if (p) {
-		existingPrefResource.fetch({ params: { wr_period: p.name } })
+		existingPrefResource.fetch({ wr_period: p.name })
+		shiftSlots.fetch({ department_category: p.department_category })
 		if (p.holiday_list) {
-			holidaysResource.fetch({
-				params: { holiday_list: p.holiday_list, month: p.month, year: p.year },
-			})
+			holidaysResource.fetch({ holiday_list: p.holiday_list, month: p.month, year: p.year })
 		}
 	}
 })
@@ -264,7 +301,7 @@ watch(
 				const dateStr = typeof d.date === "string" ? d.date : dayjs(d.date).format("YYYY-MM-DD")
 				newSelections[dateStr] = {
 					wr_shift_slot: d.wr_shift_slot,
-					slotName: d.wr_shift_slot || __("Custom"),
+					slotName: d.wr_shift_slot || t("custom"),
 					custom_start_time: d.custom_start_time,
 					custom_end_time: d.custom_end_time,
 					is_custom: d.is_custom,
@@ -353,47 +390,80 @@ function isDateSelected(day) {
 }
 
 function toggleDate(day) {
-	if (day.isHoliday && !day.isWeeklyOff) return
 	selectedDay.value = day
-	showCustomTime.value = false
-	customStart.value = ""
-	customEnd.value = ""
+	const existingSelection = selections.value[day.dateStr]
+	showCustomTime.value = !!existingSelection?.is_custom
+	customStart.value = existingSelection?.custom_start_time?.substring(0, 5) || ""
+	customEnd.value = existingSelection?.custom_end_time?.substring(0, 5) || ""
 	showSlotSelector.value = true
 }
 
 function selectSlot(slot) {
 	if (!selectedDay.value) return
-	selections.value[selectedDay.value.dateStr] = {
-		wr_shift_slot: slot.name,
-		slotName: slot.slot_name,
-		custom_start_time: null,
-		custom_end_time: null,
-		is_custom: 0,
+	selections.value = {
+		...selections.value,
+		[selectedDay.value.dateStr]: {
+			wr_shift_slot: slot.name,
+			slotName: slot.slot_name,
+			custom_start_time: null,
+			custom_end_time: null,
+			is_custom: 0,
+		},
 	}
 	showSlotSelector.value = false
 }
 
 function selectCustomTime() {
 	if (!selectedDay.value || !customStart.value || !customEnd.value) return
-	selections.value[selectedDay.value.dateStr] = {
-		wr_shift_slot: null,
-		slotName: `${customStart.value}-${customEnd.value}`,
-		custom_start_time: customStart.value,
-		custom_end_time: customEnd.value,
-		is_custom: 1,
+	if (customEnd.value <= customStart.value) {
+		toast({
+			text: t("timeOrderError"),
+			position: "bottom",
+			icon: "x-circle",
+			iconClasses: "text-red-500",
+		})
+		return
+	}
+
+	selections.value = {
+		...selections.value,
+		[selectedDay.value.dateStr]: {
+			wr_shift_slot: null,
+			slotName: `${customStart.value}-${customEnd.value}`,
+			custom_start_time: normalizeTime(customStart.value),
+			custom_end_time: normalizeTime(customEnd.value),
+			is_custom: 1,
+		},
 	}
 	showSlotSelector.value = false
 }
 
 function removeDate(day) {
 	if (!day) return
-	delete selections.value[day.dateStr]
+	const newSelections = { ...selections.value }
+	delete newSelections[day.dateStr]
+	selections.value = newSelections
 	showSlotSelector.value = false
 }
 
 function formatDate(dateStr) {
 	if (!dateStr) return ""
-	return dayjs(dateStr).format("M/D (ddd)")
+	const weekdayMap = weekdayHeaderMap[getLang()] || weekdayHeaderMap.zh
+	const date = dayjs(dateStr)
+	if (getLang() === "en") {
+		return `${date.format("M/D")} (${weekdayMap[date.day()]})`
+	}
+	if (getLang() === "ja") {
+		return `${date.format("M/D")}（${weekdayMap[date.day()]}）`
+	}
+	return `${date.format("M/D")}（周${weekdayMap[date.day()]}）`
+}
+
+function formatMonthTitle(year, month) {
+	if (getLang() === "en") {
+		return dayjs(`${year}-${String(month).padStart(2, "0")}-01`).format("MMMM YYYY")
+	}
+	return `${year}年${month}月`
 }
 
 function formatFullDate(dateStr) {
@@ -422,18 +492,34 @@ async function submitPreference() {
 		const submitResource = createResource({
 			url: "work_roster.api.preference.submit_preference",
 		})
-		await submitResource.fetch({
-			params: {
-				wr_period: period.value.name,
-				details: JSON.stringify(details),
-				notes: notes.value,
-			},
+		const result = await submitResource.fetch({
+			wr_period: period.value.name,
+			details: JSON.stringify(details),
+			notes: notes.value,
+		})
+		existingPref.value = result
+		toast({
+			text: t("submitSuccess"),
+			position: "bottom",
+			icon: "check-circle",
+			iconClasses: "text-green-600",
 		})
 		router.push("/dashboard/work-roster")
 	} catch (e) {
 		console.error("Failed to submit preference:", e)
+		toast({
+			text: e?.messages?.[0] || e?.message || t("submitFailed"),
+			position: "bottom",
+			icon: "x-circle",
+			iconClasses: "text-red-500",
+		})
 	} finally {
 		submitting.value = false
 	}
+}
+
+function normalizeTime(value) {
+	if (!value) return value
+	return value.length === 5 ? `${value}:00` : value
 }
 </script>

@@ -62,6 +62,9 @@
 			</template>
 		</div>
 
+		<!-- 排班提醒 -->
+		<HomeSummaryCard />
+
 		<!-- 天气卡片 -->
 		<WeatherWidget />
 
@@ -158,6 +161,7 @@ import { formatTimestamp } from "@/utils/formatters"
 import QRScannerModal from "@/components/QRScannerModal.vue"
 import WeatherWidget from "@/components/WeatherWidget.vue"
 import StatsCard from "@/components/StatsCard.vue"
+import HomeSummaryCard from "@/components/work_roster/HomeSummaryCard.vue"
 
 const DOCTYPE = "Employee Checkin"
 
@@ -521,9 +525,9 @@ function getStatsLabel(key) {
 			en: "Days Present"
 		},
 		month_absent: {
-			ja: "今月の欠勤",
-			zh: "本月缺勤",
-			en: "Days Absent"
+			ja: "今月の休み",
+			zh: "本月休息",
+			en: "Days Rest"
 		},
 		hours_unit: {
 			ja: "時間",

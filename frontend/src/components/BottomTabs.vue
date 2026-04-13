@@ -50,7 +50,7 @@ const tabItems = [
 	},
 	{
 		icon: RosterIcon,
-		title: __("Roster"),
+		title: "排班",
 		route: "/dashboard/work-roster",
 	},
 	{
