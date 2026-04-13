@@ -13,6 +13,7 @@ import {
 } from "frappe-ui"
 import { translationsPlugin } from "./plugins/translationsPlugin.js"
 import EmptyState from "@/components/EmptyState.vue"
+import { initializeBootLanguage } from "@/utils/language"
 
 import { IonicVue } from "@ionic/vue"
 
@@ -103,7 +104,8 @@ router.isReady().then(async () => {
 		})
 	}
 
-	await translationsPlugin.isReady();
+	initializeBootLanguage()
+	await translationsPlugin.isReady()
 	registerServiceWorker()
 	app.mount("#app")
 })
