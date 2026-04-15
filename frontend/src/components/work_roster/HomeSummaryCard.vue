@@ -90,10 +90,6 @@ const labels = {
 	nextShift: { zh: "下一个班次", ja: "次のシフト", en: "Next Shift" },
 	scheduled: { zh: "已排班", ja: "シフトあり", en: "Scheduled" },
 	customTime: { zh: "自定义时段", ja: "カスタム時間", en: "Custom Time" },
-	todayEmpty: { zh: "今天暂无班次", ja: "本日のシフトはありません", en: "No shift today" },
-	todayEmptyHint: { zh: "当前没有已发布的今日排班", ja: "本日公開済みのシフトはありません", en: "No published shift for today" },
-	nextEmpty: { zh: "暂无下一个班次", ja: "次のシフトはありません", en: "No next shift" },
-	nextEmptyHint: { zh: "还没有后续已发布排班", ja: "今後の公開済みシフトはありません", en: "No upcoming published shift" },
 	departmentOffice: { zh: "办公室", ja: "事務所", en: "Office" },
 	departmentProduction: { zh: "生产", ja: "生産", en: "Production" },
 }

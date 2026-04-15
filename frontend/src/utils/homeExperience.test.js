@@ -18,6 +18,11 @@ import {
 const currentDir = path.dirname(fileURLToPath(import.meta.url))
 const homeHeroCardPath = path.resolve(currentDir, "../components/home/HomeHeroCard.vue")
 const checkInPanelPath = path.resolve(currentDir, "../components/CheckInPanel.vue")
+const homeViewPath = path.resolve(currentDir, "../views/Home.vue")
+const homeSummaryCardPath = path.resolve(
+	currentDir,
+	"../components/work_roster/HomeSummaryCard.vue",
+)
 
 test("returns working and off-work chip metadata for zh and ja", () => {
 	assert.deepEqual(getStatusChipMeta(true, "zh"), {
@@ -101,6 +106,30 @@ test("returns work-state-aware hero summary text", () => {
 	assert.equal(getHeroSummaryCopy({ isWorking: true, lang: "zh" }), "今天已出勤，点击可查看今日勤怠")
 })
 
+test("CheckInPanel reuses the shared primary scan copy helper", () => {
+	const source = fs.readFileSync(checkInPanelPath, "utf8")
+
+	assert.match(source, /getPrimaryScanCopy/)
+	assert.match(source, /return getPrimaryScanCopy\(isWorking\.value,\s*currentLanguage\.value\)/)
+	assert.doesNotMatch(source, /function getCheckinButtonText\(/)
+	assert.doesNotMatch(source, /function getCheckinButtonDesc\(/)
+})
+
+test("Home owns a single work-status resource shared by the chip and panel", () => {
+	const homeSource = fs.readFileSync(homeViewPath, "utf8")
+	const chipSource = fs.readFileSync(
+		path.resolve(currentDir, "../components/home/HomeStatusChip.vue"),
+		"utf8",
+	)
+	const panelSource = fs.readFileSync(checkInPanelPath, "utf8")
+
+	assert.match(homeSource, /const workStatus = createResource\(/)
+	assert.match(homeSource, /<HomeStatusChip\s+:work-status="workStatus"/)
+	assert.match(homeSource, /<CheckInPanel\s+class="w-full flex-1"\s+:work-status="workStatus"/)
+	assert.doesNotMatch(chipSource, /createResource\(/)
+	assert.doesNotMatch(panelSource, /url:\s*"hrms\.api\.get_employee_work_status"/)
+})
+
 test("keeps the hero state unresolved until attendance and settings are ready", () => {
 	const source = fs.readFileSync(checkInPanelPath, "utf8")
 
@@ -125,4 +154,14 @@ test("returns the compressed roster empty copy", () => {
 		next: "暂无下个班次",
 		nextHint: "后续班次尚未发布",
 	})
+})
+
+test("HomeSummaryCard keeps roster empty copy in a single source", () => {
+	const source = fs.readFileSync(homeSummaryCardPath, "utf8")
+
+	assert.match(source, /import\s+\{\s*getRosterEmptyCopy\s*\}\s+from\s+"@\/utils\/homeExperience"/)
+	assert.doesNotMatch(source, /\btodayEmpty:\s*\{/)
+	assert.doesNotMatch(source, /\btodayEmptyHint:\s*\{/)
+	assert.doesNotMatch(source, /\bnextEmpty:\s*\{/)
+	assert.doesNotMatch(source, /\bnextEmptyHint:\s*\{/)
 })
