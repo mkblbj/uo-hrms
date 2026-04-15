@@ -1,5 +1,8 @@
 <template>
 	<BaseLayout>
+		<template #header-actions>
+			<HomeStatusChip />
+		</template>
 		<template #body>
 			<div class="home-container">
 				<CheckInPanel class="w-full flex-1" />
@@ -9,8 +12,9 @@
 </template>
 
 <script setup>
-import CheckInPanel from "@/components/CheckInPanel.vue"
 import BaseLayout from "@/components/BaseLayout.vue"
+import CheckInPanel from "@/components/CheckInPanel.vue"
+import HomeStatusChip from "@/components/home/HomeStatusChip.vue"
 </script>
 
 <style scoped>

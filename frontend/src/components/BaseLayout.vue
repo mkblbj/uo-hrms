@@ -19,8 +19,8 @@
 								{{ props.pageTitle || __("UO HR") }}
 							</h2>
 						</div>
-						<div class="flex flex-row items-center gap-3 ml-auto">
-							<AppLanguageSwitcher v-if="!props.backRoute" />
+						<div class="flex flex-row items-center gap-2 ml-auto">
+							<slot name="header-actions"></slot>
 							<router-link
 								:to="{ name: 'Notifications' }"
 								v-slot="{ navigate }"
@@ -28,23 +28,13 @@
 							>
 								<span class="relative inline-block" @click="navigate">
 									<FeatherIcon name="bell" class="h-6 w-6" />
-									<span
-										v-if="unreadNotificationsCount.data"
-										class="notification-badge"
-									>
+									<span v-if="unreadNotificationsCount.data" class="notification-badge">
 										{{ unreadNotificationsCount.data > 99 ? '99+' : unreadNotificationsCount.data }}
 									</span>
 								</span>
 							</router-link>
-							<router-link
-								:to="{ name: 'Profile' }"
-								class="flex flex-col items-center"
-							>
-								<Avatar
-									:image="user.data.user_image"
-									:label="user.data.first_name"
-									size="xl"
-								/>
+							<router-link :to="{ name: 'Profile' }" class="flex flex-col items-center">
+								<Avatar :image="user.data.user_image" :label="user.data.first_name" size="xl" />
 							</router-link>
 						</div>
 					</div>
@@ -61,14 +51,12 @@
 </template>
 
 <script setup>
+import { inject } from "vue"
 import { IonHeader, IonContent, IonPage } from "@ionic/vue"
 import { FeatherIcon, Avatar } from "frappe-ui"
 import { useRouter } from "vue-router"
 
-import AppLanguageSwitcher from "@/components/AppLanguageSwitcher.vue"
 import { unreadNotificationsCount } from "@/data/notifications"
-
-import { inject } from "vue"
 
 const user = inject("$user")
 const __ = inject("$translate")
@@ -117,6 +105,6 @@ function goBack() {
 	background: #ef4444;
 	border-radius: 9px;
 	border: 2px solid white;
-	box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 </style>
