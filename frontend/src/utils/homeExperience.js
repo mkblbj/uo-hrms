@@ -1,3 +1,7 @@
+import { normalizeLanguage } from "./language.js"
+
+const DEFAULT_HOME_LANGUAGE = "zh"
+
 const COPY = {
 	zh: {
 		statusWorking: "正在出勤",
@@ -47,8 +51,16 @@ const COPY = {
 	},
 }
 
+export function resolveHomeLanguage(boot = globalThis.window?.frappe?.boot) {
+	return (
+		normalizeLanguage(boot?.lang) ||
+		normalizeLanguage(boot?.server_lang) ||
+		DEFAULT_HOME_LANGUAGE
+	)
+}
+
 function pick(lang, key) {
-	return COPY[lang]?.[key] || COPY.zh[key]
+	return COPY[normalizeLanguage(lang) || DEFAULT_HOME_LANGUAGE]?.[key] || COPY[DEFAULT_HOME_LANGUAGE][key]
 }
 
 export function resolveWorkStatusValue(workStatus) {

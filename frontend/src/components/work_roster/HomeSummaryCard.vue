@@ -73,13 +73,23 @@
 </template>
 
 <script setup>
-import { inject, onMounted } from "vue"
+import { computed, inject, onMounted } from "vue"
 import { onIonViewWillEnter } from "@ionic/vue"
 import { createResource } from "frappe-ui"
-import { getRosterEmptyCopy } from "@/utils/homeExperience"
+import { getRosterEmptyCopy, resolveHomeLanguage } from "@/utils/homeExperience"
+
+const props = defineProps({
+	lang: {
+		type: String,
+		default: null,
+	},
+})
 
 const dayjs = inject("$dayjs")
 const __ = inject("$translate")
+const currentLanguage = computed(() =>
+	resolveHomeLanguage(props.lang ? { lang: props.lang } : window.frappe?.boot),
+)
 
 const labels = {
 	title: { zh: "排班提醒", ja: "シフト案内", en: "Roster Alerts" },
@@ -103,13 +113,9 @@ function loadSummary() {
 	summaryResource.fetch()
 }
 
-function getLang() {
-	return frappe?.boot?.lang || "zh"
-}
-
 function t(key) {
 	if (key === "todayEmpty" || key === "todayEmptyHint" || key === "nextEmpty" || key === "nextEmptyHint") {
-		const emptyCopy = getRosterEmptyCopy(getLang())
+		const emptyCopy = getRosterEmptyCopy(currentLanguage.value)
 		return {
 			todayEmpty: emptyCopy.today,
 			todayEmptyHint: emptyCopy.todayHint,
@@ -118,12 +124,12 @@ function t(key) {
 		}[key]
 	}
 
-	return labels[key]?.[getLang()] || labels[key]?.zh || __(key)
+	return labels[key]?.[currentLanguage.value] || labels[key]?.zh || __(key)
 }
 
 function formatDate(dateStr) {
 	if (!dateStr) return ""
-	const lang = getLang()
+	const lang = currentLanguage.value
 	const weekdayMap = {
 		zh: ["日", "一", "二", "三", "四", "五", "六"],
 		ja: ["日", "月", "火", "水", "木", "金", "土"],

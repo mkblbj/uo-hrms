@@ -9,6 +9,7 @@ import {
 	getPrimaryScanCopy,
 	getBottomTabItems,
 	resolveWorkStatusValue,
+	resolveHomeLanguage,
 	getPrimaryScanAction,
 	getPrimaryScanMeta,
 	getHeroCardMeta,
@@ -19,6 +20,7 @@ import {
 const currentDir = path.dirname(fileURLToPath(import.meta.url))
 const homeHeroCardPath = path.resolve(currentDir, "../components/home/HomeHeroCard.vue")
 const checkInPanelPath = path.resolve(currentDir, "../components/CheckInPanel.vue")
+const weatherWidgetPath = path.resolve(currentDir, "../components/WeatherWidget.vue")
 const homeViewPath = path.resolve(currentDir, "../views/Home.vue")
 const homeSummaryCardPath = path.resolve(
 	currentDir,
@@ -100,6 +102,15 @@ test("returns localized bottom-tab labels without mixed-language fallbacks", () 
 		"経費",
 		"給与",
 	])
+})
+
+test("resolves the shared home language from boot lang variants and fallbacks", () => {
+	assert.equal(resolveHomeLanguage({ lang: "ja_JP" }), "ja")
+	assert.equal(resolveHomeLanguage({ lang: "en-US" }), "en")
+	assert.equal(resolveHomeLanguage({ server_lang: "ja-JP" }), "ja")
+	assert.equal(resolveHomeLanguage({ lang: "fr", server_lang: "en-US" }), "en")
+	assert.equal(resolveHomeLanguage({}), "zh")
+	assert.equal(resolveHomeLanguage(), "zh")
 })
 
 test("returns work-state-aware hero summary text aligned with the current scan interaction", () => {
@@ -222,12 +233,53 @@ test("returns the compressed roster empty copy", () => {
 	})
 })
 
+test("returns ja and en home copy branches without mixed-language fallbacks", () => {
+	assert.equal(
+		getHeroSummaryCopy({ isWorking: true, lang: "ja", hasCta: true }),
+		"本日は出勤済みです。タップしてQRコードで退勤できます",
+	)
+	assert.equal(
+		getHeroSummaryCopy({ isWorking: false, lang: "en", hasCta: false }),
+		"No attendance record yet.",
+	)
+	assert.deepEqual(getRosterEmptyCopy("en"), {
+		today: "No shift today",
+		todayHint: "No published shift today",
+		next: "No next shift yet",
+		nextHint: "Upcoming shifts are not published yet",
+	})
+})
+
 test("HomeSummaryCard keeps roster empty copy in a single source", () => {
 	const source = fs.readFileSync(homeSummaryCardPath, "utf8")
 
-	assert.match(source, /import\s+\{\s*getRosterEmptyCopy\s*\}\s+from\s+"@\/utils\/homeExperience"/)
+	assert.match(
+		source,
+		/import\s+\{\s*getRosterEmptyCopy\s*,\s*resolveHomeLanguage\s*\}\s+from\s+"@\/utils\/homeExperience"/,
+	)
 	assert.doesNotMatch(source, /\btodayEmpty:\s*\{/)
 	assert.doesNotMatch(source, /\btodayEmptyHint:\s*\{/)
 	assert.doesNotMatch(source, /\bnextEmpty:\s*\{/)
 	assert.doesNotMatch(source, /\bnextEmptyHint:\s*\{/)
+})
+
+test("home modules share one language helper instead of local fallbacks", () => {
+	const panelSource = fs.readFileSync(checkInPanelPath, "utf8")
+	const weatherSource = fs.readFileSync(weatherWidgetPath, "utf8")
+	const summarySource = fs.readFileSync(homeSummaryCardPath, "utf8")
+
+	assert.match(panelSource, /resolveHomeLanguage/)
+	assert.match(panelSource, /<HomeSummaryCard\s+:lang="currentLanguage"/)
+	assert.match(panelSource, /<WeatherWidget\s+:lang="currentLanguage"/)
+	assert.doesNotMatch(panelSource, /frappe\.boot(?:\?\.|\.?)lang/)
+
+	assert.match(weatherSource, /resolveHomeLanguage/)
+	assert.match(weatherSource, /currentLanguage/)
+	assert.doesNotMatch(weatherSource, /\|\|\s*["'](?:ja|zh|en)["']/)
+	assert.doesNotMatch(weatherSource, /frappe\.boot(?:\?\.|\.?)lang/)
+
+	assert.match(summarySource, /resolveHomeLanguage/)
+	assert.match(summarySource, /currentLanguage/)
+	assert.doesNotMatch(summarySource, /\|\|\s*["'](?:ja|zh|en)["']/)
+	assert.doesNotMatch(summarySource, /frappe\.boot(?:\?\.|\.?)lang/)
 })

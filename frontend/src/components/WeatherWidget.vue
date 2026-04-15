@@ -19,9 +19,20 @@
 
 <script setup>
 import { createResource } from "frappe-ui"
-import { inject } from "vue"
+import { computed } from "vue"
 
-const __ = inject("$translate")
+import { resolveHomeLanguage } from "@/utils/homeExperience"
+
+const props = defineProps({
+	lang: {
+		type: String,
+		default: null,
+	},
+})
+
+const currentLanguage = computed(() =>
+	resolveHomeLanguage(props.lang ? { lang: props.lang } : window.frappe?.boot),
+)
 
 const weather = createResource({
 	url: "hrms.api.get_weather_data",
@@ -36,7 +47,7 @@ const forecast = createResource({
 })
 
 function getLabel(key) {
-	const lang = frappe.boot?.lang || "ja"
+	const lang = currentLanguage.value
 	const labels = {
 		today: {
 			ja: "今日",

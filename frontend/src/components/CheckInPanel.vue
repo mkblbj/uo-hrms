@@ -9,8 +9,8 @@
 			@scan="openQRScanner"
 		/>
 
-		<HomeSummaryCard />
-		<WeatherWidget />
+		<HomeSummaryCard :lang="currentLanguage" />
+		<WeatherWidget :lang="currentLanguage" />
 
 		<div v-if="dashboardStats.data" class="stats-row stats-row--subtle">
 			<div class="stat-card hours">
@@ -108,7 +108,7 @@ import { computed, inject, ref, onMounted, onBeforeUnmount } from "vue"
 import { IonModal, modalController } from "@ionic/vue"
 
 import { formatTimestamp } from "@/utils/formatters"
-import { getHeroCardMeta } from "@/utils/homeExperience"
+import { getHeroCardMeta, resolveHomeLanguage } from "@/utils/homeExperience"
 import QRScannerModal from "@/components/QRScannerModal.vue"
 import WeatherWidget from "@/components/WeatherWidget.vue"
 import HomeHeroCard from "@/components/home/HomeHeroCard.vue"
@@ -133,7 +133,7 @@ const longitude = ref(0)
 const locationStatus = ref("")
 const showQRScanner = ref(false)
 const qrScannerRef = ref(null)
-const currentLanguage = computed(() => window.frappe?.boot?.lang || "zh")
+const currentLanguage = resolveHomeLanguage(window.frappe?.boot)
 const settings = createResource({
 	url: "hrms.api.get_hr_settings",
 	auto: true,
@@ -170,7 +170,7 @@ const isMobileCheckinAllowed = computed(() =>
 const heroCardMeta = computed(() =>
 	getHeroCardMeta({
 		workStatus: props.workStatus?.data,
-		lang: currentLanguage.value,
+		lang: currentLanguage,
 		timeText: lastLog.value?.time ? formatTimestamp(lastLog.value.time) : "",
 		translate: __,
 		allowPrimaryScan: isMobileCheckinAllowed.value,
@@ -401,7 +401,7 @@ onBeforeUnmount(() => {
 // 辅助函数
 function getGreeting() {
 	const hour = new Date().getHours()
-	const lang = frappe.boot.lang || "ja"
+	const lang = currentLanguage
 	
 	const greetings = {
 		ja: {
@@ -421,7 +421,7 @@ function getGreeting() {
 		}
 	}
 	
-	const langGreetings = greetings[lang] || greetings.ja
+	const langGreetings = greetings[lang] || greetings.zh
 	
 	if (hour < 12) return langGreetings.morning
 	if (hour < 18) return langGreetings.afternoon
@@ -429,7 +429,7 @@ function getGreeting() {
 }
 
 function formatDate() {
-	const lang = frappe.boot.lang || "ja"
+	const lang = currentLanguage
 	const date = new Date()
 	
 	if (lang === "ja") {
@@ -447,7 +447,7 @@ function formatHours(hours) {
 }
 
 function getStatsLabel(key) {
-	const lang = frappe.boot.lang || "ja"
+	const lang = currentLanguage
 	
 	const labels = {
 		today_hours: {
@@ -482,18 +482,18 @@ function getStatsLabel(key) {
 		}
 	}
 	
-	return labels[key]?.[lang] || labels[key]?.ja || key
+	return labels[key]?.[lang] || labels[key]?.zh || key
 }
 
 function getNotificationTitle() {
-	const lang = frappe.boot?.lang || "ja"
+	const lang = currentLanguage
 	if (lang === "ja") return "お知らせ"
 	if (lang === "zh") return "最新通知"
 	return "Notifications"
 }
 
 function getNoNotificationText() {
-	const lang = frappe.boot?.lang || "ja"
+	const lang = currentLanguage
 	if (lang === "ja") return "新しいお知らせはありません"
 	if (lang === "zh") return "暂无新通知"
 	return "No new notifications"
@@ -553,7 +553,7 @@ function formatNotificationTime(dateStr) {
 	const diffHours = now.diff(date, 'hour')
 	const diffDays = now.diff(date, 'day')
 	
-	const lang = frappe.boot?.lang || "ja"
+	const lang = currentLanguage
 	
 	if (diffMinutes < 1) {
 		return lang === "ja" ? "たった今" : lang === "zh" ? "刚刚" : "Just now"
