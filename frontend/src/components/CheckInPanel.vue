@@ -2,10 +2,10 @@
 	<div class="checkin-panel">
 		<!-- 工作状态卡片 -->
 		<div
-			v-if="workStatus.data"
+			v-if="resolvedWorkStatus !== null"
 			:class="[
 				'w-full rounded-lg px-4 py-3 flex items-center gap-3 shadow-sm transition-all duration-300',
-				workStatus.data.is_working
+				resolvedWorkStatus
 					? 'bg-gradient-to-r from-green-500 to-green-600'
 					: 'bg-gradient-to-r from-gray-500 to-gray-600'
 			]"
@@ -13,7 +13,7 @@
 			<span
 				:class="[
 					'w-2.5 h-2.5 rounded-full flex-shrink-0',
-					workStatus.data.is_working ? 'bg-white animate-pulse' : 'bg-gray-300'
+					resolvedWorkStatus ? 'bg-white animate-pulse' : 'bg-gray-300'
 				]"
 			></span>
 			<span class="text-white font-semibold text-sm">{{ getStatusText() }}</span>
@@ -31,6 +31,7 @@
 			<!-- 扫码打卡按钮 -->
 			<template v-if="settings.data?.allow_employee_checkin_from_mobile_app">
 				<button
+					v-if="primaryScanMeta"
 					class="checkin-btn"
 					@click="openQRScanner"
 				>
@@ -43,15 +44,15 @@
 							<rect x="7" y="7" width="10" height="10" rx="1"/>
 						</svg>
 						<div class="checkin-text">
-							<span class="checkin-title">{{ primaryScanCopy.title }}</span>
-							<span class="checkin-desc">{{ primaryScanCopy.description }}</span>
+							<span class="checkin-title">{{ primaryScanMeta.title }}</span>
+							<span class="checkin-desc">{{ primaryScanMeta.description }}</span>
 						</div>
 					</div>
 					<svg class="checkin-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
 						<path d="M9 18l6-6-6-6"/>
 					</svg>
 				</button>
-				
+
 				<div class="font-medium text-xs text-gray-400 mt-3 text-center" v-if="lastLog">
 					<span>{{ __("Last {0} was at {1}", [__(lastLogType), formatTimestamp(lastLog.time)]) }}</span>
 					<span class="whitespace-pre"> · </span>
@@ -136,17 +137,24 @@
 				</div>
 			</template>
 
-			<Button :loading="checkins.insert.loading" variant="solid" class="w-full py-5 text-sm disabled:bg-gray-700" @click="submitLog(nextAction.action)">
-				{{ __("Confirm {0}", [nextAction.label]) }}
+			<Button
+				v-if="primaryScanMeta"
+				:loading="checkins.insert.loading"
+				variant="solid"
+				class="w-full py-5 text-sm disabled:bg-gray-700"
+				@click="submitLog(primaryScanMeta.action)"
+			>
+				{{ __("Confirm {0}", [primaryScanMeta.label]) }}
 			</Button>
 		</div>
 	</ion-modal>
 
 	<!-- 扫码模态框 -->
 	<QRScannerModal
+		v-if="primaryScanMeta"
 		ref="qrScannerRef"
 		:is-open="showQRScanner"
-		:log-type="nextAction.action"
+		:log-type="primaryScanMeta.action"
 		@close="showQRScanner = false"
 		@success="handleQRScanSuccess"
 	/>
@@ -158,7 +166,10 @@ import { computed, inject, ref, onMounted, onBeforeUnmount } from "vue"
 import { IonModal, modalController } from "@ionic/vue"
 
 import { formatTimestamp } from "@/utils/formatters"
-import { getPrimaryScanCopy } from "@/utils/homeExperience"
+import {
+	getPrimaryScanMeta,
+	resolveWorkStatusValue,
+} from "@/utils/homeExperience"
 import QRScannerModal from "@/components/QRScannerModal.vue"
 import WeatherWidget from "@/components/WeatherWidget.vue"
 import HomeSummaryCard from "@/components/work_roster/HomeSummaryCard.vue"
@@ -182,6 +193,7 @@ const longitude = ref(0)
 const locationStatus = ref("")
 const showQRScanner = ref(false)
 const qrScannerRef = ref(null)
+const lang = computed(() => window.frappe?.boot?.lang || "zh")
 const settings = createResource({
 	url: "hrms.api.get_hr_settings",
 	auto: true,
@@ -216,17 +228,12 @@ const lastLogType = computed(() => {
 	return lastLog?.value?.log_type === "IN" ? "check-in" : "check-out"
 })
 
-const nextAction = computed(() => {
-	return lastLog?.value?.log_type === "IN"
-		? { action: "OUT", label: __("Check Out") }
-		: { action: "IN", label: __("Check In") }
-})
+const resolvedWorkStatus = computed(() =>
+	resolveWorkStatusValue(props.workStatus?.data),
+)
 
-const primaryScanCopy = computed(() =>
-	getPrimaryScanCopy(
-		Boolean(props.workStatus?.data?.is_working),
-		window.frappe?.boot?.lang || "zh",
-	),
+const primaryScanMeta = computed(() =>
+	getPrimaryScanMeta(resolvedWorkStatus.value, lang.value, __),
 )
 
 function handleLocationSuccess(position) {
@@ -306,10 +313,14 @@ const submitLog = (logType) => {
 }
 
 const openQRScanner = () => {
+	if (!primaryScanMeta.value) return
 	showQRScanner.value = true
 }
 
 const handleQRScanSuccess = async (token, latitude = null, longitude = null) => {
+	const action = primaryScanMeta.value?.action
+	if (!action) return
+
 	try {
 		// 如果启用了地理位置追踪，但扫码模态框没有传递位置信息，则尝试获取
 		if (settings.data?.allow_geolocation_tracking && (!latitude || !longitude)) {
@@ -358,7 +369,7 @@ const handleQRScanSuccess = async (token, latitude = null, longitude = null) => 
 			},
 			body: JSON.stringify({
 				token: token,
-				log_type: nextAction.value.action,
+				log_type: action,
 				latitude: latitude,
 				longitude: longitude
 			})
@@ -381,7 +392,7 @@ const handleQRScanSuccess = async (token, latitude = null, longitude = null) => 
 			
 			// 发送全局事件通知工作状态徽章更新
 			window.dispatchEvent(new CustomEvent("checkin-status-changed", {
-				detail: { log_type: nextAction.value.action }
+				detail: { log_type: action }
 			}))
 			
 			// 关闭扫码窗口
@@ -532,11 +543,11 @@ function getStatsLabel(key) {
 }
 
 function getStatusText() {
-	if (!props.workStatus?.data) return ""
+	if (resolvedWorkStatus.value === null) return ""
 	
 	const lang = frappe.boot?.lang || "ja"
 	
-	if (props.workStatus.data.is_working) {
+	if (resolvedWorkStatus.value) {
 		if (lang === "ja") return "勤務中"
 		if (lang === "zh") return "上班中"
 		return "Working"

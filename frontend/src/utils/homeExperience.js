@@ -51,16 +51,29 @@ function pick(lang, key) {
 	return COPY[lang]?.[key] || COPY.zh[key]
 }
 
+export function resolveWorkStatusValue(workStatus) {
+	if (typeof workStatus === "boolean") return workStatus
+
+	const value = workStatus?.is_working
+	return typeof value === "boolean" ? value : null
+}
+
 export function getStatusChipMeta(isWorking, lang = "zh") {
+	const resolvedWorkStatus = resolveWorkStatusValue(isWorking)
+	if (resolvedWorkStatus === null) return null
+
 	return {
-		label: pick(lang, isWorking ? "statusWorking" : "statusOff"),
-		tone: isWorking ? "working" : "off",
+		label: pick(lang, resolvedWorkStatus ? "statusWorking" : "statusOff"),
+		tone: resolvedWorkStatus ? "working" : "off",
 		routeName: "AttendanceDashboard",
 	}
 }
 
 export function getPrimaryScanCopy(isWorking, lang = "zh") {
-	return isWorking
+	const resolvedWorkStatus = resolveWorkStatusValue(isWorking)
+	if (resolvedWorkStatus === null) return null
+
+	return resolvedWorkStatus
 		? {
 				title: pick(lang, "scanOutTitle"),
 				description: pick(lang, "scanOutDescription"),
@@ -69,6 +82,35 @@ export function getPrimaryScanCopy(isWorking, lang = "zh") {
 				title: pick(lang, "scanInTitle"),
 				description: pick(lang, "scanInDescription"),
 			}
+}
+
+export function getPrimaryScanAction(
+	isWorking,
+	translate = (value) => value,
+) {
+	const resolvedWorkStatus = resolveWorkStatusValue(isWorking)
+	if (resolvedWorkStatus === null) return null
+
+	return resolvedWorkStatus
+		? {
+				action: "OUT",
+				label: translate("Check Out"),
+			}
+		: {
+				action: "IN",
+				label: translate("Check In"),
+			}
+}
+
+export function getPrimaryScanMeta(
+	isWorking,
+	lang = "zh",
+	translate = (value) => value,
+) {
+	const action = getPrimaryScanAction(isWorking, translate)
+	const copy = getPrimaryScanCopy(isWorking, lang)
+
+	return action && copy ? { ...action, ...copy } : null
 }
 
 export function getBottomTabItems(lang = "zh") {

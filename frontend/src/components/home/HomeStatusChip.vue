@@ -1,5 +1,6 @@
 <template>
 	<button
+		v-if="meta"
 		type="button"
 		class="status-chip"
 		:class="meta.tone"
@@ -14,7 +15,7 @@
 import { computed } from "vue"
 import { useRouter } from "vue-router"
 
-import { getStatusChipMeta } from "@/utils/homeExperience"
+import { getStatusChipMeta, resolveWorkStatusValue } from "@/utils/homeExperience"
 
 const props = defineProps({
 	workStatus: {
@@ -26,8 +27,11 @@ const props = defineProps({
 const router = useRouter()
 
 const lang = computed(() => window.frappe?.boot?.lang || "zh")
+const resolvedWorkStatus = computed(() =>
+	resolveWorkStatusValue(props.workStatus?.data),
+)
 const meta = computed(() =>
-	getStatusChipMeta(Boolean(props.workStatus?.data?.is_working), lang.value),
+	getStatusChipMeta(resolvedWorkStatus.value, lang.value),
 )
 </script>
 
