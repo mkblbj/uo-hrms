@@ -1,76 +1,18 @@
 <template>
 	<div class="checkin-panel">
-		<!-- 工作状态卡片 -->
-		<div
-			v-if="resolvedWorkStatus !== null"
-			:class="[
-				'w-full rounded-lg px-4 py-3 flex items-center gap-3 shadow-sm transition-all duration-300',
-				resolvedWorkStatus
-					? 'bg-gradient-to-r from-green-500 to-green-600'
-					: 'bg-gradient-to-r from-gray-500 to-gray-600'
-			]"
-		>
-			<span
-				:class="[
-					'w-2.5 h-2.5 rounded-full flex-shrink-0',
-					resolvedWorkStatus ? 'bg-white animate-pulse' : 'bg-gray-300'
-				]"
-			></span>
-			<span class="text-white font-semibold text-sm">{{ getStatusText() }}</span>
-		</div>
+		<HomeHeroCard
+			:employee-name="employee?.data?.first_name || employee?.data?.employee_name || ''"
+			:greeting="getGreeting()"
+			:date-label="formatDate()"
+			:summary="heroSummary"
+			:cta="primaryScanCopy"
+			@scan="openQRScanner"
+		/>
 
-		<!-- 欢迎和打卡 -->
-		<div class="bg-white rounded-lg p-4 shadow-sm">
-		<h2 class="text-lg font-bold text-gray-900">
-				{{ getGreeting() }} {{ employee?.data?.first_name }}さん 👋
-		</h2>
-			<div class="font-medium text-sm text-gray-500 mt-1 mb-3">
-				{{ formatDate() }}
-			</div>
-
-			<!-- 扫码打卡按钮 -->
-			<template v-if="settings.data?.allow_employee_checkin_from_mobile_app">
-				<button
-					v-if="primaryScanMeta"
-					class="checkin-btn"
-					@click="openQRScanner"
-				>
-					<div class="checkin-btn-content">
-						<svg class="checkin-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-							<path d="M3 7V5a2 2 0 0 1 2-2h2"/>
-							<path d="M17 3h2a2 2 0 0 1 2 2v2"/>
-							<path d="M21 17v2a2 2 0 0 1-2 2h-2"/>
-							<path d="M7 21H5a2 2 0 0 1-2-2v-2"/>
-							<rect x="7" y="7" width="10" height="10" rx="1"/>
-						</svg>
-						<div class="checkin-text">
-							<span class="checkin-title">{{ primaryScanMeta.title }}</span>
-							<span class="checkin-desc">{{ primaryScanMeta.description }}</span>
-						</div>
-					</div>
-					<svg class="checkin-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-						<path d="M9 18l6-6-6-6"/>
-					</svg>
-				</button>
-
-				<div class="font-medium text-xs text-gray-400 mt-3 text-center" v-if="lastLog">
-					<span>{{ __("Last {0} was at {1}", [__(lastLogType), formatTimestamp(lastLog.time)]) }}</span>
-					<span class="whitespace-pre"> · </span>
-					<router-link :to="{ name: 'EmployeeCheckinListView' }" v-slot="{ navigate }">
-						<span @click="navigate" class="underline text-blue-500">{{ __("View List") }}</span>
-					</router-link>
-				</div>
-			</template>
-		</div>
-
-		<!-- 排班提醒 -->
 		<HomeSummaryCard />
-
-		<!-- 天气卡片 -->
 		<WeatherWidget />
 
-		<!-- 统计卡片 -->
-		<div v-if="dashboardStats.data" class="stats-row">
+		<div v-if="dashboardStats.data" class="stats-row stats-row--subtle">
 			<div class="stat-card hours">
 				<div class="stat-value">{{ formatHours(dashboardStats.data.month_hours) }}</div>
 				<div class="stat-label">{{ getStatsLabel('month_hours') }}</div>
@@ -167,11 +109,14 @@ import { IonModal, modalController } from "@ionic/vue"
 
 import { formatTimestamp } from "@/utils/formatters"
 import {
+	getHeroSummaryCopy,
+	getPrimaryScanCopy,
 	getPrimaryScanMeta,
 	resolveWorkStatusValue,
 } from "@/utils/homeExperience"
 import QRScannerModal from "@/components/QRScannerModal.vue"
 import WeatherWidget from "@/components/WeatherWidget.vue"
+import HomeHeroCard from "@/components/home/HomeHeroCard.vue"
 import HomeSummaryCard from "@/components/work_roster/HomeSummaryCard.vue"
 
 const DOCTYPE = "Employee Checkin"
@@ -193,7 +138,7 @@ const longitude = ref(0)
 const locationStatus = ref("")
 const showQRScanner = ref(false)
 const qrScannerRef = ref(null)
-const lang = computed(() => window.frappe?.boot?.lang || "zh")
+const currentLanguage = computed(() => window.frappe?.boot?.lang || "zh")
 const settings = createResource({
 	url: "hrms.api.get_hr_settings",
 	auto: true,
@@ -224,17 +169,31 @@ const lastLog = computed(() => {
 	return checkins.data[0]
 })
 
-const lastLogType = computed(() => {
-	return lastLog?.value?.log_type === "IN" ? "check-in" : "check-out"
-})
-
 const resolvedWorkStatus = computed(() =>
 	resolveWorkStatusValue(props.workStatus?.data),
 )
+const isWorking = computed(() => {
+	if (resolvedWorkStatus.value !== null) {
+		return resolvedWorkStatus.value
+	}
+
+	return lastLog?.value?.log_type === "IN"
+})
+const primaryScanCopy = computed(() =>
+	getPrimaryScanCopy(isWorking.value, currentLanguage.value),
+)
 
 const primaryScanMeta = computed(() =>
-	getPrimaryScanMeta(resolvedWorkStatus.value, lang.value, __),
+	getPrimaryScanMeta(isWorking.value, currentLanguage.value, __),
 )
+const heroSummary = computed(() => {
+	const timeText = lastLog.value?.time ? formatTimestamp(lastLog.value.time) : ""
+	return getHeroSummaryCopy({
+		isWorking: isWorking.value,
+		lang: currentLanguage.value,
+		timeText,
+	})
+})
 
 function handleLocationSuccess(position) {
 	latitude.value = position.coords.latitude
@@ -313,7 +272,7 @@ const submitLog = (logType) => {
 }
 
 const openQRScanner = () => {
-	if (!primaryScanMeta.value) return
+	if (!settings.data?.allow_employee_checkin_from_mobile_app || !primaryScanMeta.value) return
 	showQRScanner.value = true
 }
 
@@ -542,22 +501,6 @@ function getStatsLabel(key) {
 	return labels[key]?.[lang] || labels[key]?.ja || key
 }
 
-function getStatusText() {
-	if (resolvedWorkStatus.value === null) return ""
-	
-	const lang = frappe.boot?.lang || "ja"
-	
-	if (resolvedWorkStatus.value) {
-		if (lang === "ja") return "勤務中"
-		if (lang === "zh") return "上班中"
-		return "Working"
-	} else {
-		if (lang === "ja") return "退勤済"
-		if (lang === "zh") return "已下班"
-		return "Off Work"
-	}
-}
-
 function getNotificationTitle() {
 	const lang = frappe.boot?.lang || "ja"
 	if (lang === "ja") return "お知らせ"
@@ -680,95 +623,13 @@ function formatNotificationTime(dateStr) {
 	margin-top: 8px;
 }
 
-@keyframes pulse {
-	0%, 100% {
-		opacity: 1;
-	}
-	50% {
-		opacity: 0.5;
-	}
+.stats-row--subtle .stat-card {
+	box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+	padding: 16px 14px;
 }
 
-.animate-pulse {
-	animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* 扫码打卡按钮 */
-.checkin-btn {
-	width: 100%;
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 16px 20px;
-	background: rgba(37, 99, 235, 0.08);
-	border: 1px solid rgba(37, 99, 235, 0.3);
-	border-radius: 12px;
-	cursor: pointer;
-	transition: all 0.2s ease;
-}
-
-.checkin-btn:hover {
-	background: #2563EB;
-	border-color: #2563EB;
-}
-
-.checkin-btn:hover .checkin-icon,
-.checkin-btn:hover .checkin-title,
-.checkin-btn:hover .checkin-arrow {
-	color: white;
-}
-
-.checkin-btn:hover .checkin-desc {
-	color: rgba(255, 255, 255, 0.8);
-}
-
-.checkin-btn:active {
-	background: #1d4ed8;
-	transform: scale(0.99);
-}
-
-.checkin-btn-content {
-	display: flex;
-	align-items: center;
-	gap: 14px;
-}
-
-.checkin-icon {
-	width: 28px;
-	height: 28px;
-	color: #2563EB;
-	flex-shrink: 0;
-	transition: color 0.2s ease;
-}
-
-.checkin-text {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: 2px;
-}
-
-.checkin-title {
-	font-size: 16px;
-	font-weight: 700;
-	color: #2563EB;
-	line-height: 1.3;
-	transition: color 0.2s ease;
-}
-
-.checkin-desc {
-	font-size: 12px;
-	color: #9CA3AF;
-	line-height: 1.3;
-	transition: color 0.2s ease;
-}
-
-.checkin-arrow {
-	width: 20px;
-	height: 20px;
-	color: rgba(37, 99, 235, 0.5);
-	flex-shrink: 0;
-	transition: color 0.2s ease;
+.stats-row--subtle .stat-value {
+	font-size: 28px;
 }
 
 /* 通知卡片 */
@@ -777,10 +638,10 @@ function formatNotificationTime(dateStr) {
 	background: white;
 	border-radius: 14px;
 	padding: 14px 16px;
-	box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+	box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
 	text-decoration: none;
 	transition: all 0.2s ease;
-	border-left: 4px solid #f59e0b;
+	border-left: 3px solid #f59e0b;
 }
 
 .notification-card:hover {

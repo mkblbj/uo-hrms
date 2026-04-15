@@ -76,6 +76,7 @@
 import { inject, onMounted } from "vue"
 import { onIonViewWillEnter } from "@ionic/vue"
 import { createResource } from "frappe-ui"
+import { getRosterEmptyCopy } from "@/utils/homeExperience"
 
 const dayjs = inject("$dayjs")
 const __ = inject("$translate")
@@ -111,6 +112,16 @@ function getLang() {
 }
 
 function t(key) {
+	if (key === "todayEmpty" || key === "todayEmptyHint" || key === "nextEmpty" || key === "nextEmptyHint") {
+		const emptyCopy = getRosterEmptyCopy(getLang())
+		return {
+			todayEmpty: emptyCopy.today,
+			todayEmptyHint: emptyCopy.todayHint,
+			nextEmpty: emptyCopy.next,
+			nextEmptyHint: emptyCopy.nextHint,
+		}[key]
+	}
+
 	return labels[key]?.[getLang()] || labels[key]?.zh || __(key)
 }
 

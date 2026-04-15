@@ -8,6 +8,8 @@ import {
 	resolveWorkStatusValue,
 	getPrimaryScanAction,
 	getPrimaryScanMeta,
+	getHeroSummaryCopy,
+	getRosterEmptyCopy,
 } from "./homeExperience.js"
 
 test("returns working and off-work chip metadata for zh and ja", () => {
@@ -85,4 +87,18 @@ test("returns localized bottom-tab labels without mixed-language fallbacks", () 
 		"経費",
 		"給与",
 	])
+})
+
+test("returns work-state-aware hero summary text", () => {
+	assert.equal(getHeroSummaryCopy({ isWorking: false, lang: "zh", timeText: "18:06" }), "上次退勤 18:06")
+	assert.equal(getHeroSummaryCopy({ isWorking: true, lang: "zh" }), "今天已出勤，点击可查看今日勤怠")
+})
+
+test("returns the compressed roster empty copy", () => {
+	assert.deepEqual(getRosterEmptyCopy("zh"), {
+		today: "今日无班次",
+		todayHint: "今天没有已发布排班",
+		next: "暂无下个班次",
+		nextHint: "后续班次尚未发布",
+	})
 })

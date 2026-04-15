@@ -55,12 +55,12 @@ function getLabel(key) {
 
 <style scoped>
 .weather-row {
-	background: white;
-	border-radius: 12px;
-	padding: 12px 16px;
+	background: rgba(255, 255, 255, 0.9);
+	border-radius: 16px;
+	padding: 10px 14px;
 	display: flex;
 	align-items: center;
-	box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+	box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
 }
 
 .weather-cell {
@@ -82,13 +82,13 @@ function getLabel(key) {
 }
 
 .weather-label {
-	font-size: 13px;
+	font-size: 0.75rem;
 	font-weight: 500;
 	color: #6b7280;
 }
 
 .weather-temp {
-	font-size: 18px;
+	font-size: 1rem;
 	font-weight: 700;
 	color: #111827;
 }

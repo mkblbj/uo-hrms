@@ -113,6 +113,55 @@ export function getPrimaryScanMeta(
 	return action && copy ? { ...action, ...copy } : null
 }
 
+export function getHeroSummaryCopy({ isWorking, lang = "zh", timeText = "" }) {
+	if (isWorking) {
+		return {
+			zh: "今天已出勤，点击可查看今日勤怠",
+			ja: "本日は出勤済みです。タップして今日の勤怠を確認できます",
+			en: "You are already checked in today. Tap to view today's attendance.",
+		}[lang] || "今天已出勤，点击可查看今日勤怠"
+	}
+
+	if (!timeText) {
+		return {
+			zh: "最近一次打卡记录已同步",
+			ja: "直近の打刻記録を同期しました",
+			en: "Your latest check-in record is synced.",
+		}[lang] || "最近一次打卡记录已同步"
+	}
+
+	return {
+		zh: `上次退勤 ${timeText}`,
+		ja: `前回の退勤 ${timeText}`,
+		en: `Last check-out ${timeText}`,
+	}[lang] || `上次退勤 ${timeText}`
+}
+
+export function getRosterEmptyCopy(lang = "zh") {
+	return {
+		today: {
+			zh: "今日无班次",
+			ja: "本日のシフトなし",
+			en: "No shift today",
+		}[lang] || "今日无班次",
+		todayHint: {
+			zh: "今天没有已发布排班",
+			ja: "本日の公開済みシフトはありません",
+			en: "No published shift today",
+		}[lang] || "今天没有已发布排班",
+		next: {
+			zh: "暂无下个班次",
+			ja: "次のシフトは未定です",
+			en: "No next shift yet",
+		}[lang] || "暂无下个班次",
+		nextHint: {
+			zh: "后续班次尚未发布",
+			ja: "後続シフトはまだ公開されていません",
+			en: "Upcoming shifts are not published yet",
+		}[lang] || "后续班次尚未发布",
+	}
+}
+
 export function getBottomTabItems(lang = "zh") {
 	return [
 		{ key: "home", title: pick(lang, "tabHome"), route: "/home" },
