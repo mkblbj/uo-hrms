@@ -352,3 +352,19 @@ test("home modules share one language helper instead of local fallbacks", () => 
 	assert.doesNotMatch(summarySource, /\|\|\s*["'](?:ja|zh|en)["']/)
 	assert.doesNotMatch(summarySource, /frappe\.boot(?:\?\.|\.?)lang/)
 })
+
+test("CheckInPanel removes legacy checkin-list sync and manual modal wiring while keeping QR flow", () => {
+	const source = fs.readFileSync(checkInPanelPath, "utf8")
+
+	assert.match(source, /QRScannerModal/)
+	assert.match(source, /handleQRScanSuccess/)
+	assert.doesNotMatch(source, /createListResource/)
+	assert.doesNotMatch(source, /checkins\.reload\(/)
+	assert.doesNotMatch(source, /open-checkin-modal/)
+	assert.doesNotMatch(source, /\bsubmitLog\b/)
+	assert.doesNotMatch(source, /IonModal/)
+	assert.doesNotMatch(source, /modalController/)
+	assert.doesNotMatch(source, /doctype_subscribe/)
+	assert.doesNotMatch(source, /list_update/)
+	assert.doesNotMatch(source, /Employee Checkin/)
+})
