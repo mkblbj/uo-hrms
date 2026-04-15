@@ -11,6 +11,7 @@ import {
 	resolveWorkStatusValue,
 	getPrimaryScanAction,
 	getPrimaryScanMeta,
+	getHeroCardMeta,
 	getHeroSummaryCopy,
 	getRosterEmptyCopy,
 } from "./homeExperience.js"
@@ -101,18 +102,84 @@ test("returns localized bottom-tab labels without mixed-language fallbacks", () 
 	])
 })
 
-test("returns work-state-aware hero summary text", () => {
-	assert.equal(getHeroSummaryCopy({ isWorking: false, lang: "zh", timeText: "18:06" }), "上次退勤 18:06")
-	assert.equal(getHeroSummaryCopy({ isWorking: true, lang: "zh" }), "今天已出勤，点击可查看今日勤怠")
+test("returns work-state-aware hero summary text aligned with the current scan interaction", () => {
+	assert.equal(
+		getHeroSummaryCopy({ isWorking: false, lang: "zh", timeText: "18:06", hasCta: true }),
+		"上次退勤 18:06，可点击扫码出勤",
+	)
+	assert.equal(
+		getHeroSummaryCopy({ isWorking: true, lang: "zh", hasCta: true }),
+		"今天已出勤，可点击扫码退勤",
+	)
+	assert.equal(
+		getHeroSummaryCopy({ isWorking: false, lang: "zh", hasCta: true }),
+		"暂无打卡记录，可点击扫码出勤",
+	)
+	assert.equal(
+		getHeroSummaryCopy({ isWorking: false, lang: "zh", hasCta: false }),
+		"暂无打卡记录",
+	)
 })
 
-test("CheckInPanel reuses the shared primary scan copy helper", () => {
+test("builds hero state from the same shared work-status source as the header chip", () => {
+	const translate = (value) => `tr:${value}`
+
+	assert.deepEqual(
+		getHeroCardMeta({
+			workStatus: undefined,
+			lang: "zh",
+			timeText: "18:06",
+			allowPrimaryScan: true,
+			translate,
+		}),
+		{
+			summary: null,
+			cta: null,
+		},
+	)
+	assert.equal(getStatusChipMeta(undefined, "zh"), null)
+
+	const workingHero = getHeroCardMeta({
+		workStatus: { is_working: true },
+		lang: "zh",
+		timeText: "09:12",
+		allowPrimaryScan: true,
+		translate,
+	})
+	assert.equal(getStatusChipMeta({ is_working: true }, "zh")?.tone, "working")
+	assert.equal(workingHero.summary, "今天已出勤，可点击扫码退勤")
+	assert.deepEqual(workingHero.cta, getPrimaryScanMeta({ is_working: true }, "zh", translate))
+
+	const offHero = getHeroCardMeta({
+		workStatus: { is_working: false },
+		lang: "zh",
+		timeText: "18:06",
+		allowPrimaryScan: true,
+		translate,
+	})
+	assert.equal(getStatusChipMeta({ is_working: false }, "zh")?.tone, "off")
+	assert.equal(offHero.summary, "上次退勤 18:06，可点击扫码出勤")
+	assert.deepEqual(offHero.cta, getPrimaryScanMeta({ is_working: false }, "zh", translate))
+
+	assert.deepEqual(
+		getHeroCardMeta({
+			workStatus: { is_working: false },
+			lang: "zh",
+			allowPrimaryScan: false,
+			translate,
+		}),
+		{
+			summary: "暂无打卡记录",
+			cta: null,
+		},
+	)
+})
+
+test("CheckInPanel reuses the shared hero state helper", () => {
 	const source = fs.readFileSync(checkInPanelPath, "utf8")
 
-	assert.match(source, /getPrimaryScanCopy/)
-	assert.match(source, /return getPrimaryScanCopy\(isWorking\.value,\s*currentLanguage\.value\)/)
-	assert.doesNotMatch(source, /function getCheckinButtonText\(/)
-	assert.doesNotMatch(source, /function getCheckinButtonDesc\(/)
+	assert.match(source, /getHeroCardMeta/)
+	assert.doesNotMatch(source, /lastLog\?\.value\?\.log_type === "IN"/)
 })
 
 test("Home owns a single work-status resource shared by the chip and panel", () => {
@@ -130,12 +197,11 @@ test("Home owns a single work-status resource shared by the chip and panel", () 
 	assert.doesNotMatch(panelSource, /url:\s*"hrms\.api\.get_employee_work_status"/)
 })
 
-test("keeps the hero state unresolved until attendance and settings are ready", () => {
+test("keeps the hero state unresolved until work status is explicitly available", () => {
 	const source = fs.readFileSync(checkInPanelPath, "utf8")
 
-	assert.match(source, /if \(checkins\.list\.loading \|\| !checkins\.data\) return null/)
-	assert.match(source, /if \(isWorking\.value === null\) return null/)
-	assert.match(source, /if \(!isMobileCheckinAllowed\.value\) return null/)
+	assert.match(source, /workStatus:\s*props\.workStatus\?\.data/)
+	assert.match(source, /allowPrimaryScan:\s*isMobileCheckinAllowed\.value/)
 })
 
 test("guards hero summary and CTA rendering behind nullable props", () => {

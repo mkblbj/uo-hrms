@@ -5,7 +5,7 @@
 			:greeting="getGreeting()"
 			:date-label="formatDate()"
 			:summary="heroSummary"
-			:cta="primaryScanCopy"
+			:cta="primaryScanMeta"
 			@scan="openQRScanner"
 		/>
 
@@ -108,12 +108,7 @@ import { computed, inject, ref, onMounted, onBeforeUnmount } from "vue"
 import { IonModal, modalController } from "@ionic/vue"
 
 import { formatTimestamp } from "@/utils/formatters"
-import {
-	getHeroSummaryCopy,
-	getPrimaryScanCopy,
-	getPrimaryScanMeta,
-	resolveWorkStatusValue,
-} from "@/utils/homeExperience"
+import { getHeroCardMeta } from "@/utils/homeExperience"
 import QRScannerModal from "@/components/QRScannerModal.vue"
 import WeatherWidget from "@/components/WeatherWidget.vue"
 import HomeHeroCard from "@/components/home/HomeHeroCard.vue"
@@ -169,42 +164,20 @@ const lastLog = computed(() => {
 	return checkins.data[0] || null
 })
 
-const resolvedWorkStatus = computed(() =>
-	resolveWorkStatusValue(props.workStatus?.data),
-)
 const isMobileCheckinAllowed = computed(() =>
 	Boolean(settings.data?.allow_employee_checkin_from_mobile_app),
 )
-const isWorking = computed(() => {
-	if (resolvedWorkStatus.value !== null) {
-		return resolvedWorkStatus.value
-	}
-
-	if (checkins.list.loading || !checkins.data) return null
-
-	return lastLog?.value?.log_type === "IN"
-})
-const primaryScanCopy = computed(() => {
-	if (!isMobileCheckinAllowed.value) return null
-
-	return getPrimaryScanCopy(isWorking.value, currentLanguage.value)
-})
-
-const primaryScanMeta = computed(() => {
-	if (!isMobileCheckinAllowed.value) return null
-
-	return getPrimaryScanMeta(isWorking.value, currentLanguage.value, __)
-})
-const heroSummary = computed(() => {
-	if (isWorking.value === null) return null
-
-	const timeText = lastLog.value?.time ? formatTimestamp(lastLog.value.time) : ""
-	return getHeroSummaryCopy({
-		isWorking: isWorking.value,
+const heroCardMeta = computed(() =>
+	getHeroCardMeta({
+		workStatus: props.workStatus?.data,
 		lang: currentLanguage.value,
-		timeText,
-	})
-})
+		timeText: lastLog.value?.time ? formatTimestamp(lastLog.value.time) : "",
+		translate: __,
+		allowPrimaryScan: isMobileCheckinAllowed.value,
+	}),
+)
+const primaryScanMeta = computed(() => heroCardMeta.value.cta)
+const heroSummary = computed(() => heroCardMeta.value.summary)
 
 function handleLocationSuccess(position) {
 	latitude.value = position.coords.latitude

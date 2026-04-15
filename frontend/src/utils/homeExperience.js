@@ -113,28 +113,63 @@ export function getPrimaryScanMeta(
 	return action && copy ? { ...action, ...copy } : null
 }
 
-export function getHeroSummaryCopy({ isWorking, lang = "zh", timeText = "" }) {
+export function getHeroSummaryCopy({
+	isWorking,
+	lang = "zh",
+	timeText = "",
+	hasCta = false,
+}) {
 	if (isWorking) {
 		return {
-			zh: "今天已出勤，点击可查看今日勤怠",
-			ja: "本日は出勤済みです。タップして今日の勤怠を確認できます",
-			en: "You are already checked in today. Tap to view today's attendance.",
-		}[lang] || "今天已出勤，点击可查看今日勤怠"
+			zh: hasCta ? "今天已出勤，可点击扫码退勤" : "今天已出勤",
+			ja: hasCta ? "本日は出勤済みです。タップしてQRコードで退勤できます" : "本日は出勤済みです",
+			en: hasCta ? "You are checked in today. Tap to scan and check out." : "You are checked in today.",
+		}[lang] || (hasCta ? "今天已出勤，可点击扫码退勤" : "今天已出勤")
 	}
 
 	if (!timeText) {
 		return {
-			zh: "最近一次打卡记录已同步",
-			ja: "直近の打刻記録を同期しました",
-			en: "Your latest check-in record is synced.",
-		}[lang] || "最近一次打卡记录已同步"
+			zh: hasCta ? "暂无打卡记录，可点击扫码出勤" : "暂无打卡记录",
+			ja: hasCta ? "打刻履歴はまだありません。タップしてQRコードで出勤できます" : "打刻履歴はまだありません",
+			en: hasCta ? "No attendance record yet. Tap to scan and check in." : "No attendance record yet.",
+		}[lang] || (hasCta ? "暂无打卡记录，可点击扫码出勤" : "暂无打卡记录")
 	}
 
 	return {
-		zh: `上次退勤 ${timeText}`,
-		ja: `前回の退勤 ${timeText}`,
-		en: `Last check-out ${timeText}`,
-	}[lang] || `上次退勤 ${timeText}`
+		zh: hasCta ? `上次退勤 ${timeText}，可点击扫码出勤` : `上次退勤 ${timeText}`,
+		ja: hasCta ? `前回の退勤 ${timeText}。タップしてQRコードで出勤できます` : `前回の退勤 ${timeText}`,
+		en: hasCta ? `Last check-out ${timeText}. Tap to scan and check in.` : `Last check-out ${timeText}`,
+	}[lang] || (hasCta ? `上次退勤 ${timeText}，可点击扫码出勤` : `上次退勤 ${timeText}`)
+}
+
+export function getHeroCardMeta({
+	workStatus,
+	lang = "zh",
+	timeText = "",
+	translate = (value) => value,
+	allowPrimaryScan = true,
+}) {
+	const resolvedWorkStatus = resolveWorkStatusValue(workStatus)
+	if (resolvedWorkStatus === null) {
+		return {
+			summary: null,
+			cta: null,
+		}
+	}
+
+	const cta = allowPrimaryScan
+		? getPrimaryScanMeta(resolvedWorkStatus, lang, translate)
+		: null
+
+	return {
+		summary: getHeroSummaryCopy({
+			isWorking: resolvedWorkStatus,
+			lang,
+			timeText,
+			hasCta: Boolean(cta),
+		}),
+		cta,
+	}
 }
 
 export function getRosterEmptyCopy(lang = "zh") {
