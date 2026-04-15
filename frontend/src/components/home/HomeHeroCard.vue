@@ -3,9 +3,9 @@
 		<div class="hero-text">
 			<h2 class="hero-title">{{ greeting }} {{ employeeName }} 👋</h2>
 			<p class="hero-date">{{ dateLabel }}</p>
-			<p class="hero-summary">{{ summary }}</p>
+			<p v-if="summary" class="hero-summary">{{ summary }}</p>
 		</div>
-		<button type="button" class="hero-cta" @click="$emit('scan')">
+		<button v-if="cta" type="button" class="hero-cta" @click="$emit('scan')">
 			<div>
 				<div class="hero-cta-title">{{ cta.title }}</div>
 				<div class="hero-cta-description">{{ cta.description }}</div>
@@ -22,8 +22,8 @@ defineProps({
 	employeeName: { type: String, required: true },
 	greeting: { type: String, required: true },
 	dateLabel: { type: String, required: true },
-	summary: { type: String, required: true },
-	cta: { type: Object, required: true },
+	summary: { type: String, default: null },
+	cta: { type: Object, default: null },
 })
 
 defineEmits(["scan"])

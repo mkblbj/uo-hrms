@@ -1,5 +1,8 @@
 import test from "node:test"
 import assert from "node:assert/strict"
+import fs from "node:fs"
+import path from "node:path"
+import { fileURLToPath } from "node:url"
 
 import {
 	getStatusChipMeta,
@@ -11,6 +14,10 @@ import {
 	getHeroSummaryCopy,
 	getRosterEmptyCopy,
 } from "./homeExperience.js"
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url))
+const homeHeroCardPath = path.resolve(currentDir, "../components/home/HomeHeroCard.vue")
+const checkInPanelPath = path.resolve(currentDir, "../components/CheckInPanel.vue")
 
 test("returns working and off-work chip metadata for zh and ja", () => {
 	assert.deepEqual(getStatusChipMeta(true, "zh"), {
@@ -92,6 +99,23 @@ test("returns localized bottom-tab labels without mixed-language fallbacks", () 
 test("returns work-state-aware hero summary text", () => {
 	assert.equal(getHeroSummaryCopy({ isWorking: false, lang: "zh", timeText: "18:06" }), "上次退勤 18:06")
 	assert.equal(getHeroSummaryCopy({ isWorking: true, lang: "zh" }), "今天已出勤，点击可查看今日勤怠")
+})
+
+test("keeps the hero state unresolved until attendance and settings are ready", () => {
+	const source = fs.readFileSync(checkInPanelPath, "utf8")
+
+	assert.match(source, /if \(checkins\.list\.loading \|\| !checkins\.data\) return null/)
+	assert.match(source, /if \(isWorking\.value === null\) return null/)
+	assert.match(source, /if \(!isMobileCheckinAllowed\.value\) return null/)
+})
+
+test("guards hero summary and CTA rendering behind nullable props", () => {
+	const source = fs.readFileSync(homeHeroCardPath, "utf8")
+
+	assert.match(source, /<p\s+v-if="summary"\s+class="hero-summary">/)
+	assert.match(source, /<button\s+v-if="cta"\s+type="button"\s+class="hero-cta"/)
+	assert.match(source, /summary:\s*\{\s*type:\s*String,\s*default:\s*null/)
+	assert.match(source, /cta:\s*\{\s*type:\s*Object,\s*default:\s*null/)
 })
 
 test("returns the compressed roster empty copy", () => {
