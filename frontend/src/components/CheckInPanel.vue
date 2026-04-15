@@ -159,11 +159,6 @@ const checkins = createListResource({
 })
 checkins.reload()
 
-const lastLog = computed(() => {
-	if (checkins.list.loading || !checkins.data) return null
-	return checkins.data[0] || null
-})
-
 const isMobileCheckinAllowed = computed(() =>
 	Boolean(settings.data?.allow_employee_checkin_from_mobile_app),
 )
@@ -171,7 +166,7 @@ const heroCardMeta = computed(() =>
 	getHeroCardMeta({
 		workStatus: props.workStatus?.data,
 		lang: currentLanguage,
-		timeText: lastLog.value?.time ? formatTimestamp(lastLog.value.time) : "",
+		formatLastCheckin: formatTimestamp,
 		translate: __,
 		allowPrimaryScan: isMobileCheckinAllowed.value,
 	}),

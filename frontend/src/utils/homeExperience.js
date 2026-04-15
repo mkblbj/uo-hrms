@@ -63,11 +63,31 @@ function pick(lang, key) {
 	return COPY[normalizeLanguage(lang) || DEFAULT_HOME_LANGUAGE]?.[key] || COPY[DEFAULT_HOME_LANGUAGE][key]
 }
 
-export function resolveWorkStatusValue(workStatus) {
-	if (typeof workStatus === "boolean") return workStatus
+function resolveWorkStatusState(workStatus) {
+	if (typeof workStatus === "string") {
+		return ["working", "off_work", "no_checkin_today"].includes(workStatus)
+			? workStatus
+			: null
+	}
+
+	const status = workStatus?.status
+	if (["working", "off_work", "no_checkin_today"].includes(status)) {
+		return status
+	}
+
+	if (typeof workStatus === "boolean") {
+		return workStatus ? "working" : "off_work"
+	}
 
 	const value = workStatus?.is_working
-	return typeof value === "boolean" ? value : null
+	return typeof value === "boolean" ? (value ? "working" : "off_work") : null
+}
+
+export function resolveWorkStatusValue(workStatus) {
+	const status = resolveWorkStatusState(workStatus)
+	if (status === null) return null
+
+	return status === "working"
 }
 
 export function getStatusChipMeta(isWorking, lang = "zh") {
@@ -126,12 +146,17 @@ export function getPrimaryScanMeta(
 }
 
 export function getHeroSummaryCopy({
+	workStatus,
 	isWorking,
 	lang = "zh",
 	timeText = "",
+	formatLastCheckin = (value) => value,
 	hasCta = false,
 }) {
-	if (isWorking) {
+	const status = resolveWorkStatusState(workStatus ?? isWorking)
+	if (status === null) return null
+
+	if (status === "working") {
 		return {
 			zh: hasCta ? "今天已出勤，可点击扫码退勤" : "今天已出勤",
 			ja: hasCta ? "本日は出勤済みです。タップしてQRコードで退勤できます" : "本日は出勤済みです",
@@ -139,7 +164,19 @@ export function getHeroSummaryCopy({
 		}[lang] || (hasCta ? "今天已出勤，可点击扫码退勤" : "今天已出勤")
 	}
 
-	if (!timeText) {
+	if (status === "no_checkin_today") {
+		return {
+			zh: hasCta ? "暂无打卡记录，可点击扫码出勤" : "暂无打卡记录",
+			ja: hasCta ? "打刻履歴はまだありません。タップしてQRコードで出勤できます" : "打刻履歴はまだありません",
+			en: hasCta ? "No attendance record yet. Tap to scan and check in." : "No attendance record yet.",
+		}[lang] || (hasCta ? "暂无打卡记录，可点击扫码出勤" : "暂无打卡记录")
+	}
+
+	const resolvedTimeText = workStatus?.last_checkin?.time
+		? formatLastCheckin(workStatus.last_checkin.time)
+		: timeText
+
+	if (!resolvedTimeText) {
 		return {
 			zh: hasCta ? "暂无打卡记录，可点击扫码出勤" : "暂无打卡记录",
 			ja: hasCta ? "打刻履歴はまだありません。タップしてQRコードで出勤できます" : "打刻履歴はまだありません",
@@ -148,21 +185,30 @@ export function getHeroSummaryCopy({
 	}
 
 	return {
-		zh: hasCta ? `上次退勤 ${timeText}，可点击扫码出勤` : `上次退勤 ${timeText}`,
-		ja: hasCta ? `前回の退勤 ${timeText}。タップしてQRコードで出勤できます` : `前回の退勤 ${timeText}`,
-		en: hasCta ? `Last check-out ${timeText}. Tap to scan and check in.` : `Last check-out ${timeText}`,
-	}[lang] || (hasCta ? `上次退勤 ${timeText}，可点击扫码出勤` : `上次退勤 ${timeText}`)
+		zh: hasCta
+			? `上次退勤 ${resolvedTimeText}，可点击扫码出勤`
+			: `上次退勤 ${resolvedTimeText}`,
+		ja: hasCta
+			? `前回の退勤 ${resolvedTimeText}。タップしてQRコードで出勤できます`
+			: `前回の退勤 ${resolvedTimeText}`,
+		en: hasCta
+			? `Last check-out ${resolvedTimeText}. Tap to scan and check in.`
+			: `Last check-out ${resolvedTimeText}`,
+	}[lang]
+		|| (hasCta
+			? `上次退勤 ${resolvedTimeText}，可点击扫码出勤`
+			: `上次退勤 ${resolvedTimeText}`)
 }
 
 export function getHeroCardMeta({
 	workStatus,
 	lang = "zh",
 	timeText = "",
+	formatLastCheckin = (value) => value,
 	translate = (value) => value,
 	allowPrimaryScan = true,
 }) {
-	const resolvedWorkStatus = resolveWorkStatusValue(workStatus)
-	if (resolvedWorkStatus === null) {
+	if (resolveWorkStatusState(workStatus) === null) {
 		return {
 			summary: null,
 			cta: null,
@@ -170,14 +216,15 @@ export function getHeroCardMeta({
 	}
 
 	const cta = allowPrimaryScan
-		? getPrimaryScanMeta(resolvedWorkStatus, lang, translate)
+		? getPrimaryScanMeta(workStatus, lang, translate)
 		: null
 
 	return {
 		summary: getHeroSummaryCopy({
-			isWorking: resolvedWorkStatus,
+			workStatus,
 			lang,
 			timeText,
+			formatLastCheckin,
 			hasCta: Boolean(cta),
 		}),
 		cta,

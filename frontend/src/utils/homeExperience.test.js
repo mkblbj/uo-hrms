@@ -113,33 +113,66 @@ test("resolves the shared home language from boot lang variants and fallbacks", 
 	assert.equal(resolveHomeLanguage(), "zh")
 })
 
-test("returns work-state-aware hero summary text aligned with the current scan interaction", () => {
+test("returns the working hero summary branch from workStatus.status", () => {
 	assert.equal(
-		getHeroSummaryCopy({ isWorking: false, lang: "zh", timeText: "18:06", hasCta: true }),
-		"上次退勤 18:06，可点击扫码出勤",
-	)
-	assert.equal(
-		getHeroSummaryCopy({ isWorking: true, lang: "zh", hasCta: true }),
+		getHeroSummaryCopy({
+			workStatus: {
+				status: "working",
+				is_working: false,
+				last_checkin: { log_type: "IN", time: "2026-04-15 09:12:00" },
+			},
+			lang: "zh",
+			hasCta: true,
+			formatLastCheckin: () => "should-not-be-used",
+		}),
 		"今天已出勤，可点击扫码退勤",
-	)
-	assert.equal(
-		getHeroSummaryCopy({ isWorking: false, lang: "zh", hasCta: true }),
-		"暂无打卡记录，可点击扫码出勤",
-	)
-	assert.equal(
-		getHeroSummaryCopy({ isWorking: false, lang: "zh", hasCta: false }),
-		"暂无打卡记录",
 	)
 })
 
-test("builds hero state from the same shared work-status source as the header chip", () => {
+test("returns the off-work hero summary branch from workStatus.status and last_checkin", () => {
+	assert.equal(
+		getHeroSummaryCopy({
+			workStatus: {
+				status: "off_work",
+				is_working: true,
+				last_checkin: { log_type: "OUT", time: "2026-04-15 18:06:00" },
+			},
+			lang: "zh",
+			hasCta: true,
+			formatLastCheckin: (value) =>
+				value === "2026-04-15 18:06:00" ? "18:06" : value,
+		}),
+		"上次退勤 18:06，可点击扫码出勤",
+	)
+})
+
+test("returns the no-checkin hero summary branch from workStatus.status", () => {
+	assert.equal(
+		getHeroSummaryCopy({
+			workStatus: {
+				status: "no_checkin_today",
+				is_working: true,
+				last_checkin: null,
+			},
+			lang: "zh",
+			hasCta: true,
+		}),
+		"暂无打卡记录，可点击扫码出勤",
+	)
+})
+
+test("returns a null hero summary while work status is unresolved", () => {
+	assert.equal(getHeroSummaryCopy({ workStatus: null, lang: "zh", hasCta: true }), null)
+	assert.equal(getHeroSummaryCopy({ workStatus: undefined, lang: "zh", hasCta: false }), null)
+})
+
+test("builds hero state directly from status and last_checkin", () => {
 	const translate = (value) => `tr:${value}`
 
 	assert.deepEqual(
 		getHeroCardMeta({
 			workStatus: undefined,
 			lang: "zh",
-			timeText: "18:06",
 			allowPrimaryScan: true,
 			translate,
 		}),
@@ -148,33 +181,54 @@ test("builds hero state from the same shared work-status source as the header ch
 			cta: null,
 		},
 	)
-	assert.equal(getStatusChipMeta(undefined, "zh"), null)
 
 	const workingHero = getHeroCardMeta({
-		workStatus: { is_working: true },
+		workStatus: {
+			status: "working",
+			is_working: false,
+			last_checkin: { log_type: "IN", time: "2026-04-15 09:12:00" },
+		},
 		lang: "zh",
-		timeText: "09:12",
 		allowPrimaryScan: true,
 		translate,
+		formatLastCheckin: (value) =>
+			value === "2026-04-15 09:12:00" ? "09:12" : value,
 	})
-	assert.equal(getStatusChipMeta({ is_working: true }, "zh")?.tone, "working")
 	assert.equal(workingHero.summary, "今天已出勤，可点击扫码退勤")
-	assert.deepEqual(workingHero.cta, getPrimaryScanMeta({ is_working: true }, "zh", translate))
+	assert.deepEqual(workingHero.cta, {
+		action: "OUT",
+		label: "tr:Check Out",
+		title: "扫码退勤",
+		description: "打开相机完成退勤",
+	})
 
 	const offHero = getHeroCardMeta({
-		workStatus: { is_working: false },
+		workStatus: {
+			status: "off_work",
+			is_working: true,
+			last_checkin: { log_type: "OUT", time: "2026-04-15 18:06:00" },
+		},
 		lang: "zh",
-		timeText: "18:06",
 		allowPrimaryScan: true,
 		translate,
+		formatLastCheckin: (value) =>
+			value === "2026-04-15 18:06:00" ? "18:06" : value,
 	})
-	assert.equal(getStatusChipMeta({ is_working: false }, "zh")?.tone, "off")
 	assert.equal(offHero.summary, "上次退勤 18:06，可点击扫码出勤")
-	assert.deepEqual(offHero.cta, getPrimaryScanMeta({ is_working: false }, "zh", translate))
+	assert.deepEqual(offHero.cta, {
+		action: "IN",
+		label: "tr:Check In",
+		title: "扫码出勤",
+		description: "打开相机进行打卡",
+	})
 
 	assert.deepEqual(
 		getHeroCardMeta({
-			workStatus: { is_working: false },
+			workStatus: {
+				status: "no_checkin_today",
+				is_working: true,
+				last_checkin: null,
+			},
 			lang: "zh",
 			allowPrimaryScan: false,
 			translate,
@@ -186,11 +240,12 @@ test("builds hero state from the same shared work-status source as the header ch
 	)
 })
 
-test("CheckInPanel reuses the shared hero state helper", () => {
+test("CheckInPanel reuses the shared hero state helper without reading checkins for hero copy", () => {
 	const source = fs.readFileSync(checkInPanelPath, "utf8")
 
 	assert.match(source, /getHeroCardMeta/)
-	assert.doesNotMatch(source, /lastLog\?\.value\?\.log_type === "IN"/)
+	assert.doesNotMatch(source, /const lastLog = computed\(/)
+	assert.doesNotMatch(source, /timeText:\s*/)
 })
 
 test("Home owns a single work-status resource shared by the chip and panel", () => {
@@ -235,11 +290,25 @@ test("returns the compressed roster empty copy", () => {
 
 test("returns ja and en home copy branches without mixed-language fallbacks", () => {
 	assert.equal(
-		getHeroSummaryCopy({ isWorking: true, lang: "ja", hasCta: true }),
+		getHeroSummaryCopy({
+			workStatus: {
+				status: "working",
+				last_checkin: { log_type: "IN", time: "2026-04-15 09:12:00" },
+			},
+			lang: "ja",
+			hasCta: true,
+		}),
 		"本日は出勤済みです。タップしてQRコードで退勤できます",
 	)
 	assert.equal(
-		getHeroSummaryCopy({ isWorking: false, lang: "en", hasCta: false }),
+		getHeroSummaryCopy({
+			workStatus: {
+				status: "no_checkin_today",
+				last_checkin: null,
+			},
+			lang: "en",
+			hasCta: false,
+		}),
 		"No attendance record yet.",
 	)
 	assert.deepEqual(getRosterEmptyCopy("en"), {
