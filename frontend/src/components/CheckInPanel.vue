@@ -43,8 +43,8 @@
 							<rect x="7" y="7" width="10" height="10" rx="1"/>
 						</svg>
 						<div class="checkin-text">
-							<span class="checkin-title">{{ getCheckinButtonText() }}</span>
-							<span class="checkin-desc">{{ getCheckinButtonDesc() }}</span>
+							<span class="checkin-title">{{ primaryScanCopy.title }}</span>
+							<span class="checkin-desc">{{ primaryScanCopy.description }}</span>
 						</div>
 					</div>
 					<svg class="checkin-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -158,12 +158,19 @@ import { computed, inject, ref, onMounted, onBeforeUnmount } from "vue"
 import { IonModal, modalController } from "@ionic/vue"
 
 import { formatTimestamp } from "@/utils/formatters"
+import { getPrimaryScanCopy } from "@/utils/homeExperience"
 import QRScannerModal from "@/components/QRScannerModal.vue"
 import WeatherWidget from "@/components/WeatherWidget.vue"
-import StatsCard from "@/components/StatsCard.vue"
 import HomeSummaryCard from "@/components/work_roster/HomeSummaryCard.vue"
 
 const DOCTYPE = "Employee Checkin"
+
+const props = defineProps({
+	workStatus: {
+		type: Object,
+		required: true,
+	},
+})
 
 const socket = inject("$socket")
 const employee = inject("$employee")
@@ -190,12 +197,6 @@ const latestNotification = createResource({
 	auto: true,
 })
 
-const workStatus = createResource({
-	url: "hrms.api.get_employee_work_status",
-	auto: true,
-	cache: false,
-})
-
 const checkins = createListResource({
 	doctype: DOCTYPE,
 	fields: ["name", "employee", "employee_name", "log_type", "time", "device_id"],
@@ -220,6 +221,13 @@ const nextAction = computed(() => {
 		? { action: "OUT", label: __("Check Out") }
 		: { action: "IN", label: __("Check In") }
 })
+
+const primaryScanCopy = computed(() =>
+	getPrimaryScanCopy(
+		Boolean(props.workStatus?.data?.is_working),
+		window.frappe?.boot?.lang || "zh",
+	),
+)
 
 function handleLocationSuccess(position) {
 	latitude.value = position.coords.latitude
@@ -422,14 +430,6 @@ const handleQRScanSuccess = async (token, latitude = null, longitude = null) => 
 	}
 }
 
-// 监听打卡状态变化事件
-const handleCheckinStatusChange = () => {
-	workStatus.reload()
-}
-
-// 每30秒刷新一次工作状态
-let refreshInterval = null
-
 onMounted(() => {
 	socket.emit("doctype_subscribe", DOCTYPE)
 	socket.on("list_update", (data) => {
@@ -437,24 +437,11 @@ onMounted(() => {
 			checkins.reload()
 		}
 	})
-	
-	// 定时刷新工作状态
-	refreshInterval = setInterval(() => {
-		workStatus.reload()
-	}, 30000)
-	
-	// 监听打卡事件
-	window.addEventListener('checkin-status-changed', handleCheckinStatusChange)
 })
 
 onBeforeUnmount(() => {
 	socket.emit("doctype_unsubscribe", DOCTYPE)
 	socket.off("list_update")
-	
-	if (refreshInterval) {
-		clearInterval(refreshInterval)
-	}
-	window.removeEventListener('checkin-status-changed', handleCheckinStatusChange)
 })
 
 // 辅助函数
@@ -545,11 +532,11 @@ function getStatsLabel(key) {
 }
 
 function getStatusText() {
-	if (!workStatus.data) return ""
+	if (!props.workStatus?.data) return ""
 	
 	const lang = frappe.boot?.lang || "ja"
 	
-	if (workStatus.data.is_working) {
+	if (props.workStatus.data.is_working) {
 		if (lang === "ja") return "勤務中"
 		if (lang === "zh") return "上班中"
 		return "Working"
@@ -558,30 +545,6 @@ function getStatusText() {
 		if (lang === "zh") return "已下班"
 		return "Off Work"
 	}
-}
-
-function getCheckinButtonText() {
-	const lang = frappe.boot?.lang || "ja"
-	const isCheckIn = nextAction.value.action === "IN"
-	
-	if (lang === "ja") {
-		return isCheckIn ? "QRコードで出勤" : "QRコードで退勤"
-	} else if (lang === "zh") {
-		return isCheckIn ? "扫码签到" : "扫码签退"
-	}
-	return isCheckIn ? "Scan QR to Check In" : "Scan QR to Check Out"
-}
-
-function getCheckinButtonDesc() {
-	const lang = frappe.boot?.lang || "ja"
-	const isCheckIn = nextAction.value.action === "IN"
-	
-	if (lang === "ja") {
-		return isCheckIn ? "カメラを起動して出勤打刻します" : "カメラを起動して退勤打刻します"
-	} else if (lang === "zh") {
-		return "启动相机扫描二维码打卡"
-	}
-	return "Open camera to scan QR code"
 }
 
 function getNotificationTitle() {

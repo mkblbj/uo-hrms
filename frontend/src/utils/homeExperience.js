@@ -15,8 +15,8 @@ const COPY = {
 		tabSalary: "工资",
 	},
 	ja: {
-		statusWorking: "正在出勤",
-		statusOff: "已退勤",
+		statusWorking: "勤務中",
+		statusOff: "退勤済",
 		scanInTitle: "QRコードで出勤",
 		scanInDescription: "カメラを起動して打刻します",
 		scanOutTitle: "QRコードで退勤",

@@ -11,34 +11,24 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted } from "vue"
+import { computed } from "vue"
 import { useRouter } from "vue-router"
-import { createResource } from "frappe-ui"
 
 import { getStatusChipMeta } from "@/utils/homeExperience"
 
-const router = useRouter()
-
-const workStatus = createResource({
-	url: "hrms.api.get_employee_work_status",
-	auto: true,
-	cache: false,
+const props = defineProps({
+	workStatus: {
+		type: Object,
+		required: true,
+	},
 })
+
+const router = useRouter()
 
 const lang = computed(() => window.frappe?.boot?.lang || "zh")
 const meta = computed(() =>
-	getStatusChipMeta(Boolean(workStatus.data?.is_working), lang.value),
+	getStatusChipMeta(Boolean(props.workStatus?.data?.is_working), lang.value),
 )
-
-const reload = () => workStatus.reload()
-
-onMounted(() => {
-	window.addEventListener("checkin-status-changed", reload)
-})
-
-onBeforeUnmount(() => {
-	window.removeEventListener("checkin-status-changed", reload)
-})
 </script>
 
 <style scoped>
