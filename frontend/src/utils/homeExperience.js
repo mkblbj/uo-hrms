@@ -7,6 +7,7 @@ const COPY = {
 	zh: {
 		statusWorking: "正在出勤",
 		statusOff: "已退勤",
+		statusPending: "待出勤",
 		scanInTitle: "扫码出勤",
 		scanInDescription: "打开相机进行打卡",
 		scanOutTitle: "扫码退勤",
@@ -22,6 +23,7 @@ const COPY = {
 	ja: {
 		statusWorking: "勤務中",
 		statusOff: "退勤済",
+		statusPending: "出勤前",
 		scanInTitle: "QRコードで出勤",
 		scanInDescription: "カメラを起動して打刻します",
 		scanOutTitle: "QRコードで退勤",
@@ -37,6 +39,7 @@ const COPY = {
 	en: {
 		statusWorking: "Working",
 		statusOff: "Off Work",
+		statusPending: "Not Checked In",
 		scanInTitle: "Scan to Check In",
 		scanInDescription: "Open the camera to record attendance",
 		scanOutTitle: "Scan to Check Out",
@@ -130,13 +133,25 @@ export function resolveWorkStatusValue(workStatus) {
 	return status === "working"
 }
 
-export function getStatusChipMeta(isWorking, lang = "zh") {
-	const resolvedWorkStatus = resolveWorkStatusValue(isWorking)
+export function getStatusChipMeta(workStatus, lang = "zh") {
+	const resolvedWorkStatus = resolveWorkStatusState(workStatus)
 	if (resolvedWorkStatus === null) return null
 
+	const labelKeyByStatus = {
+		working: "statusWorking",
+		off_work: "statusOff",
+		no_checkin_today: "statusPending",
+	}
+
+	const toneByStatus = {
+		working: "working",
+		off_work: "off",
+		no_checkin_today: "pending",
+	}
+
 	return {
-		label: pick(lang, resolvedWorkStatus ? "statusWorking" : "statusOff"),
-		tone: resolvedWorkStatus ? "working" : "off",
+		label: pick(lang, labelKeyByStatus[resolvedWorkStatus]),
+		tone: toneByStatus[resolvedWorkStatus],
 		routeName: "AttendanceDashboard",
 	}
 }

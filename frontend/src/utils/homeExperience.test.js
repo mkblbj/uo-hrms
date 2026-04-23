@@ -46,6 +46,29 @@ test("returns working and off-work chip metadata for zh and ja", () => {
 	})
 })
 
+test("returns distinct chip metadata for no_checkin_today", () => {
+	assert.deepEqual(getStatusChipMeta("no_checkin_today", "zh"), {
+		label: "待出勤",
+		tone: "pending",
+		routeName: "AttendanceDashboard",
+	})
+	assert.deepEqual(
+		getStatusChipMeta(
+			{
+				status: "no_checkin_today",
+				is_working: false,
+				last_checkin: null,
+			},
+			"ja",
+		),
+		{
+			label: "出勤前",
+			tone: "pending",
+			routeName: "AttendanceDashboard",
+		},
+	)
+})
+
 test("returns null chip metadata until work status is explicitly resolved", () => {
 	assert.equal(resolveWorkStatusValue(undefined), null)
 	assert.equal(resolveWorkStatusValue({}), null)
@@ -299,6 +322,16 @@ test("Home owns a single work-status resource shared by the chip and panel", () 
 	assert.match(homeSource, /<CheckInPanel\s+class="w-full flex-1"\s+:work-status="workStatus"/)
 	assert.doesNotMatch(chipSource, /createResource\(/)
 	assert.doesNotMatch(panelSource, /url:\s*"hrms\.api\.get_employee_work_status"/)
+})
+
+test("HomeStatusChip keeps no_checkin_today as a distinct status input", () => {
+	const chipSource = fs.readFileSync(
+		path.resolve(currentDir, "../components/home/HomeStatusChip.vue"),
+		"utf8",
+	)
+
+	assert.match(chipSource, /getStatusChipMeta\(props\.workStatus\?\.data,\s*lang\.value\)/)
+	assert.doesNotMatch(chipSource, /resolveWorkStatusValue/)
 })
 
 test("Home wires the shared check-in refresh helper instead of inline event listeners", () => {

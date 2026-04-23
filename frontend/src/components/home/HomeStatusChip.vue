@@ -18,7 +18,6 @@ import { useRouter } from "vue-router"
 import {
 	getStatusChipMeta,
 	resolveHomeLanguage,
-	resolveWorkStatusValue,
 } from "@/utils/homeExperience"
 
 const props = defineProps({
@@ -31,11 +30,8 @@ const props = defineProps({
 const router = useRouter()
 
 const lang = computed(() => resolveHomeLanguage(window.frappe?.boot))
-const resolvedWorkStatus = computed(() =>
-	resolveWorkStatusValue(props.workStatus?.data),
-)
 const meta = computed(() =>
-	getStatusChipMeta(resolvedWorkStatus.value, lang.value),
+	getStatusChipMeta(props.workStatus?.data, lang.value),
 )
 </script>
 
@@ -60,6 +56,11 @@ const meta = computed(() =>
 .status-chip.off {
 	background: rgba(148, 163, 184, 0.14);
 	color: #475569;
+}
+
+.status-chip.pending {
+	background: rgba(245, 158, 11, 0.14);
+	color: #b45309;
 }
 
 .status-chip:active {
