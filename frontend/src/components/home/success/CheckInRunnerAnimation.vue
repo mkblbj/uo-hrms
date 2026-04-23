@@ -1,5 +1,13 @@
 <template>
 	<div class="runner-shell">
+		<div class="clouds">
+			<div class="cloud cloud1"></div>
+			<div class="cloud cloud2"></div>
+			<div class="cloud cloud3"></div>
+			<div class="cloud cloud4"></div>
+			<div class="cloud cloud5"></div>
+		</div>
+
 		<div class="loader">
 			<span><span></span><span></span><span></span><span></span></span>
 			<div class="base">
@@ -7,33 +15,35 @@
 				<div class="face"></div>
 			</div>
 		</div>
-		<div class="longfazers"><span></span><span></span><span></span><span></span></div>
+
+		<div class="longfazers">
+			<span></span><span></span><span></span><span></span>
+		</div>
 	</div>
 </template>
 
 <style scoped>
 .runner-shell {
 	position: relative;
-	width: 210px;
-	height: 120px;
+	width: 320px;
+	height: 220px;
 	overflow: hidden;
-	transform: scale(0.68);
+	transform: scale(0.72);
 	transform-origin: center center;
-	animation: runner-bob 1.1s ease-in-out infinite;
 }
 
 .loader {
 	position: absolute;
 	top: 50%;
-	margin-left: -50px;
 	left: 50%;
+	margin-left: -50px;
 	animation: speeder 0.4s linear infinite;
 }
 
 .loader > span {
 	height: 5px;
 	width: 35px;
-	background: #ffffff;
+	background: #f51313;
 	position: absolute;
 	top: -19px;
 	left: 60px;
@@ -45,7 +55,7 @@
 	width: 0;
 	height: 0;
 	border-top: 6px solid transparent;
-	border-right: 100px solid #ffffff;
+	border-right: 100px solid #f3cfcf;
 	border-bottom: 6px solid transparent;
 }
 
@@ -54,7 +64,7 @@
 	height: 22px;
 	width: 22px;
 	border-radius: 50%;
-	background: #ffffff;
+	background: #f3cfcf;
 	position: absolute;
 	right: -110px;
 	top: -16px;
@@ -66,7 +76,7 @@
 	width: 0;
 	height: 0;
 	border-top: 0 solid transparent;
-	border-right: 55px solid #ffffff;
+	border-right: 55px solid #f3cfcf;
 	border-bottom: 16px solid transparent;
 	top: -16px;
 	right: -98px;
@@ -76,7 +86,7 @@
 	position: absolute;
 	height: 12px;
 	width: 20px;
-	background: #ffffff;
+	background: #f3cfcf;
 	border-radius: 20px 20px 0 0;
 	transform: rotate(-40deg);
 	right: -125px;
@@ -87,23 +97,23 @@
 	content: "";
 	height: 12px;
 	width: 12px;
-	background: #ffffff;
+	background: #f51313;
 	right: 4px;
 	top: 7px;
 	position: absolute;
 	transform: rotate(40deg);
 	transform-origin: 50% 50%;
-	border-radius: 0 0 0 2px;
+	border-radius: 0 0 2px 2px;
 }
 
-.loader > span > span:nth-child(1),
-.loader > span > span:nth-child(2),
-.loader > span > span:nth-child(3),
-.loader > span > span:nth-child(4) {
+.loader > span > span {
 	width: 30px;
 	height: 1px;
-	background: #93c5fd;
+	background: #ffffff;
 	position: absolute;
+}
+
+.loader > span > span:nth-child(1) {
 	animation: fazer1 0.2s linear infinite;
 }
 
@@ -122,42 +132,6 @@
 	top: 4px;
 	animation: fazer4 1s linear infinite;
 	animation-delay: -1s;
-}
-
-.longfazers {
-	position: absolute;
-	width: 100%;
-	height: 100%;
-}
-
-.longfazers span {
-	position: absolute;
-	height: 2px;
-	width: 20%;
-	background: rgba(147, 197, 253, 0.7);
-}
-
-.longfazers span:nth-child(1) {
-	top: 20%;
-	animation: lf 0.6s linear infinite;
-	animation-delay: -5s;
-}
-
-.longfazers span:nth-child(2) {
-	top: 40%;
-	animation: lf2 0.8s linear infinite;
-	animation-delay: -1s;
-}
-
-.longfazers span:nth-child(3) {
-	top: 60%;
-	animation: lf3 0.6s linear infinite;
-}
-
-.longfazers span:nth-child(4) {
-	top: 80%;
-	animation: lf4 0.5s linear infinite;
-	animation-delay: -3s;
 }
 
 @keyframes fazer1 {
@@ -209,13 +183,81 @@
 		transform: translate(2px, 1px) rotate(0deg);
 	}
 
+	10% {
+		transform: translate(-1px, -3px) rotate(-1deg);
+	}
+
+	20% {
+		transform: translate(-2px, 0px) rotate(1deg);
+	}
+
+	30% {
+		transform: translate(1px, 2px) rotate(0deg);
+	}
+
+	40% {
+		transform: translate(1px, -1px) rotate(1deg);
+	}
+
 	50% {
 		transform: translate(-1px, 3px) rotate(-1deg);
+	}
+
+	60% {
+		transform: translate(-1px, 1px) rotate(0deg);
+	}
+
+	70% {
+		transform: translate(3px, 1px) rotate(-1deg);
+	}
+
+	80% {
+		transform: translate(-2px, -1px) rotate(1deg);
+	}
+
+	90% {
+		transform: translate(2px, 1px) rotate(0deg);
 	}
 
 	100% {
 		transform: translate(1px, -2px) rotate(-1deg);
 	}
+}
+
+.longfazers {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+}
+
+.longfazers span {
+	position: absolute;
+	height: 2px;
+	width: 20%;
+	background: #ffffff;
+}
+
+.longfazers span:nth-child(1) {
+	top: 20%;
+	animation: lf 0.6s linear infinite;
+	animation-delay: -5s;
+}
+
+.longfazers span:nth-child(2) {
+	top: 40%;
+	animation: lf2 0.8s linear infinite;
+	animation-delay: -1s;
+}
+
+.longfazers span:nth-child(3) {
+	top: 60%;
+	animation: lf3 0.6s linear infinite;
+}
+
+.longfazers span:nth-child(4) {
+	top: 80%;
+	animation: lf4 0.5s linear infinite;
+	animation-delay: -3s;
 }
 
 @keyframes lf {
@@ -262,14 +304,91 @@
 	}
 }
 
-@keyframes runner-bob {
-	0%,
-	100% {
-		transform: scale(0.68) translateY(0);
+.clouds {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	z-index: -1;
+	overflow: hidden;
+}
+
+.cloud {
+	position: absolute;
+	background: #fff;
+	border-radius: 50%;
+	opacity: 0.25;
+	animation: moveClouds linear infinite;
+}
+
+.cloud::before,
+.cloud::after {
+	content: "";
+	position: absolute;
+	background: #fff;
+	border-radius: 50%;
+}
+
+.cloud::before {
+	width: 60%;
+	height: 60%;
+	top: -30%;
+	left: 10%;
+}
+
+.cloud::after {
+	width: 40%;
+	height: 40%;
+	top: -20%;
+	left: 50%;
+}
+
+.cloud1 {
+	width: 100px;
+	height: 60px;
+	top: 15%;
+	left: 1400px;
+	animation-duration: 2s;
+}
+
+.cloud2 {
+	width: 150px;
+	height: 80px;
+	top: 35%;
+	left: 1600px;
+	animation-duration: 3s;
+}
+
+.cloud3 {
+	width: 80px;
+	height: 50px;
+	top: 20%;
+	left: 2000px;
+	animation-duration: 4s;
+}
+
+.cloud4 {
+	width: 100px;
+	height: 80px;
+	top: 70%;
+	left: 1100px;
+	animation-duration: 3s;
+}
+
+.cloud5 {
+	width: 170px;
+	height: 50px;
+	top: 80%;
+	left: 1500px;
+	animation-duration: 2s;
+}
+
+@keyframes moveClouds {
+	0% {
+		transform: translateX(0);
 	}
 
-	50% {
-		transform: scale(0.68) translateY(-6px);
+	100% {
+		transform: translateX(-2000px);
 	}
 }
 </style>
