@@ -18,6 +18,8 @@
 	height: 120px;
 	overflow: hidden;
 	transform: scale(0.68);
+	transform-origin: center center;
+	animation: runner-bob 1.1s ease-in-out infinite;
 }
 
 .loader {
@@ -257,6 +259,17 @@
 	100% {
 		left: -100%;
 		opacity: 0;
+	}
+}
+
+@keyframes runner-bob {
+	0%,
+	100% {
+		transform: scale(0.68) translateY(0);
+	}
+
+	50% {
+		transform: scale(0.68) translateY(-6px);
 	}
 }
 </style>

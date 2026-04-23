@@ -29,6 +29,7 @@
 	height: 150px;
 	transform: scale(0.58);
 	transform-origin: center center;
+	animation: coffee-float 1.8s ease-in-out infinite;
 }
 
 .loader {
@@ -53,6 +54,7 @@
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
+	animation: machine-idle 2.8s ease-in-out infinite;
 }
 
 .loader .container .coffee-header {
@@ -208,7 +210,7 @@
 	height: 100%;
 	display: block;
 	background-color: #74372b;
-	animation: liquid 5000ms linear 3500ms infinite normal both;
+	animation: liquid 2600ms linear 150ms infinite normal both;
 }
 
 .loader .container .smoke {
@@ -223,25 +225,25 @@
 .loader .container .smoke.one {
 	bottom: 30px;
 	left: 102px;
-	animation: smoke 3s 5s linear infinite;
+	animation: smoke 2.6s 0.15s linear infinite;
 }
 
 .loader .container .smoke.two {
 	bottom: 40px;
 	left: 118px;
-	animation: smoke 3s 4s linear infinite;
+	animation: smoke 2.6s 0.55s linear infinite;
 }
 
 .loader .container .smoke.three {
 	bottom: 40px;
 	right: 118px;
-	animation: smoke 3s 7s linear infinite;
+	animation: smoke 2.6s 0.95s linear infinite;
 }
 
 .loader .container .smoke.four {
 	bottom: 30px;
 	right: 102px;
-	animation: smoke 3s 6s linear infinite;
+	animation: smoke 2.6s 1.35s linear infinite;
 }
 
 .loader .container::after {
@@ -289,6 +291,28 @@
 
 	100% {
 		transform: translateY(100%);
+	}
+}
+
+@keyframes coffee-float {
+	0%,
+	100% {
+		transform: scale(0.58) translateY(0);
+	}
+
+	50% {
+		transform: scale(0.58) translateY(-6px);
+	}
+}
+
+@keyframes machine-idle {
+	0%,
+	100% {
+		transform: translate(-50%, -50%) rotate(0deg);
+	}
+
+	50% {
+		transform: translate(-50%, -51.5%) rotate(-1deg);
 	}
 }
 </style>
