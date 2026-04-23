@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url"
 
 import * as homeExperience from "./homeExperience.js"
 import {
+	buildSuccessOverlayModel,
 	getStatusChipMeta,
 	getPrimaryScanCopy,
 	getBottomTabItems,
@@ -432,4 +433,47 @@ test("home modules share one language helper instead of local fallbacks", () => 
 
 	assert.match(chipSource, /resolveHomeLanguage/)
 	assert.doesNotMatch(chipSource, /frappe\.boot(?:\?\.|\.?)lang/)
+})
+
+test("builds a check-in success overlay model with attendance routing", () => {
+	assert.deepEqual(
+		buildSuccessOverlayModel({
+			action: "IN",
+			lang: "zh",
+			responseMessage: { time: "2026-04-15 09:02:00", location: "office-10F" },
+			monthHours: 126.5,
+		}),
+		{
+			variant: "checkin",
+			statusLabel: "出勤成功",
+			title: "开始上班",
+			primaryLabel: "查看今日勤怠",
+			primaryRoute: { name: "AttendanceDashboard" },
+			secondaryLabel: "关闭",
+			delayMs: 1600,
+			infoRows: [
+				{ label: "打卡时间", value: "09:02" },
+				{ label: "打卡方式", value: "扫码 / PWA" },
+				{ label: "地点", value: "office-10F" },
+			],
+		},
+	)
+})
+
+test("builds a check-out success overlay model with month hours and tomorrow note", () => {
+	const model = buildSuccessOverlayModel({
+		action: "OUT",
+		lang: "zh",
+		responseMessage: { time: "2026-04-15 18:06:00", location: "office-10F" },
+		monthHours: 126.5,
+	})
+
+	assert.equal(model.variant, "checkout")
+	assert.equal(model.statusLabel, "退勤成功")
+	assert.equal(model.primaryRoute.name, "EmployeeCheckinListView")
+	assert.deepEqual(model.infoRows, [
+		{ label: "退勤时间", value: "18:06" },
+		{ label: "当月工时", value: "126.50 小时" },
+		{ label: "说明", value: "今天的工时信息，将于明天可查看。" },
+	])
 })
