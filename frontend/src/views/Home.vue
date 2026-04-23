@@ -18,6 +18,7 @@ import { onBeforeUnmount, onMounted } from "vue"
 import BaseLayout from "@/components/BaseLayout.vue"
 import CheckInPanel from "@/components/CheckInPanel.vue"
 import HomeStatusChip from "@/components/home/HomeStatusChip.vue"
+import { bindCheckinStatusRefresh } from "@/utils/homeExperience"
 
 const workStatus = createResource({
 	url: "hrms.api.get_employee_work_status",
@@ -28,14 +29,16 @@ const workStatus = createResource({
 const reloadWorkStatus = () => workStatus.reload()
 
 let refreshInterval = null
+let unbindCheckinStatusRefresh = () => {}
 
 onMounted(() => {
-	window.addEventListener("checkin-status-changed", reloadWorkStatus)
+	unbindCheckinStatusRefresh = bindCheckinStatusRefresh(window, reloadWorkStatus)
 	refreshInterval = setInterval(reloadWorkStatus, 30000)
 })
 
 onBeforeUnmount(() => {
-	window.removeEventListener("checkin-status-changed", reloadWorkStatus)
+	unbindCheckinStatusRefresh()
+	unbindCheckinStatusRefresh = () => {}
 	if (refreshInterval) {
 		clearInterval(refreshInterval)
 		refreshInterval = null

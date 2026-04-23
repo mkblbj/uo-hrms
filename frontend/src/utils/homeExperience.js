@@ -1,6 +1,7 @@
 import { normalizeLanguage } from "./language.js"
 
 const DEFAULT_HOME_LANGUAGE = "zh"
+export const CHECKIN_STATUS_CHANGED_EVENT = "checkin-status-changed"
 
 const COPY = {
 	zh: {
@@ -57,6 +58,45 @@ export function resolveHomeLanguage(boot = globalThis.window?.frappe?.boot) {
 		normalizeLanguage(boot?.server_lang) ||
 		DEFAULT_HOME_LANGUAGE
 	)
+}
+
+function createCheckinStatusChangedEvent(detail = {}) {
+	if (typeof globalThis.CustomEvent === "function") {
+		return new CustomEvent(CHECKIN_STATUS_CHANGED_EVENT, { detail })
+	}
+
+	const event = new Event(CHECKIN_STATUS_CHANGED_EVENT)
+	Object.defineProperty(event, "detail", {
+		value: detail,
+		enumerable: true,
+	})
+	return event
+}
+
+export function emitCheckinStatusChanged(
+	target = globalThis.window,
+	detail = {},
+) {
+	if (typeof target?.dispatchEvent !== "function") return false
+
+	return target.dispatchEvent(createCheckinStatusChangedEvent(detail))
+}
+
+export function bindCheckinStatusRefresh(
+	target = globalThis.window,
+	reload = () => {},
+) {
+	if (
+		typeof target?.addEventListener !== "function"
+		|| typeof target?.removeEventListener !== "function"
+	) {
+		return () => {}
+	}
+
+	const handleRefresh = (event) => reload(event)
+	target.addEventListener(CHECKIN_STATUS_CHANGED_EVENT, handleRefresh)
+
+	return () => target.removeEventListener(CHECKIN_STATUS_CHANGED_EVENT, handleRefresh)
 }
 
 function pick(lang, key) {

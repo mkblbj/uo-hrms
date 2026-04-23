@@ -15,7 +15,11 @@
 import { computed } from "vue"
 import { useRouter } from "vue-router"
 
-import { getStatusChipMeta, resolveWorkStatusValue } from "@/utils/homeExperience"
+import {
+	getStatusChipMeta,
+	resolveHomeLanguage,
+	resolveWorkStatusValue,
+} from "@/utils/homeExperience"
 
 const props = defineProps({
 	workStatus: {
@@ -26,7 +30,7 @@ const props = defineProps({
 
 const router = useRouter()
 
-const lang = computed(() => window.frappe?.boot?.lang || "zh")
+const lang = computed(() => resolveHomeLanguage(window.frappe?.boot))
 const resolvedWorkStatus = computed(() =>
 	resolveWorkStatusValue(props.workStatus?.data),
 )

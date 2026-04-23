@@ -4,6 +4,7 @@ import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 
+import * as homeExperience from "./homeExperience.js"
 import {
 	getStatusChipMeta,
 	getPrimaryScanCopy,
@@ -102,6 +103,25 @@ test("returns localized bottom-tab labels without mixed-language fallbacks", () 
 		"経費",
 		"給与",
 	])
+})
+
+test("emits and unbinds the check-in status refresh contract on EventTarget", () => {
+	assert.equal(typeof homeExperience.emitCheckinStatusChanged, "function")
+	assert.equal(typeof homeExperience.bindCheckinStatusRefresh, "function")
+
+	const target = new EventTarget()
+	const receivedDetails = []
+	const unbind = homeExperience.bindCheckinStatusRefresh(target, (event) => {
+		receivedDetails.push(event.detail)
+	})
+
+	assert.equal(typeof unbind, "function")
+	homeExperience.emitCheckinStatusChanged(target, { log_type: "OUT" })
+	assert.deepEqual(receivedDetails, [{ log_type: "OUT" }])
+
+	unbind()
+	homeExperience.emitCheckinStatusChanged(target, { log_type: "IN" })
+	assert.deepEqual(receivedDetails, [{ log_type: "OUT" }])
 })
 
 test("resolves the shared home language from boot lang variants and fallbacks", () => {
@@ -262,7 +282,8 @@ test("CheckInPanel drops the legacy list, modal, and socket refresh chain", () =
 	assert.match(source, /QRScannerModal/)
 	assert.match(source, /openQRScanner/)
 	assert.match(source, /handleQRScanSuccess/)
-	assert.match(source, /checkin-status-changed/)
+	assert.match(source, /emitCheckinStatusChanged/)
+	assert.doesNotMatch(source, /window\.dispatchEvent/)
 })
 
 test("Home owns a single work-status resource shared by the chip and panel", () => {
@@ -278,6 +299,15 @@ test("Home owns a single work-status resource shared by the chip and panel", () 
 	assert.match(homeSource, /<CheckInPanel\s+class="w-full flex-1"\s+:work-status="workStatus"/)
 	assert.doesNotMatch(chipSource, /createResource\(/)
 	assert.doesNotMatch(panelSource, /url:\s*"hrms\.api\.get_employee_work_status"/)
+})
+
+test("Home wires the shared check-in refresh helper instead of inline event listeners", () => {
+	const source = fs.readFileSync(homeViewPath, "utf8")
+
+	assert.match(source, /bindCheckinStatusRefresh/)
+	assert.match(source, /unbindCheckinStatusRefresh/)
+	assert.doesNotMatch(source, /addEventListener\(\s*["']checkin-status-changed["']/)
+	assert.doesNotMatch(source, /removeEventListener\(\s*["']checkin-status-changed["']/)
 })
 
 test("keeps the hero state unresolved until work status is explicitly available", () => {
@@ -353,6 +383,10 @@ test("home modules share one language helper instead of local fallbacks", () => 
 	const panelSource = fs.readFileSync(checkInPanelPath, "utf8")
 	const weatherSource = fs.readFileSync(weatherWidgetPath, "utf8")
 	const summarySource = fs.readFileSync(homeSummaryCardPath, "utf8")
+	const chipSource = fs.readFileSync(
+		path.resolve(currentDir, "../components/home/HomeStatusChip.vue"),
+		"utf8",
+	)
 
 	assert.match(panelSource, /resolveHomeLanguage/)
 	assert.match(panelSource, /<HomeSummaryCard\s+:lang="currentLanguage"/)
@@ -368,4 +402,7 @@ test("home modules share one language helper instead of local fallbacks", () => 
 	assert.match(summarySource, /currentLanguage/)
 	assert.doesNotMatch(summarySource, /\|\|\s*["'](?:ja|zh|en)["']/)
 	assert.doesNotMatch(summarySource, /frappe\.boot(?:\?\.|\.?)lang/)
+
+	assert.match(chipSource, /resolveHomeLanguage/)
+	assert.doesNotMatch(chipSource, /frappe\.boot(?:\?\.|\.?)lang/)
 })

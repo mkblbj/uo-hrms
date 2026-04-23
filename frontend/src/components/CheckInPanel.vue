@@ -58,7 +58,11 @@ import { createResource, toast, FeatherIcon } from "frappe-ui"
 import { computed, inject, ref } from "vue"
 
 import { formatTimestamp } from "@/utils/formatters"
-import { getHeroCardMeta, resolveHomeLanguage } from "@/utils/homeExperience"
+import {
+	emitCheckinStatusChanged,
+	getHeroCardMeta,
+	resolveHomeLanguage,
+} from "@/utils/homeExperience"
 import QRScannerModal from "@/components/QRScannerModal.vue"
 import WeatherWidget from "@/components/WeatherWidget.vue"
 import HomeHeroCard from "@/components/home/HomeHeroCard.vue"
@@ -183,9 +187,7 @@ const handleQRScanSuccess = async (token, latitude = null, longitude = null) => 
 			})
 
 			// 发送全局事件通知工作状态徽章更新
-			window.dispatchEvent(new CustomEvent("checkin-status-changed", {
-				detail: { log_type: action }
-			}))
+			emitCheckinStatusChanged(window, { log_type: action })
 			
 			// 关闭扫码窗口
 			showQRScanner.value = false
