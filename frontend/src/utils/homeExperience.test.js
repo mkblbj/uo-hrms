@@ -25,7 +25,7 @@ const weatherWidgetPath = path.resolve(currentDir, "../components/WeatherWidget.
 const homeViewPath = path.resolve(currentDir, "../views/Home.vue")
 const homeSummaryCardPath = path.resolve(
 	currentDir,
-	"../components/work_roster/HomeSummaryCard.vue",
+	"../components/work_roster/HomeSummaryCard.vue"
 )
 
 test("returns working and off-work chip metadata for zh and ja", () => {
@@ -59,13 +59,13 @@ test("returns distinct chip metadata for no_checkin_today", () => {
 				is_working: false,
 				last_checkin: null,
 			},
-			"ja",
+			"ja"
 		),
 		{
 			label: "出勤前",
 			tone: "pending",
 			routeName: "AttendanceDashboard",
-		},
+		}
 	)
 })
 
@@ -119,13 +119,10 @@ test("derives the scan action and copy from the same work-status input", () => {
 })
 
 test("returns localized bottom-tab labels without mixed-language fallbacks", () => {
-	assert.deepEqual(getBottomTabItems("ja").map((item) => item.title), [
-		"ホーム",
-		"勤怠",
-		"シフト",
-		"経費",
-		"給与",
-	])
+	assert.deepEqual(
+		getBottomTabItems("ja").map((item) => item.title),
+		["ホーム", "勤怠", "シフト", "経費", "給与"]
+	)
 })
 
 test("emits and unbinds the check-in status refresh contract on EventTarget", () => {
@@ -168,7 +165,7 @@ test("returns the working hero summary branch from workStatus.status", () => {
 			hasCta: true,
 			formatLastCheckin: () => "should-not-be-used",
 		}),
-		"今天已出勤，可点击扫码退勤",
+		"今天已出勤，可点击扫码退勤"
 	)
 })
 
@@ -182,10 +179,9 @@ test("returns the off-work hero summary branch from workStatus.status and last_c
 			},
 			lang: "zh",
 			hasCta: true,
-			formatLastCheckin: (value) =>
-				value === "2026-04-15 18:06:00" ? "18:06" : value,
+			formatLastCheckin: (value) => (value === "2026-04-15 18:06:00" ? "18:06" : value),
 		}),
-		"上次退勤 18:06，可点击扫码出勤",
+		"上次退勤 18:06，可点击扫码出勤"
 	)
 })
 
@@ -200,7 +196,7 @@ test("returns the no-checkin hero summary branch from workStatus.status", () => 
 			lang: "zh",
 			hasCta: true,
 		}),
-		"暂无打卡记录，可点击扫码出勤",
+		"暂无打卡记录，可点击扫码出勤"
 	)
 })
 
@@ -222,7 +218,7 @@ test("builds hero state directly from status and last_checkin", () => {
 		{
 			summary: null,
 			cta: null,
-		},
+		}
 	)
 
 	const workingHero = getHeroCardMeta({
@@ -234,8 +230,7 @@ test("builds hero state directly from status and last_checkin", () => {
 		lang: "zh",
 		allowPrimaryScan: true,
 		translate,
-		formatLastCheckin: (value) =>
-			value === "2026-04-15 09:12:00" ? "09:12" : value,
+		formatLastCheckin: (value) => (value === "2026-04-15 09:12:00" ? "09:12" : value),
 	})
 	assert.equal(workingHero.summary, "今天已出勤，可点击扫码退勤")
 	assert.deepEqual(workingHero.cta, {
@@ -254,8 +249,7 @@ test("builds hero state directly from status and last_checkin", () => {
 		lang: "zh",
 		allowPrimaryScan: true,
 		translate,
-		formatLastCheckin: (value) =>
-			value === "2026-04-15 18:06:00" ? "18:06" : value,
+		formatLastCheckin: (value) => (value === "2026-04-15 18:06:00" ? "18:06" : value),
 	})
 	assert.equal(offHero.summary, "上次退勤 18:06，可点击扫码出勤")
 	assert.deepEqual(offHero.cta, {
@@ -279,7 +273,7 @@ test("builds hero state directly from status and last_checkin", () => {
 		{
 			summary: "暂无打卡记录",
 			cta: null,
-		},
+		}
 	)
 })
 
@@ -313,7 +307,7 @@ test("Home owns a single work-status resource shared by the chip and panel", () 
 	const homeSource = fs.readFileSync(homeViewPath, "utf8")
 	const chipSource = fs.readFileSync(
 		path.resolve(currentDir, "../components/home/HomeStatusChip.vue"),
-		"utf8",
+		"utf8"
 	)
 	const panelSource = fs.readFileSync(checkInPanelPath, "utf8")
 
@@ -327,7 +321,7 @@ test("Home owns a single work-status resource shared by the chip and panel", () 
 test("HomeStatusChip keeps no_checkin_today as a distinct status input", () => {
 	const chipSource = fs.readFileSync(
 		path.resolve(currentDir, "../components/home/HomeStatusChip.vue"),
-		"utf8",
+		"utf8"
 	)
 
 	assert.match(chipSource, /getStatusChipMeta\(props\.workStatus\?\.data,\s*lang\.value\)/)
@@ -378,7 +372,7 @@ test("returns ja and en home copy branches without mixed-language fallbacks", ()
 			lang: "ja",
 			hasCta: true,
 		}),
-		"本日は出勤済みです。タップしてQRコードで退勤できます",
+		"本日は出勤済みです。タップしてQRコードで退勤できます"
 	)
 	assert.equal(
 		getHeroSummaryCopy({
@@ -389,7 +383,7 @@ test("returns ja and en home copy branches without mixed-language fallbacks", ()
 			lang: "en",
 			hasCta: false,
 		}),
-		"No attendance record yet.",
+		"No attendance record yet."
 	)
 	assert.deepEqual(getRosterEmptyCopy("en"), {
 		today: "No shift today",
@@ -404,7 +398,7 @@ test("HomeSummaryCard keeps roster empty copy in a single source", () => {
 
 	assert.match(
 		source,
-		/import\s+\{\s*getRosterEmptyCopy\s*,\s*resolveHomeLanguage\s*\}\s+from\s+"@\/utils\/homeExperience"/,
+		/import\s+\{\s*getRosterEmptyCopy\s*,\s*resolveHomeLanguage\s*\}\s+from\s+"@\/utils\/homeExperience"/
 	)
 	assert.doesNotMatch(source, /\btodayEmpty:\s*\{/)
 	assert.doesNotMatch(source, /\btodayEmptyHint:\s*\{/)
@@ -418,7 +412,7 @@ test("home modules share one language helper instead of local fallbacks", () => 
 	const summarySource = fs.readFileSync(homeSummaryCardPath, "utf8")
 	const chipSource = fs.readFileSync(
 		path.resolve(currentDir, "../components/home/HomeStatusChip.vue"),
-		"utf8",
+		"utf8"
 	)
 
 	assert.match(panelSource, /resolveHomeLanguage/)
