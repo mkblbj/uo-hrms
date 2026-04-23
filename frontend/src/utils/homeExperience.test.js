@@ -248,6 +248,23 @@ test("CheckInPanel reuses the shared hero state helper without reading checkins 
 	assert.doesNotMatch(source, /timeText:\s*/)
 })
 
+test("CheckInPanel drops the legacy list, modal, and socket refresh chain", () => {
+	const source = fs.readFileSync(checkInPanelPath, "utf8")
+
+	assert.doesNotMatch(source, /createListResource/)
+	assert.doesNotMatch(source, /checkins\.reload\(/)
+	assert.doesNotMatch(source, /list_update/)
+	assert.doesNotMatch(source, /open-checkin-modal/)
+	assert.doesNotMatch(source, /submitLog\(/)
+	assert.doesNotMatch(source, /modalController/)
+	assert.doesNotMatch(source, /\bIonModal\b/)
+
+	assert.match(source, /QRScannerModal/)
+	assert.match(source, /openQRScanner/)
+	assert.match(source, /handleQRScanSuccess/)
+	assert.match(source, /checkin-status-changed/)
+})
+
 test("Home owns a single work-status resource shared by the chip and panel", () => {
 	const homeSource = fs.readFileSync(homeViewPath, "utf8")
 	const chipSource = fs.readFileSync(
