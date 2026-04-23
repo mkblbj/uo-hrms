@@ -1,8 +1,11 @@
 import test from "node:test"
 import assert from "node:assert/strict"
 import fs from "node:fs"
+import os from "node:os"
 import path from "node:path"
-import { fileURLToPath } from "node:url"
+import { fileURLToPath, pathToFileURL } from "node:url"
+
+import { parse } from "@vue/compiler-sfc"
 
 import * as homeExperience from "./homeExperience.js"
 import {
@@ -22,12 +25,77 @@ import {
 const currentDir = path.dirname(fileURLToPath(import.meta.url))
 const homeHeroCardPath = path.resolve(currentDir, "../components/home/HomeHeroCard.vue")
 const checkInPanelPath = path.resolve(currentDir, "../components/CheckInPanel.vue")
+const checkinSuccessOverlayPath = path.resolve(
+	currentDir,
+	"../components/home/CheckinSuccessOverlay.vue"
+)
 const weatherWidgetPath = path.resolve(currentDir, "../components/WeatherWidget.vue")
 const homeViewPath = path.resolve(currentDir, "../views/Home.vue")
 const homeSummaryCardPath = path.resolve(
 	currentDir,
 	"../components/work_roster/HomeSummaryCard.vue"
 )
+let checkInPanelHelpersPromise = null
+
+async function loadVueNamedExports(vueFilePath) {
+	const source = fs.readFileSync(vueFilePath, "utf8")
+	const { descriptor } = parse(source, { filename: vueFilePath })
+
+	assert.ok(descriptor.script, `${path.basename(vueFilePath)} should expose a plain <script> helper block`)
+
+	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "hrms-home-experience-"))
+	const modulePath = path.join(
+		tempDir,
+		`${path.basename(vueFilePath, ".vue")}.${Date.now()}.mjs`
+	)
+	fs.writeFileSync(modulePath, descriptor.script.content, "utf8")
+
+	return import(pathToFileURL(modulePath).href)
+}
+
+async function loadCheckInPanelHelpers() {
+	if (!checkInPanelHelpersPromise) {
+		checkInPanelHelpersPromise = loadVueNamedExports(checkInPanelPath)
+	}
+
+	return checkInPanelHelpersPromise
+}
+
+function createFakeTimers() {
+	let now = 0
+	let nextId = 1
+	const timers = new Map()
+
+	return {
+		schedule(callback, delay) {
+			const id = nextId++
+			timers.set(id, {
+				runAt: now + delay,
+				callback,
+				delay,
+			})
+			return id
+		},
+		cancel(id) {
+			timers.delete(id)
+		},
+		tick(ms) {
+			now += ms
+			const dueTimers = [...timers.entries()]
+				.filter(([, timer]) => timer.runAt <= now)
+				.sort((left, right) => left[1].runAt - right[1].runAt)
+
+			for (const [id, timer] of dueTimers) {
+				if (!timers.has(id)) continue
+				timers.delete(id)
+				timer.callback()
+			}
+		},
+		getPendingDelays() {
+			return [...timers.values()].map((timer) => timer.delay)
+		},
+	}
+}
 
 test("returns working and off-work chip metadata for zh and ja", () => {
 	assert.deepEqual(getStatusChipMeta(true, "zh"), {
@@ -476,4 +544,171 @@ test("builds a check-out success overlay model with month hours and tomorrow not
 		{ label: "当月工时", value: "126.50 小时" },
 		{ label: "说明", value: "今天的工时信息，将于明天可查看。" },
 	])
+})
+
+test("success overlay controller opens the overlay and reveals actions after the configured delay", async () => {
+	const { createSuccessOverlayController } = await loadCheckInPanelHelpers()
+	const timers = createFakeTimers()
+	const state = {
+		isOpen: false,
+		actionsVisible: false,
+		model: null,
+		returnRoute: null,
+	}
+	const model = buildSuccessOverlayModel({
+		action: "IN",
+		lang: "zh",
+		responseMessage: { time: "2026-04-15 09:02:00", location: "office-10F" },
+		monthHours: 126.5,
+	})
+	const controller = createSuccessOverlayController({
+		state,
+		schedule: timers.schedule,
+		cancel: timers.cancel,
+	})
+
+	controller.open(model, "/app/home")
+
+	assert.deepEqual(state, {
+		isOpen: true,
+		actionsVisible: false,
+		model,
+		returnRoute: "/app/home",
+	})
+	assert.deepEqual(timers.getPendingDelays(), [1600])
+
+	timers.tick(1599)
+	assert.equal(state.actionsVisible, false)
+
+	timers.tick(1)
+	assert.equal(state.actionsVisible, true)
+})
+
+test("success overlay controller closes the overlay, clears pending delay, and restores the original route", async () => {
+	const { createSuccessOverlayController } = await loadCheckInPanelHelpers()
+	const timers = createFakeTimers()
+	const state = {
+		isOpen: false,
+		actionsVisible: false,
+		model: null,
+		returnRoute: null,
+	}
+	const replacedRoutes = []
+	const controller = createSuccessOverlayController({
+		state,
+		schedule: timers.schedule,
+		cancel: timers.cancel,
+	})
+
+	controller.open(
+		buildSuccessOverlayModel({
+			action: "OUT",
+			lang: "zh",
+			responseMessage: { time: "2026-04-15 18:06:00", location: "office-10F" },
+			monthHours: 126.5,
+		}),
+		"/app/home"
+	)
+	controller.close({
+		currentRoute: "/dashboard/attendance",
+		replaceRoute: (target) => replacedRoutes.push(target),
+	})
+	timers.tick(1600)
+
+	assert.deepEqual(state, {
+		isOpen: false,
+		actionsVisible: false,
+		model: null,
+		returnRoute: null,
+	})
+	assert.deepEqual(replacedRoutes, ["/app/home"])
+	assert.deepEqual(timers.getPendingDelays(), [])
+})
+
+test("success overlay controller handles the primary action and clears overlay state before navigation", async () => {
+	const { createSuccessOverlayController } = await loadCheckInPanelHelpers()
+	const timers = createFakeTimers()
+	const state = {
+		isOpen: false,
+		actionsVisible: false,
+		model: null,
+		returnRoute: null,
+	}
+	const pushedRoutes = []
+	const model = buildSuccessOverlayModel({
+		action: "IN",
+		lang: "zh",
+		responseMessage: { time: "2026-04-15 09:02:00", location: "office-10F" },
+		monthHours: 126.5,
+	})
+	const controller = createSuccessOverlayController({
+		state,
+		schedule: timers.schedule,
+		cancel: timers.cancel,
+	})
+
+	controller.open(model, "/app/home")
+	controller.primary((target) => pushedRoutes.push(target))
+	timers.tick(1600)
+
+	assert.deepEqual(state, {
+		isOpen: false,
+		actionsVisible: false,
+		model: null,
+		returnRoute: null,
+	})
+	assert.deepEqual(pushedRoutes, [{ name: "AttendanceDashboard" }])
+	assert.deepEqual(timers.getPendingDelays(), [])
+})
+
+test("success overlay controller synchronizes non-button modal dismisses and ignores duplicate dismiss cleanup", async () => {
+	const { createSuccessOverlayController } = await loadCheckInPanelHelpers()
+	const timers = createFakeTimers()
+	const state = {
+		isOpen: false,
+		actionsVisible: false,
+		model: null,
+		returnRoute: null,
+	}
+	const controller = createSuccessOverlayController({
+		state,
+		schedule: timers.schedule,
+		cancel: timers.cancel,
+	})
+
+	controller.open(
+		buildSuccessOverlayModel({
+			action: "OUT",
+			lang: "zh",
+			responseMessage: { time: "2026-04-15 18:06:00", location: "office-10F" },
+			monthHours: 126.5,
+		}),
+		"/app/home"
+	)
+
+	assert.equal(
+		controller.didDismiss(
+			{ detail: { role: "gesture" } },
+			{
+				currentRoute: "/app/home",
+			}
+		),
+		true
+	)
+	assert.equal(controller.didDismiss({ detail: { role: "gesture" } }), false)
+	assert.deepEqual(state, {
+		isOpen: false,
+		actionsVisible: false,
+		model: null,
+		returnRoute: null,
+	})
+	assert.deepEqual(timers.getPendingDelays(), [])
+})
+
+test("CheckinSuccessOverlay forwards Ionic didDismiss and scopes its styles", () => {
+	const source = fs.readFileSync(checkinSuccessOverlayPath, "utf8")
+	const { descriptor } = parse(source, { filename: checkinSuccessOverlayPath })
+
+	assert.ok(descriptor.template?.content.includes('@didDismiss="handleDidDismiss"'))
+	assert.ok(descriptor.styles.some((style) => style.scoped))
 })

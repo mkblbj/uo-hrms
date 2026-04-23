@@ -62,18 +62,109 @@
 	/>
 
 	<CheckinSuccessOverlay
-		v-if="successOverlayModel"
-		:is-open="successOverlayOpen"
-		:actions-visible="successOverlayActionsVisible"
-		:model="successOverlayModel"
+		v-if="successOverlayState.model"
+		:is-open="successOverlayState.isOpen"
+		:actions-visible="successOverlayState.actionsVisible"
+		:model="successOverlayState.model"
 		@primary="handleSuccessPrimary"
-		@close="closeSuccessOverlay"
+		@close="handleSuccessOverlayDismiss"
 	/>
 </template>
 
+<script>
+const defaultSchedule = (callback, delay) => (globalThis.window || globalThis).setTimeout(callback, delay)
+const defaultCancel = (timerId) => (globalThis.window || globalThis).clearTimeout(timerId)
+
+function hasActiveSuccessOverlay(state) {
+	return Boolean(state.isOpen || state.actionsVisible || state.model || state.returnRoute)
+}
+
+export function createSuccessOverlayController({
+	state = {
+		isOpen: false,
+		actionsVisible: false,
+		model: null,
+		returnRoute: null,
+	},
+	schedule = defaultSchedule,
+	cancel = defaultCancel,
+} = {}) {
+	let successActionsTimer = null
+
+	function clearActionsTimer() {
+		if (successActionsTimer !== null) {
+			cancel(successActionsTimer)
+			successActionsTimer = null
+		}
+	}
+
+	function resetState() {
+		state.isOpen = false
+		state.actionsVisible = false
+		state.model = null
+		state.returnRoute = null
+	}
+
+	function open(model, currentRoute) {
+		state.returnRoute = currentRoute
+		state.model = model
+		state.actionsVisible = false
+		state.isOpen = true
+		clearActionsTimer()
+		successActionsTimer = schedule(() => {
+			state.actionsVisible = true
+		}, model.delayMs)
+	}
+
+	function close({ currentRoute = null, replaceRoute } = {}) {
+		const previousRoute = state.returnRoute
+		clearActionsTimer()
+		resetState()
+		if (
+			previousRoute &&
+			currentRoute &&
+			currentRoute !== previousRoute &&
+			typeof replaceRoute === "function"
+		) {
+			replaceRoute(previousRoute)
+		}
+	}
+
+	function primary(pushRoute) {
+		const targetRoute = state.model?.primaryRoute
+		clearActionsTimer()
+		resetState()
+		if (targetRoute && typeof pushRoute === "function") {
+			pushRoute(targetRoute)
+		}
+	}
+
+	function didDismiss(_event, options = {}) {
+		if (!hasActiveSuccessOverlay(state)) {
+			return false
+		}
+
+		close(options)
+		return true
+	}
+
+	function dispose() {
+		clearActionsTimer()
+	}
+
+	return {
+		open,
+		close,
+		primary,
+		didDismiss,
+		dispose,
+	}
+}
+</script>
+
 <script setup>
 import { createResource, toast, FeatherIcon } from "frappe-ui"
-import { computed, inject, onBeforeUnmount, ref } from "vue"
+import { computed, inject, onBeforeUnmount, reactive, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
 
 import CheckinSuccessOverlay from "@/components/home/CheckinSuccessOverlay.vue"
@@ -104,11 +195,15 @@ const router = useRouter()
 const showQRScanner = ref(false)
 const qrScannerRef = ref(null)
 const currentLanguage = resolveHomeLanguage(window.frappe?.boot)
-const successOverlayOpen = ref(false)
-const successOverlayActionsVisible = ref(false)
-const successOverlayModel = ref(null)
-const returnRoute = ref(null)
-let successActionsTimer = null
+const successOverlayState = reactive({
+	isOpen: false,
+	actionsVisible: false,
+	model: null,
+	returnRoute: null,
+})
+const successOverlayController = createSuccessOverlayController({
+	state: successOverlayState,
+})
 const settings = createResource({
 	url: "hrms.api.get_hr_settings",
 	auto: true,
@@ -144,44 +239,26 @@ const openQRScanner = () => {
 	showQRScanner.value = true
 }
 
-function clearSuccessActionsTimer() {
-	if (successActionsTimer !== null) {
-		window.clearTimeout(successActionsTimer)
-		successActionsTimer = null
-	}
-}
-
 function openSuccessOverlay(model) {
-	returnRoute.value = route.fullPath
-	successOverlayModel.value = model
-	successOverlayActionsVisible.value = false
-	successOverlayOpen.value = true
-	clearSuccessActionsTimer()
-	successActionsTimer = window.setTimeout(() => {
-		successOverlayActionsVisible.value = true
-	}, model.delayMs)
+	successOverlayController.open(model, route.fullPath)
 }
 
 function closeSuccessOverlay() {
-	const previousRoute = returnRoute.value
-	successOverlayOpen.value = false
-	successOverlayActionsVisible.value = false
-	successOverlayModel.value = null
-	returnRoute.value = null
-	clearSuccessActionsTimer()
-	if (previousRoute && route.fullPath !== previousRoute) {
-		router.replace(previousRoute)
-	}
+	successOverlayController.close({
+		currentRoute: route.fullPath,
+		replaceRoute: (target) => router.replace(target),
+	})
 }
 
 function handleSuccessPrimary() {
-	const target = successOverlayModel.value?.primaryRoute
-	successOverlayOpen.value = false
-	successOverlayActionsVisible.value = false
-	successOverlayModel.value = null
-	returnRoute.value = null
-	clearSuccessActionsTimer()
-	if (target) router.push(target)
+	successOverlayController.primary((target) => router.push(target))
+}
+
+function handleSuccessOverlayDismiss(event) {
+	successOverlayController.didDismiss(event, {
+		currentRoute: route.fullPath,
+		replaceRoute: (target) => router.replace(target),
+	})
 }
 
 const handleQRScanSuccess = async (token, latitude = null, longitude = null) => {
@@ -307,7 +384,7 @@ const handleQRScanSuccess = async (token, latitude = null, longitude = null) => 
 }
 
 onBeforeUnmount(() => {
-	clearSuccessActionsTimer()
+	successOverlayController.dispose()
 })
 
 // 辅助函数

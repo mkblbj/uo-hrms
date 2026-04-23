@@ -1,5 +1,10 @@
 <template>
-	<ion-modal :is-open="isOpen" :backdrop-dismiss="false" class="success-overlay-modal">
+	<ion-modal
+		:is-open="isOpen"
+		:backdrop-dismiss="false"
+		@didDismiss="handleDidDismiss"
+		class="success-overlay-modal"
+	>
 		<div class="success-overlay" :class="model.variant">
 			<div class="success-status">{{ model.statusLabel }}</div>
 			<div class="success-motion">
@@ -43,10 +48,14 @@ defineProps({
 	},
 })
 
-defineEmits(["primary", "close"])
+const emit = defineEmits(["primary", "close"])
+
+function handleDidDismiss(event) {
+	emit("close", event)
+}
 </script>
 
-<style>
+<style scoped>
 ion-modal.success-overlay-modal {
 	--width: 100%;
 	--height: 100%;
