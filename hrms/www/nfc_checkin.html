@@ -2,36 +2,78 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>NFC チェックイン - UO HR</title>
     <link rel="icon" href="/assets/hrms/images/favicon.png">
     <style>
+        :root {
+            color-scheme: dark;
+            --panel-bg: rgba(10, 18, 32, 0.72);
+            --panel-border: rgba(255, 255, 255, 0.14);
+            --panel-text: #f8fafc;
+            --panel-muted: rgba(226, 232, 240, 0.72);
+            --accent-in: #8bb4ff;
+            --accent-out: #6ee7d2;
+            --coffee-speed-multiplier: 1.5;
+            --coffee-start-delay: 1200ms;
+            --safe-top: max(env(safe-area-inset-top), 24px);
+            --safe-bottom: max(env(safe-area-inset-bottom), 28px);
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        
+
+        html,
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 100%;
             min-height: 100vh;
+            min-height: 100dvh;
+            overflow: hidden;
+        }
+
+        body {
+            position: relative;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background:
+                radial-gradient(circle at top, rgba(139, 180, 255, 0.35), transparent 35%),
+                linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             display: flex;
             justify-content: center;
             align-items: center;
             padding: 20px;
+            color: #111827;
+            transition: background 0.45s ease;
         }
-        
+
+        body.success-mode {
+            background:
+                radial-gradient(circle at 20% 20%, rgba(110, 231, 210, 0.14), transparent 28%),
+                radial-gradient(circle at 80% 12%, rgba(139, 180, 255, 0.24), transparent 34%),
+                linear-gradient(160deg, #050b16 0%, #101a31 48%, #1a1531 100%);
+        }
+
         .container {
-            background: white;
+            position: relative;
+            z-index: 2;
+            background: rgba(255, 255, 255, 0.96);
             border-radius: 24px;
             padding: 40px 30px;
             max-width: 380px;
             width: 100%;
             text-align: center;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            transition: opacity 0.35s ease, transform 0.35s ease;
         }
-        
+
+        body.success-mode .container {
+            opacity: 0;
+            transform: scale(0.95);
+            pointer-events: none;
+        }
+
         .location-badge {
             display: inline-block;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -39,10 +81,12 @@
             padding: 8px 16px;
             border-radius: 20px;
             font-size: 14px;
-            font-weight: 500;
+            font-weight: 600;
             margin-bottom: 24px;
+            word-break: break-word;
+            max-width: 100%;
         }
-        
+
         .status-verifying .icon {
             width: 100px;
             height: 100px;
@@ -52,7 +96,7 @@
             justify-content: center;
             align-items: center;
         }
-        
+
         .status-verifying .icon::before {
             content: "";
             position: absolute;
@@ -63,7 +107,7 @@
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
-        
+
         .status-verifying .icon::after {
             content: "🔐";
             position: absolute;
@@ -72,103 +116,67 @@
             transform: translate(-50%, -50%);
             font-size: 36px;
         }
-        
+
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
-        
-        .status-verifying h2 {
+
+        .status-verifying h2,
+        .status-not-registered h2,
+        .status-error h2 {
             color: #333;
             font-size: 22px;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
-        
-        .status-verifying p {
+
+        .status-verifying p,
+        .status-error p,
+        .status-not-registered p {
             color: #666;
             font-size: 15px;
+            line-height: 1.6;
         }
-        
-        .status-success .icon {
+
+        .status-error .icon,
+        .status-not-registered .icon {
             width: 100px;
             height: 100px;
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
             margin: 0 auto 24px;
-            animation: pop 0.3s ease;
         }
-        
-        @keyframes pop {
-            0% { transform: scale(0); }
-            50% { transform: scale(1.1); }
-            100% { transform: scale(1); }
-        }
-        
-        .status-success .icon::after {
-            content: "✓";
-            color: white;
-            font-size: 48px;
-            font-weight: bold;
-        }
-        
-        .status-success h2 {
-            color: #4CAF50;
-            font-size: 28px;
-            margin-bottom: 16px;
-        }
-        
-        .status-success .employee-name {
-            font-size: 20px;
-            color: #333;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-        
-        .status-success .time {
-            font-size: 32px;
-            color: #667eea;
-            font-weight: 700;
-            margin-bottom: 8px;
-        }
-        
-        .status-success .date {
-            font-size: 14px;
-            color: #888;
-        }
-        
+
         .status-error .icon {
-            width: 100px;
-            height: 100px;
             background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0 auto 24px;
         }
-        
+
         .status-error .icon::after {
             content: "✕";
             color: white;
             font-size: 48px;
             font-weight: bold;
         }
-        
+
         .status-error h2 {
             color: #f44336;
             font-size: 24px;
             margin-bottom: 12px;
         }
-        
-        .status-error p {
-            color: #666;
-            font-size: 15px;
-            line-height: 1.6;
+
+        .status-not-registered .icon {
+            background: #f5f5f5;
         }
-        
-        .retry-btn, .qr-btn {
+
+        .status-not-registered .icon::after {
+            content: "🔑";
+            font-size: 42px;
+        }
+
+        .retry-btn,
+        .qr-btn,
+        .register-btn {
             display: inline-block;
             margin-top: 24px;
             padding: 14px 32px;
@@ -180,94 +188,715 @@
             border: none;
             transition: transform 0.2s, box-shadow 0.2s;
         }
-        
-        .retry-btn {
+
+        .retry-btn,
+        .register-btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
         }
-        
+
         .qr-btn {
             background: #f5f5f5;
             color: #333;
             margin-left: 12px;
         }
-        
-        .retry-btn:hover, .qr-btn:hover {
+
+        .retry-btn:hover,
+        .qr-btn:hover,
+        .register-btn:hover {
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
-        
+
         .buttons {
             display: flex;
             justify-content: center;
             flex-wrap: wrap;
             gap: 12px;
         }
-        
-        .status-not-registered .icon {
-            width: 100px;
-            height: 100px;
-            background: #f5f5f5;
-            border-radius: 50%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            margin: 0 auto 24px;
-        }
-        
-        .status-not-registered .icon::after {
-            content: "🔑";
-            font-size: 42px;
-        }
-        
-        .status-not-registered h2 {
-            color: #333;
-            font-size: 22px;
-            margin-bottom: 12px;
-        }
-        
-        .status-not-registered p {
-            color: #666;
-            font-size: 15px;
-            line-height: 1.6;
-            margin-bottom: 8px;
-        }
-        
-        .register-btn {
-            display: inline-block;
-            margin-top: 24px;
-            padding: 14px 32px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            text-decoration: none;
-        }
-        
+
         .hidden {
             display: none !important;
+        }
+
+        .success-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            padding: var(--safe-top) 24px var(--safe-bottom);
+            display: flex;
+            justify-content: center;
+            align-items: flex-end;
+            overflow: hidden;
+            color: var(--panel-text);
+        }
+
+        .success-overlay__glow {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(18px);
+            opacity: 0.8;
+            pointer-events: none;
+        }
+
+        .success-overlay__glow--top {
+            width: 280px;
+            height: 280px;
+            top: -80px;
+            left: -40px;
+            background: radial-gradient(circle, rgba(139, 180, 255, 0.36) 0%, rgba(139, 180, 255, 0) 72%);
+        }
+
+        .success-overlay__glow--bottom {
+            width: 320px;
+            height: 320px;
+            right: -120px;
+            bottom: -100px;
+            background: radial-gradient(circle, rgba(110, 231, 210, 0.18) 0%, rgba(110, 231, 210, 0) 76%);
+        }
+
+        .success-overlay__stage {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            transition: opacity 0.35s ease;
+            pointer-events: none;
+        }
+
+        .success-overlay--in .success-overlay__stage--in,
+        .success-overlay--out .success-overlay__stage--out {
+            opacity: 1;
+        }
+
+        .success-overlay__content {
+            position: relative;
+            z-index: 2;
+            width: min(100%, 340px);
+            margin-bottom: clamp(8px, 2vh, 16px);
+        }
+
+        .success-overlay__panel {
+            width: 100%;
+            padding: 18px 16px;
+            border-radius: 22px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            box-shadow: 0 18px 60px rgba(15, 23, 42, 0.38);
+        }
+
+        .success-overlay__eyebrow {
+            font-size: 11px;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: rgba(226, 232, 240, 0.7);
+            margin-bottom: 8px;
+        }
+
+        .success-overlay__title {
+            font-size: 28px;
+            line-height: 1.15;
+            font-weight: 800;
+            margin-bottom: 6px;
+        }
+
+        .success-overlay__details {
+            display: grid;
+            gap: 8px;
+        }
+
+        .success-overlay__detail {
+            display: grid;
+            grid-template-columns: 84px 1fr;
+            gap: 12px;
+            align-items: start;
+            padding: 10px 12px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .success-overlay__detail dt {
+            font-size: 12px;
+            letter-spacing: 0.04em;
+            color: var(--panel-muted);
+        }
+
+        .success-overlay__detail dd {
+            font-size: 15px;
+            line-height: 1.5;
+            color: var(--panel-text);
+            word-break: break-word;
+        }
+
+        .success-runner-scene,
+        .success-coffee-scene {
+            position: absolute;
+            inset: 0;
+        }
+
+        .success-runner-scene {
+            overflow: hidden;
+        }
+
+        .success-runner-lines {
+            position: absolute;
+            inset: 0;
+        }
+
+        .success-runner-lines span {
+            position: absolute;
+            left: 200%;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.26);
+            border-radius: 999px;
+        }
+
+        .success-runner-lines span:nth-child(1) {
+            top: 18%;
+            width: 22%;
+            animation: runner-line-1 0.6s linear infinite;
+            animation-delay: -1.8s;
+        }
+
+        .success-runner-lines span:nth-child(2) {
+            top: 34%;
+            width: 32%;
+            animation: runner-line-2 0.8s linear infinite;
+            animation-delay: -0.9s;
+        }
+
+        .success-runner-lines span:nth-child(3) {
+            top: 56%;
+            width: 18%;
+            animation: runner-line-3 0.7s linear infinite;
+            animation-delay: -0.4s;
+        }
+
+        .success-runner-lines span:nth-child(4) {
+            top: 74%;
+            width: 28%;
+            animation: runner-line-4 0.5s linear infinite;
+            animation-delay: -1.1s;
+        }
+
+        .success-runner-loader {
+            --runner-color: #f8fafc;
+            position: absolute;
+            top: 40%;
+            left: 50%;
+            width: 220px;
+            height: 120px;
+            color: var(--runner-color);
+            transform: translate(-50%, -50%) scale(1.18);
+            animation: runner-speeder 0.4s linear infinite;
+        }
+
+        .success-runner-loader > span {
+            position: absolute;
+            top: 28px;
+            left: 88px;
+            width: 35px;
+            height: 5px;
+            background: var(--runner-color);
+            border-radius: 2px 10px 1px 0;
+        }
+
+        .success-runner-loader > span > span:nth-child(1),
+        .success-runner-loader > span > span:nth-child(2),
+        .success-runner-loader > span > span:nth-child(3),
+        .success-runner-loader > span > span:nth-child(4) {
+            position: absolute;
+            width: 30px;
+            height: 1px;
+            background: rgba(139, 180, 255, 0.92);
+        }
+
+        .success-runner-loader > span > span:nth-child(1) {
+            animation: runner-fazer-1 0.2s linear infinite;
+        }
+
+        .success-runner-loader > span > span:nth-child(2) {
+            top: 3px;
+            animation: runner-fazer-2 0.4s linear infinite;
+        }
+
+        .success-runner-loader > span > span:nth-child(3) {
+            top: 1px;
+            animation: runner-fazer-3 0.4s linear infinite;
+            animation-delay: -1s;
+        }
+
+        .success-runner-loader > span > span:nth-child(4) {
+            top: 4px;
+            animation: runner-fazer-4 1s linear infinite;
+            animation-delay: -1s;
+        }
+
+        .success-runner-base {
+            position: absolute;
+            top: 18px;
+            left: 18px;
+        }
+
+        .success-runner-base span {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-top: 6px solid transparent;
+            border-right: 100px solid var(--runner-color);
+            border-bottom: 6px solid transparent;
+        }
+
+        .success-runner-base span::before {
+            content: "";
+            position: absolute;
+            right: -110px;
+            top: -16px;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--runner-color);
+        }
+
+        .success-runner-base span::after {
+            content: "";
+            position: absolute;
+            top: -16px;
+            right: -98px;
+            width: 0;
+            height: 0;
+            border-top: 0 solid transparent;
+            border-right: 55px solid var(--runner-color);
+            border-bottom: 16px solid transparent;
+        }
+
+        .success-runner-face {
+            position: absolute;
+            right: -125px;
+            top: -15px;
+            width: 20px;
+            height: 12px;
+            background: var(--runner-color);
+            border-radius: 20px 20px 0 0;
+            transform: rotate(-40deg);
+        }
+
+        .success-runner-face::after {
+            content: "";
+            position: absolute;
+            right: 4px;
+            top: 7px;
+            width: 12px;
+            height: 12px;
+            background: var(--runner-color);
+            transform: rotate(40deg);
+            transform-origin: 50% 50%;
+            border-radius: 0 0 0 2px;
+        }
+
+        .success-coffee-scene {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: clamp(36px, 8vh, 96px);
+        }
+
+        .success-coffee-loader {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            transform: scale(0.68);
+            transform-origin: center top;
+        }
+
+        .success-coffee-container {
+            width: 300px;
+            height: fit-content;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .success-coffee-header {
+            padding: 10px;
+            width: 100%;
+            height: 80px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #ddcfcc;
+            border-radius: 10px;
+            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.16);
+        }
+
+        .success-coffee-header__buttons {
+            width: 25px;
+            height: 25px;
+            background-color: #282323;
+            border-radius: 50%;
+            box-shadow: 40px 0 0 0 #282323;
+        }
+
+        .success-coffee-header__buttons::before {
+            content: "";
+            width: 8px;
+            height: 8px;
+            display: block;
+            transform: translate(100%, 25px);
+            background-color: #615e5e;
+            box-shadow: 40px 0 0 0 #615e5e;
+        }
+
+        .success-coffee-header__display {
+            width: 50px;
+            height: 50px;
+            display: block;
+            border-radius: 50%;
+            background-color: #9acfc5;
+            border: 5px solid #43beae;
+            box-sizing: border-box;
+        }
+
+        .success-coffee-header__details {
+            width: 8px;
+            margin-left: 16px;
+            height: 20px;
+            align-self: flex-start;
+            background-color: #9b9091;
+            box-shadow:
+                -12px 0 0 #9b9091,
+                -24px 0 0 #9b9091;
+        }
+
+        .success-coffee-medium {
+            width: 90%;
+            height: 160px;
+            position: relative;
+            background-color: #bcb0af;
+        }
+
+        .success-coffee-medium::before {
+            content: "";
+            width: 90%;
+            height: 100px;
+            background-color: #776f6e;
+            position: absolute;
+            bottom: 0;
+            left: 5%;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .success-coffee-medium__exit {
+            width: 60px;
+            height: 20px;
+            position: absolute;
+            top: 0;
+            left: calc(50% - 30px);
+            background-color: #231f20;
+        }
+
+        .success-coffee-medium__exit::before {
+            content: "";
+            width: 50px;
+            height: 20px;
+            border-radius: 0 0 50% 50%;
+            position: absolute;
+            bottom: -20px;
+            left: calc(50% - 25px);
+            background-color: #231f20;
+        }
+
+        .success-coffee-medium__exit::after {
+            content: "";
+            width: 10px;
+            height: 10px;
+            position: absolute;
+            bottom: -30px;
+            left: calc(50% - 5px);
+            background-color: #231f20;
+        }
+
+        .success-coffee-medium__arm {
+            width: 70px;
+            height: 20px;
+            position: absolute;
+            top: 15px;
+            right: 25px;
+            background-color: #231f20;
+        }
+
+        .success-coffee-medium__arm::before {
+            content: "";
+            width: 15px;
+            height: 5px;
+            position: absolute;
+            top: 7px;
+            left: -15px;
+            background-color: #9e9495;
+        }
+
+        .success-coffee-medium__cup {
+            width: 80px;
+            height: 47px;
+            position: absolute;
+            bottom: 0;
+            left: calc(50% - 40px);
+            background-color: #fff;
+            border-radius: 0 0 70px 70px / 0 0 110px 110px;
+        }
+
+        .success-coffee-medium__cup::after {
+            content: "";
+            width: 20px;
+            height: 20px;
+            position: absolute;
+            top: 6px;
+            right: -13px;
+            border: 5px solid #fff;
+            border-radius: 50%;
+        }
+
+        .success-coffee-medium__liquid {
+            width: 6px;
+            height: 63px;
+            position: absolute;
+            top: 50px;
+            left: calc(50% - 3px);
+            background-color: transparent;
+            overflow: hidden;
+        }
+
+        .success-coffee-medium__liquid::before {
+            content: "";
+            width: 100%;
+            height: 100%;
+            display: block;
+            background-color: #74372b;
+            transform: translateY(-100%);
+            animation: coffee-liquid calc(5000ms / var(--coffee-speed-multiplier)) linear calc(var(--coffee-start-delay) / var(--coffee-speed-multiplier)) infinite normal both;
+        }
+
+        .success-coffee-smoke {
+            opacity: 0;
+            width: 8px;
+            height: 20px;
+            position: absolute;
+            border-radius: 5px;
+            background-color: rgba(211, 214, 218, 0.78);
+            filter: blur(0.2px);
+        }
+
+        .success-coffee-smoke.one {
+            bottom: 30px;
+            left: 102px;
+            animation: coffee-smoke calc(3s / var(--coffee-speed-multiplier)) linear calc(5s / var(--coffee-speed-multiplier)) infinite;
+        }
+
+        .success-coffee-smoke.two {
+            bottom: 40px;
+            left: 118px;
+            animation: coffee-smoke calc(3s / var(--coffee-speed-multiplier)) linear calc(4s / var(--coffee-speed-multiplier)) infinite;
+        }
+
+        .success-coffee-smoke.three {
+            bottom: 40px;
+            right: 118px;
+            animation: coffee-smoke calc(3s / var(--coffee-speed-multiplier)) linear calc(7s / var(--coffee-speed-multiplier)) infinite;
+        }
+
+        .success-coffee-smoke.four {
+            bottom: 30px;
+            right: 102px;
+            animation: coffee-smoke calc(3s / var(--coffee-speed-multiplier)) linear calc(6s / var(--coffee-speed-multiplier)) infinite;
+        }
+
+        .success-coffee-container::after {
+            content: "";
+            width: 95%;
+            height: 15px;
+            background-color: #41bdad;
+            box-shadow: 0 15px 0 5px rgba(0, 0, 0, 0.82);
+            border-radius: 10px;
+        }
+
+        @keyframes runner-line-1 {
+            0% { left: 200%; }
+            100% { left: -200%; opacity: 0; }
+        }
+
+        @keyframes runner-line-2 {
+            0% { left: 200%; }
+            100% { left: -200%; opacity: 0; }
+        }
+
+        @keyframes runner-line-3 {
+            0% { left: 200%; }
+            100% { left: -120%; opacity: 0; }
+        }
+
+        @keyframes runner-line-4 {
+            0% { left: 200%; }
+            100% { left: -100%; opacity: 0; }
+        }
+
+        @keyframes runner-fazer-1 {
+            0% { left: 0; }
+            100% { left: -80px; opacity: 0; }
+        }
+
+        @keyframes runner-fazer-2 {
+            0% { left: 0; }
+            100% { left: -100px; opacity: 0; }
+        }
+
+        @keyframes runner-fazer-3 {
+            0% { left: 0; }
+            100% { left: -50px; opacity: 0; }
+        }
+
+        @keyframes runner-fazer-4 {
+            0% { left: 0; }
+            100% { left: -150px; opacity: 0; }
+        }
+
+        @keyframes runner-speeder {
+            0% { transform: translate(-50%, -50%) scale(1.18) translate(2px, 1px) rotate(0deg); }
+            10% { transform: translate(-50%, -50%) scale(1.18) translate(-1px, -3px) rotate(-1deg); }
+            20% { transform: translate(-50%, -50%) scale(1.18) translate(-2px, 0px) rotate(1deg); }
+            30% { transform: translate(-50%, -50%) scale(1.18) translate(1px, 2px) rotate(0deg); }
+            40% { transform: translate(-50%, -50%) scale(1.18) translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-50%, -50%) scale(1.18) translate(-1px, 3px) rotate(-1deg); }
+            60% { transform: translate(-50%, -50%) scale(1.18) translate(-1px, 1px) rotate(0deg); }
+            70% { transform: translate(-50%, -50%) scale(1.18) translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-50%, -50%) scale(1.18) translate(-2px, -1px) rotate(1deg); }
+            90% { transform: translate(-50%, -50%) scale(1.18) translate(2px, 1px) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) scale(1.18) translate(1px, -2px) rotate(-1deg); }
+        }
+
+        @keyframes coffee-smoke {
+            0% {
+                transform: translateY(0px);
+                opacity: 0;
+            }
+            40% {
+                opacity: 0.5;
+            }
+            50% {
+                transform: translateY(-10px);
+                opacity: 0.3;
+            }
+            80% {
+                opacity: 0.5;
+            }
+            100% {
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+        }
+
+        @keyframes coffee-liquid {
+            0% {
+                transform: translateY(-100%);
+            }
+            6% {
+                transform: translateY(0);
+            }
+            10% {
+                transform: translateY(0);
+            }
+            90% {
+                transform: translateY(0);
+            }
+            100% {
+                transform: translateY(100%);
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 16px;
+            }
+
+            .container {
+                padding: 36px 24px;
+            }
+
+            .success-overlay {
+                padding-left: 18px;
+                padding-right: 18px;
+            }
+
+            .success-overlay__title {
+                font-size: 24px;
+            }
+
+            .success-overlay__detail {
+                grid-template-columns: 72px 1fr;
+                gap: 8px;
+                padding: 9px 10px;
+            }
+
+            .success-runner-loader {
+                top: 33%;
+                transform: translate(-50%, -50%) scale(0.82);
+            }
+
+            .success-coffee-loader {
+                transform: scale(0.61);
+            }
+        }
+
+        @media (max-height: 760px) {
+            .success-runner-loader {
+                top: 32%;
+                transform: translate(-50%, -50%) scale(0.86);
+            }
+
+            .success-coffee-loader {
+                transform: scale(0.58);
+            }
+
+            .success-overlay__panel {
+                padding-top: 16px;
+                padding-bottom: 16px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.001ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.001ms !important;
+                scroll-behavior: auto !important;
+            }
+
+            .success-overlay__stage {
+                opacity: 1;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="container" id="status-container">
         <div class="location-badge" id="location-badge">📍 Loading...</div>
-        
+
         <div id="status-verifying" class="status-verifying">
             <div class="icon"></div>
             <h2>本人確認中</h2>
             <p>FaceID / 指紋 / PIN で確認してください</p>
         </div>
-        
-        <div id="status-success" class="status-success hidden">
-            <div class="icon"></div>
-            <h2 id="success-title">チェックイン成功</h2>
-            <div class="employee-name" id="employee-name"></div>
-            <div class="time" id="checkin-time"></div>
-            <div class="date" id="checkin-date"></div>
-        </div>
-        
+
         <div id="status-error" class="status-error hidden">
             <div class="icon"></div>
             <h2>チェックイン失敗</h2>
@@ -277,7 +906,7 @@
                 <a class="qr-btn" href="/hr">QRコードでチェックイン</a>
             </div>
         </div>
-        
+
         <div id="status-not-registered" class="status-not-registered hidden">
             <div class="icon"></div>
             <h2>Passkey 登録が必要です</h2>
@@ -287,80 +916,167 @@
         </div>
     </div>
 
+    <div id="success-overlay" class="success-overlay hidden" aria-hidden="true">
+        <div class="success-overlay__glow success-overlay__glow--top"></div>
+        <div class="success-overlay__glow success-overlay__glow--bottom"></div>
+
+        <div class="success-overlay__stage success-overlay__stage--in">
+            <div class="success-runner-scene" aria-hidden="true">
+                <div class="success-runner-loader">
+                    <span><span></span><span></span><span></span><span></span></span>
+                    <div class="success-runner-base">
+                        <span></span>
+                        <div class="success-runner-face"></div>
+                    </div>
+                </div>
+                <div class="success-runner-lines">
+                    <span></span><span></span><span></span><span></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="success-overlay__stage success-overlay__stage--out">
+            <div class="success-coffee-scene" aria-hidden="true">
+                <div class="success-coffee-loader">
+                    <div class="success-coffee-container">
+                        <div class="success-coffee-header">
+                            <div class="success-coffee-header__buttons"></div>
+                            <div class="success-coffee-header__display"></div>
+                            <div class="success-coffee-header__details"></div>
+                        </div>
+                        <div class="success-coffee-medium">
+                            <div class="success-coffee-medium__exit"></div>
+                            <div class="success-coffee-medium__arm"></div>
+                            <div class="success-coffee-medium__liquid"></div>
+                            <div class="success-coffee-smoke one"></div>
+                            <div class="success-coffee-smoke two"></div>
+                            <div class="success-coffee-smoke three"></div>
+                            <div class="success-coffee-smoke four"></div>
+                            <div class="success-coffee-medium__cup"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="success-overlay__content">
+            <div class="success-overlay__panel">
+                <div class="success-overlay__eyebrow" id="success-eyebrow">CHECK IN COMPLETE</div>
+                <h2 class="success-overlay__title" id="success-title">出勤打刻完了</h2>
+                <dl class="success-overlay__details">
+                    <div class="success-overlay__detail">
+                        <dt>社員名</dt>
+                        <dd id="success-employee-name"></dd>
+                    </div>
+                    <div class="success-overlay__detail">
+                        <dt>打刻時刻</dt>
+                        <dd id="success-checkin-time"></dd>
+                    </div>
+                    <div class="success-overlay__detail">
+                        <dt>打刻場所</dt>
+                        <dd id="success-location"></dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    </div>
+
     <script>
         // Frappe 模板注入 CSRF token（在 Jinja 渲染时替换）
         window.__CSRF_TOKEN = "{{ frappe.session.csrf_token or '' }}";
     </script>
     <script src="https://unpkg.com/@simplewebauthn/browser@9.0.0/dist/bundle/index.umd.min.js"></script>
-    
+
     {% raw %}
     <script>
         console.log('[NFC] Page loaded');
         console.log('[NFC] CSRF token from template:', window.__CSRF_TOKEN ? 'found' : 'NOT FOUND');
-        
-        // 检查 SimpleWebAuthn 是否加载
+
         if (!window.SimpleWebAuthnBrowser) {
             console.error('[NFC] SimpleWebAuthn not loaded!');
             showError('システムライブラリの読み込みに失敗しました。ページを更新してください');
         }
-        
+
         const { startAuthentication } = window.SimpleWebAuthnBrowser || {};
-        
+
         if (!startAuthentication) {
             console.error('[NFC] startAuthentication not available');
             showError('ブラウザが生体認証に対応していません。Chrome/Safari をご利用ください');
         }
-        
+
         const urlParams = new URLSearchParams(window.location.search);
         const checkinLocation = urlParams.get('loc') || urlParams.get('location') || 'unknown';
-        
+        const statusContainer = document.getElementById('status-container');
+        const successTitleEl = document.getElementById('success-title');
+        const successEyebrowEl = document.getElementById('success-eyebrow');
+        const successEmployeeNameEl = document.getElementById('success-employee-name');
+        const successTimeEl = document.getElementById('success-checkin-time');
+        const successLocationEl = document.getElementById('success-location');
+
         console.log('[NFC] Location:', checkinLocation);
-        
         document.getElementById('location-badge').textContent = '📍 ' + checkinLocation;
-        
+
+        function hideSuccessOverlay() {
+            document.body.classList.remove('success-mode');
+            document.getElementById('success-overlay').classList.add('hidden');
+            document.getElementById('success-overlay').classList.remove('success-overlay--in', 'success-overlay--out');
+            document.getElementById('success-overlay').setAttribute('aria-hidden', 'true');
+        }
+
         function showStatus(status) {
+            hideSuccessOverlay();
+            statusContainer.classList.remove('hidden');
             document.getElementById('status-verifying').classList.add('hidden');
-            document.getElementById('status-success').classList.add('hidden');
             document.getElementById('status-error').classList.add('hidden');
             document.getElementById('status-not-registered').classList.add('hidden');
             document.getElementById('status-' + status).classList.remove('hidden');
         }
-        
-        function showSuccess(data) {
-            showStatus('success');
-            
-            const title = data.log_type === 'IN' ? 'チェックイン成功 ✨' : 'チェックアウト成功 👋';
-            document.getElementById('success-title').textContent = title;
-            document.getElementById('employee-name').textContent = data.employee_name;
-            
-            const timeStr = data.time;
-            const timeParts = timeStr.split(' ');
-            if (timeParts.length >= 2) {
-                document.getElementById('checkin-time').textContent = timeParts[1].substring(0, 5);
-                document.getElementById('checkin-date').textContent = timeParts[0];
-            } else {
-                document.getElementById('checkin-time').textContent = timeStr;
-                document.getElementById('checkin-date').textContent = '';
-            }
+
+        function formatTimeLabel(value) {
+            if (!value) return '—';
+            const match = String(value).match(/(\d{2}:\d{2})/);
+            return match ? match[1] : String(value);
         }
-        
+
+        function formatLocationLabel(value) {
+            if (!value) return checkinLocation;
+            return String(value);
+        }
+
+        function showSuccess(data) {
+            const isCheckin = data.log_type === 'IN';
+            const employeeName = data.employee_name || '—';
+            const overlayTitle = isCheckin ? '出勤打刻完了' : '退勤打刻完了';
+            const overlayEyebrow = isCheckin ? 'CHECK IN COMPLETE' : 'CHECK OUT COMPLETE';
+
+            statusContainer.classList.add('hidden');
+            document.body.classList.add('success-mode');
+            document.getElementById('success-overlay').classList.remove('hidden');
+            document.getElementById('success-overlay').setAttribute('aria-hidden', 'false');
+            document.getElementById('success-overlay').classList.toggle('success-overlay--in', isCheckin);
+            document.getElementById('success-overlay').classList.toggle('success-overlay--out', !isCheckin);
+
+            successEyebrowEl.textContent = overlayEyebrow;
+            successTitleEl.textContent = overlayTitle;
+            successEmployeeNameEl.textContent = employeeName;
+            successTimeEl.textContent = formatTimeLabel(data.time);
+            successLocationEl.textContent = formatLocationLabel(data.location);
+        }
+
         function showError(message) {
             showStatus('error');
             document.getElementById('error-message').textContent = message;
         }
-        
+
         function getCSRFToken() {
-            // 1. 从 Frappe 模板注入获取（最可靠）
             if (window.__CSRF_TOKEN && window.__CSRF_TOKEN.length > 5) {
                 return window.__CSRF_TOKEN;
             }
-            
-            // 2. 从 Frappe 全局变量获取
+
             if (window.frappe && window.frappe.csrf_token) {
                 return window.frappe.csrf_token;
             }
-            
-            // 3. 从 cookie 获取
+
             const cookies = document.cookie.split(';');
             for (let cookie of cookies) {
                 const parts = cookie.trim().split('=');
@@ -371,11 +1087,11 @@
                     }
                 }
             }
-            
+
             console.warn('[NFC] No CSRF token found');
             return '';
         }
-        
+
         function extractErrorMessage(exc) {
             if (typeof exc === 'string') {
                 const match = exc.match(/ValidationError:\s*(.+)/);
@@ -390,17 +1106,16 @@
             }
             return '不明なエラー';
         }
-        
+
         async function doCheckin() {
             console.log('[NFC] Starting checkin...');
             showStatus('verifying');
-            
+
             try {
-                // 获取地理位置
                 console.log('[NFC] Step 0: Getting geolocation...');
                 let latitude = null;
                 let longitude = null;
-                
+
                 try {
                     const position = await new Promise((resolve, reject) => {
                         navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -417,25 +1132,23 @@
                     showError('位置情報を取得できません。ブラウザの位置情報アクセスを許可してください');
                     return;
                 }
-                
+
                 console.log('[NFC] Step 1: Getting auth options...');
                 const csrfToken = getCSRFToken();
                 console.log('[NFC] CSRF token:', csrfToken ? 'found (' + csrfToken.substring(0, 8) + '...)' : 'NOT FOUND');
-                
-                // 用 GET 获取 auth options（GET 不需要 CSRF）
+
                 const optionsRes = await fetch('/api/method/hrms.api.passkey.auth_options?location=' + encodeURIComponent(checkinLocation));
-                
                 console.log('[NFC] Options response status:', optionsRes.status);
                 const optionsData = await optionsRes.json();
                 console.log('[NFC] Options data:', optionsData);
-                
+
                 if (optionsData.exc) {
                     throw new Error(extractErrorMessage(optionsData.exc));
                 }
-                
+
                 const options = optionsData.message;
                 console.log('[NFC] Options:', options);
-                
+
                 console.log('[NFC] Step 2: Starting authentication...');
                 let credential;
                 try {
@@ -449,7 +1162,7 @@
                     }
                     throw authErr;
                 }
-                
+
                 console.log('[NFC] Step 3: Submitting checkin...');
                 const checkinPayload = {
                     credential: JSON.stringify(credential),
@@ -457,19 +1170,18 @@
                     latitude: latitude,
                     longitude: longitude
                 };
-                
+
                 const checkinHeaders = {
                     'Content-Type': 'application/json',
                     'X-Frappe-CSRF-Token': getCSRFToken()
                 };
-                
+
                 let checkinRes = await fetch('/api/method/hrms.api.passkey.passkey_checkin', {
                     method: 'POST',
                     headers: checkinHeaders,
                     body: JSON.stringify(checkinPayload)
                 });
-                
-                // CSRF 失败时，先 GET 首页刷新 token 再重试一次
+
                 if (checkinRes.status === 400 || checkinRes.status === 403) {
                     console.log('[NFC] CSRF failed, refreshing token...');
                     try {
@@ -491,11 +1203,11 @@
                         console.error('[NFC] Token refresh failed:', refreshErr);
                     }
                 }
-                
+
                 console.log('[NFC] Checkin response status:', checkinRes.status);
                 const result = await checkinRes.json();
                 console.log('[NFC] Checkin result:', result);
-                
+
                 if (result.exc) {
                     if (result.exc.includes('not found') || result.exc.includes('Please register')) {
                         showStatus('not-registered');
@@ -503,51 +1215,44 @@
                     }
                     throw new Error(extractErrorMessage(result.exc));
                 }
-                
+
                 if (result.message && result.message.status === 'ok') {
                     console.log('[NFC] Checkin successful!');
                     showSuccess(result.message);
                 } else {
                     showError(result.message?.message || 'チェックインに失敗しました');
                 }
-                
             } catch (err) {
                 console.error('[NFC] Checkin error:', err);
-                
+
                 const errMsg = err.message || '';
                 if (errMsg.includes('not found') || errMsg.includes('register')) {
                     showStatus('not-registered');
                     return;
                 }
-                
+
                 showError(errMsg || 'チェックインに失敗しました。再試行してください');
             }
         }
-        
-        // 标记是否已执行过
-        let hasExecuted = false;
+
         let isFirstLoad = true;
-        
+
         function startCheckin() {
             console.log('[NFC] Starting checkin flow...');
-            
             setTimeout(function() {
                 console.log('[NFC] Calling doCheckin()');
                 doCheckin();
             }, 300);
         }
-        
-        // Safari bfcache 恢复时重新执行（必须在前）
+
         window.addEventListener('pageshow', function(event) {
             console.log('[NFC] pageshow event, persisted:', event.persisted);
             if (event.persisted && !isFirstLoad) {
-                // 从缓存恢复（非首次加载），重新执行
                 console.log('[NFC] Restored from cache, re-executing...');
                 startCheckin();
             }
         });
-        
-        // 正常加载
+
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', function() {
                 console.log('[NFC] DOM loaded');
@@ -555,7 +1260,6 @@
                 startCheckin();
             });
         } else {
-            // 脚本加载晚了，DOM 已经 ready
             console.log('[NFC] DOM already ready');
             isFirstLoad = false;
             startCheckin();

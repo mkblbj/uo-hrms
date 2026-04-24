@@ -304,14 +304,14 @@
 	opacity: 0;
 	bottom: 65px;
 	right: 118px;
-	animation: smokeTwo 3s 6s linear infinite;
+	animation: smokeTwo 3s 1.2s linear infinite;
 }
 
 .coffee-medium__smoke-for {
 	opacity: 0;
 	bottom: 50px;
 	right: 102px;
-	animation: smokeOne 3s 5s linear infinite;
+	animation: smokeOne 3s 1.2s linear infinite;
 }
 
 .coffee-footer {
