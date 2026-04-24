@@ -330,6 +330,9 @@ const handleQRScanSuccess = async (token, latitude = null, longitude = null) => 
 			// 发送全局事件通知工作状态徽章更新
 			emitCheckinStatusChanged(window, { log_type: action })
 			showQRScanner.value = false
+			// iOS PWA: 等待 QR scanner 的 ion-modal 开始 dismiss 后再开启 success overlay，
+			// 避免两个 ion-modal 的进出场动画重叠导致子 CSS 动画被 WebKit 合成器冻结。
+			await new Promise((resolve) => setTimeout(resolve, 320))
 			openSuccessOverlay(
 				buildSuccessOverlayModel({
 					action,

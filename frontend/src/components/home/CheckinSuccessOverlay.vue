@@ -3,13 +3,17 @@
 		:is-open="isOpen"
 		:backdrop-dismiss="false"
 		@didDismiss="handleDidDismiss"
+		@didPresent="handleDidPresent"
 		class="success-overlay-modal"
 	>
 		<div class="success-overlay" :class="model.variant">
 			<div class="success-status">{{ model.statusLabel }}</div>
 			<div class="success-motion">
-				<CheckInRunnerAnimation v-if="model.variant === 'checkin'" />
-				<CheckOutCoffeeAnimation v-else />
+				<CheckInRunnerAnimation
+					v-if="model.variant === 'checkin'"
+					:key="`runner-${motionKey}`"
+				/>
+				<CheckOutCoffeeAnimation v-else :key="`coffee-${motionKey}`" />
 			</div>
 			<h2 class="success-title">{{ model.title }}</h2>
 			<p v-if="model.description" class="success-description">
@@ -21,7 +25,7 @@
 					<span class="success-info-value">{{ row.value }}</span>
 				</div>
 			</div>
-			<div v-if="actionsVisible" class="success-actions">
+			<div class="success-actions" :class="{ 'is-visible': actionsVisible }">
 				<button type="button" class="success-primary" @click="$emit('primary')">
 					{{ model.primaryLabel }}
 				</button>
@@ -35,6 +39,7 @@
 
 <script setup>
 import { IonModal } from "@ionic/vue"
+import { ref } from "vue"
 
 import CheckInRunnerAnimation from "@/components/home/success/CheckInRunnerAnimation.vue"
 import CheckOutCoffeeAnimation from "@/components/home/success/CheckOutCoffeeAnimation.vue"
@@ -50,8 +55,18 @@ defineProps({
 
 const emit = defineEmits(["primary", "close"])
 
+// motionKey 用于在 modal 完全呈现后强制重挂载动画组件，
+// 绕开 iOS Safari PWA 在 ion-modal enter 过渡期间把子 CSS 动画合成到
+// modal layer 后冻结在首帧的问题。等 @didPresent 触发后再让 Vue 重建
+// 动画子树，CSS keyframes 从 0% 干净启动。
+const motionKey = ref(0)
+
 function handleDidDismiss(event) {
 	emit("close", event)
+}
+
+function handleDidPresent() {
+	motionKey.value += 1
 }
 </script>
 
@@ -109,6 +124,7 @@ ion-modal.success-overlay-modal::part(content) {
 	display: flex;
 	align-items: center;
 	justify-content: center;
+	isolation: isolate;
 }
 
 .success-title {
@@ -171,6 +187,16 @@ ion-modal.success-overlay-modal::part(content) {
 	flex-direction: column;
 	gap: 12px;
 	margin-top: 24px;
+	opacity: 0;
+	pointer-events: none;
+	transform: translateY(8px);
+	transition: opacity 0.32s ease, transform 0.32s ease;
+}
+
+.success-actions.is-visible {
+	opacity: 1;
+	pointer-events: auto;
+	transform: translateY(0);
 }
 
 .success-primary,
