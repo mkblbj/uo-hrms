@@ -31,9 +31,6 @@
 	height: 280px;
 	transform: scale(0.58);
 	transform-origin: center center;
-	will-change: transform;
-	-webkit-backface-visibility: hidden;
-	backface-visibility: hidden;
 }
 
 .loader {
@@ -234,8 +231,7 @@
 	top: 50px;
 	left: calc(50% - 3px);
 	background-color: #74372b;
-	animation: liquid 3s 0.3s linear infinite;
-	will-change: height, opacity;
+	animation: liquid 4s 4s linear infinite;
 }
 
 .coffee-medium__smoke {
@@ -244,7 +240,6 @@
 	position: absolute;
 	border-radius: 5px;
 	background-color: #b3aeae;
-	will-change: bottom, opacity;
 }
 
 @keyframes smokeOne {
@@ -295,28 +290,28 @@
 	opacity: 0;
 	bottom: 50px;
 	left: 102px;
-	animation: smokeOne 3s 0.8s linear infinite;
+	animation: smokeOne 3s 4s linear infinite;
 }
 
 .coffee-medium__smoke-two {
 	opacity: 0;
 	bottom: 70px;
 	left: 118px;
-	animation: smokeTwo 3s 1.2s linear infinite;
+	animation: smokeTwo 3s 5s linear infinite;
 }
 
 .coffee-medium__smoke-three {
 	opacity: 0;
 	bottom: 65px;
 	right: 118px;
-	animation: smokeTwo 3s 1.6s linear infinite;
+	animation: smokeTwo 3s 6s linear infinite;
 }
 
 .coffee-medium__smoke-for {
 	opacity: 0;
 	bottom: 50px;
 	right: 102px;
-	animation: smokeOne 3s 1s linear infinite;
+	animation: smokeOne 3s 5s linear infinite;
 }
 
 .coffee-footer {
