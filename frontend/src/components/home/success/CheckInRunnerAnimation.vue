@@ -30,6 +30,9 @@
 	overflow: hidden;
 	transform: scale(0.72);
 	transform-origin: center center;
+	will-change: transform;
+	-webkit-backface-visibility: hidden;
+	backface-visibility: hidden;
 }
 
 .loader {
@@ -38,6 +41,7 @@
 	left: 50%;
 	margin-left: -50px;
 	animation: speeder 0.4s linear infinite;
+	will-change: transform;
 }
 
 .loader > span {
@@ -232,9 +236,11 @@
 
 .longfazers span {
 	position: absolute;
-	height: 2px;
-	width: 20%;
+	height: 3px;
+	width: 22%;
 	background: #ffffff;
+	box-shadow: 0 0 6px rgba(255, 255, 255, 0.85);
+	will-change: left, opacity;
 }
 
 .longfazers span:nth-child(1) {
@@ -316,8 +322,9 @@
 	position: absolute;
 	background: #fff;
 	border-radius: 50%;
-	opacity: 0.25;
+	opacity: 0.42;
 	animation: moveClouds linear infinite;
+	will-change: transform;
 }
 
 .cloud::before,
