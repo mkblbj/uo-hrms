@@ -11,6 +11,29 @@ from frappe.utils import getdate
 
 
 class EmployeeAttendanceTool(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+
+		branch: DF.Link | None
+		company: DF.Link | None
+		date: DF.Date | None
+		department: DF.Link | None
+		designation: DF.Link | None
+		early_exit: DF.Check
+		employee_grade: DF.Link | None
+		employment_type: DF.Link | None
+		filter_by_shift: DF.Check
+		half_day_status: DF.Literal["Present", "Absent"]
+		late_entry: DF.Check
+		shift: DF.Link | None
+		status: DF.Literal["", "Present", "Absent", "Half Day", "Work From Home"]
+	# end: auto-generated types
+
 	pass
 
 
@@ -34,7 +57,7 @@ def get_employees(
 		"company": company,
 		"employment_type": employment_type,
 		"designation": designation,
-		"employee_grade": employee_grade,
+		"grade": employee_grade,
 	}.items():
 		if value:
 			filters[field] = value

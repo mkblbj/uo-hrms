@@ -8,7 +8,17 @@ from itertools import groupby
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import add_days, cint, create_batch, get_datetime, get_time, getdate, time_diff
+from frappe.utils import (
+	add_days,
+	cint,
+	create_batch,
+	flt,
+	get_datetime,
+	get_link_to_form,
+	get_time,
+	getdate,
+	time_diff,
+)
 
 
 def round_time_to_precision(dt: datetime, precision_minutes: int, direction: str) -> datetime:
@@ -94,7 +104,7 @@ def calculate_lunch_overlap_hours(
 	return 0
 
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
-from erpnext.setup.doctype.holiday_list.holiday_list import is_holiday
+from erpnext.setup.doctype.holiday_list.holiday_list import is_half_holiday, is_holiday
 
 from hrms.hr.doctype.attendance.attendance import mark_attendance
 from hrms.hr.doctype.employee_checkin.employee_checkin import (
@@ -109,6 +119,44 @@ EMPLOYEE_CHUNK_SIZE = 50
 
 
 class ShiftType(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+
+		allow_check_out_after_shift_end_time: DF.Int
+		allow_overtime: DF.Check
+		auto_update_last_sync: DF.Check
+		begin_check_in_before_shift_start_time: DF.Int
+		color: DF.Literal[
+			"Blue", "Cyan", "Fuchsia", "Green", "Lime", "Orange", "Pink", "Red", "Violet", "Yellow"
+		]
+		determine_check_in_and_check_out: DF.Literal[
+			"Alternating entries as IN and OUT during the same shift",
+			"Strictly based on Log Type in Employee Checkin",
+		]
+		early_exit_grace_period: DF.Int
+		enable_auto_attendance: DF.Check
+		enable_early_exit_marking: DF.Check
+		enable_late_entry_marking: DF.Check
+		end_time: DF.Time
+		holiday_list: DF.Link | None
+		last_sync_of_checkin: DF.Datetime | None
+		late_entry_grace_period: DF.Int
+		mark_auto_attendance_on_holidays: DF.Check
+		overtime_type: DF.Link | None
+		process_attendance_after: DF.Date | None
+		start_time: DF.Time
+		working_hours_calculation_based_on: DF.Literal[
+			"First Check-in and Last Check-out", "Every Valid Check-in and Check-out"
+		]
+		working_hours_threshold_for_absent: DF.Float
+		working_hours_threshold_for_half_day: DF.Float
+	# end: auto-generated types
+
 	def validate(self):
 		start = get_time(self.start_time)
 		end = get_time(self.end_time)
@@ -181,15 +229,34 @@ class ShiftType(Document):
 		)
 
 	@frappe.whitelist()
-	def process_auto_attendance(self):
-		if (
-			not cint(self.enable_auto_attendance)
-			or not self.process_attendance_after
-			or not self.last_sync_of_checkin
-		):
+	def process_auto_attendance(self, is_manually_triggered: int | bool = False) -> None | str:
+		if self.has_incorrect_shift_config():
 			return
 
 		logs = self.get_employee_checkins()
+		if is_manually_triggered:
+			if len(logs) > 1000 or frappe.flags.test_bg_job:
+				job_id = "process_auto_attendance_" + self.name
+				job = frappe.enqueue(self._process, logs=logs, timeout=1200, job_id=job_id, deduplicate=True)
+				return f"Attendance marking has been queued. It may take a few minutes. You can monitor the job status {get_link_to_form('RQ Job',job.id,label='here')}"
+			else:
+				try:
+					self._process(logs)
+					return "Attendance has been marked as per employee check-ins."
+				except Exception as e:
+					error_log = frappe.log_error(e)
+					return f"An error occured during marking attendance. Refer the full error log {get_link_to_form('Error Log',error_log.name,label='here')}"
+		else:
+			self._process(logs)
+
+	def has_incorrect_shift_config(self):
+		return (
+			not cint(self.enable_auto_attendance)
+			or not self.process_attendance_after
+			or not self.last_sync_of_checkin
+		)
+
+	def _process(self, logs):
 		group_key = lambda x: (x["employee"], x["shift_start"])  # noqa
 		for key, group in groupby(sorted(logs, key=group_key), key=group_key):
 			single_shift_logs = list(group)
@@ -199,6 +266,13 @@ class ShiftType(Document):
 			if not self.should_mark_attendance(employee, attendance_date):
 				continue
 
+			working_hours_threshold_for_half_day = flt(self.working_hours_threshold_for_half_day)
+			working_hours_threshold_for_absent = flt(self.working_hours_threshold_for_absent)
+
+			if self.is_half_holiday(employee, attendance_date):
+				working_hours_threshold_for_half_day = flt(self.working_hours_threshold_for_half_day) / 2
+				working_hours_threshold_for_absent = flt(self.working_hours_threshold_for_absent) / 2
+
 			overtime_type = single_shift_logs[0].get("overtime_type")
 			(
 				attendance_status,
@@ -207,7 +281,9 @@ class ShiftType(Document):
 				early_exit,
 				in_time,
 				out_time,
-			) = self.get_attendance(single_shift_logs)
+			) = self.get_attendance(
+				single_shift_logs, working_hours_threshold_for_absent, working_hours_threshold_for_half_day
+			)
 
 			mark_attendance_and_link_log(
 				single_shift_logs,
@@ -223,7 +299,8 @@ class ShiftType(Document):
 			)
 
 		# commit after processing checkin logs to avoid losing progress
-		frappe.db.commit()  # nosemgrep
+		if not frappe.in_test:
+			frappe.db.commit()  # nosemgrep
 
 		assigned_employees = self.get_assigned_employees(self.process_attendance_after, True)
 		# mark absent in batches & commit to avoid losing progress since this tries to process remaining attendance
@@ -233,7 +310,14 @@ class ShiftType(Document):
 				self.mark_absent_for_dates_with_no_attendance(employee)
 				self.mark_absent_for_half_day_dates(employee)
 
-			frappe.db.commit()  # nosemgrep
+			if not frappe.in_test:
+				frappe.db.commit()  # nosemgrep
+
+	def is_half_holiday(self, employee, attendance_date):
+		holiday_list = self.get_holiday_list(employee, attendance_date)
+		if is_half_holiday(holiday_list, attendance_date):
+			return True
+		return False
 
 	def get_employee_checkins(self) -> list[dict]:
 		return frappe.get_all(
@@ -262,7 +346,7 @@ class ShiftType(Document):
 			order_by="employee,time",
 		)
 
-	def get_attendance(self, logs):
+	def get_attendance(self, logs, working_hours_threshold_for_absent, working_hours_threshold_for_half_day):
 		"""Return attendance_status, working_hours, late_entry, early_exit, in_time, out_time
 		for a set of logs belonging to a single shift.
 		Assumptions:
@@ -326,15 +410,12 @@ class ShiftType(Document):
 		):
 			early_exit = True
 
-		if (
-			self.working_hours_threshold_for_absent
-			and total_working_hours < self.working_hours_threshold_for_absent
-		):
+		if working_hours_threshold_for_absent and total_working_hours < working_hours_threshold_for_absent:
 			return "Absent", total_working_hours, late_entry, early_exit, in_time, out_time
 
 		if (
-			self.working_hours_threshold_for_half_day
-			and total_working_hours < self.working_hours_threshold_for_half_day
+			working_hours_threshold_for_half_day
+			and total_working_hours < working_hours_threshold_for_half_day
 		):
 			return "Half Day", total_working_hours, late_entry, early_exit, in_time, out_time
 
@@ -454,8 +535,8 @@ class ShiftType(Document):
 
 		return list(set(assigned_employees) - set(inactive_employees))
 
-	def get_holiday_list(self, employee: str) -> str:
-		holiday_list_name = self.holiday_list or get_holiday_list_for_employee(employee, False)
+	def get_holiday_list(self, employee: str, date=None) -> str:
+		holiday_list_name = self.holiday_list or get_holiday_list_for_employee(employee, False, as_on=date)
 		return holiday_list_name
 
 	def should_mark_attendance(self, employee: str, attendance_date: str) -> bool:
@@ -465,7 +546,7 @@ class ShiftType(Document):
 			# since attendance should be marked on all days
 			return True
 
-		holiday_list = self.get_holiday_list(employee)
+		holiday_list = self.get_holiday_list(employee, attendance_date)
 		if is_holiday(holiday_list, attendance_date):
 			return False
 		return True
@@ -473,7 +554,12 @@ class ShiftType(Document):
 	def mark_absent_for_half_day_dates(self, employee):
 		half_day_attendances = frappe.get_all(
 			"Attendance",
-			filters={"employee": employee, "status": "Half Day", "modify_half_day_status": 1},
+			filters={
+				"employee": employee,
+				"status": "Half Day",
+				"modify_half_day_status": 1,
+				"attendance_date": ["<=", getdate(self.last_sync_of_checkin)],
+			},
 			fields=["name", "attendance_date"],
 		)
 		start_time = get_time(self.start_time)

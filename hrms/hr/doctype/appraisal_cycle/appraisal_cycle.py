@@ -9,6 +9,31 @@ from frappe.query_builder.terms import SubQuery
 
 
 class AppraisalCycle(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+
+		from hrms.hr.doctype.appraisee.appraisee import Appraisee
+
+		appraisees: DF.Table[Appraisee]
+		branch: DF.Link | None
+		calculate_final_score_based_on_formula: DF.Check
+		company: DF.Link
+		cycle_name: DF.Data
+		department: DF.Link | None
+		description: DF.TextEditor | None
+		designation: DF.Link | None
+		end_date: DF.Date
+		final_score_formula: DF.Code | None
+		kra_evaluation_method: DF.Literal["Automated Based on Goal Progress", "Manual Rating"]
+		start_date: DF.Date
+		status: DF.Literal["Not Started", "In Progress", "Completed"]
+	# end: auto-generated types
+
 	def onload(self):
 		self.set_onload("appraisals_created", self.check_if_appraisals_exist())
 
@@ -248,10 +273,15 @@ def get_employees_without_goals(cycle_name: str) -> int:
 	return goals_missing[0].count
 
 
-def get_employees_without_feedback(cycle_name: str) -> int:
+@frappe.whitelist()
+def get_employees_without_feedback(cycle_name: str | None = None) -> int:
 	Feedback = frappe.qb.DocType("Employee Performance Feedback")
 	Appraisal = frappe.qb.DocType("Appraisal")
 	count = Count("*").as_("count")
+	if not cycle_name:
+		cycle_name = frappe.get_value(
+			"Appraisal Cycle", {"status": "In Progress"}, order_by="start_date desc"
+		)
 
 	filtered_records = SubQuery(
 		frappe.qb.from_(Feedback)

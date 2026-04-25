@@ -163,7 +163,7 @@ def update_to_date_in_work_history(employee, cancel):
 
 
 @frappe.whitelist()
-def get_employee_field_property(employee, fieldname):
+def get_employee_field_property(employee: str, fieldname: str):
 	if not (employee and fieldname):
 		return
 
@@ -171,7 +171,9 @@ def get_employee_field_property(employee, fieldname):
 	if not field:
 		return
 
-	value = frappe.db.get_value("Employee", employee, fieldname)
+	doc = frappe.get_doc("Employee", employee, check_permission=True)
+	value = doc.get(fieldname)
+
 	if field.fieldtype == "Date":
 		value = formatdate(value)
 	elif field.fieldtype == "Datetime":
@@ -307,7 +309,7 @@ def get_total_exemption_amount(declarations):
 
 
 @frappe.whitelist()
-def get_leave_period(from_date, to_date, company):
+def get_leave_period(from_date: str | datetime.date, to_date: str | datetime.date, company: str):
 	leave_period = frappe.db.sql(
 		"""
 		select name, from_date, to_date
@@ -335,7 +337,10 @@ def generate_leave_encashment():
 
 		leave_allocation = frappe.get_all(
 			"Leave Allocation",
-			filters={"to_date": add_days(getdate(), -1), "leave_type": ("in", leave_type)},
+			filters=[
+				["to_date", "=", add_days(getdate(), -1)],
+				["leave_type", "in", leave_type],
+			],
 			fields=[
 				"employee",
 				"leave_period",
@@ -484,13 +489,13 @@ def send_email_for_failed_allocations(failed_allocations):
 
 @frappe.whitelist()
 def get_monthly_earned_leave(
-	date_of_joining,
-	annual_leaves,
-	frequency,
-	rounding,
-	period_start_date=None,
-	period_end_date=None,
-	pro_rated=True,
+	date_of_joining: str | datetime.date,
+	annual_leaves: float,
+	frequency: str,
+	rounding: str | float,
+	period_start_date: str | datetime.date | None = None,
+	period_end_date: str | datetime.date | None = None,
+	pro_rated: bool = True,
 ):
 	earned_leaves = 0.0
 	divide_by_frequency = {"Yearly": 1, "Half-Yearly": 2, "Quarterly": 4, "Monthly": 12}
@@ -960,7 +965,7 @@ def notify_bulk_action_status(doctype: str, failure: list, success: list) -> Non
 
 
 @frappe.whitelist()
-def set_geolocation_from_coordinates(doc):
+def set_geolocation_from_coordinates(doc: Document):
 	if not frappe.db.get_single_value("HR Settings", "allow_geolocation_tracking"):
 		return
 
@@ -996,6 +1001,12 @@ def check_app_permission():
 	"""Check if user has permission to access the app (for showing the app on app screen)"""
 	if frappe.session.user == "Administrator":
 		return True
+
+	# Website Users cannot access desk routes, so don't show the app to them
+	# This prevents redirect to /desk/people followed by 403 Forbidden
+	user_type = frappe.get_cached_value("User", frappe.session.user, "user_type")
+	if user_type == "Website User":
+		return False
 
 	if frappe.has_permission("Employee", ptype="read"):
 		return True

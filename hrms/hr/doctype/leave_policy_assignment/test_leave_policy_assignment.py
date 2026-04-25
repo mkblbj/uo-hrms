@@ -16,31 +16,13 @@ from hrms.tests.utils import HRMSTestSuite
 
 
 class TestLeavePolicyAssignment(HRMSTestSuite):
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
-		cls.make_employees()
-
 	def setUp(self):
-		for doctype in [
-			"Leave Period",
-			"Leave Application",
-			"Leave Allocation",
-			"Leave Policy",
-			"Leave Policy Assignment",
-			"Leave Ledger Entry",
-		]:
-			frappe.db.delete(doctype)
-
 		employee = get_employee()
 		self.original_doj = employee.date_of_joining
 		self.employee = employee
 
-	def tearDown(self):
-		frappe.db.set_value("Employee", self.employee.name, "date_of_joining", self.original_doj)
-
 	def test_grant_leaves(self):
-		leave_period = get_leave_period()
+		leave_period = get_leave_period(current=True)
 		leave_policy = create_leave_policy(annual_allocation=10)
 		leave_policy.submit()
 
@@ -74,7 +56,7 @@ class TestLeavePolicyAssignment(HRMSTestSuite):
 		self.assertEqual(leave_alloc_doc.leave_policy_assignment, assignments[0])
 
 	def test_allow_to_grant_all_leave_after_cancellation_of_every_leave_allocation(self):
-		leave_period = get_leave_period()
+		leave_period = get_leave_period(current=True)
 		leave_policy = create_leave_policy(annual_allocation=10)
 		leave_policy.submit()
 
@@ -96,7 +78,6 @@ class TestLeavePolicyAssignment(HRMSTestSuite):
 		allocation = frappe.db.get_value(
 			"Leave Allocation", {"leave_policy_assignment": assignments[0]}, "name"
 		)
-
 		leave_alloc_doc = frappe.get_doc("Leave Allocation", allocation)
 		leave_alloc_doc.cancel()
 		leave_alloc_doc.delete()
@@ -106,7 +87,7 @@ class TestLeavePolicyAssignment(HRMSTestSuite):
 		)
 
 	def test_pro_rated_leave_allocation(self):
-		leave_period = get_leave_period()
+		leave_period = get_leave_period(current=True)
 		leave_policy = create_leave_policy(annual_allocation=12)
 		leave_policy.submit()
 
@@ -158,7 +139,7 @@ class TestLeavePolicyAssignment(HRMSTestSuite):
 		)
 		self.assertEqual(new_leaves_allocated, 30)
 
-		leave_period = create_leave_period(add_months(first_day, -23), first_day)
+		leave_period = create_leave_period(add_months(first_day, -23), first_day, "_Test Company")
 		data = {
 			"assignment_based_on": "Leave Period",
 			"leave_policy": leave_policy.name,
@@ -179,7 +160,7 @@ class TestLeavePolicyAssignment(HRMSTestSuite):
 				"is_earned_leave": 1,
 				"allocate_on_day": "First Day",
 			}
-		).submit()
+		).save()
 
 		leave_policy = frappe.get_doc(
 			{
@@ -217,7 +198,7 @@ class TestLeavePolicyAssignment(HRMSTestSuite):
 	def test_earned_leave_allocation_if_leave_policy_assignment_submitted_after_period(self):
 		year_start_date = get_year_start(getdate())
 		year_end_date = get_year_ending(getdate())
-		leave_period = create_leave_period(year_start_date, year_end_date)
+		leave_period = create_leave_period(year_start_date, year_end_date, "_Test Company")
 
 		# assignment 10 days after the leave period
 		frappe.flags.current_date = add_days(year_end_date, 10)
@@ -244,7 +225,7 @@ class TestLeavePolicyAssignment(HRMSTestSuite):
 	def test_earned_leave_allocation_for_leave_period_spanning_two_years(self):
 		first_year_start_date = get_year_start(getdate())
 		second_year_end_date = get_year_ending(add_months(first_year_start_date, 12))
-		leave_period = create_leave_period(first_year_start_date, second_year_end_date)
+		leave_period = create_leave_period(first_year_start_date, second_year_end_date, "_Test Company")
 
 		# assignment during mid second year
 		frappe.flags.current_date = add_months(second_year_end_date, -6)
@@ -269,3 +250,71 @@ class TestLeavePolicyAssignment(HRMSTestSuite):
 		# months passed (18) are calculated correctly but total allocation of 36 exceeds 24 hence 24
 		# this upper cap is intentional, without that 36 leaves would be allocated correctly
 		self.assertEqual(earned_leave_allocation, 24)
+
+	def test_skip_zero_allocation_leaves(self):
+		today = getdate()
+		leave_period = create_leave_period(get_year_start(today), get_year_ending(today), "_Test Company")
+
+		sick = create_leave_type(
+			leave_type_name="_Test Sick Leave", non_encashable_leaves=0, max_leaves_allowed=2
+		)
+		casual = create_leave_type(
+			leave_type_name="_Test Casual Leave", non_encashable_leaves=0, max_leaves_allowed=12
+		)
+		annual = create_leave_type(
+			leave_type_name="_Test Annual Leave", non_encashable_leaves=0, max_leaves_allowed=27
+		)
+		compoff = create_leave_type(
+			leave_type_name="_Test Comp Off", non_encashable_leaves=0, max_leaves_allowed=26
+		)
+		leave_policy = frappe.get_doc(
+			{
+				"doctype": "Leave Policy",
+				"title": "Test Zero allocation Policy",
+				"leave_policy_details": [
+					{"leave_type": sick.name, "annual_allocation": 2},
+					{"leave_type": casual.name, "annual_allocation": 2},
+					{"leave_type": annual.name, "annual_allocation": 27},
+					{"leave_type": compoff.name, "annual_allocation": 26},
+				],
+			}
+		).submit()
+
+		self.employee.date_of_joining = add_days(leave_period.to_date, -45)
+		self.employee.save()
+
+		assignment = create_assignment(
+			self.employee.name,
+			frappe._dict(
+				{
+					"assignment_based_on": "Leave Period",
+					"leave_policy": leave_policy.name,
+					"leave_period": leave_period.name,
+				}
+			),
+		)
+		assignment.submit()
+
+		comments = frappe.get_all(
+			"Comment",
+			filters={
+				"reference_doctype": "Leave Policy Assignment",
+				"reference_name": assignment.name,
+			},
+			fields=["content"],
+		)
+
+		self.assertEqual(len(comments), 2)
+		self.assertIn(casual.name, comments[0]["content"])
+		self.assertIn(sick.name, comments[1]["content"])
+
+		allocations = frappe.get_all(
+			"Leave Allocation",
+			filters={"leave_policy_assignment": assignment.name},
+			fields=["leave_type", "new_leaves_allocated"],
+		)
+
+		self.assertEqual(allocations[0]["leave_type"], compoff.name)
+		self.assertEqual(allocations[0]["new_leaves_allocated"], 3)
+		self.assertEqual(allocations[1]["leave_type"], annual.name)
+		self.assertEqual(allocations[1]["new_leaves_allocated"], 3)

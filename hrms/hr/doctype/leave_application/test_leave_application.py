@@ -15,9 +15,12 @@ from frappe.utils import (
 )
 
 from erpnext.setup.doctype.employee.test_employee import make_employee
-from erpnext.setup.doctype.holiday_list.test_holiday_list import set_holiday_list
 
 from hrms.hr.doctype.attendance.attendance import mark_attendance
+from hrms.hr.doctype.holiday_list_assignment.test_holiday_list_assignment import (
+	assign_holiday_list,
+	create_holiday_list_assignment,
+)
 from hrms.hr.doctype.leave_allocation.test_leave_allocation import create_leave_allocation
 from hrms.hr.doctype.leave_application.leave_application import (
 	InsufficientLeaveBalanceError,
@@ -39,84 +42,19 @@ from hrms.payroll.doctype.salary_slip.test_salary_slip import (
 	make_holiday_list,
 	make_leave_application,
 )
-from hrms.tests.test_utils import get_first_sunday
+from hrms.tests.test_utils import add_date_to_holiday_list, get_first_sunday
 from hrms.tests.utils import HRMSTestSuite
-
-test_dependencies = ["Leave Block List"]
 
 
 class TestLeaveApplication(HRMSTestSuite):
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
-		cls.make_employees()
-		cls.make_leave_types()
-		cls.make_leave_allocations()
-		cls.make_leave_applications()
-
-	@classmethod
-	def make_leave_applications(cls):
-		records = [
-			{
-				"company": "_Test Company",
-				"doctype": "Leave Application",
-				"employee": "_T-Employee-00001",
-				"from_date": "2013-05-01",
-				"description": "_Test Reason",
-				"leave_type": "_Test Leave Type",
-				"posting_date": "2013-01-02",
-				"to_date": "2013-05-05",
-			},
-			{
-				"company": "_Test Company",
-				"doctype": "Leave Application",
-				"employee": "_T-Employee-00002",
-				"from_date": "2013-05-01",
-				"description": "_Test Reason",
-				"leave_type": "_Test Leave Type",
-				"posting_date": "2013-01-02",
-				"to_date": "2013-05-05",
-			},
-			{
-				"company": "_Test Company",
-				"doctype": "Leave Application",
-				"employee": "_T-Employee-00001",
-				"from_date": "2013-01-15",
-				"description": "_Test Reason",
-				"leave_type": "_Test Leave Type LWP",
-				"posting_date": "2013-01-02",
-				"to_date": "2013-01-15",
-			},
-		]
-		cls.leave_applications = []
-		for x in records:
-			if not frappe.db.exists(
-				"Leave Application", {"employee": x.get("employee"), "from_date": x.get("from_date")}
-			):
-				cls.leave_applications.append(frappe.get_doc(x).insert())
-			else:
-				cls.leave_applications.append(
-					frappe.get_doc(
-						"Leave Application", {"employee": x.get("employee"), "from_date": x.get("from_date")}
-					)
-				)
-
 	def setUp(self):
-		for dt in [
-			"Leave Application",
-			"Leave Allocation",
-			"Salary Slip",
-			"Leave Ledger Entry",
-			"Leave Period",
-			"Leave Policy Assignment",
-		]:
-			frappe.db.delete(dt)
-
 		frappe.set_user("Administrator")
-
 		employee = get_employee()
-		frappe.db.delete("Attendance", {"employee": employee.name})
-		frappe.db.set_value("Employee", employee.name, "holiday_list", "")
+		self.leave_application = frappe.get_value(
+			"Leave Application",
+			{"employee": employee.name, "from_date": "2013-05-01", "leave_type": "_Test Leave Type"},
+			"name",
+		)
 
 		from_date = get_year_start(getdate())
 		to_date = get_year_ending(getdate())
@@ -126,33 +64,21 @@ class TestLeaveApplication(HRMSTestSuite):
 			"Holiday List w/o Weekly Offs", from_date=from_date, to_date=to_date, add_weekly_offs=False
 		)
 
-		if not frappe.db.exists("Leave Type", "_Test Leave Type"):
-			frappe.get_doc(
-				dict(leave_type_name="_Test Leave Type", doctype="Leave Type", include_holiday=True)
-			).insert()
-
-	def tearDown(self):
-		frappe.set_user("Administrator")
-
 	def _clear_roles(self):
 		frappe.db.sql(
 			"""delete from `tabHas Role` where parent in
 			('test@example.com', 'test1@example.com', 'test2@example.com')"""
 		)
 
-	def _clear_applications(self):
-		frappe.db.sql("""delete from `tabLeave Application`""")
-
 	def get_application(self, doc):
-		application = frappe.copy_doc(doc)
+		application = frappe.copy_doc(frappe.get_doc("Leave Application", doc))
 		application.from_date = "2013-01-01"
 		application.to_date = "2013-01-05"
 		return application
 
-	@set_holiday_list("Salary Slip Test Holiday List", "_Test Company")
+	@assign_holiday_list("Salary Slip Test Holiday List", "_Test Company")
 	def test_validate_application_across_allocations(self):
 		# Test validation for application dates when negative balance is disabled
-		frappe.delete_doc_if_exists("Leave Type", "Test Leave Validation", force=1)
 		leave_type = frappe.get_doc(
 			dict(leave_type_name="Test Leave Validation", doctype="Leave Type", allow_negative=False)
 		).insert()
@@ -196,7 +122,7 @@ class TestLeaveApplication(HRMSTestSuite):
 		# Application period cannot be across two allocation records
 		self.assertRaises(LeaveAcrossAllocationsError, leave_application.insert)
 
-	@set_holiday_list("Salary Slip Test Holiday List", "_Test Company")
+	@assign_holiday_list("Salary Slip Test Holiday List", "_Test Company")
 	def test_insufficient_leave_balance_validation(self):
 		# CASE 1: Validation when allow negative is disabled
 		frappe.delete_doc_if_exists("Leave Type", "Test Leave Validation", force=1)
@@ -235,7 +161,7 @@ class TestLeaveApplication(HRMSTestSuite):
 			employee.name, add_days(first_sunday, 1), add_days(first_sunday, 3), leave_type.name
 		)
 
-	@set_holiday_list("Salary Slip Test Holiday List", "_Test Company")
+	@assign_holiday_list("Salary Slip Test Holiday List", "_Test Company")
 	def test_separate_leave_ledger_entry_for_boundary_applications(self):
 		# When application falls in 2 different allocations and Allow Negative is enabled
 		# creates separate leave ledger entries
@@ -305,8 +231,8 @@ class TestLeaveApplication(HRMSTestSuite):
 
 	def test_overwrite_attendance(self):
 		"""check attendance is automatically created on leave approval"""
-		make_allocation_record()
-		application = self.get_application(self.leave_applications[0])
+		# make_allocation_record()
+		application = self.get_application(self.leave_application)
 		application.status = "Approved"
 		application.from_date = "2018-01-01"
 		application.to_date = "2018-01-03"
@@ -334,7 +260,7 @@ class TestLeaveApplication(HRMSTestSuite):
 		mark_attendance("_T-Employee-00001", "2023-01-02", "Absent")
 
 		make_allocation_record(from_date="2023-01-01", to_date="2023-12-31")
-		application = self.get_application(self.leave_applications[0])
+		application = self.get_application(self.leave_application)
 		application.status = "Approved"
 		application.from_date = "2023-01-02"
 		application.to_date = "2023-01-02"
@@ -353,7 +279,7 @@ class TestLeaveApplication(HRMSTestSuite):
 		self.assertEqual(attendance.leave_type, "_Test Leave Type")
 		self.assertEqual(attendance.leave_application, application.name)
 
-	@set_holiday_list("Salary Slip Test Holiday List", "_Test Company")
+	@assign_holiday_list("Salary Slip Test Holiday List", "_Test Company")
 	def test_attendance_for_include_holidays(self):
 		# Case 1: leave type with 'Include holidays within leaves as leaves' enabled
 		frappe.delete_doc_if_exists("Leave Type", "Test Include Holidays", force=1)
@@ -378,7 +304,7 @@ class TestLeaveApplication(HRMSTestSuite):
 
 		leave_application.cancel()
 
-	@set_holiday_list("Salary Slip Test Holiday List", "_Test Company")
+	@assign_holiday_list("Salary Slip Test Holiday List", "_Test Company")
 	def test_attendance_update_for_exclude_holidays(self):
 		# Case 2: leave type with 'Include holidays within leaves as leaves' disabled
 		frappe.delete_doc_if_exists("Leave Type", "Test Do Not Include Holidays", force=1)
@@ -431,65 +357,61 @@ class TestLeaveApplication(HRMSTestSuite):
 
 		from frappe.utils.user import add_role
 
-		add_role("test@example.com", "HR User")
+		add_role("test1@example.com", "HR User")
 		clear_user_permissions_for_doctype("Employee")
 
 		frappe.db.set_value(
 			"Department", "_Test Department - _TC", "leave_block_list", "_Test Leave Block List"
 		)
 
-		make_allocation_record()
-
-		application = self.get_application(self.leave_applications[0])
+		application = self.get_application(self.leave_application)
 		application.insert()
 		application.reload()
 		application.status = "Approved"
 		self.assertRaises(LeaveDayBlockedError, application.submit)
 
-		frappe.set_user("test@example.com")
+		frappe.set_user("test1@example.com")
 
-		# clear other applications
-		frappe.db.sql("delete from `tabLeave Application`")
-
-		application = self.get_application(self.leave_applications[0])
-		self.assertTrue(application.insert())
+		application.reload()
+		application.status = "Approved"
+		self.assertTrue(application.submit())
 
 	def test_overlap(self):
 		self._clear_roles()
-		self._clear_applications()
+		# self._clear_applications()
 
 		from frappe.utils.user import add_role
 
 		add_role("test@example.com", "Employee")
 		frappe.set_user("test@example.com")
 
-		make_allocation_record()
+		# make_allocation_record()
 
-		application = self.get_application(self.leave_applications[0])
+		application = self.get_application(self.leave_application)
 		application.insert()
 
-		application = self.get_application(self.leave_applications[0])
+		application = self.get_application(self.leave_application)
 		self.assertRaises(OverlapError, application.insert)
 
 	def test_overlap_with_half_day_1(self):
 		self._clear_roles()
-		self._clear_applications()
+		# self._clear_applications()
 
 		from frappe.utils.user import add_role
 
 		add_role("test@example.com", "Employee")
 		frappe.set_user("test@example.com")
 
-		make_allocation_record()
+		# make_allocation_record()
 
 		# leave from 1-5, half day on 3rd
-		application = self.get_application(self.leave_applications[0])
+		application = self.get_application(self.leave_application)
 		application.half_day = 1
 		application.half_day_date = "2013-01-03"
 		application.insert()
 
 		# Apply again for a half day leave on 3rd
-		application = self.get_application(self.leave_applications[0])
+		application = self.get_application(self.leave_application)
 		application.from_date = "2013-01-03"
 		application.to_date = "2013-01-03"
 		application.half_day = 1
@@ -497,7 +419,7 @@ class TestLeaveApplication(HRMSTestSuite):
 		application.insert()
 
 		# Apply again for a half day leave on 3rd
-		application = self.get_application(self.leave_applications[0])
+		application = self.get_application(self.leave_application)
 		application.from_date = "2013-01-03"
 		application.to_date = "2013-01-03"
 		application.half_day = 1
@@ -507,7 +429,7 @@ class TestLeaveApplication(HRMSTestSuite):
 
 	def test_overlap_with_half_day_2(self):
 		self._clear_roles()
-		self._clear_applications()
+		# self._clear_applications()
 
 		from frappe.utils.user import add_role
 
@@ -515,14 +437,14 @@ class TestLeaveApplication(HRMSTestSuite):
 
 		frappe.set_user("test@example.com")
 
-		make_allocation_record()
+		# make_allocation_record()
 
 		# leave from 1-5, no half day
-		application = self.get_application(self.leave_applications[0])
+		application = self.get_application(self.leave_application)
 		application.insert()
 
 		# Apply again for a half day leave on 1st
-		application = self.get_application(self.leave_applications[0])
+		application = self.get_application(self.leave_application)
 		application.half_day = 1
 		application.half_day_date = application.from_date
 
@@ -530,7 +452,7 @@ class TestLeaveApplication(HRMSTestSuite):
 
 	def test_overlap_with_half_day_3(self):
 		self._clear_roles()
-		self._clear_applications()
+		# self._clear_applications()
 
 		from frappe.utils.user import add_role
 
@@ -538,16 +460,16 @@ class TestLeaveApplication(HRMSTestSuite):
 
 		frappe.set_user("test@example.com")
 
-		make_allocation_record()
+		# make_allocation_record()
 
 		# leave from 1-5, half day on 5th
-		application = self.get_application(self.leave_applications[0])
+		application = self.get_application(self.leave_application)
 		application.half_day = 1
 		application.half_day_date = "2013-01-05"
 		application.insert()
 
 		# Apply leave from 4-7, half day on 5th
-		application = self.get_application(self.leave_applications[0])
+		application = self.get_application(self.leave_application)
 		application.from_date = "2013-01-04"
 		application.to_date = "2013-01-07"
 		application.half_day = 1
@@ -556,16 +478,16 @@ class TestLeaveApplication(HRMSTestSuite):
 		self.assertRaises(OverlapError, application.insert)
 
 		# Apply leave from 5-7, half day on 5th
-		application = self.get_application(self.leave_applications[0])
+		application = self.get_application(self.leave_application)
 		application.from_date = "2013-01-05"
 		application.to_date = "2013-01-07"
 		application.half_day = 1
 		application.half_day_date = "2013-01-05"
 		application.insert()
 
-	@set_holiday_list("Salary Slip Test Holiday List", "_Test Company")
+	@assign_holiday_list("Salary Slip Test Holiday List", "_Test Company")
 	def test_optional_leave(self):
-		leave_period = get_leave_period()
+		leave_period = get_leave_period(current=True)
 		today = nowdate()
 		holiday_list = "Test Holiday List for Optional Holiday"
 		employee = get_employee()
@@ -609,7 +531,6 @@ class TestLeaveApplication(HRMSTestSuite):
 
 		# can only apply on optional holidays
 		self.assertRaises(NotAnOptionalHoliday, leave_application.insert)
-
 		leave_application.from_date = optional_leave_date
 		leave_application.to_date = optional_leave_date
 		leave_application.status = "Approved"
@@ -621,7 +542,7 @@ class TestLeaveApplication(HRMSTestSuite):
 
 	def test_leaves_allowed(self):
 		employee = get_employee()
-		leave_period = get_leave_period()
+		leave_period = get_leave_period(current=True)
 		frappe.delete_doc_if_exists("Leave Type", "Test Leave Type", force=1)
 		leave_type = frappe.get_doc(
 			dict(leave_type_name="Test Leave Type", doctype="Leave Type", max_leaves_allowed=5)
@@ -663,8 +584,8 @@ class TestLeaveApplication(HRMSTestSuite):
 
 	def test_applicable_after(self):
 		employee = get_employee()
-		leave_period = get_leave_period()
-		frappe.delete_doc_if_exists("Leave Type", "Test Leave Type", force=1)
+		leave_period = get_leave_period(current=True)
+
 		leave_type = frappe.get_doc(
 			dict(leave_type_name="Test Leave Type", doctype="Leave Type", applicable_after=15)
 		).insert()
@@ -714,7 +635,7 @@ class TestLeaveApplication(HRMSTestSuite):
 
 	def test_max_continuous_leaves(self):
 		employee = get_employee()
-		leave_period = get_leave_period()
+		leave_period = get_leave_period(current=True)
 		frappe.delete_doc_if_exists("Leave Type", "Test Leave Type", force=1)
 		leave_type = frappe.get_doc(
 			dict(
@@ -745,7 +666,7 @@ class TestLeaveApplication(HRMSTestSuite):
 
 		self.assertRaises(frappe.ValidationError, leave_application.insert)
 
-	@set_holiday_list("_Test Holiday List", "_Test Company")
+	@assign_holiday_list("_Test Holiday List", "_Test Company")
 	def test_max_consecutive_leaves_across_leave_applications(self):
 		employee = get_employee()
 		leave_type = frappe.get_doc(
@@ -959,9 +880,7 @@ class TestLeaveApplication(HRMSTestSuite):
 		employee.save()
 		self.assertTrue("Leave Approver" in frappe.get_roles(user))
 
-		make_allocation_record(employee.name)
-
-		application = self.get_application(self.leave_applications[0])
+		application = self.get_application(self.leave_application)
 		application.from_date = "2018-01-01"
 		application.to_date = "2018-01-03"
 		application.leave_approver = user
@@ -1042,7 +961,7 @@ class TestLeaveApplication(HRMSTestSuite):
 		add_role(leave_approver, "Leave Approver")
 
 		make_allocation_record(employee.name)
-		application = application = frappe.get_doc(
+		application = frappe.get_doc(
 			doctype="Leave Application",
 			employee=employee.name,
 			leave_type="_Test Leave Type",
@@ -1055,16 +974,17 @@ class TestLeaveApplication(HRMSTestSuite):
 		)
 		application.insert()
 		application.status = "Approved"
-
 		frappe.set_user(employee.user_id)
-		self.assertRaises(frappe.ValidationError, application.submit)
+		self.assertRaises(frappe.ValidationError, application.save)
 
 		frappe.set_user(leave_approver)
 		application.reload()
+		application.status = "Approved"
+		application.save()
 		application.submit()
 		self.assertEqual(1, application.docstatus)
 
-	@set_holiday_list("Salary Slip Test Holiday List", "_Test Company")
+	@assign_holiday_list("Salary Slip Test Holiday List", "_Test Company")
 	def test_get_leave_details_for_dashboard(self):
 		employee = get_employee()
 		date = getdate()
@@ -1100,7 +1020,7 @@ class TestLeaveApplication(HRMSTestSuite):
 		self.assertEqual(leave_allocation["leaves_pending_approval"], 1)
 		self.assertEqual(leave_allocation["remaining_leaves"], 26)
 
-	@set_holiday_list("Holiday List w/o Weekly Offs", "_Test Company")
+	@assign_holiday_list("Holiday List w/o Weekly Offs", "_Test Company")
 	def test_leave_details_with_expired_cf_leaves(self):
 		"""Tests leave details:
 		Case 1: All leaves available before cf leave expiry
@@ -1134,7 +1054,7 @@ class TestLeaveApplication(HRMSTestSuite):
 
 		self.assertEqual(leave_details["leave_allocation"][leave_type.name], expected_data)
 
-	@set_holiday_list("Holiday List w/o Weekly Offs", "_Test Company")
+	@assign_holiday_list("Holiday List w/o Weekly Offs", "_Test Company")
 	def test_leave_details_with_application_across_cf_expiry(self):
 		"""Tests leave details with leave application across cf expiry, such that:
 		cf leaves are partially expired and partially consumed
@@ -1170,7 +1090,7 @@ class TestLeaveApplication(HRMSTestSuite):
 
 		self.assertEqual(leave_details["leave_allocation"][leave_type.name], expected_data)
 
-	@set_holiday_list("Holiday List w/o Weekly Offs", "_Test Company")
+	@assign_holiday_list("Holiday List w/o Weekly Offs", "_Test Company")
 	def test_leave_details_with_application_across_cf_expiry_2(self):
 		"""Tests the same case as above but with leave days greater than cf leaves allocated"""
 		employee = get_employee()
@@ -1210,7 +1130,7 @@ class TestLeaveApplication(HRMSTestSuite):
 
 		self.assertEqual(leave_details["leave_allocation"][leave_type.name], expected_data)
 
-	@set_holiday_list("Holiday List w/o Weekly Offs", "_Test Company")
+	@assign_holiday_list("Holiday List w/o Weekly Offs", "_Test Company")
 	def test_leave_details_with_application_after_cf_expiry(self):
 		"""Tests leave details with leave application after cf expiry, such that:
 		cf leaves are completely expired and only newly allocated leaves are consumed
@@ -1246,7 +1166,7 @@ class TestLeaveApplication(HRMSTestSuite):
 
 		self.assertEqual(leave_details["leave_allocation"][leave_type.name], expected_data)
 
-	@set_holiday_list("Salary Slip Test Holiday List", "_Test Company")
+	@assign_holiday_list("Salary Slip Test Holiday List", "_Test Company")
 	def test_get_leave_allocation_records(self):
 		"""Tests if total leaves allocated before and after carry forwarded leave expiry is same"""
 		employee = get_employee()
@@ -1279,7 +1199,7 @@ class TestLeaveApplication(HRMSTestSuite):
 		details = get_leave_allocation_records(employee.name, add_days(cf_expiry, 1), leave_type.name)
 		self.assertEqual(details.get(leave_type.name), expected_data)
 
-	@set_holiday_list("Salary Slip Test Holiday List", "_Test Company")
+	@assign_holiday_list("Salary Slip Test Holiday List", "_Test Company")
 	def test_filtered_old_cf_entries_in_get_leave_allocation_records(self):
 		"""Tests whether old cf entries are ignored while fetching current allocation records"""
 		employee = get_employee()
@@ -1422,10 +1342,86 @@ class TestLeaveApplication(HRMSTestSuite):
 		expire_allocation(leave_allocation, expiry_date=getdate())
 
 		leave_balance = get_leave_balance_on(
-			employee=employee.name, leave_type=leave_type.name, date=getdate()
+			employee=employee.name,
+			leave_type=leave_type.name,
+			date=getdate(),
+			consider_all_leaves_in_the_allocation_period=True,
 		)
 
 		self.assertEqual(leave_balance, 0)
+
+	def test_backdated_application_after_expiry(self):
+		employee = get_employee().name
+		previous_month_start = get_first_day(add_months(getdate(), -1))
+		previous_month_end = get_last_day(previous_month_start)
+		leave_type = create_leave_type(leave_type_name="_Test_backdated_application").name
+		allocation = make_allocation_record(
+			employee, leave_type, previous_month_start, previous_month_end, leaves=10
+		)
+		expire_allocation(allocation, expiry_date=previous_month_end)
+		doc = frappe.new_doc(
+			"Leave Application",
+			employee=employee,
+			leave_type=leave_type,
+			from_date=previous_month_start,
+			to_date=previous_month_start,
+			posting_date=previous_month_end,
+			status="Approved",
+		)
+		doc.save()
+		doc.submit()
+		self.assertEqual(get_leave_balance_on(employee, leave_type, previous_month_end), 9)
+		leave_ledger_entry = frappe.get_all(
+			"Leave Ledger Entry",
+			fields="*",
+			filters={"transaction_name": doc.name},
+			order_by="leaves",
+		)
+		self.assertEqual(len(leave_ledger_entry), 2)
+		self.assertEqual(leave_ledger_entry[0].leaves, doc.total_leave_days * -1)
+		self.assertEqual(leave_ledger_entry[1].leaves, doc.total_leave_days * 1)
+
+	def test_leave_days_across_two_holiday_lists(self):
+		make_holiday_list(
+			"_Test Application",
+			from_date=add_days(getdate(), -10),
+			to_date=add_days(getdate(), -1),
+			add_weekly_offs=False,
+		)
+		add_date_to_holiday_list(add_days(getdate(), -1), "_Test Application")
+		make_holiday_list(
+			"_Test Application 2", from_date=getdate(), to_date=add_days(getdate(), 10), add_weekly_offs=False
+		)
+		add_date_to_holiday_list(getdate(), "_Test Application 2")
+		employee = make_employee("test_leave_days@example.com", company="_Test Company")
+		create_holiday_list_assignment("Employee", employee, "_Test Application")
+		create_holiday_list_assignment("Employee", employee, "_Test Application 2")
+		leave_type = frappe.get_doc(
+			{
+				"leave_type_name": "_Test Application",
+				"doctype": "Leave Type",
+				"include_holiday": False,
+			}
+		).insert()
+		make_allocation_record(
+			employee,
+			leave_type=leave_type.name,
+			from_date=add_days(getdate(), -10),
+			to_date=add_days(getdate(), 10),
+			leaves=10,
+		)
+		application = make_leave_application(
+			employee, add_days(getdate(), -2), add_days(getdate(), 2), leave_type.name, submit=False
+		)
+		self.assertEqual(application.total_leave_days, 3)
+
+	def test_status_on_discard(self):
+		# make_allocation_record()
+		application = self.get_application(self.leave_application)
+		application.save()
+		application.discard()
+		application.reload()
+		self.assertEqual(application.status, "Cancelled")
 
 
 def create_carry_forwarded_allocation(employee, leave_type, date=None):
@@ -1481,9 +1477,9 @@ def get_employee():
 	return frappe.get_doc("Employee", "_T-Employee-00001")
 
 
-def get_leave_period():
+def get_leave_period(current=False):
 	leave_period_name = frappe.db.get_value("Leave Period", {"company": "_Test Company"})
-	if leave_period_name:
+	if not current and leave_period_name:
 		return frappe.get_doc("Leave Period", leave_period_name)
 	else:
 		return frappe.get_doc(

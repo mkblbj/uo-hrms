@@ -28,6 +28,27 @@ from frappe.utils import (
 
 
 class LeavePolicyAssignment(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+
+		amended_from: DF.Link | None
+		assignment_based_on: DF.Literal["", "Leave Period", "Joining Date"]
+		carry_forward: DF.Check
+		company: DF.Link | None
+		effective_from: DF.Date
+		effective_to: DF.Date
+		employee: DF.Link
+		employee_name: DF.Data | None
+		leave_period: DF.Link | None
+		leave_policy: DF.Link
+		leaves_allocated: DF.Check
+	# end: auto-generated types
+
 	def validate(self):
 		self.set_dates()
 		self.validate_policy_assignment_overlap()
@@ -118,10 +139,29 @@ class LeavePolicyAssignment(Document):
 			carry_forward = 0
 
 		new_leaves_allocated = self.get_new_leaves(annual_allocation, leave_details, date_of_joining)
-
-		earned_leave_schedule = self.get_earned_leave_schedule(
-			annual_allocation, leave_details, date_of_joining, new_leaves_allocated
+		earned_leave_schedule = (
+			self.get_earned_leave_schedule(
+				annual_allocation, leave_details, date_of_joining, new_leaves_allocated
+			)
+			if leave_details.is_earned_leave
+			else []
 		)
+
+		if new_leaves_allocated == 0 and not leave_details.is_earned_leave:
+			text = _(
+				"Leave allocation is skipped for {0}, because number of leaves to be allocated is 0."
+			).format(frappe.bold(leave_details.name))
+
+			frappe.get_doc(
+				{
+					"doctype": "Comment",
+					"comment_type": "Comment",
+					"reference_doctype": "Leave Policy Assignment",
+					"reference_name": self.name,
+					"content": text,
+				}
+			).insert(ignore_permissions=True)
+			return None, 0
 
 		allocation = frappe.get_doc(
 			doctype="Leave Allocation",
@@ -395,7 +435,7 @@ def calculate_pro_rated_leaves(
 
 
 @frappe.whitelist()
-def create_assignment_for_multiple_employees(employees, data):
+def create_assignment_for_multiple_employees(employees: str | list[str], data: str | dict) -> list[str]:
 	if isinstance(employees, str):
 		employees = json.loads(employees)
 
@@ -406,7 +446,7 @@ def create_assignment_for_multiple_employees(employees, data):
 	failed = []
 
 	for employee in employees:
-		assignment = create_assignment(employee, data)
+		assignment = create_assignment(employee, frappe._dict(data))
 		savepoint = "before_assignment_submission"
 		try:
 			frappe.db.savepoint(savepoint)
@@ -425,7 +465,7 @@ def create_assignment_for_multiple_employees(employees, data):
 
 
 @frappe.whitelist()
-def create_assignment(employee, data):
+def create_assignment(employee: str, data: frappe._dict) -> Document:
 	assignment = frappe.new_doc("Leave Policy Assignment")
 	assignment.employee = employee
 	assignment.assignment_based_on = data.assignment_based_on or None

@@ -1,6 +1,7 @@
 # Copyright (c) 2018, Frappe Technologies Pvt. Ltd. and contributors
 # For license information, please see license.txt
 
+import datetime
 
 import frappe
 from frappe import _
@@ -18,6 +19,25 @@ class ParentCompanyError(frappe.ValidationError):
 
 
 class StaffingPlan(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+
+		from hrms.hr.doctype.staffing_plan_detail.staffing_plan_detail import StaffingPlanDetail
+
+		amended_from: DF.Link | None
+		company: DF.Link
+		department: DF.Link | None
+		from_date: DF.Date
+		staffing_details: DF.Table[StaffingPlanDetail]
+		to_date: DF.Date
+		total_estimated_budget: DF.Currency
+	# end: auto-generated types
+
 	def validate(self):
 		self.validate_period()
 		self.validate_details()
@@ -39,11 +59,10 @@ class StaffingPlan(Document):
 
 		for detail in self.get("staffing_details"):
 			# Set readonly fields
-			self.set_number_of_positions(detail)
 			designation_counts = get_designation_counts(detail.designation, self.company)
 			detail.current_count = designation_counts["employee_count"]
 			detail.current_openings = designation_counts["job_openings"]
-
+			self.set_number_of_positions(detail)
 			detail.total_estimated_cost = 0
 			if detail.number_of_positions > 0:
 				if detail.vacancies and detail.estimated_cost_per_position:
@@ -171,7 +190,7 @@ class StaffingPlan(Document):
 			)
 
 	@frappe.whitelist()
-	def set_job_requisitions(self, job_reqs):
+	def set_job_requisitions(self, job_reqs: list[str]) -> Document:
 		if job_reqs:
 			requisitions = frappe.db.get_list(
 				"Job Requisition",
@@ -181,12 +200,14 @@ class StaffingPlan(Document):
 
 			self.staffing_details = []
 			for req in requisitions:
+				current_count = get_designation_counts(req.designation, self.company)["employee_count"]
 				self.append(
 					"staffing_details",
 					{
 						"designation": req.designation,
 						"vacancies": req.no_of_positions,
 						"estimated_cost_per_position": req.expected_compensation,
+						"number_of_positions": cint(current_count) + cint(req.no_of_positions),
 					},
 				)
 
@@ -194,7 +215,7 @@ class StaffingPlan(Document):
 
 
 @frappe.whitelist()
-def get_designation_counts(designation, company, job_opening=None):
+def get_designation_counts(designation: str, company: str, job_opening: str | None = None) -> dict | bool:
 	if not designation:
 		return False
 
@@ -215,7 +236,12 @@ def get_designation_counts(designation, company, job_opening=None):
 
 
 @frappe.whitelist()
-def get_active_staffing_plan_details(company, designation, from_date=None, to_date=None):
+def get_active_staffing_plan_details(
+	company: str,
+	designation: str,
+	from_date: str | datetime.date | None = None,
+	to_date: str | datetime.date | None = None,
+) -> list[dict] | None:
 	if from_date is None:
 		from_date = getdate(nowdate())
 	if to_date is None:

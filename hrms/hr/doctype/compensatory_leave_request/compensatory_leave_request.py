@@ -19,6 +19,27 @@ from hrms.hr.utils import (
 
 
 class CompensatoryLeaveRequest(Document):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+
+		amended_from: DF.Link | None
+		department: DF.Link | None
+		employee: DF.Link
+		employee_name: DF.Data | None
+		half_day: DF.Check
+		half_day_date: DF.Date | None
+		leave_allocation: DF.Link | None
+		leave_type: DF.Link | None
+		reason: DF.SmallText
+		work_end_date: DF.Date
+		work_from_date: DF.Date
+	# end: auto-generated types
+
 	def validate(self):
 		validate_active_employee(self.employee)
 		validate_dates(self, self.work_from_date, self.work_end_date)
@@ -36,12 +57,12 @@ class CompensatoryLeaveRequest(Document):
 	def validate_attendance(self):
 		attendance_records = frappe.get_all(
 			"Attendance",
-			filters={
-				"attendance_date": ["between", (self.work_from_date, self.work_end_date)],
-				"status": ("in", ["Present", "Work From Home", "Half Day"]),
-				"docstatus": 1,
-				"employee": self.employee,
-			},
+			filters=[
+				["attendance_date", "between", [self.work_from_date, self.work_end_date]],
+				["status", "in", ["Present", "Work From Home", "Half Day"]],
+				["docstatus", "=", 1],
+				["employee", "=", self.employee],
+			],
 			fields=["attendance_date", "status"],
 		)
 
@@ -112,7 +133,7 @@ class CompensatoryLeaveRequest(Document):
 			leave_allocation = frappe.get_doc("Leave Allocation", self.leave_allocation)
 			if leave_allocation:
 				leave_allocation.new_leaves_allocated -= date_difference
-				if leave_allocation.new_leaves_allocated - date_difference <= 0:
+				if leave_allocation.new_leaves_allocated < 0:
 					leave_allocation.new_leaves_allocated = 0
 				leave_allocation.validate()
 				leave_allocation.db_set("new_leaves_allocated", leave_allocation.total_leaves_allocated)

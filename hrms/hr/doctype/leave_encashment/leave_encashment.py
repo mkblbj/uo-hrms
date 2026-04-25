@@ -19,6 +19,38 @@ from hrms.payroll.doctype.salary_structure_assignment.salary_structure_assignmen
 
 
 class LeaveEncashment(AccountsController):
+	# begin: auto-generated types
+	# This code is auto-generated. Do not modify anything in this block.
+
+	from typing import TYPE_CHECKING
+
+	if TYPE_CHECKING:
+		from frappe.types import DF
+
+		actual_encashable_days: DF.Float
+		additional_salary: DF.Link | None
+		amended_from: DF.Link | None
+		company: DF.Link
+		cost_center: DF.Link | None
+		currency: DF.Link
+		department: DF.Link | None
+		employee: DF.Link
+		employee_name: DF.Data | None
+		encashment_amount: DF.Currency
+		encashment_date: DF.Date | None
+		encashment_days: DF.Float
+		expense_account: DF.Link | None
+		leave_allocation: DF.Link | None
+		leave_balance: DF.Float
+		leave_period: DF.Link
+		leave_type: DF.Link
+		paid_amount: DF.Currency
+		pay_via_payment_entry: DF.Check
+		payable_account: DF.Link | None
+		posting_date: DF.Date | None
+		status: DF.Literal["Draft", "Unpaid", "Paid", "Submitted", "Cancelled"]
+	# end: auto-generated types
+
 	def validate(self):
 		set_employee_name(self)
 		validate_active_employee(self.employee)
@@ -181,9 +213,27 @@ class LeaveEncashment(AccountsController):
 		if not hasattr(self, "_salary_structure"):
 			self.set_salary_structure()
 
-		per_day_encashment = frappe.db.get_value(
-			"Salary Structure", self._salary_structure, "leave_encashment_amount_per_day"
+		per_day_encashment = frappe.get_value(
+			"Salary Structure Assignment",
+			filters={
+				"employee": self.employee,
+				"salary_structure": self._salary_structure,
+				"docstatus": 1,
+				"from_date": ["<=", self.encashment_date],
+			},
+			fieldname=["leave_encashment_amount_per_day"],
+			order_by="from_date desc",
 		)
+
+		if not per_day_encashment:
+			per_day_encashment = frappe.db.get_value(
+				"Salary Structure",
+				self._salary_structure,
+				"leave_encashment_amount_per_day",
+			)
+
+		per_day_encashment = per_day_encashment or 0
+
 		self.encashment_amount = self.encashment_days * per_day_encashment if per_day_encashment > 0 else 0
 
 	def set_status(self, update=False):
@@ -312,6 +362,9 @@ class LeaveEncashment(AccountsController):
 		)
 
 		return gl_entry
+
+	def on_discard(self):
+		self.db_set("status", "Cancelled")
 
 
 def create_leave_encashment(leave_allocation):

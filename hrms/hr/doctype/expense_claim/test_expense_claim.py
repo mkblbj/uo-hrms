@@ -22,11 +22,6 @@ company_name = "_Test Company 3"
 
 
 class TestExpenseClaim(HRMSTestSuite):
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
-		cls.make_employees()
-
 	def setUp(self):
 		if not frappe.db.get_value("Cost Center", {"company": company_name}):
 			cost_center = frappe.new_doc("Cost Center")
@@ -42,16 +37,10 @@ class TestExpenseClaim(HRMSTestSuite):
 
 			frappe.db.set_value("Company", company_name, "default_cost_center", cost_center)
 		frappe.db.set_value("Account", "Employee Advances - _TC", "account_type", "Receivable")
-
-	def tearDown(self):
 		frappe.set_user("Administrator")
 
 	def test_total_expense_claim_for_project(self):
-		frappe.db.delete("Task")
-		frappe.db.delete("Project")
-		frappe.db.sql("update `tabExpense Claim` set project = '', task = ''")
-
-		project = create_project("_Test Project 1")
+		project = create_project("_Test Project 1", company="_Test Company")
 
 		task = frappe.new_doc("Task")
 		task.update(
@@ -104,7 +93,6 @@ class TestExpenseClaim(HRMSTestSuite):
 		self.assertEqual(len(gl_entry), 0)
 
 	def test_expense_claim_status_as_payment_from_payment_entry(self):
-		# Via Payment Entry
 		payable_account = get_payable_account(company_name)
 
 		expense_claim = make_expense_claim(payable_account, 300, 200, company_name, "Travel Expenses - _TC3")
@@ -172,6 +160,34 @@ class TestExpenseClaim(HRMSTestSuite):
 		allocate_using_payment_reconciliation(expense_claim2, employee, je, payable_account)
 		expense_claim2.load_from_db()
 		self.assertEqual(expense_claim2.status, "Paid")
+
+	def test_other_employee_advances_link_with_claim(self):
+		from hrms.hr.doctype.employee_advance.test_employee_advance import make_employee_advance
+
+		payable_account = get_payable_account("_Test Company")
+
+		employee = make_employee("test_employee@employee.advance", "_Test Company")
+		advance = make_employee_advance(employee)
+
+		employee_with_no_advance = make_employee("test_employee@not-employee.advance", "_Test Company")
+		claim_with_no_advance = make_expense_claim(
+			payable_account,
+			1000,
+			1000,
+			"_Test Company",
+			"Travel Expenses - _TC",
+			do_not_submit=True,
+			employee=employee_with_no_advance,
+		)
+		claim_with_no_advance.save()
+
+		claim_with_no_advance.append(
+			"advances",
+			{
+				"employee_advance": advance.name,
+			},
+		)
+		self.assertRaises(frappe.ValidationError, claim_with_no_advance.save)
 
 	def test_expense_claim_against_fully_paid_advances(self):
 		from hrms.hr.doctype.employee_advance.test_employee_advance import (
@@ -495,7 +511,7 @@ class TestExpenseClaim(HRMSTestSuite):
 		create_test_contact_and_address()
 		address = create_address(driver)
 
-		delivery_trip = create_delivery_trip(driver, address)
+		delivery_trip = create_delivery_trip(driver, address, company="_Test Company")
 		expense_claim = make_expense_claim_for_delivery_trip(delivery_trip.name)
 		self.assertEqual(delivery_trip.name, expense_claim.delivery_trip)
 
@@ -518,7 +534,7 @@ class TestExpenseClaim(HRMSTestSuite):
 		self.assertEqual(je.accounts[0].debit_in_account_currency, expense_claim.grand_total)
 
 	def test_accounting_dimension_mapping(self):
-		project = create_project("_Test Expense Project")
+		project = create_project("_Test Expense Project", company="_Test Company")
 		payable_account = get_payable_account(company_name)
 
 		expense_claim = make_expense_claim(
@@ -596,7 +612,7 @@ class TestExpenseClaim(HRMSTestSuite):
 		ledger_balance = frappe.db.get_all(
 			"GL Entry",
 			filters={"voucher_no": expense_claim.name, "is_cancelled": 0},
-			fields=["sum(debit) as total_debit", "sum(credit) as total_credit"],
+			fields=[{"SUM": "debit", "as": "total_debit"}, {"SUM": "credit", "as": "total_credit"}],
 		)
 		self.assertEqual(ledger_balance, expected_data)
 
@@ -609,7 +625,7 @@ class TestExpenseClaim(HRMSTestSuite):
 		ledger_balance = frappe.db.get_all(
 			"GL Entry",
 			filters={"voucher_no": expense_claim.name, "is_cancelled": 0},
-			fields=["sum(debit) as total_debit", "sum(credit) as total_credit"],
+			fields=[{"SUM": "debit", "as": "total_debit"}, {"SUM": "credit", "as": "total_credit"}],
 		)
 		self.assertNotEqual(ledger_balance, expected_data)
 
@@ -623,7 +639,7 @@ class TestExpenseClaim(HRMSTestSuite):
 		ledger_balance = frappe.db.get_all(
 			"GL Entry",
 			filters={"voucher_no": expense_claim.name, "is_cancelled": 0},
-			fields=["sum(debit) as total_debit", "sum(credit) as total_credit"],
+			fields=[{"SUM": "debit", "as": "total_debit"}, {"SUM": "credit", "as": "total_credit"}],
 		)
 		self.assertEqual(ledger_balance, expected_data)
 
@@ -883,6 +899,61 @@ class TestExpenseClaim(HRMSTestSuite):
 		self.assertEqual(gain_loss_jv.total_debit, 2100)
 		self.assertEqual(gain_loss_jv.total_credit, 2100)
 
+	def test_expense_claim_status_as_payment_after_unreconciliation(self):
+		from hrms.hr.doctype.employee_advance.test_employee_advance import make_payment_entry
+
+		payable_account = get_payable_account(company_name)
+
+		employee = frappe.db.get_value(
+			"Employee",
+			{"status": "Active", "company": company_name, "first_name": "test_employee1@expenseclaim.com"},
+			"name",
+		)
+		if not employee:
+			employee = make_employee("test_employee1@expenseclaim.com", company=company_name)
+
+		expense_claim = make_expense_claim(payable_account, 300, 200, company_name, "Travel Expenses - _TC3")
+		self.assertEqual(expense_claim.docstatus, 1)
+		self.assertEqual(expense_claim.status, "Unpaid")
+
+		pe = make_payment_entry(expense_claim, 200)
+		expense_claim.reload()
+		self.assertEqual(expense_claim.status, "Paid")
+
+		unreconcile_doc = frappe.new_doc("Unreconcile Payment")
+		unreconcile_doc.company = company_name
+		unreconcile_doc.voucher_type = "Payment Entry"
+		unreconcile_doc.voucher_no = pe.name
+		unreconcile_doc.append(
+			"allocations",
+			{
+				"account": "Travel Expenses - _TC3",
+				"party_type": "Employee",
+				"party": employee,
+				"reference_doctype": "Expense Claim",
+				"reference_name": expense_claim.name,
+				"allocated_amount": 200,
+				"unlinked": 1,
+			},
+		)
+		unreconcile_doc.insert()
+		unreconcile_doc.submit()
+
+		expense_claim.reload()
+		self.assertEqual(expense_claim.status, "Unpaid")
+
+	def test_status_on_discard(self):
+		payable_account = get_payable_account(company_name)
+		expense_claim = make_expense_claim(
+			payable_account, 300, 200, company_name, "Travel Expenses - _TC3", do_not_submit=True
+		)
+		expense_claim.insert()
+		expense_claim.reload()
+		self.assertEqual(expense_claim.status, "Draft")
+		expense_claim.discard()
+		expense_claim.reload()
+		self.assertEqual(expense_claim.status, "Cancelled")
+
 
 def get_payable_account(company):
 	return frappe.get_cached_value("Company", company, "default_payable_account")
@@ -1018,12 +1089,13 @@ def allocate_using_payment_reconciliation(expense_claim, employee, journal_entry
 	pr.reconcile()
 
 
-def create_project(project_name):
+def create_project(project_name, **args):
 	project = frappe.db.exists("Project", {"project_name": project_name})
 	if project:
 		return project
 
 	doc = frappe.new_doc("Project")
 	doc.project_name = project_name
+	doc.update(args)
 	doc.insert()
 	return doc.name

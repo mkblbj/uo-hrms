@@ -83,7 +83,7 @@ def get_current_employee_info() -> dict:
 
 @frappe.whitelist()
 def get_all_employees() -> list[dict]:
-	return frappe.get_all(
+	return frappe.get_list(
 		"Employee",
 		fields=[
 			"name",
@@ -98,6 +98,13 @@ def get_all_employees() -> list[dict]:
 		],
 		limit=999999,
 	)
+
+
+def get_current_employee() -> str:
+	employee = get_current_employee_info().get("name")
+	if not employee:
+		frappe.throw(_("Employee not found"), frappe.PermissionError)
+	return employee
 
 
 # HR Settings
@@ -389,7 +396,8 @@ def are_push_notifications_enabled() -> bool:
 
 # Attendance
 @frappe.whitelist()
-def get_attendance_calendar_events(employee: str, from_date: str, to_date: str) -> dict:
+def get_attendance_calendar_events(from_date: str, to_date: str, employee: str | None = None) -> dict:
+	employee = employee or get_current_employee()
 	holidays = get_holidays_for_calendar(employee, from_date, to_date)
 	attendance = get_attendance_for_calendar(employee, from_date, to_date)
 	shifts = get_shifts_for_calendar(employee, from_date, to_date)
@@ -642,7 +650,8 @@ def get_shift_request_approvers(employee: str) -> str | list[str]:
 
 
 @frappe.whitelist()
-def get_shifts(employee: str) -> list[dict[str, str]]:
+def get_shifts() -> list[dict[str, str]]:
+	employee = get_current_employee()
 	ShiftAssignment = frappe.qb.DocType("Shift Assignment")
 	ShiftType = frappe.qb.DocType("Shift Type")
 	return (
@@ -713,7 +722,7 @@ def get_leave_applications(
 
 
 @frappe.whitelist()
-def get_leave_balance_map(employee: str) -> dict[str, dict[str, float]]:
+def get_leave_balance_map() -> dict[str, dict[str, float]]:
 	"""
 	Returns a map of leave type and balance details like:
 	{
@@ -722,6 +731,8 @@ def get_leave_balance_map(employee: str) -> dict[str, dict[str, float]]:
 	}
 	"""
 	from hrms.hr.doctype.leave_application.leave_application import get_leave_details
+
+	employee = get_current_employee()
 
 	date = getdate()
 	leave_map = {}
@@ -843,6 +854,7 @@ def get_expense_claims(
 		"`tabExpense Claim`.posting_date",
 		"`tabExpense Claim`.employee",
 		"`tabExpense Claim`.employee_name",
+		"`tabExpense Claim`.currency",
 		"`tabExpense Claim`.approval_status",
 		"`tabExpense Claim`.status",
 		"`tabExpense Claim`.expense_approver",
@@ -851,7 +863,7 @@ def get_expense_claims(
 		"`tabExpense Claim`.company",
 		"`tabExpense Claim`.creation",
 		"`tabExpense Claim Detail`.expense_type",
-		"count(`tabExpense Claim Detail`.expense_type) as total_expenses",
+		{"COUNT": "`tabExpense Claim Detail`.expense_type", "as": "total_expenses"},
 	]
 
 	if workflow_state_field := get_workflow_state_field("Expense Claim"):
@@ -874,7 +886,9 @@ def get_expense_claims(
 
 
 @frappe.whitelist()
-def get_expense_claim_summary(employee: str) -> dict:
+def get_expense_claim_summary() -> dict:
+	employee = get_current_employee()
+
 	from frappe.query_builder.functions import Sum
 
 	Claim = frappe.qb.DocType("Expense Claim")
@@ -962,7 +976,8 @@ def get_expense_approval_details(employee: str) -> dict:
 
 # Employee Advance
 @frappe.whitelist()
-def get_employee_advance_balance(employee: str) -> list[dict]:
+def get_employee_advance_balance() -> list[dict]:
+	employee = get_current_employee()
 	Advance = frappe.qb.DocType("Employee Advance")
 
 	advances = (
@@ -988,11 +1003,6 @@ def get_employee_advance_balance(employee: str) -> list[dict]:
 	).run(as_dict=True)
 
 	return advances
-
-
-@frappe.whitelist()
-def get_advance_account(company: str) -> str | None:
-	return frappe.db.get_value("Company", company, "default_employee_advance_account", cache=True)
 
 
 # Company
@@ -1053,13 +1063,17 @@ def get_doctype_states(doctype: str) -> dict:
 # File
 @frappe.whitelist()
 def get_attachments(dt: str, dn: str):
-	from frappe.desk.form.load import get_attachments
-
-	return get_attachments(dt, dn)
+	return frappe.get_list(
+		"File",
+		fields=["name", "file_name", "file_url", "is_private"],
+		filters={"attached_to_name": str(dn), "attached_to_doctype": dt},
+	)
 
 
 @frappe.whitelist()
-def upload_base64_file(content, filename, dt=None, dn=None, fieldname=None):
+def upload_base64_file(
+	content: str, filename: str, dt: str | None = None, dn: str | None = None, fieldname: str | None = None
+):
 	import base64
 	import io
 	from mimetypes import guess_type

@@ -10,23 +10,8 @@ from hrms.tests.utils import HRMSTestSuite
 
 
 class TestLeaveAllocation(HRMSTestSuite):
-	@classmethod
-	def setUpClass(cls):
-		super().setUpClass()
-		cls.make_employees()
-		cls.make_leave_types()
-
 	def setUp(self):
-		for doctype in [
-			"Leave Period",
-			"Leave Application",
-			"Leave Allocation",
-			"Leave Policy Assignment",
-			"Leave Ledger Entry",
-		]:
-			frappe.db.delete(doctype)
-
-		employee = frappe.get_doc("Employee", "_T-Employee-00001")
+		employee = frappe.get_doc("Employee", {"first_name": "_Test Employee"})
 		self.original_doj = employee.date_of_joining
 
 		employee.date_of_joining = add_months(getdate(), -24)
@@ -39,11 +24,6 @@ class TestLeaveAllocation(HRMSTestSuite):
 		to_date = get_year_ending(getdate())
 		self.holiday_list = make_holiday_list(from_date=from_date, to_date=to_date)
 		frappe.db.set_value("Email Account", "_Test Email Account 1", "default_outgoing", 1)
-
-	def tearDown(self):
-		frappe.db.set_value("Employee", self.employee.name, "date_of_joining", self.original_doj)
-		frappe.db.set_value("Leave Type", self.leave_type, "max_leaves_allowed", 0)
-		frappe.flags.current_date = None
 
 	def test_schedule_for_monthly_earned_leave_allocated_on_first_day(self):
 		frappe.flags.current_date = get_year_start(getdate())
@@ -357,6 +337,32 @@ class TestLeaveAllocation(HRMSTestSuite):
 			"Last Day",
 			self.employee.date_of_joining,
 		)
+
+	def test_absence_of_earned_leave_schedule_for_non_earned_leave_types(self):
+		leave_policy = frappe.get_doc(
+			{
+				"doctype": "Leave Policy",
+				"title": "Test Earned Leave Policy",
+				"leave_policy_details": [{"leave_type": "_Test Leave Type", "annual_allocation": 12}],
+			}
+		).insert()
+
+		data = {
+			"employee": self.employee.name,
+			"leave_policy": leave_policy.name,
+			"effective_from": get_year_start(getdate()),
+			"effective_to": get_year_ending(getdate()),
+		}
+
+		leave_policy_assignment = frappe.new_doc("Leave Policy Assignment", **frappe._dict(data))
+		leave_policy_assignment.insert()
+		leave_policy_assignment.submit()
+
+		leave_allocation = frappe.get_doc(
+			"Leave Allocation", {"leave_policy_assignment": leave_policy_assignment.name}
+		)
+		self.assertEqual(leave_allocation.total_leaves_allocated, 12)
+		self.assertFalse(leave_allocation.earned_leave_schedule)
 
 
 def test_allocation_dates(

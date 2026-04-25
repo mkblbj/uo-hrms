@@ -7,7 +7,6 @@ import os
 import frappe
 from frappe import _
 from frappe.core.doctype.user_permission.test_user_permission import create_user
-from frappe.tests import IntegrationTestCase
 from frappe.utils import add_days, get_datetime, get_time, getdate, nowtime
 
 from erpnext.setup.doctype.designation.test_designation import create_designation
@@ -21,9 +20,10 @@ from hrms.hr.doctype.interview.interview import (
 )
 from hrms.hr.doctype.job_applicant.job_applicant import get_interview_details
 from hrms.tests.test_utils import create_job_applicant, get_email_by_subject
+from hrms.tests.utils import HRMSTestSuite
 
 
-class TestInterview(IntegrationTestCase):
+class TestInterview(HRMSTestSuite):
 	def test_validations_for_designation(self):
 		job_applicant = create_job_applicant()
 		interview = create_interview_and_dependencies(
@@ -75,6 +75,9 @@ class TestInterview(IntegrationTestCase):
 
 		frappe.db.set_single_value("HR Settings", "send_interview_reminder", 1)
 		send_interview_reminder()
+		import time
+
+		time.sleep(1)
 		self.assertTrue(get_email_by_subject("Subject: Interview Reminder"))
 
 	def test_notification_for_feedback_submission(self):
@@ -193,8 +196,14 @@ class TestInterview(IntegrationTestCase):
 
 		self.assertEqual(job_applicant.status, "Accepted")
 
-	def tearDown(self):
-		frappe.db.rollback()
+	def test_status_on_discard(self):
+		job_applicant = create_job_applicant()
+		interview = create_interview_and_dependencies(job_applicant.name, status="Pending")
+
+		interview.discard()
+		interview.reload()
+
+		self.assertEqual(interview.status, "Cancelled")
 
 
 def create_interview_and_dependencies(

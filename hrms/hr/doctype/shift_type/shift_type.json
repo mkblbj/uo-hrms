@@ -88,14 +88,14 @@
    "fieldname": "working_hours_threshold_for_half_day",
    "fieldtype": "Float",
    "label": "Working Hours Threshold for Half Day",
-   "precision": "1"
+   "precision": "2"
   },
   {
    "description": "Working hours below which Absent is marked. (Zero to disable)",
    "fieldname": "working_hours_threshold_for_absent",
    "fieldtype": "Float",
    "label": "Working Hours Threshold for Absent",
-   "precision": "1"
+   "precision": "2"
   },
   {
    "default": "60",
@@ -305,6 +305,7 @@
   }
  ],
  "quick_entry": 1,
+ "row_format": "Dynamic",
  "sort_field": "creation",
  "sort_order": "DESC",
  "states": [],

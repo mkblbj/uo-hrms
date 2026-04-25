@@ -2,7 +2,6 @@
 # See license.txt
 
 import frappe
-from frappe.tests import IntegrationTestCase
 from frappe.utils import add_days, getdate
 
 from erpnext.setup.doctype.employee.test_employee import make_employee
@@ -13,12 +12,16 @@ from hrms.hr.doctype.employee_attendance_tool.employee_attendance_tool import (
 	get_employees,
 	mark_employee_attendance,
 )
+from hrms.hr.doctype.holiday_list_assignment.test_holiday_list_assignment import (
+	create_holiday_list_assignment,
+)
 from hrms.hr.doctype.leave_type.test_leave_type import create_leave_type
 from hrms.hr.doctype.shift_type.test_shift_type import setup_shift_type
 from hrms.payroll.doctype.salary_slip.test_salary_slip import make_leave_application
+from hrms.tests.utils import HRMSTestSuite
 
 
-class TestEmployeeAttendanceTool(IntegrationTestCase):
+class TestEmployeeAttendanceTool(HRMSTestSuite):
 	def setUp(self):
 		frappe.db.delete("Attendance")
 
@@ -27,6 +30,7 @@ class TestEmployeeAttendanceTool(IntegrationTestCase):
 		self.employee3 = make_employee("test_unmarked@example.com", company="_Test Company")
 
 		self.employee4 = make_employee("test_filter@example.com", company="_Test Company 1")
+		create_holiday_list_assignment("Company", "_Test Company 1")
 
 	def test_get_employee_attendance(self):
 		date = getdate("28-02-2023")
@@ -166,6 +170,7 @@ class TestEmployeeAttendanceTool(IntegrationTestCase):
 				"date_of_joining": "2023-01-01",
 				"default_shift": "",
 				"gender": "Male",
+				"company": "_Test Company",
 			}
 		).insert()
 
@@ -178,6 +183,7 @@ class TestEmployeeAttendanceTool(IntegrationTestCase):
 				"date_of_joining": "2023-01-01",
 				"default_shift": self.shift.name,
 				"gender": "Male",
+				"company": "_Test Company",
 			}
 		).insert()
 
@@ -190,6 +196,7 @@ class TestEmployeeAttendanceTool(IntegrationTestCase):
 				"date_of_joining": "2023-01-01",
 				"default_shift": "",
 				"gender": "Male",
+				"company": "_Test Company",
 			}
 		).insert()
 
