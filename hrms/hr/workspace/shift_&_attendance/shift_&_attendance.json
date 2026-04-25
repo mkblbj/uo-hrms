@@ -23,6 +23,7 @@
    "is_query_report": 0,
    "label": "Attendance",
    "link_count": 5,
+   "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
   },
@@ -81,6 +82,7 @@
    "is_query_report": 0,
    "label": "Time",
    "link_count": 2,
+   "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
   },
@@ -108,9 +110,30 @@
    "hidden": 0,
    "is_query_report": 0,
    "label": "Reports",
-   "link_count": 5,
+   "link_count": 7,
+   "link_type": "DocType",
    "onboard": 0,
    "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Monthly Working Hours Summary",
+   "link_count": 0,
+   "link_to": "Monthly Working Hours Summary",
+   "link_type": "Report",
+   "onboard": 1,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 1,
+   "label": "Employee Attendance Detail",
+   "link_count": 0,
+   "link_to": "Employee Attendance Detail",
+   "link_type": "Report",
+   "onboard": 1,
+   "type": "Link"
   },
   {
    "hidden": 0,
@@ -282,7 +305,62 @@
  "quick_lists": [],
  "roles": [],
  "sequence_id": 4.0,
- "shortcuts": [],
+ "shortcuts": [
+  {
+   "color": "Blue",
+   "doc_view": "",
+   "label": "\u6708\u5ea6\u5de5\u65f6\u6c47\u603b",
+   "link_to": "Monthly Working Hours Summary",
+   "report_ref_doctype": "Attendance",
+   "type": "Report"
+  },
+  {
+   "color": "Cyan",
+   "doc_view": "",
+   "label": "\u5458\u5de5\u8003\u52e4\u660e\u7ec6",
+   "link_to": "Employee Attendance Detail",
+   "report_ref_doctype": "Attendance",
+   "type": "Report"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Roster",
+   "type": "URL",
+   "url": "/hr/roster"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Attendance",
+   "link_to": "Attendance",
+   "type": "DocType"
+  },
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Dashboard",
+   "link_to": "Attendance",
+   "type": "Dashboard"
+  },
+  {
+   "color": "Green",
+   "doc_view": "List",
+   "format": "{} ",
+   "label": "Employee Checkin",
+   "link_to": "Employee Checkin",
+   "type": "DocType"
+  },
+  {
+   "color": "Orange",
+   "doc_view": "List",
+   "format": "{} Pending",
+   "label": "Shift Request",
+   "link_to": "Shift Request",
+   "stats_filter": "{\"status\":[\"=\",\"Draft\"]}",
+   "type": "DocType"
+  }
+ ],
  "title": "Shift & Attendance",
  "type": "Workspace"
 }

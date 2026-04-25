@@ -49,4 +49,4 @@ jobs:
         run: semgrep ci --config ./frappe-semgrep-rules/rules --config r/python.lang.correctness
 
       - name: Semgrep for Test Correctness
-        run: semgrep ci --include=**/test_*.py --config ./semgrep/test-correctness.yml        
+        run: semgrep ci --include=**/test_*.py --config ./semgrep/test-correctness.yml

@@ -19,6 +19,7 @@
 					</header>
 
 					<div class="flex flex-col gap-5 my-4 w-full p-4">
+						<LanguagePreferenceCard />
 						<div class="flex flex-col bg-white rounded">
 							<Switch
 								size="md"
@@ -30,16 +31,13 @@
 								@update:model-value="togglePushNotifications"
 							/>
 						</div>
-						<!-- Loading Indicator -->
-						<div
-							v-if="isLoading"
-							class="flex -mt-2 items-center justify-center gap-2"
-						>
+						<div v-if="isLoading" class="flex -mt-2 items-center justify-center gap-2">
 							<LoadingIndicator class="w-3 h-3 text-gray-800" />
 							<span class="text-gray-900 text-sm">
 								{{ pushNotificationState ? __("Disabling Push Notifications...") : __("Enabling Push Notifications...") }}
 							</span>
 						</div>
+						<PasskeyManager />
 					</div>
 				</div>
 			</div>
@@ -48,18 +46,19 @@
 </template>
 
 <script setup>
+import { computed, inject, ref } from "vue"
 import { IonPage, IonContent } from "@ionic/vue"
 import { useRouter } from "vue-router"
 import { FeatherIcon, Switch, toast, LoadingIndicator } from "frappe-ui"
 
-import { computed, inject, ref } from "vue"
-
+import LanguagePreferenceCard from "@/components/settings/LanguagePreferenceCard.vue"
+import PasskeyManager from "@/components/PasskeyManager.vue"
 import { arePushNotificationsEnabled } from "@/data/notifications"
 
 const __ = inject("$translate")
 const router = useRouter()
 const pushNotificationState = ref(
-	window.frappePushNotification?.isNotificationEnabled()
+	window.frappePushNotification?.isNotificationEnabled(),
 )
 const isLoading = ref(false)
 
@@ -88,9 +87,8 @@ const togglePushNotifications = (newValue) => {
 		isLoading.value = true
 		window.frappePushNotification
 			.disableNotification()
-			.then((data) => {
-				pushNotificationState.value = false // Disable the switch
-				// TODO: add commonfied toast util for success and error messages
+			.then(() => {
+				pushNotificationState.value = false
 				toast({
 					title: __("Success"),
 					text: __("Push notifications disabled"),

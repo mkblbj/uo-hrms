@@ -69,10 +69,7 @@
 						</div>
 
 						<!-- Settings -->
-						<div
-							class="flex flex-col gap-5 my-4 w-full"
-							v-if="allowPushNotifications"
-						>
+						<div class="flex flex-col gap-5 my-4 w-full">
 							<div class="flex flex-col bg-white rounded">
 								<router-link
 									:to="{ name: 'Settings' }"
@@ -93,6 +90,11 @@
 									/>
 								</router-link>
 							</div>
+						</div>
+
+						<!-- NFC Passkey Manager -->
+						<div class="w-full my-4">
+							<PasskeyManager />
 						</div>
 
 						<Button
@@ -137,7 +139,7 @@
 </template>
 
 <script setup>
-import { computed, inject, ref, onMounted, onBeforeUnmount } from "vue"
+import { inject, ref, onMounted, onBeforeUnmount } from "vue"
 import { useRouter } from "vue-router"
 import { IonModal, IonPage, IonContent } from "@ionic/vue"
 import { FeatherIcon, createDocumentResource, createResource } from "frappe-ui"
@@ -146,8 +148,7 @@ import { showErrorAlert } from "@/utils/dialogs"
 import { formatCurrency } from "@/utils/formatters"
 
 import ProfileInfoModal from "@/components/ProfileInfoModal.vue"
-
-import { arePushNotificationsEnabled } from "@/data/notifications"
+import PasskeyManager from "@/components/PasskeyManager.vue"
 
 const DOCTYPE = "Employee"
 
@@ -215,12 +216,6 @@ const profileLinks = [
 
 const isInfoModalOpen = ref(false)
 const selectedItem = ref(null)
-
-const allowPushNotifications = computed(
-	() =>
-		window.frappe?.boot.push_relay_server_url &&
-		arePushNotificationsEnabled.data
-)
 
 const openInfoModal = async (request) => {
 	selectedItem.value = request

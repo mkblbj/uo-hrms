@@ -33,7 +33,7 @@ export const formatCurrency = (value, currency) => {
 }
 
 export const formatTimestamp = (timestamp) => {
-	const formattedTime = dayjs(timestamp).format("hh:mm a")
+	const formattedTime = dayjs(timestamp).format("HH:mm")
 
 	if (dayjs(timestamp).isToday()) return formattedTime
 	else if (dayjs(timestamp).isYesterday()) return `${formattedTime} yesterday`

@@ -1,0 +1,714 @@
+import test from "node:test"
+import assert from "node:assert/strict"
+import fs from "node:fs"
+import os from "node:os"
+import path from "node:path"
+import { fileURLToPath, pathToFileURL } from "node:url"
+
+import { parse } from "@vue/compiler-sfc"
+
+import * as homeExperience from "./homeExperience.js"
+import {
+	buildSuccessOverlayModel,
+	getStatusChipMeta,
+	getPrimaryScanCopy,
+	getBottomTabItems,
+	resolveWorkStatusValue,
+	resolveHomeLanguage,
+	getPrimaryScanAction,
+	getPrimaryScanMeta,
+	getHeroCardMeta,
+	getHeroSummaryCopy,
+	getRosterEmptyCopy,
+} from "./homeExperience.js"
+
+const currentDir = path.dirname(fileURLToPath(import.meta.url))
+const homeHeroCardPath = path.resolve(currentDir, "../components/home/HomeHeroCard.vue")
+const checkInPanelPath = path.resolve(currentDir, "../components/CheckInPanel.vue")
+const checkinSuccessOverlayPath = path.resolve(
+	currentDir,
+	"../components/home/CheckinSuccessOverlay.vue"
+)
+const weatherWidgetPath = path.resolve(currentDir, "../components/WeatherWidget.vue")
+const homeViewPath = path.resolve(currentDir, "../views/Home.vue")
+const homeSummaryCardPath = path.resolve(
+	currentDir,
+	"../components/work_roster/HomeSummaryCard.vue"
+)
+let checkInPanelHelpersPromise = null
+
+async function loadVueNamedExports(vueFilePath) {
+	const source = fs.readFileSync(vueFilePath, "utf8")
+	const { descriptor } = parse(source, { filename: vueFilePath })
+
+	assert.ok(descriptor.script, `${path.basename(vueFilePath)} should expose a plain <script> helper block`)
+
+	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "hrms-home-experience-"))
+	const modulePath = path.join(
+		tempDir,
+		`${path.basename(vueFilePath, ".vue")}.${Date.now()}.mjs`
+	)
+	fs.writeFileSync(modulePath, descriptor.script.content, "utf8")
+
+	return import(pathToFileURL(modulePath).href)
+}
+
+async function loadCheckInPanelHelpers() {
+	if (!checkInPanelHelpersPromise) {
+		checkInPanelHelpersPromise = loadVueNamedExports(checkInPanelPath)
+	}
+
+	return checkInPanelHelpersPromise
+}
+
+function createFakeTimers() {
+	let now = 0
+	let nextId = 1
+	const timers = new Map()
+
+	return {
+		schedule(callback, delay) {
+			const id = nextId++
+			timers.set(id, {
+				runAt: now + delay,
+				callback,
+				delay,
+			})
+			return id
+		},
+		cancel(id) {
+			timers.delete(id)
+		},
+		tick(ms) {
+			now += ms
+			const dueTimers = [...timers.entries()]
+				.filter(([, timer]) => timer.runAt <= now)
+				.sort((left, right) => left[1].runAt - right[1].runAt)
+
+			for (const [id, timer] of dueTimers) {
+				if (!timers.has(id)) continue
+				timers.delete(id)
+				timer.callback()
+			}
+		},
+		getPendingDelays() {
+			return [...timers.values()].map((timer) => timer.delay)
+		},
+	}
+}
+
+test("returns working and off-work chip metadata for zh and ja", () => {
+	assert.deepEqual(getStatusChipMeta(true, "zh"), {
+		label: "正在出勤",
+		tone: "working",
+		routeName: "AttendanceDashboard",
+	})
+	assert.deepEqual(getStatusChipMeta(true, "ja"), {
+		label: "勤務中",
+		tone: "working",
+		routeName: "AttendanceDashboard",
+	})
+	assert.deepEqual(getStatusChipMeta(false, "ja"), {
+		label: "退勤済",
+		tone: "off",
+		routeName: "AttendanceDashboard",
+	})
+})
+
+test("returns distinct chip metadata for no_checkin_today", () => {
+	assert.deepEqual(getStatusChipMeta("no_checkin_today", "zh"), {
+		label: "待出勤",
+		tone: "pending",
+		routeName: "AttendanceDashboard",
+	})
+	assert.deepEqual(
+		getStatusChipMeta(
+			{
+				status: "no_checkin_today",
+				is_working: false,
+				last_checkin: null,
+			},
+			"ja"
+		),
+		{
+			label: "出勤前",
+			tone: "pending",
+			routeName: "AttendanceDashboard",
+		}
+	)
+})
+
+test("returns null chip metadata until work status is explicitly resolved", () => {
+	assert.equal(resolveWorkStatusValue(undefined), null)
+	assert.equal(resolveWorkStatusValue({}), null)
+	assert.equal(resolveWorkStatusValue({ is_working: true }), true)
+	assert.equal(resolveWorkStatusValue({ is_working: false }), false)
+	assert.equal(getStatusChipMeta(undefined, "ja"), null)
+	assert.equal(getStatusChipMeta(null, "zh"), null)
+})
+
+test("returns the primary scan CTA copy for both work states", () => {
+	assert.deepEqual(getPrimaryScanCopy(false, "zh"), {
+		title: "扫码出勤",
+		description: "打开相机进行打卡",
+	})
+	assert.deepEqual(getPrimaryScanCopy(true, "zh"), {
+		title: "扫码退勤",
+		description: "打开相机完成退勤",
+	})
+	assert.equal(getPrimaryScanCopy(undefined, "zh"), null)
+})
+
+test("derives the scan action and copy from the same work-status input", () => {
+	const translate = (value) => `tr:${value}`
+
+	assert.deepEqual(getPrimaryScanAction(false, translate), {
+		action: "IN",
+		label: "tr:Check In",
+	})
+	assert.deepEqual(getPrimaryScanAction(true, translate), {
+		action: "OUT",
+		label: "tr:Check Out",
+	})
+	assert.equal(getPrimaryScanAction(null, translate), null)
+
+	assert.deepEqual(getPrimaryScanMeta(false, "zh", translate), {
+		action: "IN",
+		label: "tr:Check In",
+		title: "扫码出勤",
+		description: "打开相机进行打卡",
+	})
+	assert.deepEqual(getPrimaryScanMeta(true, "ja", translate), {
+		action: "OUT",
+		label: "tr:Check Out",
+		title: "QRコードで退勤",
+		description: "カメラを起動して退勤します",
+	})
+	assert.equal(getPrimaryScanMeta(undefined, "zh", translate), null)
+})
+
+test("returns localized bottom-tab labels without mixed-language fallbacks", () => {
+	assert.deepEqual(
+		getBottomTabItems("ja").map((item) => item.title),
+		["ホーム", "勤怠", "シフト", "経費", "給与"]
+	)
+})
+
+test("emits and unbinds the check-in status refresh contract on EventTarget", () => {
+	assert.equal(typeof homeExperience.emitCheckinStatusChanged, "function")
+	assert.equal(typeof homeExperience.bindCheckinStatusRefresh, "function")
+
+	const target = new EventTarget()
+	const receivedDetails = []
+	const unbind = homeExperience.bindCheckinStatusRefresh(target, (event) => {
+		receivedDetails.push(event.detail)
+	})
+
+	assert.equal(typeof unbind, "function")
+	homeExperience.emitCheckinStatusChanged(target, { log_type: "OUT" })
+	assert.deepEqual(receivedDetails, [{ log_type: "OUT" }])
+
+	unbind()
+	homeExperience.emitCheckinStatusChanged(target, { log_type: "IN" })
+	assert.deepEqual(receivedDetails, [{ log_type: "OUT" }])
+})
+
+test("resolves the shared home language from boot lang variants and fallbacks", () => {
+	assert.equal(resolveHomeLanguage({ lang: "ja_JP" }), "ja")
+	assert.equal(resolveHomeLanguage({ lang: "en-US" }), "en")
+	assert.equal(resolveHomeLanguage({ server_lang: "ja-JP" }), "ja")
+	assert.equal(resolveHomeLanguage({ lang: "fr", server_lang: "en-US" }), "en")
+	assert.equal(resolveHomeLanguage({}), "zh")
+	assert.equal(resolveHomeLanguage(), "zh")
+})
+
+test("returns the working hero summary branch from workStatus.status", () => {
+	assert.equal(
+		getHeroSummaryCopy({
+			workStatus: {
+				status: "working",
+				is_working: false,
+				last_checkin: { log_type: "IN", time: "2026-04-15 09:12:00" },
+			},
+			lang: "zh",
+			hasCta: true,
+			formatLastCheckin: () => "should-not-be-used",
+		}),
+		"今天已出勤，可点击扫码退勤"
+	)
+})
+
+test("returns the off-work hero summary branch from workStatus.status and last_checkin", () => {
+	assert.equal(
+		getHeroSummaryCopy({
+			workStatus: {
+				status: "off_work",
+				is_working: true,
+				last_checkin: { log_type: "OUT", time: "2026-04-15 18:06:00" },
+			},
+			lang: "zh",
+			hasCta: true,
+			formatLastCheckin: (value) => (value === "2026-04-15 18:06:00" ? "18:06" : value),
+		}),
+		"上次退勤 18:06，可点击扫码出勤"
+	)
+})
+
+test("returns the no-checkin hero summary branch from workStatus.status", () => {
+	assert.equal(
+		getHeroSummaryCopy({
+			workStatus: {
+				status: "no_checkin_today",
+				is_working: true,
+				last_checkin: null,
+			},
+			lang: "zh",
+			hasCta: true,
+		}),
+		"暂无打卡记录，可点击扫码出勤"
+	)
+})
+
+test("returns a null hero summary while work status is unresolved", () => {
+	assert.equal(getHeroSummaryCopy({ workStatus: null, lang: "zh", hasCta: true }), null)
+	assert.equal(getHeroSummaryCopy({ workStatus: undefined, lang: "zh", hasCta: false }), null)
+})
+
+test("builds hero state directly from status and last_checkin", () => {
+	const translate = (value) => `tr:${value}`
+
+	assert.deepEqual(
+		getHeroCardMeta({
+			workStatus: undefined,
+			lang: "zh",
+			allowPrimaryScan: true,
+			translate,
+		}),
+		{
+			summary: null,
+			cta: null,
+		}
+	)
+
+	const workingHero = getHeroCardMeta({
+		workStatus: {
+			status: "working",
+			is_working: false,
+			last_checkin: { log_type: "IN", time: "2026-04-15 09:12:00" },
+		},
+		lang: "zh",
+		allowPrimaryScan: true,
+		translate,
+		formatLastCheckin: (value) => (value === "2026-04-15 09:12:00" ? "09:12" : value),
+	})
+	assert.equal(workingHero.summary, "今天已出勤，可点击扫码退勤")
+	assert.deepEqual(workingHero.cta, {
+		action: "OUT",
+		label: "tr:Check Out",
+		title: "扫码退勤",
+		description: "打开相机完成退勤",
+	})
+
+	const offHero = getHeroCardMeta({
+		workStatus: {
+			status: "off_work",
+			is_working: true,
+			last_checkin: { log_type: "OUT", time: "2026-04-15 18:06:00" },
+		},
+		lang: "zh",
+		allowPrimaryScan: true,
+		translate,
+		formatLastCheckin: (value) => (value === "2026-04-15 18:06:00" ? "18:06" : value),
+	})
+	assert.equal(offHero.summary, "上次退勤 18:06，可点击扫码出勤")
+	assert.deepEqual(offHero.cta, {
+		action: "IN",
+		label: "tr:Check In",
+		title: "扫码出勤",
+		description: "打开相机进行打卡",
+	})
+
+	assert.deepEqual(
+		getHeroCardMeta({
+			workStatus: {
+				status: "no_checkin_today",
+				is_working: true,
+				last_checkin: null,
+			},
+			lang: "zh",
+			allowPrimaryScan: false,
+			translate,
+		}),
+		{
+			summary: "暂无打卡记录",
+			cta: null,
+		}
+	)
+})
+
+test("CheckInPanel reuses the shared hero state helper without reading checkins for hero copy", () => {
+	const source = fs.readFileSync(checkInPanelPath, "utf8")
+
+	assert.match(source, /getHeroCardMeta/)
+	assert.doesNotMatch(source, /const lastLog = computed\(/)
+	assert.doesNotMatch(source, /timeText:\s*/)
+})
+
+test("CheckInPanel drops the legacy list, modal, and socket refresh chain", () => {
+	const source = fs.readFileSync(checkInPanelPath, "utf8")
+
+	assert.doesNotMatch(source, /createListResource/)
+	assert.doesNotMatch(source, /checkins\.reload\(/)
+	assert.doesNotMatch(source, /list_update/)
+	assert.doesNotMatch(source, /open-checkin-modal/)
+	assert.doesNotMatch(source, /submitLog\(/)
+	assert.doesNotMatch(source, /modalController/)
+	assert.doesNotMatch(source, /\bIonModal\b/)
+
+	assert.match(source, /QRScannerModal/)
+	assert.match(source, /openQRScanner/)
+	assert.match(source, /handleQRScanSuccess/)
+	assert.match(source, /emitCheckinStatusChanged/)
+	assert.doesNotMatch(source, /window\.dispatchEvent/)
+})
+
+test("Home owns a single work-status resource shared by the chip and panel", () => {
+	const homeSource = fs.readFileSync(homeViewPath, "utf8")
+	const chipSource = fs.readFileSync(
+		path.resolve(currentDir, "../components/home/HomeStatusChip.vue"),
+		"utf8"
+	)
+	const panelSource = fs.readFileSync(checkInPanelPath, "utf8")
+
+	assert.match(homeSource, /const workStatus = createResource\(/)
+	assert.match(homeSource, /<HomeStatusChip\s+:work-status="workStatus"/)
+	assert.match(homeSource, /<CheckInPanel\s+class="w-full flex-1"\s+:work-status="workStatus"/)
+	assert.doesNotMatch(chipSource, /createResource\(/)
+	assert.doesNotMatch(panelSource, /url:\s*"hrms\.api\.get_employee_work_status"/)
+})
+
+test("HomeStatusChip keeps no_checkin_today as a distinct status input", () => {
+	const chipSource = fs.readFileSync(
+		path.resolve(currentDir, "../components/home/HomeStatusChip.vue"),
+		"utf8"
+	)
+
+	assert.match(chipSource, /getStatusChipMeta\(props\.workStatus\?\.data,\s*lang\.value\)/)
+	assert.doesNotMatch(chipSource, /resolveWorkStatusValue/)
+})
+
+test("Home wires the shared check-in refresh helper instead of inline event listeners", () => {
+	const source = fs.readFileSync(homeViewPath, "utf8")
+
+	assert.match(source, /bindCheckinStatusRefresh/)
+	assert.match(source, /unbindCheckinStatusRefresh/)
+	assert.doesNotMatch(source, /addEventListener\(\s*["']checkin-status-changed["']/)
+	assert.doesNotMatch(source, /removeEventListener\(\s*["']checkin-status-changed["']/)
+})
+
+test("keeps the hero state unresolved until work status is explicitly available", () => {
+	const source = fs.readFileSync(checkInPanelPath, "utf8")
+
+	assert.match(source, /workStatus:\s*props\.workStatus\?\.data/)
+	assert.match(source, /allowPrimaryScan:\s*isMobileCheckinAllowed\.value/)
+})
+
+test("guards hero summary and CTA rendering behind nullable props", () => {
+	const source = fs.readFileSync(homeHeroCardPath, "utf8")
+
+	assert.match(source, /<p\s+v-if="summary"\s+class="hero-summary">/)
+	assert.match(source, /<button\s+v-if="cta"\s+type="button"\s+class="hero-cta"/)
+	assert.match(source, /summary:\s*\{\s*type:\s*String,\s*default:\s*null/)
+	assert.match(source, /cta:\s*\{\s*type:\s*Object,\s*default:\s*null/)
+})
+
+test("returns the compressed roster empty copy", () => {
+	assert.deepEqual(getRosterEmptyCopy("zh"), {
+		today: "今日无班次",
+		todayHint: "今天没有已发布排班",
+		next: "暂无下个班次",
+		nextHint: "后续班次尚未发布",
+	})
+})
+
+test("returns ja and en home copy branches without mixed-language fallbacks", () => {
+	assert.equal(
+		getHeroSummaryCopy({
+			workStatus: {
+				status: "working",
+				last_checkin: { log_type: "IN", time: "2026-04-15 09:12:00" },
+			},
+			lang: "ja",
+			hasCta: true,
+		}),
+		"本日は出勤済みです。タップしてQRコードで退勤できます"
+	)
+	assert.equal(
+		getHeroSummaryCopy({
+			workStatus: {
+				status: "no_checkin_today",
+				last_checkin: null,
+			},
+			lang: "en",
+			hasCta: false,
+		}),
+		"No attendance record yet."
+	)
+	assert.deepEqual(getRosterEmptyCopy("en"), {
+		today: "No shift today",
+		todayHint: "No published shift today",
+		next: "No next shift yet",
+		nextHint: "Upcoming shifts are not published yet",
+	})
+})
+
+test("HomeSummaryCard keeps roster empty copy in a single source", () => {
+	const source = fs.readFileSync(homeSummaryCardPath, "utf8")
+
+	assert.match(
+		source,
+		/import\s+\{\s*getRosterEmptyCopy\s*,\s*resolveHomeLanguage\s*\}\s+from\s+"@\/utils\/homeExperience"/
+	)
+	assert.doesNotMatch(source, /\btodayEmpty:\s*\{/)
+	assert.doesNotMatch(source, /\btodayEmptyHint:\s*\{/)
+	assert.doesNotMatch(source, /\bnextEmpty:\s*\{/)
+	assert.doesNotMatch(source, /\bnextEmptyHint:\s*\{/)
+})
+
+test("home modules share one language helper instead of local fallbacks", () => {
+	const panelSource = fs.readFileSync(checkInPanelPath, "utf8")
+	const weatherSource = fs.readFileSync(weatherWidgetPath, "utf8")
+	const summarySource = fs.readFileSync(homeSummaryCardPath, "utf8")
+	const chipSource = fs.readFileSync(
+		path.resolve(currentDir, "../components/home/HomeStatusChip.vue"),
+		"utf8"
+	)
+
+	assert.match(panelSource, /resolveHomeLanguage/)
+	assert.match(panelSource, /<HomeSummaryCard\s+:lang="currentLanguage"/)
+	assert.match(panelSource, /<WeatherWidget\s+:lang="currentLanguage"/)
+	assert.doesNotMatch(panelSource, /frappe\.boot(?:\?\.|\.?)lang/)
+
+	assert.match(weatherSource, /resolveHomeLanguage/)
+	assert.match(weatherSource, /currentLanguage/)
+	assert.doesNotMatch(weatherSource, /\|\|\s*["'](?:ja|zh|en)["']/)
+	assert.doesNotMatch(weatherSource, /frappe\.boot(?:\?\.|\.?)lang/)
+
+	assert.match(summarySource, /resolveHomeLanguage/)
+	assert.match(summarySource, /currentLanguage/)
+	assert.doesNotMatch(summarySource, /\|\|\s*["'](?:ja|zh|en)["']/)
+	assert.doesNotMatch(summarySource, /frappe\.boot(?:\?\.|\.?)lang/)
+
+	assert.match(chipSource, /resolveHomeLanguage/)
+	assert.doesNotMatch(chipSource, /frappe\.boot(?:\?\.|\.?)lang/)
+})
+
+test("builds a check-in success overlay model with attendance routing", () => {
+	assert.deepEqual(
+		buildSuccessOverlayModel({
+			action: "IN",
+			lang: "zh",
+			responseMessage: { time: "2026-04-15 09:02:00", location: "office-10F" },
+			monthHours: 126.5,
+		}),
+		{
+			variant: "checkin",
+			statusLabel: "出勤成功",
+			title: "开始上班",
+			primaryLabel: "查看今日勤怠",
+			primaryRoute: { name: "AttendanceDashboard" },
+			secondaryLabel: "关闭",
+			delayMs: 1600,
+			infoRows: [
+				{ label: "打卡时间", value: "09:02" },
+				{ label: "打卡方式", value: "扫码 / PWA" },
+				{ label: "地点", value: "office-10F" },
+			],
+		},
+	)
+})
+
+test("builds a check-out success overlay model with month hours and tomorrow note", () => {
+	const model = buildSuccessOverlayModel({
+		action: "OUT",
+		lang: "zh",
+		responseMessage: { time: "2026-04-15 18:06:00", location: "office-10F" },
+		monthHours: 126.5,
+	})
+
+	assert.equal(model.variant, "checkout")
+	assert.equal(model.statusLabel, "退勤成功")
+	assert.equal(model.primaryRoute.name, "EmployeeCheckinListView")
+	assert.deepEqual(model.infoRows, [
+		{ label: "退勤时间", value: "18:06" },
+		{ label: "当月工时", value: "126.50 小时" },
+		{ label: "说明", value: "今天的工时信息，将于明天可查看。" },
+	])
+})
+
+test("success overlay controller opens the overlay and reveals actions after the configured delay", async () => {
+	const { createSuccessOverlayController } = await loadCheckInPanelHelpers()
+	const timers = createFakeTimers()
+	const state = {
+		isOpen: false,
+		actionsVisible: false,
+		model: null,
+		returnRoute: null,
+	}
+	const model = buildSuccessOverlayModel({
+		action: "IN",
+		lang: "zh",
+		responseMessage: { time: "2026-04-15 09:02:00", location: "office-10F" },
+		monthHours: 126.5,
+	})
+	const controller = createSuccessOverlayController({
+		state,
+		schedule: timers.schedule,
+		cancel: timers.cancel,
+	})
+
+	controller.open(model, "/app/home")
+
+	assert.deepEqual(state, {
+		isOpen: true,
+		actionsVisible: false,
+		model,
+		returnRoute: "/app/home",
+	})
+	assert.deepEqual(timers.getPendingDelays(), [1600])
+
+	timers.tick(1599)
+	assert.equal(state.actionsVisible, false)
+
+	timers.tick(1)
+	assert.equal(state.actionsVisible, true)
+})
+
+test("success overlay controller closes the overlay, clears pending delay, and restores the original route", async () => {
+	const { createSuccessOverlayController } = await loadCheckInPanelHelpers()
+	const timers = createFakeTimers()
+	const state = {
+		isOpen: false,
+		actionsVisible: false,
+		model: null,
+		returnRoute: null,
+	}
+	const replacedRoutes = []
+	const controller = createSuccessOverlayController({
+		state,
+		schedule: timers.schedule,
+		cancel: timers.cancel,
+	})
+
+	controller.open(
+		buildSuccessOverlayModel({
+			action: "OUT",
+			lang: "zh",
+			responseMessage: { time: "2026-04-15 18:06:00", location: "office-10F" },
+			monthHours: 126.5,
+		}),
+		"/app/home"
+	)
+	controller.close({
+		currentRoute: "/dashboard/attendance",
+		replaceRoute: (target) => replacedRoutes.push(target),
+	})
+	timers.tick(1600)
+
+	assert.deepEqual(state, {
+		isOpen: false,
+		actionsVisible: false,
+		model: null,
+		returnRoute: null,
+	})
+	assert.deepEqual(replacedRoutes, ["/app/home"])
+	assert.deepEqual(timers.getPendingDelays(), [])
+})
+
+test("success overlay controller handles the primary action and clears overlay state before navigation", async () => {
+	const { createSuccessOverlayController } = await loadCheckInPanelHelpers()
+	const timers = createFakeTimers()
+	const state = {
+		isOpen: false,
+		actionsVisible: false,
+		model: null,
+		returnRoute: null,
+	}
+	const pushedRoutes = []
+	const model = buildSuccessOverlayModel({
+		action: "IN",
+		lang: "zh",
+		responseMessage: { time: "2026-04-15 09:02:00", location: "office-10F" },
+		monthHours: 126.5,
+	})
+	const controller = createSuccessOverlayController({
+		state,
+		schedule: timers.schedule,
+		cancel: timers.cancel,
+	})
+
+	controller.open(model, "/app/home")
+	controller.primary((target) => pushedRoutes.push(target))
+	timers.tick(1600)
+
+	assert.deepEqual(state, {
+		isOpen: false,
+		actionsVisible: false,
+		model: null,
+		returnRoute: null,
+	})
+	assert.deepEqual(pushedRoutes, [{ name: "AttendanceDashboard" }])
+	assert.deepEqual(timers.getPendingDelays(), [])
+})
+
+test("success overlay controller synchronizes non-button modal dismisses and ignores duplicate dismiss cleanup", async () => {
+	const { createSuccessOverlayController } = await loadCheckInPanelHelpers()
+	const timers = createFakeTimers()
+	const state = {
+		isOpen: false,
+		actionsVisible: false,
+		model: null,
+		returnRoute: null,
+	}
+	const controller = createSuccessOverlayController({
+		state,
+		schedule: timers.schedule,
+		cancel: timers.cancel,
+	})
+
+	controller.open(
+		buildSuccessOverlayModel({
+			action: "OUT",
+			lang: "zh",
+			responseMessage: { time: "2026-04-15 18:06:00", location: "office-10F" },
+			monthHours: 126.5,
+		}),
+		"/app/home"
+	)
+
+	assert.equal(
+		controller.didDismiss(
+			{ detail: { role: "gesture" } },
+			{
+				currentRoute: "/app/home",
+			}
+		),
+		true
+	)
+	assert.equal(controller.didDismiss({ detail: { role: "gesture" } }), false)
+	assert.deepEqual(state, {
+		isOpen: false,
+		actionsVisible: false,
+		model: null,
+		returnRoute: null,
+	})
+	assert.deepEqual(timers.getPendingDelays(), [])
+})
+
+test("CheckinSuccessOverlay forwards Ionic didDismiss and scopes its styles", () => {
+	const source = fs.readFileSync(checkinSuccessOverlayPath, "utf8")
+	const { descriptor } = parse(source, { filename: checkinSuccessOverlayPath })
+
+	assert.ok(descriptor.template?.content.includes('@didDismiss="handleDidDismiss"'))
+	assert.ok(descriptor.styles.some((style) => style.scoped))
+})

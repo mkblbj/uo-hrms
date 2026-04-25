@@ -1,210 +1,731 @@
 <template>
-	<div class="flex flex-col bg-white rounded w-full py-6 px-4 border-none">
-		<h2 class="text-lg font-bold text-gray-900">
-			{{ __("Hey, {0} 👋", [employee?.data?.first_name]) }}
-		</h2>
+	<div class="checkin-panel">
+		<HomeHeroCard
+			:employee-name="employee?.data?.first_name || employee?.data?.employee_name || ''"
+			:greeting="getGreeting()"
+			:date-label="formatDate()"
+			:summary="heroSummary"
+			:cta="primaryScanMeta"
+			@scan="openQRScanner"
+		/>
 
-		<template v-if="settings.data?.allow_employee_checkin_from_mobile_app">
-			<div class="font-medium text-sm text-gray-500 mt-1.5" v-if="lastLog">
-				<span>{{ __("Last {0} was at {1}", [__(lastLogType), formatTimestamp(lastLog.time)]) }}</span>
-				<span class="whitespace-pre"> &middot; </span>
-				<router-link :to="{ name: 'EmployeeCheckinListView' }" v-slot="{ navigate }">
-					<span @click="navigate" class="underline">View List</span>
-				</router-link>
+		<HomeSummaryCard :lang="currentLanguage" />
+		<WeatherWidget :lang="currentLanguage" />
+
+		<div v-if="dashboardStats.data" class="stats-row stats-row--subtle">
+			<div class="stat-card hours">
+				<div class="stat-value">{{ formatHours(dashboardStats.data.month_hours) }}</div>
+				<div class="stat-label">{{ getStatsLabel("month_hours") }}</div>
 			</div>
-			<Button
-				class="mt-4 mb-1 drop-shadow-sm py-5 text-base"
-				id="open-checkin-modal"
-				@click="handleEmployeeCheckin"
-			>
-				<template #prefix>
-					<FeatherIcon
-						:name="nextAction.action === 'IN' ? 'arrow-right-circle' : 'arrow-left-circle'"
-						class="w-4"
-					/>
-				</template>
-				{{ nextAction.label }}
-			</Button>
-		</template>
-
-		<div v-else class="font-medium text-sm text-gray-500 mt-1.5">
-			{{ dayjs().format("ddd, D MMMM, YYYY") }}
+			<div class="stat-card present">
+				<div class="stat-value">{{ dashboardStats.data.month_present }}</div>
+				<div class="stat-label">{{ getStatsLabel("month_present") }}</div>
+			</div>
 		</div>
+
+		<!-- 最新通知卡片 -->
+		<router-link
+			:to="{ name: 'Notifications' }"
+			class="notification-card"
+			v-if="latestNotification.data"
+		>
+			<div class="notification-header">
+				<div class="notification-icon">
+					<FeatherIcon name="bell" class="w-4 h-4" />
+				</div>
+				<span class="notification-title">{{ getNotificationTitle() }}</span>
+				<FeatherIcon name="chevron-right" class="w-4 h-4 text-gray-400" />
+			</div>
+			<div class="notification-content" v-if="getNotificationDisplayMessage()">
+				<div
+					class="notification-message prose prose-sm"
+					v-html="truncateHtml(getNotificationDisplayMessage(), 80)"
+				></div>
+				<div class="notification-time">
+					{{ formatNotificationTime(latestNotification.data.creation) }}
+				</div>
+			</div>
+			<div class="notification-empty" v-else>
+				{{ getNoNotificationText() }}
+			</div>
+		</router-link>
 	</div>
 
-	<ion-modal
-		v-if="settings.data?.allow_employee_checkin_from_mobile_app"
-		ref="modal"
-		trigger="open-checkin-modal"
-		:initial-breakpoint="1"
-		:breakpoints="[0, 1]"
-	>
-		<div class="h-120 w-full flex flex-col items-center justify-center gap-5 p-4 mb-5">
-			<div class="flex flex-col gap-1.5 mt-2 items-center justify-center">
-				<div class="font-bold text-xl">
-					{{ dayjs(checkinTimestamp).format("hh:mm:ss a") }}
-				</div>
-				<div class="font-medium text-gray-500 text-sm">
-					{{ dayjs().format("D MMM, YYYY") }}
-				</div>
-			</div>
+	<!-- 扫码模态框 -->
+	<QRScannerModal
+		v-if="primaryScanMeta"
+		ref="qrScannerRef"
+		:is-open="showQRScanner"
+		:log-type="primaryScanMeta.action"
+		@close="showQRScanner = false"
+		@success="handleQRScanSuccess"
+	/>
 
-			<template v-if="settings.data?.allow_geolocation_tracking">
-				<span v-if="locationStatus" class="font-medium text-gray-500 text-sm">
-					{{ locationStatus }}
-				</span>
-
-				<div class="rounded border-4 translate-z-0 block overflow-hidden w-full h-170">
-					<iframe
-						width="100%"
-						height="170"
-						frameborder="0"
-						scrolling="no"
-						marginheight="0"
-						marginwidth="0"
-						style="border: 0"
-						:src="`https://maps.google.com/maps?q=${latitude},${longitude}&hl=en&z=15&amp;output=embed`"
-					>
-					</iframe>
-				</div>
-			</template>
-
-			<Button :loading="checkins.insert.loading" variant="solid" class="w-full py-5 text-sm disabled:bg-gray-700" @click="submitLog(nextAction.action)">
-				{{ __("Confirm {0}", [nextAction.label]) }}
-			</Button>
-		</div>
-	</ion-modal>
+	<CheckinSuccessOverlay
+		v-if="successOverlayState.model"
+		:is-open="successOverlayState.isOpen"
+		:actions-visible="successOverlayState.actionsVisible"
+		:model="successOverlayState.model"
+		@primary="handleSuccessPrimary"
+		@close="handleSuccessOverlayDismiss"
+	/>
 </template>
 
+<script>
+const defaultSchedule = (callback, delay) => (globalThis.window || globalThis).setTimeout(callback, delay)
+const defaultCancel = (timerId) => (globalThis.window || globalThis).clearTimeout(timerId)
+
+function hasActiveSuccessOverlay(state) {
+	return Boolean(state.isOpen || state.actionsVisible || state.model || state.returnRoute)
+}
+
+export function createSuccessOverlayController({
+	state = {
+		isOpen: false,
+		actionsVisible: false,
+		model: null,
+		returnRoute: null,
+	},
+	schedule = defaultSchedule,
+	cancel = defaultCancel,
+} = {}) {
+	let successActionsTimer = null
+
+	function clearActionsTimer() {
+		if (successActionsTimer !== null) {
+			cancel(successActionsTimer)
+			successActionsTimer = null
+		}
+	}
+
+	function resetState() {
+		state.isOpen = false
+		state.actionsVisible = false
+		state.model = null
+		state.returnRoute = null
+	}
+
+	function open(model, currentRoute) {
+		state.returnRoute = currentRoute
+		state.model = model
+		state.actionsVisible = false
+		state.isOpen = true
+		clearActionsTimer()
+		successActionsTimer = schedule(() => {
+			state.actionsVisible = true
+		}, model.delayMs)
+	}
+
+	function close({ currentRoute = null, replaceRoute } = {}) {
+		const previousRoute = state.returnRoute
+		clearActionsTimer()
+		resetState()
+		if (
+			previousRoute &&
+			currentRoute &&
+			currentRoute !== previousRoute &&
+			typeof replaceRoute === "function"
+		) {
+			replaceRoute(previousRoute)
+		}
+	}
+
+	function primary(pushRoute) {
+		const targetRoute = state.model?.primaryRoute
+		clearActionsTimer()
+		resetState()
+		if (targetRoute && typeof pushRoute === "function") {
+			pushRoute(targetRoute)
+		}
+	}
+
+	function didDismiss(_event, options = {}) {
+		if (!hasActiveSuccessOverlay(state)) {
+			return false
+		}
+
+		close(options)
+		return true
+	}
+
+	function dispose() {
+		clearActionsTimer()
+	}
+
+	return {
+		open,
+		close,
+		primary,
+		didDismiss,
+		dispose,
+	}
+}
+</script>
+
 <script setup>
-import { createResource, createListResource, toast, FeatherIcon } from "frappe-ui"
-import { computed, inject, ref, onMounted, onBeforeUnmount } from "vue"
-import { IonModal, modalController } from "@ionic/vue"
+import { createResource, toast, FeatherIcon } from "frappe-ui"
+import { computed, inject, onBeforeUnmount, reactive, ref } from "vue"
+import { useRoute, useRouter } from "vue-router"
 
+import CheckinSuccessOverlay from "@/components/home/CheckinSuccessOverlay.vue"
+import QRScannerModal from "@/components/QRScannerModal.vue"
+import WeatherWidget from "@/components/WeatherWidget.vue"
+import HomeHeroCard from "@/components/home/HomeHeroCard.vue"
+import HomeSummaryCard from "@/components/work_roster/HomeSummaryCard.vue"
 import { formatTimestamp } from "@/utils/formatters"
+import {
+	buildSuccessOverlayModel,
+	emitCheckinStatusChanged,
+	getHeroCardMeta,
+	resolveHomeLanguage,
+} from "@/utils/homeExperience"
 
-const DOCTYPE = "Employee Checkin"
+const props = defineProps({
+	workStatus: {
+		type: Object,
+		required: true,
+	},
+})
 
-const socket = inject("$socket")
 const employee = inject("$employee")
 const dayjs = inject("$dayjs")
 const __ = inject("$translate")
-const checkinTimestamp = ref(null)
-const latitude = ref(0)
-const longitude = ref(0)
-const locationStatus = ref("")
+const route = useRoute()
+const router = useRouter()
+const showQRScanner = ref(false)
+const qrScannerRef = ref(null)
+const currentLanguage = resolveHomeLanguage(window.frappe?.boot)
+const successOverlayState = reactive({
+	isOpen: false,
+	actionsVisible: false,
+	model: null,
+	returnRoute: null,
+})
+const successOverlayController = createSuccessOverlayController({
+	state: successOverlayState,
+})
 const settings = createResource({
 	url: "hrms.api.get_hr_settings",
 	auto: true,
 })
 
-const checkins = createListResource({
-	doctype: DOCTYPE,
-	fields: ["name", "employee", "employee_name", "log_type", "time", "device_id"],
-	filters: {
-		employee: employee.data.name,
-	},
-	orderBy: "time desc",
-})
-checkins.reload()
-
-const lastLog = computed(() => {
-	if (checkins.list.loading || !checkins.data) return {}
-	return checkins.data[0]
+const dashboardStats = createResource({
+	url: "hrms.api.get_employee_dashboard_stats",
+	auto: true,
 })
 
-const lastLogType = computed(() => {
-	return lastLog?.value?.log_type === "IN" ? "check-in" : "check-out"
+const latestNotification = createResource({
+	url: "hrms.api.get_latest_notification",
+	auto: true,
 })
 
-const nextAction = computed(() => {
-	return lastLog?.value?.log_type === "IN"
-		? { action: "OUT", label: __("Check Out") }
-		: { action: "IN", label: __("Check In") }
-})
-
-function handleLocationSuccess(position) {
-	latitude.value = position.coords.latitude
-	longitude.value = position.coords.longitude
-
-	locationStatus.value = [
-		__("Latitude: {0}°", [Number(latitude.value).toFixed(5)]),
-		__("Longitude: {0}°", [Number(longitude.value).toFixed(5)]),
-	].join(", ")
-}
-
-function handleLocationError(error) {
-	locationStatus.value = "Unable to retrieve your location"
-	if (error) locationStatus.value += `: ERROR(${error.code}): ${error.message}`
-}
-
-const fetchLocation = () => {
-	if (!navigator.geolocation) {
-		locationStatus.value = __("Geolocation is not supported by your current browser")
-	} else {
-		locationStatus.value = __("Locating...")
-		navigator.geolocation.getCurrentPosition(handleLocationSuccess, handleLocationError)
-	}
-}
-
-const handleEmployeeCheckin = () => {
-	checkinTimestamp.value = dayjs().format("YYYY-MM-DD HH:mm:ss")
-
-	if (settings.data?.allow_geolocation_tracking) {
-		fetchLocation()
-	}
-}
-
-const submitLog = (logType) => {
-	const actionLabel = logType === "IN" ? __("Check-in") : __("Check-out")
-
-	checkins.insert.submit(
-		{
-			employee: employee.data.name,
-			log_type: logType,
-			time: checkinTimestamp.value,
-			latitude: latitude.value,
-			longitude: longitude.value,
-		},
-		{
-			onSuccess() {
-				modalController.dismiss()
-				toast({
-					title: __("Success"),
-					text: __("{0} successful!", [actionLabel]),
-					icon: "check-circle",
-					position: "bottom-center",
-					iconClasses: "text-green-500",
-				})
-			},
-			onError(error) {
-				let messages = error.messages || []
-
-				for (const message of messages) {
-					toast({
-						title: __("Error"),
-						text: message || __("{0} failed!", [actionLabel]),
-						icon: "alert-circle",
-						position: "bottom-center",
-						iconClasses: "text-red-500",
-					})
-				}
-			},
-		}
-	)
-}
-
-onMounted(() => {
-	socket.emit("doctype_subscribe", DOCTYPE)
-	socket.on("list_update", (data) => {
-		if (data.doctype == DOCTYPE) {
-			checkins.reload()
-		}
+const isMobileCheckinAllowed = computed(() =>
+	Boolean(settings.data?.allow_employee_checkin_from_mobile_app)
+)
+const heroCardMeta = computed(() =>
+	getHeroCardMeta({
+		workStatus: props.workStatus?.data,
+		lang: currentLanguage,
+		formatLastCheckin: formatTimestamp,
+		translate: __,
+		allowPrimaryScan: isMobileCheckinAllowed.value,
 	})
-})
+)
+const primaryScanMeta = computed(() => heroCardMeta.value.cta)
+const heroSummary = computed(() => heroCardMeta.value.summary)
+
+const openQRScanner = () => {
+	if (!settings.data?.allow_employee_checkin_from_mobile_app || !primaryScanMeta.value) return
+	showQRScanner.value = true
+}
+
+function openSuccessOverlay(model) {
+	successOverlayController.open(model, route.fullPath)
+}
+
+function closeSuccessOverlay() {
+	successOverlayController.close({
+		currentRoute: route.fullPath,
+		replaceRoute: (target) => router.replace(target),
+	})
+}
+
+function handleSuccessPrimary() {
+	successOverlayController.primary((target) => router.push(target))
+}
+
+function handleSuccessOverlayDismiss(event) {
+	successOverlayController.didDismiss(event, {
+		currentRoute: route.fullPath,
+		replaceRoute: (target) => router.replace(target),
+	})
+}
+
+const handleQRScanSuccess = async (token, latitude = null, longitude = null) => {
+	const action = primaryScanMeta.value?.action
+	if (!action) return
+
+	try {
+		// 如果启用了地理位置追踪，但扫码模态框没有传递位置信息，则尝试获取
+		if (settings.data?.allow_geolocation_tracking && (!latitude || !longitude)) {
+			try {
+				const position = await new Promise((resolve, reject) => {
+					if (!navigator.geolocation) {
+						reject(new Error(__("Geolocation is not supported by your browser")))
+						return
+					}
+
+					navigator.geolocation.getCurrentPosition(resolve, reject, {
+						enableHighAccuracy: true,
+						timeout: 10000,
+						maximumAge: 0,
+					})
+				})
+
+				latitude = position.coords.latitude
+				longitude = position.coords.longitude
+			} catch (geoError) {
+				toast({
+					title: __("Location Error"),
+					text: __(
+						"Unable to retrieve your location. Please enable location access and try again."
+					),
+					icon: "alert-circle",
+					position: "bottom-center",
+					iconClasses: "text-red-500",
+				})
+				// 重置 scanner 的 submitting 状态
+				if (qrScannerRef.value) {
+					qrScannerRef.value.submitting = false
+				}
+				return
+			}
+		}
+
+		// 调用后端二维码打卡 API
+		const response = await fetch("/api/method/hrms.api.qr_attendance.qr_checkin", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"X-Frappe-CSRF-Token": window.csrf_token || "",
+			},
+			body: JSON.stringify({
+				token: token,
+				log_type: action,
+				latitude: latitude,
+				longitude: longitude,
+			}),
+		})
+
+		const data = await response.json()
+
+		// 检查是否成功
+		if (response.ok && data.message && data.message.status === "ok") {
+			try {
+				await dashboardStats.reload()
+			} catch (reloadError) {
+				console.error("Failed to refresh dashboard stats", reloadError)
+			}
+
+			// 发送全局事件通知工作状态徽章更新
+			emitCheckinStatusChanged(window, { log_type: action })
+			showQRScanner.value = false
+			// iOS PWA: 等待 QR scanner 的 ion-modal 开始 dismiss 后再开启 success overlay，
+			// 避免两个 ion-modal 的进出场动画重叠导致子 CSS 动画被 WebKit 合成器冻结。
+			await new Promise((resolve) => setTimeout(resolve, 320))
+			openSuccessOverlay(
+				buildSuccessOverlayModel({
+					action,
+					lang: currentLanguage,
+					responseMessage: data.message,
+					monthHours: dashboardStats.data?.month_hours,
+				})
+			)
+			return
+		} else {
+			// 处理错误：优先显示后端返回的友好错误信息
+			let errorMessage = __("Check-in failed")
+
+			// Frappe 错误格式解析
+			if (data._server_messages) {
+				try {
+					const messages = JSON.parse(data._server_messages)
+					if (messages && messages.length > 0) {
+						const msg = JSON.parse(messages[0])
+						errorMessage = msg.message || errorMessage
+					}
+				} catch (e) {
+					console.error("Failed to parse error messages", e)
+				}
+			} else if (data.exception) {
+				// 从 exception 中提取错误信息
+				const match = data.exception.match(/frappe\.exceptions\.\w+:\s*(.+)/)
+				if (match && match[1]) {
+					errorMessage = match[1].trim()
+				}
+			} else if (data.exc) {
+				// 兼容旧版本
+				errorMessage = data.exc
+			}
+
+			throw new Error(errorMessage)
+		}
+	} catch (error) {
+		toast({
+			title: __("Error"),
+			text: error.message || __("Check-in failed"),
+			icon: "alert-circle",
+			position: "bottom-center",
+			iconClasses: "text-red-500",
+		})
+	} finally {
+		// 无论成功失败，都重置 scanner 的 submitting 状态
+		if (qrScannerRef.value) {
+			qrScannerRef.value.submitting = false
+		}
+	}
+}
 
 onBeforeUnmount(() => {
-	socket.emit("doctype_unsubscribe", DOCTYPE)
-	socket.off("list_update")
+	successOverlayController.dispose()
 })
+
+// 辅助函数
+function getGreeting() {
+	const hour = new Date().getHours()
+	const lang = currentLanguage
+
+	const greetings = {
+		ja: {
+			morning: "おはようございます",
+			afternoon: "こんにちは",
+			evening: "こんばんは",
+		},
+		zh: {
+			morning: "早上好",
+			afternoon: "下午好",
+			evening: "晚上好",
+		},
+		en: {
+			morning: "Good morning",
+			afternoon: "Good afternoon",
+			evening: "Good evening",
+		},
+	}
+
+	const langGreetings = greetings[lang] || greetings.zh
+
+	if (hour < 12) return langGreetings.morning
+	if (hour < 18) return langGreetings.afternoon
+	return langGreetings.evening
+}
+
+function formatDate() {
+	const lang = currentLanguage
+	const date = new Date()
+
+	if (lang === "ja") {
+		return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 (${
+			["日", "月", "火", "水", "木", "金", "土"][date.getDay()]
+		})`
+	} else if (lang === "zh") {
+		return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日 星期${
+			["日", "一", "二", "三", "四", "五", "六"][date.getDay()]
+		}`
+	} else {
+		return dayjs().format("ddd, D MMMM, YYYY")
+	}
+}
+
+function formatHours(hours) {
+	if (!hours) return "0.00"
+	return hours.toFixed(2)
+}
+
+function getStatsLabel(key) {
+	const lang = currentLanguage
+
+	const labels = {
+		today_hours: {
+			ja: "今日の勤務時間",
+			zh: "今日工作时长",
+			en: "Today's Hours",
+		},
+		month_hours: {
+			ja: "今月の勤務時間",
+			zh: "本月工作时长",
+			en: "This Month",
+		},
+		month_present: {
+			ja: "今月の出勤",
+			zh: "本月出勤",
+			en: "Days Present",
+		},
+		month_absent: {
+			ja: "今月の休み",
+			zh: "本月休息",
+			en: "Days Rest",
+		},
+		hours_unit: {
+			ja: "時間",
+			zh: "小时",
+			en: "hours",
+		},
+		days_unit: {
+			ja: "日",
+			zh: "天",
+			en: "days",
+		},
+	}
+
+	return labels[key]?.[lang] || labels[key]?.zh || key
+}
+
+function getNotificationTitle() {
+	const lang = currentLanguage
+	if (lang === "ja") return "お知らせ"
+	if (lang === "zh") return "最新通知"
+	return "Notifications"
+}
+
+function getNoNotificationText() {
+	const lang = currentLanguage
+	if (lang === "ja") return "新しいお知らせはありません"
+	if (lang === "zh") return "暂无新通知"
+	return "No new notifications"
+}
+
+function stripHtml(html) {
+	if (!html) return ""
+	const tmp = document.createElement("div")
+	tmp.innerHTML = html
+	const text = tmp.textContent || tmp.innerText || ""
+	// 截取前50个字符
+	return text.length > 50 ? text.substring(0, 50) + "..." : text
+}
+
+function getNotificationDisplayMessage() {
+	const data = latestNotification.data
+	if (!data) return ""
+	// 优先使用 API 返回的 display_message
+	if (data.display_message) return data.display_message
+	// 如果使用 HTML 源代码模式
+	if (data.use_html_source && data.html_source) {
+		return data.html_source
+	}
+	return data.message || ""
+}
+
+function truncateHtml(html, maxLength) {
+	if (!html) return ""
+	const tmp = document.createElement("div")
+	tmp.innerHTML = html
+	const text = tmp.textContent || tmp.innerText || ""
+
+	// 如果纯文本内容较短，直接返回原 HTML
+	if (text.length <= maxLength) {
+		return html
+	}
+
+	// 否则截取并保留基本 HTML 结构
+	// 简单处理：截取文本并保留第一个段落或元素的样式
+	const truncatedText = text.substring(0, maxLength) + "..."
+
+	// 尝试保留简单的 HTML 格式
+	const firstTag = html.match(/^<(\w+)[^>]*>/)
+	if (firstTag) {
+		const tagName = firstTag[1]
+		return `<${tagName}>${truncatedText}</${tagName}>`
+	}
+
+	return truncatedText
+}
+
+function formatNotificationTime(dateStr) {
+	if (!dateStr) return ""
+	const date = dayjs(dateStr)
+	const now = dayjs()
+	const diffMinutes = now.diff(date, "minute")
+	const diffHours = now.diff(date, "hour")
+	const diffDays = now.diff(date, "day")
+
+	const lang = currentLanguage
+
+	if (diffMinutes < 1) {
+		return lang === "ja" ? "たった今" : lang === "zh" ? "刚刚" : "Just now"
+	} else if (diffMinutes < 60) {
+		return lang === "ja"
+			? `${diffMinutes}分前`
+			: lang === "zh"
+			? `${diffMinutes}分钟前`
+			: `${diffMinutes}m ago`
+	} else if (diffHours < 24) {
+		return lang === "ja"
+			? `${diffHours}時間前`
+			: lang === "zh"
+			? `${diffHours}小时前`
+			: `${diffHours}h ago`
+	} else if (diffDays < 7) {
+		return lang === "ja"
+			? `${diffDays}日前`
+			: lang === "zh"
+			? `${diffDays}天前`
+			: `${diffDays}d ago`
+	} else {
+		return date.format("MM/DD")
+	}
+}
 </script>
+
+<style scoped>
+.checkin-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	width: 100%;
+	flex: 1;
+}
+.stats-row {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 12px;
+}
+.stat-card {
+	background: white;
+	border-radius: 14px;
+	padding: 20px 16px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+	border-left: 4px solid;
+}
+.stat-card.hours {
+	border-color: #8b5cf6;
+}
+.stat-card.present {
+	border-color: #10b981;
+}
+.stat-value {
+	font-size: 32px;
+	font-weight: 700;
+	color: #111827;
+	line-height: 1;
+}
+.stat-label {
+	font-size: 13px;
+	color: #6b7280;
+	margin-top: 8px;
+}
+
+.stats-row--subtle .stat-card {
+	box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+	padding: 16px 14px;
+}
+
+.stats-row--subtle .stat-value {
+	font-size: 28px;
+}
+
+/* 通知卡片 */
+.notification-card {
+	display: block;
+	background: white;
+	border-radius: 14px;
+	padding: 14px 16px;
+	box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+	text-decoration: none;
+	transition: all 0.2s ease;
+	border-left: 3px solid #f59e0b;
+}
+
+.notification-card:hover {
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+	transform: translateY(-1px);
+}
+
+.notification-card:active {
+	transform: translateY(0);
+}
+
+.notification-header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.notification-icon {
+	width: 28px;
+	height: 28px;
+	border-radius: 8px;
+	background: rgba(245, 158, 11, 0.1);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #f59e0b;
+}
+
+.notification-title {
+	flex: 1;
+	font-size: 14px;
+	font-weight: 600;
+	color: #374151;
+}
+
+.notification-content {
+	margin-top: 10px;
+	padding-left: 36px;
+}
+
+.notification-message {
+	font-size: 13px;
+	color: #6b7280;
+	line-height: 1.5;
+	word-break: break-word;
+}
+
+.notification-message :deep(h1),
+.notification-message :deep(h2),
+.notification-message :deep(h3) {
+	font-size: 14px;
+	font-weight: 600;
+	margin: 0 0 4px 0;
+	color: #374151;
+}
+
+.notification-message :deep(p) {
+	margin: 0;
+}
+
+.notification-message :deep(strong) {
+	font-weight: 600;
+}
+
+.notification-message :deep(a) {
+	color: #2563eb;
+	text-decoration: underline;
+}
+
+.notification-message :deep(ul),
+.notification-message :deep(ol) {
+	margin: 4px 0;
+	padding-left: 16px;
+}
+
+.notification-message :deep(img) {
+	max-width: 100%;
+	max-height: 60px;
+	border-radius: 4px;
+	margin: 4px 0;
+}
+
+.notification-time {
+	font-size: 11px;
+	color: #9ca3af;
+	margin-top: 4px;
+}
+
+.notification-empty {
+	margin-top: 8px;
+	padding-left: 36px;
+	font-size: 13px;
+	color: #9ca3af;
+}
+</style>

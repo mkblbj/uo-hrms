@@ -3,9 +3,9 @@
 		<ion-content class="ion-padding">
 			<div class="flex h-screen w-screen flex-col justify-center bg-white">
 				<div class="flex flex-col mx-auto gap-3 items-center">
-					<FrappeHRLogo class="h-8 w-8" />
+					<img src="/uo-hr-logo.png" class="h-20 w-20 object-contain" alt="UO HR Logo" />
 					<div class="text-3xl font-semibold text-gray-900 text-center">
-						{{ __("Login to Frappe HR") }}
+						{{ __("Login to UO HR") }}
 					</div>
 				</div>
 

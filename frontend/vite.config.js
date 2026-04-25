@@ -24,11 +24,11 @@ export default defineConfig({
 			},
 			manifest: {
 				display: "standalone",
-				name: "Frappe HR",
-				short_name: "Frappe HR",
+				name: "UO HR",
+				short_name: "UO HR",
 				start_url: "/hrms",
-				description: "Everyday HR & Payroll operations at your fingertips",
-				theme_color: "#ffffff",
+				description: "株式会社UO人力资源管理系统",
+				theme_color: "#1E40AF",
 				icons: [
 					{
 						src: "/assets/hrms/manifest/manifest-icon-192.maskable.png",

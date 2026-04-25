@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Check-in</title>
+    <style>
+        :root {
+            --bg-start: #dbeafe;
+            --bg-end: #eff6ff;
+            --brand: #1E40AF;
+            --brand-light: #3B82F6;
+            --brand-accent: #60A5FA;
+            --text-main: #111827;
+            --text-sub: #6b7280;
+            --border-soft: #e5e7eb;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: radial-gradient(circle at top left, var(--bg-start), var(--bg-end));
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", sans-serif;
+            color: var(--text-main);
+        }
+
+        .container {
+            width: 100%;
+            padding: 12px;
+        }
+
+        .card {
+            max-width: 420px;
+            margin: 0 auto;
+            padding: 16px 16px 14px;
+            border-radius: 20px;
+            background: #ffffff;
+            box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+        }
+
+        .card-header {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-sub);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .card-header span:last-child {
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        /* 时间块 */
+        .time-block {
+            text-align: center;
+            background: #f5f5fb;
+            border-radius: 14px;
+            padding: 6px 10px;
+            margin-bottom: 10px;
+        }
+
+        .time-date {
+            font-size: 11px;
+            color: var(--text-sub);
+            letter-spacing: 0.03em;
+        }
+
+        .time-clock {
+            margin-top: 1px;
+            font-size: 22px;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: var(--brand);
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* 地点显示 */
+        .qr-location {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            font-size: 15px;
+            font-weight: 600;
+        }
+
+        .qr-location-icon {
+            font-size: 16px;
+        }
+
+        .qr-status {
+            margin-top: 3px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        /* QR + 方形倒计时边框 */
+        .qr-code-wrapper {
+            margin-top: 12px;
+            padding: 12px 12px 10px;
+            border-radius: 16px;
+            background: #ffffff;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .qr-timer-ring {
+            position: relative;
+            width: 280px;
+            height: 280px;
+        }
+
+        .qr-ring-svg {
+            position: absolute;
+            inset: 0;
+        }
+
+        .qr-ring-bg {
+            fill: none;
+            stroke: #e5e7eb;
+            stroke-width: 6;
+        }
+
+        .qr-ring-progress {
+            fill: none;
+            stroke-width: 6;
+            stroke-linecap: round;
+            stroke: url(#qrGrad);
+        }
+
+        #qrcode {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: white;
+            border-radius: 8px;
+        }
+
+        #qrcode img, #qrcode canvas {
+            display: block;
+            width: 220px !important;
+            height: 220px !important;
+        }
+
+        .qr-seconds-label {
+            margin-top: 10px;
+            text-align: center;
+            font-size: 12px;
+            color: var(--text-sub);
+        }
+
+        .qr-seconds-value {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--brand);
+            margin: 0 2px;
+        }
+
+        .qr-instruction {
+            margin-top: 8px;
+            text-align: center;
+            font-size: 10px;
+            color: var(--text-sub);
+            line-height: 1.5;
+        }
+
+        /* 链接样式 */
+        .back-link {
+            display: block;
+            margin-top: 18px;
+            text-align: center;
+            color: var(--text-sub);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .back-link:hover {
+            color: var(--brand);
+            text-decoration: underline;
+        }
+
+        /* 列表页面样式 */
+        h1 {
+            font-size: 20px;
+            font-weight: 700;
+            margin: 0 0 6px 0;
+            color: var(--text-main);
+            text-align: center;
+        }
+        
+        .location-desc {
+            font-size: 13px;
+            color: var(--text-sub);
+            margin-bottom: 20px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .location-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .location-item {
+            display: flex;
+            align-items: center;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            background: #f9fafb;
+            border: 1px solid var(--border-soft);
+            border-radius: 12px;
+            text-decoration: none;
+            color: var(--text-main);
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .location-item:hover {
+            border-color: var(--brand);
+            background: white;
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .location-item span {
+            margin-left: auto;
+            color: #9ca3af;
+        }
+
+        /* Toast 样式 */
+        .toast-container {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 90%;
+            max-width: 380px;
+        }
+
+        .toast {
+            background: white;
+            border-left: 5px solid var(--brand);
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            padding: 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .toast.checkout {
+            border-left-color: #ec4899;
+        }
+
+        .toast-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #f3f4f6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--text-sub);
+            flex-shrink: 0;
+        }
+
+        .toast-content {
+            flex: 1;
+        }
+
+        .toast-title {
+            font-weight: 700;
+            color: var(--text-main);
+            font-size: 14px;
+            margin-bottom: 2px;
+        }
+
+        .toast-message {
+            font-size: 12px;
+            color: var(--text-sub);
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(100%); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        @keyframes fadeOut {
+            to { opacity: 0; transform: translateY(-10px); }
+        }
+
+        .toast.hiding {
+            animation: fadeOut 0.3s ease-out forwards;
+        }
+
+        /* iPhone 优化 - 让二维码尽可能大 */
+        @media (max-width: 480px) {
+            .container {
+                padding: 8px;
+            }
+            .card {
+                padding: 12px 12px 10px;
+                border-radius: 18px;
+            }
+            .card-header {
+                font-size: 11px;
+                margin-bottom: 6px;
+            }
+            .time-block {
+                padding: 5px 8px;
+                margin-bottom: 8px;
+                border-radius: 12px;
+            }
+            .time-date {
+                font-size: 10px;
+            }
+            .time-clock {
+                font-size: 20px;
+            }
+            .qr-location {
+                font-size: 14px;
+            }
+            .qr-status {
+                font-size: 10px;
+                margin-top: 2px;
+            }
+            .qr-code-wrapper {
+                margin-top: 10px;
+                padding: 10px 10px 8px;
+                box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
+            }
+            .qr-timer-ring {
+                width: calc(100vw - 80px);
+                height: calc(100vw - 80px);
+                max-width: 320px;
+                max-height: 320px;
+            }
+            #qrcode img, #qrcode canvas {
+                width: calc(100vw - 130px) !important;
+                height: calc(100vw - 130px) !important;
+                max-width: 260px !important;
+                max-height: 260px !important;
+            }
+            .qr-seconds-label {
+                margin-top: 8px;
+                font-size: 11px;
+            }
+            .qr-instruction {
+                margin-top: 6px;
+                font-size: 9px;
+            }
+            .back-link {
+                margin-top: 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    {% if not location_name %}
+        <!-- 地点列表页面 -->
+        <div class="card">
+            <div class="card-header">
+                <span>UO HR / QR打刻端末</span>
+                <span>場所選択</span>
+            </div>
+            <h1>打刻場所を選択</h1>
+            <p class="location-desc">チェックインする場所を選んでください</p>
+            <div class="location-list">
+                {% for loc in locations %}
+                <a href="/qr_display?location={{ loc.location_name }}" class="location-item">
+                    📍 {{ loc.description or loc.location_name }}
+                    <span>→</span>
+                </a>
+                {% endfor %}
+                {% if not locations %}
+                <p style="color: var(--text-sub); text-align: center;">利用可能な場所がありません</p>
+                {% endif %}
+            </div>
+        </div>
+    {% else %}
+        <!-- 二維码展示页面 -->
+        <div class="card">
+            <div class="card-header">
+                <span>UO HR / QR打刻端末</span>
+                <span>出退勤打刻</span>
+            </div>
+
+            <!-- 时间块 -->
+            <div class="time-block">
+                <div class="time-date" id="current-date">--月--日</div>
+                <div class="time-clock" id="current-time">--:--:--</div>
+            </div>
+
+            <!-- 地点 -->
+            <div class="qr-location">
+                <span class="qr-location-icon">📍</span>
+                <span>{{ description or location_name }}</span>
+            </div>
+            <div class="qr-status">現在のステータス：打刻受付中</div>
+
+            <!-- QR + 方形倒计时边框 -->
+            <div class="qr-code-wrapper">
+                <div class="qr-timer-ring">
+                    <svg class="qr-ring-svg" viewBox="0 0 100 100">
+                        <defs>
+                            <linearGradient id="qrGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stop-color="#1E40AF"/>
+                                <stop offset="50%" stop-color="#3B82F6"/>
+                                <stop offset="100%" stop-color="#60A5FA"/>
+                            </linearGradient>
+                        </defs>
+                        <rect class="qr-ring-bg" x="4" y="4" width="92" height="92" rx="12" ry="12"></rect>
+                        <rect class="qr-ring-progress" id="progress-ring" x="4" y="4" width="92" height="92" rx="12" ry="12"></rect>
+                    </svg>
+                    <div id="qrcode"></div>
+                </div>
+                <div class="qr-seconds-label">
+                    更新まで <span class="qr-seconds-value" id="timer-text">--</span> 秒
+                </div>
+            </div>
+
+            <div class="qr-instruction">
+                出勤／退勤いずれの場合も、スマホの「UO HR」アプリから<br>
+                「QRコードで打刻」を選択し、このコードをスキャンしてください。
+            </div>
+        </div>
+        
+        <a href="/qr_display" class="back-link">← 他の場所を選択する</a>
+    {% endif %}
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+{% if location_name %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+(function() {
+    const LOCATION_NAME = "{{ location_name }}";
+    const INITIAL_TOKEN = "{{ initial_token }}";
+    let REFRESH_INTERVAL = {{ refresh_interval }};
+    let qrcode = null;
+    let secondsLeft = REFRESH_INTERVAL;
+    let currentMaxInterval = REFRESH_INTERVAL;
+
+    // 进度环元素
+    const ring = document.getElementById('progress-ring');
+    let TOTAL_LENGTH = 0;
+
+    // === 时钟逻辑 ===
+    function updateClock() {
+        const now = new Date();
+        const days = ['日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'];
+        
+        const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日（${days[now.getDay()]}）`;
+        const timeStr = [
+            String(now.getHours()).padStart(2, '0'),
+            String(now.getMinutes()).padStart(2, '0'),
+            String(now.getSeconds()).padStart(2, '0')
+        ].join(':');
+
+        document.getElementById('current-date').textContent = dateStr;
+        document.getElementById('current-time').textContent = timeStr;
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // === 初始化进度环 ===
+    function initRing() {
+        if (ring) {
+            TOTAL_LENGTH = ring.getTotalLength();
+            ring.style.strokeDasharray = TOTAL_LENGTH;
+            ring.style.strokeDashoffset = 0;
+        }
+    }
+
+    // === 二维码逻辑 ===
+    function updateQRCode(token) {
+        const container = document.getElementById("qrcode");
+        if (!qrcode) {
+            container.innerHTML = '';
+            qrcode = new QRCode(container, {
+                text: token,
+                width: 260,
+                height: 260,
+                colorDark: "#000000",
+                colorLight: "#ffffff",
+                correctLevel: QRCode.CorrectLevel.H
+            });
+        } else {
+            qrcode.clear();
+            qrcode.makeCode(token);
+        }
+        secondsLeft = currentMaxInterval;
+        startRingAnimation();
+    }
+
+    function refreshQRCode() {
+        fetch('/api/method/hrms.api.qr_attendance.generate_qr_token?location_name=' + encodeURIComponent(LOCATION_NAME), {
+            method: 'GET'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.message && data.message.token) {
+                currentMaxInterval = data.message.expires_in || 30;
+                updateQRCode(data.message.token);
+            }
+        })
+        .catch(error => console.error("刷新二维码失败:", error));
+    }
+
+    // === 方形进度环动画 ===
+    function startRingAnimation() {
+        if (!ring) return;
+        
+        // 重置动画
+        ring.style.transition = 'none';
+        ring.style.strokeDashoffset = 0;
+        void ring.getBoundingClientRect(); // 强制回流
+        
+        // 启动动画：从满到空
+        ring.style.transition = `stroke-dashoffset ${currentMaxInterval}s linear`;
+        ring.style.strokeDashoffset = TOTAL_LENGTH;
+    }
+
+    function updateTimerText() {
+        const text = document.getElementById('timer-text');
+        if (text) text.textContent = secondsLeft;
+    }
+
+    function startTimer() {
+        setInterval(function() {
+            secondsLeft -= 1;
+            if (secondsLeft <= 0) {
+                refreshQRCode();
+            }
+            updateTimerText();
+        }, 1000);
+    }
+
+    // === Toast 通知 ===
+    function showToast(data) {
+        const container = document.getElementById('toast-container');
+        const toast = document.createElement('div');
+        toast.className = 'toast' + (data.log_type === 'OUT' ? ' checkout' : '');
+        
+        let avatarHTML = `<div class="toast-avatar">${data.employee_name ? data.employee_name.charAt(0) : 'E'}</div>`;
+        if (data.employee_image) {
+            avatarHTML = `<img src="${data.employee_image}" class="toast-avatar" alt="">`;
+        }
+        
+        const actionText = data.action_ja || (data.log_type === 'IN' ? '出勤' : '退勤');
+        
+        toast.innerHTML = `
+            ${avatarHTML}
+            <div class="toast-content">
+                <div class="toast-title">${data.employee_name} · ${actionText}</div>
+                <div class="toast-message">${data.time.split(' ')[1] || ''} 打刻完了</div>
+            </div>
+        `;
+        
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.classList.add('hiding');
+            setTimeout(() => toast.remove(), 300);
+        }, 5000);
+    }
+
+    // === 实时通信 ===
+    function initRealtime() {
+        if (typeof io === 'undefined') {
+            // Fallback to polling if socket.io is not loaded
+            pollForCheckins();
+            return;
+        }
+        
+        try {
+            // Get the site name from the URL path or default
+            const siteName = window.location.pathname.split('/')[1] || 'hrms.localhost';
+            const host = window.location.hostname;
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const port = window.location.port ? `:${window.location.port}` : '';
+            
+            // Standard Socket.io connection for Frappe
+            const socket = io(`${protocol}//${host}${port}/${siteName}`, {
+                withCredentials: true,
+                reconnectionAttempts: 5,
+                transports: ['websocket', 'polling']
+            });
+            
+            socket.on('connect', () => {
+                console.log('Connected to socket server');
+                socket.emit('join_room', `qr_location_${LOCATION_NAME}`);
+            });
+            
+            socket.on('qr_checkin_notification', (data) => {
+                if (data.location === LOCATION_NAME) showToast(data);
+            });
+            
+            socket.on('disconnect', () => {
+                console.log('Socket disconnected, falling back to polling');
+                pollForCheckins();
+            });
+            
+            socket.on('connect_error', (err) => {
+                console.error('Socket connection error:', err);
+                pollForCheckins();
+            });
+            
+        } catch(e) {
+            console.log("Socket init failed", e);
+            pollForCheckins();
+        }
+    }
+
+    // 轮询逻辑作为备选
+    let lastCheckinTime = null;
+    let pollingInterval = null;
+    
+    function pollForCheckins() {
+        if (pollingInterval) return; // 避免重复启动
+        
+        console.log('Starting polling fallback...');
+        pollingInterval = setInterval(function() {
+            fetch(`/api/method/hrms.api.qr_attendance.get_recent_checkins?location=${encodeURIComponent(LOCATION_NAME)}&limit=1`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message && data.message.length > 0) {
+                        const checkin = data.message[0];
+                        const checkinTime = new Date(checkin.time);
+                        
+                        if (!lastCheckinTime || checkinTime > lastCheckinTime) {
+                            const now = new Date();
+                            if ((now - checkinTime) / 1000 < 30) {
+                                const actionText = checkin.log_type === 'IN' ? '出勤' : '退勤';
+                                showToast({
+                                    employee_name: checkin.employee_name,
+                                    employee_image: checkin.employee_image,
+                                    log_type: checkin.log_type,
+                                    action_ja: actionText,
+                                    message_ja: `${checkin.employee_name}さんが${actionText}しました`,
+                                    time: checkin.time
+                                });
+                                lastCheckinTime = checkinTime;
+                            }
+                        }
+                    }
+                })
+                .catch(e => console.error('Polling error:', e));
+        }, 3000);
+    }
+
+    // === 页面可见性检测（解决后台恢复问题）===
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'visible') {
+            console.log('Page visible, refreshing QR...');
+            refreshQRCode();
+            updateClock();
+        }
+        
+    });
+
+    // === 网络恢复检测 ===
+    window.addEventListener('online', function() {
+        console.log('Network restored, refreshing QR...');
+        refreshQRCode();
+    });
+
+    // === 屏幕常亮 (Wake Lock API) ===
+    let wakeLock = null;
+    async function requestWakeLock() {
+        if ('wakeLock' in navigator) {
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                console.log('Wake Lock activated');
+                wakeLock.addEventListener('release', () => {
+                    console.log('Wake Lock released');
+                });
+            } catch (e) {
+                console.log('Wake Lock failed:', e);
+            }
+        }
+    }
+    
+    // 页面恢复可见时重新请求 Wake Lock
+    document.addEventListener('visibilitychange', async () => {
+        if (document.visibilityState === 'visible' && !wakeLock) {
+            await requestWakeLock();
+        }
+    });
+
+    // Init
+    window.addEventListener('DOMContentLoaded', function() {
+        initRing();
+        updateQRCode(INITIAL_TOKEN);
+        updateTimerText();
+        startTimer();
+        initRealtime();
+        requestWakeLock(); // 保持屏幕常亮
+    });
+})();
+</script>
+{% endif %}
+
+</body>
+</html>

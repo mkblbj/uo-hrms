@@ -24,6 +24,75 @@ class PWANotification(Document):
 		to_user: DF.Link | None
 	# end: auto-generated types
 
+	def before_insert(self):
+		# 默认来源用户为当前登录用户
+		if not self.from_user:
+			self.from_user = frappe.session.user
+		
+		# 群发处理
+		if self.send_to_all:
+			self.send_to_all_employees()
+			frappe.throw(
+				frappe._("通知已成功发送给所有员工！"),
+				frappe.ValidationError,
+				title=frappe._("发送成功")
+			)
+		
+		# 多选用户处理
+		if self.recipients and len(self.recipients) > 0:
+			self.send_to_multiple_users()
+			frappe.throw(
+				frappe._("通知已成功发送给选中的用户！"),
+				frappe.ValidationError,
+				title=frappe._("发送成功")
+			)
+	
+	def send_to_all_employees(self):
+		"""发送通知给所有有 User 账号的员工"""
+		employees = frappe.get_all(
+			"Employee",
+			filters={"status": "Active", "user_id": ["is", "set"]},
+			pluck="user_id"
+		)
+		
+		for user_id in employees:
+			if user_id:
+				self._create_notification_for_user(user_id)
+		
+		frappe.db.commit()
+		frappe.msgprint(f"已成功发送通知给 {len(employees)} 位员工")
+	
+	def send_to_multiple_users(self):
+		"""发送通知给多个选中的用户"""
+		count = 0
+		for recipient in self.recipients:
+			if recipient.user:
+				self._create_notification_for_user(recipient.user)
+				count += 1
+		
+		frappe.db.commit()
+		frappe.msgprint(f"已成功发送通知给 {count} 位用户")
+	
+	def _create_notification_for_user(self, user_id):
+		"""创建单个用户的通知"""
+		notification = frappe.new_doc("PWA Notification")
+		notification.from_user = self.from_user or frappe.session.user
+		notification.to_user = user_id
+		notification.message = self.message
+		notification.use_html_source = self.use_html_source
+		notification.html_source = self.html_source
+		notification.reference_document_type = self.reference_document_type
+		notification.reference_document_name = self.reference_document_name
+		notification.send_to_all = 0
+		notification.flags.ignore_permissions = True
+		notification.insert()
+	
+	def get_display_message(self):
+		"""获取实际要显示的消息内容"""
+		if self.use_html_source and self.html_source:
+			return self.html_source
+		return self.message
+
 	def on_update(self):
 		hrms.refetch_resource("hrms:notifications", self.to_user)
 

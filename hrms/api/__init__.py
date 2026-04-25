@@ -3,6 +3,7 @@ from frappe import _
 from frappe.model import get_permitted_fields
 from frappe.model.workflow import get_workflow_name
 from frappe.query_builder import Order
+from frappe.translate import get_all_translations
 from frappe.utils import add_days, date_diff, getdate, strip_html
 
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
@@ -25,6 +26,27 @@ SUPPORTED_FIELD_TYPES = [
 	"Datetime",
 	"Currency",
 ]
+
+SUPPORTED_PWA_LANGUAGES = {"zh", "ja", "en"}
+
+
+def normalize_pwa_language(lang: str | None) -> str:
+	normalized = (lang or "").strip().replace("_", "-").lower()
+	if not normalized:
+		return ""
+	return normalized.split("-", 1)[0]
+
+
+@frappe.whitelist()
+def get_pwa_translations(lang: str) -> dict[str, str]:
+	normalized_lang = normalize_pwa_language(lang)
+	if normalized_lang not in SUPPORTED_PWA_LANGUAGES:
+		frappe.throw(
+			_("Unsupported PWA language: {0}").format(lang),
+			frappe.ValidationError,
+		)
+
+	return get_all_translations(normalized_lang) or {}
 
 
 @frappe.whitelist()
@@ -87,6 +109,254 @@ def get_current_employee() -> str:
 
 # HR Settings
 @frappe.whitelist()
+def get_employee_dashboard_stats() -> dict:
+	"""
+	获取员工仪表盘统计数据
+	包括：本月出勤天数、工作时长、今日打卡记录等
+	"""
+	from datetime import datetime
+	from frappe.utils import get_first_day, get_last_day, now_datetime, time_diff_in_hours
+	
+	current_user = frappe.session.user
+	employee = frappe.db.get_value(
+		"Employee",
+		{"user_id": current_user, "status": "Active"},
+		["name", "employee_name"],
+		as_dict=True
+	)
+	
+	if not employee:
+		return {}
+	
+	# 获取本月日期范围
+	today = datetime.now().date()
+	month_start = get_first_day(today)
+	month_end = get_last_day(today)
+	
+	# 本月出勤统计 + 工时（从 Attendance 表获取，使用班次计算后的 working_hours）
+	attendance_stats = frappe.db.sql("""
+		SELECT 
+			COUNT(*) as total_days,
+			SUM(CASE WHEN status IN ('Present', 'Work From Home') THEN 1 ELSE 0 END) as present_days,
+			SUM(CASE WHEN status = 'Absent' THEN 1 ELSE 0 END) as absent_days,
+			SUM(CASE WHEN status = 'On Leave' THEN 1 ELSE 0 END) as leave_days,
+			SUM(CASE WHEN status = 'Half Day' THEN 0.5 ELSE 0 END) as half_days,
+			SUM(COALESCE(working_hours, 0)) as month_hours
+		FROM `tabAttendance`
+		WHERE employee = %s 
+		AND attendance_date BETWEEN %s AND %s
+		AND docstatus = 1
+	""", (employee.name, month_start, month_end), as_dict=True)[0]
+	
+	# 本月总工时（从考勤记录获取，已包含班次的时间舍入和午餐扣除）
+	month_hours = float(attendance_stats.month_hours or 0)
+	
+	# 今日打卡记录
+	today_checkins = frappe.get_all(
+		"Employee Checkin",
+		filters={
+			"employee": employee.name,
+			"time": [">=", today]
+		},
+		fields=["log_type", "time"],
+		order_by="time asc"
+	)
+	
+	# 今日工时：优先从考勤记录获取，否则实时计算
+	today_attendance = frappe.db.get_value(
+		"Attendance",
+		{"employee": employee.name, "attendance_date": today, "docstatus": 1},
+		"working_hours"
+	)
+	
+	if today_attendance:
+		today_hours = float(today_attendance)
+	else:
+		# 还没有考勤记录，实时计算（未扣除午餐）
+		today_hours = 0
+		if len(today_checkins) >= 2:
+			first_in = next((c for c in today_checkins if c.log_type == "IN"), None)
+			last_out = next((c for c in reversed(today_checkins) if c.log_type == "OUT"), None)
+			
+			if first_in and last_out:
+				today_hours = time_diff_in_hours(last_out.time, first_in.time)
+			elif first_in:
+				today_hours = time_diff_in_hours(now_datetime(), first_in.time)
+	
+	return {
+		"employee_name": employee.employee_name,
+		"month_present": attendance_stats.present_days or 0,
+		"month_absent": attendance_stats.absent_days or 0,
+		"month_leave": attendance_stats.leave_days or 0,
+		"month_half_days": attendance_stats.half_days or 0,
+		"today_hours": round(today_hours, 2),
+		"month_hours": round(month_hours, 2),
+		"today_checkins": len(today_checkins),
+		"first_checkin_today": today_checkins[0].time if today_checkins else None,
+		"last_checkin_today": today_checkins[-1].time if today_checkins else None
+	}
+
+
+@frappe.whitelist()
+def get_weather_data() -> dict:
+	"""
+	获取当前天气数据（使用 WeatherAPI.com）
+	包含今天的最高/最低温度
+	"""
+	import requests
+	from datetime import datetime
+	
+	# WeatherAPI 配置
+	API_KEY = "a45ee3456cd14c498f681427250405"
+	LAT = 34.66497
+	LON = 135.15820
+	
+	# 获取用户语言设置
+	user_lang = frappe.local.lang or "ja"
+	lang_map = {
+		"zh": "zh",
+		"ja": "ja",
+		"en": "en"
+	}
+	weather_lang = lang_map.get(user_lang, "ja")
+	
+	try:
+		# 使用 forecast API 获取今天的最高/最低温
+		today = datetime.now().strftime("%Y-%m-%d")
+		url = f"http://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={LAT},{LON}&dt={today}&lang={weather_lang}&aqi=no"
+		response = requests.get(url, timeout=5)
+		response.raise_for_status()
+		data = response.json()
+		
+		current = data["current"]
+		today_forecast = data["forecast"]["forecastday"][0]["day"] if data.get("forecast") and data["forecast"].get("forecastday") else None
+		
+		result = {
+			"temp_c": current["temp_c"],
+			"condition": {
+				"text": current["condition"]["text"],
+				"icon": f"https:{current['condition']['icon']}"
+			}
+		}
+		
+		# 如果有今天的预报数据，添加最高/最低温
+		if today_forecast:
+			result["maxtemp_c"] = today_forecast["maxtemp_c"]
+			result["mintemp_c"] = today_forecast["mintemp_c"]
+		
+		return result
+	except Exception as e:
+		frappe.log_error(f"Weather API Error: {str(e)}", "Weather Widget")
+		return None
+
+
+@frappe.whitelist()
+def get_weather_forecast() -> dict:
+	"""
+	获取明天的天气预报（使用 WeatherAPI.com）
+	"""
+	import requests
+	from datetime import datetime, timedelta
+	
+	# WeatherAPI 配置
+	API_KEY = "a45ee3456cd14c498f681427250405"
+	LAT = 34.66497
+	LON = 135.15820
+	
+	# 获取用户语言设置
+	user_lang = frappe.local.lang or "ja"
+	lang_map = {
+		"zh": "zh",
+		"ja": "ja",
+		"en": "en"
+	}
+	weather_lang = lang_map.get(user_lang, "ja")
+	
+	try:
+		# 获取明天的日期
+		tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+		
+		url = f"http://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={LAT},{LON}&dt={tomorrow}&lang={weather_lang}&aqi=no"
+		response = requests.get(url, timeout=5)
+		response.raise_for_status()
+		data = response.json()
+		
+		if data.get("forecast") and data["forecast"].get("forecastday"):
+			day_data = data["forecast"]["forecastday"][0]["day"]
+			return {
+				"maxtemp_c": day_data["maxtemp_c"],
+				"mintemp_c": day_data["mintemp_c"],
+				"condition": {
+					"text": day_data["condition"]["text"],
+					"icon": f"https:{day_data['condition']['icon']}"
+				}
+			}
+		return None
+	except Exception as e:
+		frappe.log_error(f"Weather Forecast API Error: {str(e)}", "Weather Widget")
+		return None
+
+
+@frappe.whitelist()
+def get_employee_work_status():
+	"""
+	获取当前员工的工作状态（是否正在上班）
+	基于最后一次打卡记录判断：
+	- 如果最后一次是 IN，则认为正在上班
+	- 如果最后一次是 OUT，则认为不在上班
+	- 如果今天没有打卡，则认为不在上班
+	"""
+	from frappe.utils import today, now_datetime
+	
+	employee = frappe.db.get_value(
+		"Employee",
+		{"user_id": frappe.session.user, "status": "Active"},
+		["name", "employee_name"],
+		as_dict=True
+	)
+	
+	if not employee:
+		return {
+			"is_working": False,
+			"status": "not_employee",
+			"last_checkin": None
+		}
+	
+	# 获取今天最后一次打卡记录
+	last_checkin = frappe.db.get_all(
+		"Employee Checkin",
+		filters={
+			"employee": employee.name,
+			"time": [">=", today()]
+		},
+		fields=["name", "log_type", "time"],
+		order_by="time desc",
+		limit=1
+	)
+	
+	if not last_checkin:
+		return {
+			"is_working": False,
+			"status": "no_checkin_today",
+			"last_checkin": None,
+			"employee_name": employee.employee_name
+		}
+	
+	last_log = last_checkin[0]
+	is_working = last_log.log_type == "IN"
+	
+	return {
+		"is_working": is_working,
+		"status": "working" if is_working else "off_work",
+		"last_checkin": {
+			"log_type": last_log.log_type,
+			"time": str(last_log.time)
+		},
+		"employee_name": employee.employee_name
+	}
+
+
+@frappe.whitelist()
 def get_hr_settings() -> dict:
 	settings = frappe.db.get_singles_dict("HR Settings", cast=True)
 	return frappe._dict(
@@ -126,31 +396,62 @@ def are_push_notifications_enabled() -> bool:
 
 # Attendance
 @frappe.whitelist()
-def get_attendance_calendar_events(from_date: str, to_date: str) -> dict[str, str]:
-	employee = get_current_employee()
+def get_attendance_calendar_events(from_date: str, to_date: str, employee: str | None = None) -> dict:
+	employee = employee or get_current_employee()
 	holidays = get_holidays_for_calendar(employee, from_date, to_date)
 	attendance = get_attendance_for_calendar(employee, from_date, to_date)
+	shifts = get_shifts_for_calendar(employee, from_date, to_date)
 	events = {}
 
 	date = getdate(from_date)
 	while date_diff(to_date, date) >= 0:
 		date_str = date.strftime("%Y-%m-%d")
+		event = {}
+		
+		# 考勤状态和签到签退记录
 		if date in attendance:
-			events[date_str] = attendance[date]
+			att = attendance[date]
+			event["attendance"] = att["status"]
+			event["in_time"] = att["in_time"]
+			event["out_time"] = att["out_time"]
+			event["working_hours"] = att["working_hours"]
 		elif date in holidays:
-			events[date_str] = "Holiday"
+			event["attendance"] = "Holiday"
+		
+		# 排班信息
+		if date_str in shifts:
+			event["shift"] = shifts[date_str]
+		
+		if event:
+			events[date_str] = event
 		date = add_days(date, 1)
 
 	return events
 
 
-def get_attendance_for_calendar(employee: str, from_date: str, to_date: str) -> list[dict[str, str]]:
+def get_attendance_for_calendar(employee: str, from_date: str, to_date: str) -> dict:
 	attendance = frappe.get_all(
 		"Attendance",
 		{"employee": employee, "attendance_date": ["between", [from_date, to_date]], "docstatus": 1},
-		["attendance_date", "status"],
+		["attendance_date", "status", "in_time", "out_time", "working_hours"],
 	)
-	return {d["attendance_date"]: d["status"] for d in attendance}
+	result = {}
+	for d in attendance:
+		# in_time 和 out_time 是 datetime 格式，需要提取时间部分
+		in_time = None
+		out_time = None
+		if d["in_time"]:
+			in_time = str(d["in_time"])[11:16] if len(str(d["in_time"])) > 11 else str(d["in_time"])[:5]
+		if d["out_time"]:
+			out_time = str(d["out_time"])[11:16] if len(str(d["out_time"])) > 11 else str(d["out_time"])[:5]
+		
+		result[d["attendance_date"]] = {
+			"status": d["status"],
+			"in_time": in_time,
+			"out_time": out_time,
+			"working_hours": d["working_hours"]
+		}
+	return result
 
 
 def get_holidays_for_calendar(employee: str, from_date: str, to_date: str) -> list[str]:
@@ -162,6 +463,53 @@ def get_holidays_for_calendar(employee: str, from_date: str, to_date: str) -> li
 		)
 
 	return []
+
+
+def get_shifts_for_calendar(employee: str, from_date: str, to_date: str) -> dict:
+	"""获取指定日期范围内的排班信息"""
+	ShiftAssignment = frappe.qb.DocType("Shift Assignment")
+	ShiftType = frappe.qb.DocType("Shift Type")
+	
+	shifts = (
+		frappe.qb.select(
+			ShiftAssignment.start_date,
+			ShiftAssignment.end_date,
+			ShiftType.name.as_("shift_type"),
+			ShiftType.start_time,
+			ShiftType.end_time,
+			ShiftType.color,
+		)
+		.from_(ShiftAssignment)
+		.join(ShiftType)
+		.on(ShiftAssignment.shift_type == ShiftType.name)
+		.where(
+			(ShiftAssignment.employee == employee)
+			& (ShiftAssignment.status == "Active")
+			& (ShiftAssignment.docstatus == 1)
+			& (ShiftAssignment.start_date <= to_date)
+			& ((ShiftAssignment.end_date >= from_date) | (ShiftAssignment.end_date.isnull()))
+		)
+	).run(as_dict=True)
+	
+	result = {}
+	for shift in shifts:
+		start_date = getdate(shift.start_date)
+		end_date = getdate(shift.end_date) if shift.end_date else getdate(to_date)
+		to_date_obj = getdate(to_date)
+		
+		date = start_date
+		while date <= end_date and date <= to_date_obj:
+			if date >= getdate(from_date):
+				date_str = date.strftime("%Y-%m-%d")
+				result[date_str] = {
+					"shift_type": shift.shift_type,
+					"start_time": str(shift.start_time) if shift.start_time else None,
+					"end_time": str(shift.end_time) if shift.end_time else None,
+					"color": shift.color,
+				}
+			date = add_days(date, 1)
+	
+	return result
 
 
 @frappe.whitelist()
@@ -788,6 +1136,31 @@ def _download_pdf(doctype: str, docname: str) -> str:
 	return f"data:{content_type};base64," + base64content.decode("utf-8")
 
 
+# Latest Notification
+@frappe.whitelist()
+def get_latest_notification() -> dict:
+	"""获取当前用户的最新一条通知"""
+	user = frappe.session.user
+	
+	notification = frappe.db.get_value(
+		"PWA Notification",
+		{"to_user": user},
+		["name", "message", "from_user", "creation", "read", "use_html_source", "html_source"],
+		order_by="creation desc",
+		as_dict=True
+	)
+	
+	if notification:
+		# 根据 use_html_source 选择显示内容
+		if notification.get("use_html_source") and notification.get("html_source"):
+			notification["display_message"] = notification["html_source"]
+		else:
+			notification["display_message"] = notification["message"]
+		return notification
+	
+	return frappe._dict()
+
+
 # Workflow
 @frappe.whitelist()
 def get_workflow(doctype: str) -> dict:
@@ -822,3 +1195,22 @@ def get_allowed_states_for_workflow(workflow: dict, user_id: str) -> list[str]:
 @frappe.whitelist()
 def get_permitted_fields_for_write(doctype: str) -> list[str]:
 	return get_permitted_fields(doctype, permission_type="write")
+
+
+# QR Attendance - 动态二维码打卡
+from hrms.api.qr_attendance import (
+	generate_qr_token,
+	qr_checkin,
+	get_checkin_locations
+)
+
+# Passkey/WebAuthn - NFC 打卡
+from hrms.api.passkey import (
+	register_options as passkey_register_options,
+	register_complete as passkey_register_complete,
+	auth_options as passkey_auth_options,
+	passkey_checkin,
+	get_my_passkeys,
+	delete_passkey,
+	check_passkey_registered,
+)

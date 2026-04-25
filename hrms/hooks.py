@@ -1,20 +1,20 @@
 app_name = "hrms"
-app_title = "Frappe HR"
-app_publisher = "Frappe Technologies Pvt. Ltd."
-app_description = "Modern HR and Payroll Software"
-app_email = "contact@frappe.io"
-app_license = "GNU General Public License (v3)"
+app_title = "UO HR"
+app_publisher = "株式会社UO"
+app_description = "UO人力资源管理系统"
+app_email = "hr@uo.co.jp"
+app_license = "Proprietary"
 required_apps = ["frappe/erpnext"]
-source_link = "http://github.com/frappe/hrms"
-app_logo_url = "/assets/hrms/images/frappe-hr-logo.svg"
-app_home = "/desk/people"
+source_link = "http://github.com/uo/hrms"
+app_logo_url = "/assets/hrms/images/uo-hr-logo.svg"
+app_home = "/app/overview"
 
 add_to_apps_screen = [
 	{
 		"name": "hrms",
-		"logo": "/assets/hrms/images/frappe-hr-logo.svg",
-		"title": "Frappe HR",
-		"route": "/desk/people",
+		"logo": "/assets/hrms/images/uo-hr-logo.svg",
+		"title": "UO HR",
+		"route": "/app/overview",
 		"has_permission": "hrms.hr.utils.check_app_permission",
 	}
 ]

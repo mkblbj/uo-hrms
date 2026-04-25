@@ -44,6 +44,9 @@
   "attendance_settings_section",
   "allow_employee_checkin_from_mobile_app",
   "allow_geolocation_tracking",
+  "qr_checkin_enabled",
+  "qr_checkin_ip_restriction",
+  "qr_checkin_allowed_ips",
   "tenure_tab",
   "employee_exit_settings_section",
   "exit_questionnaire_web_form",
@@ -292,6 +295,26 @@
    "fieldname": "allow_geolocation_tracking",
    "fieldtype": "Check",
    "label": "Allow Geolocation Tracking"
+  },
+  {
+   "default": "1",
+   "fieldname": "qr_checkin_enabled",
+   "fieldtype": "Check",
+   "label": "Enable QR Code Check-in"
+  },
+  {
+   "default": "0",
+   "depends_on": "eval:doc.qr_checkin_enabled == 1",
+   "fieldname": "qr_checkin_ip_restriction",
+   "fieldtype": "Check",
+   "label": "Enable QR Checkin IP Restriction"
+  },
+  {
+   "depends_on": "eval:doc.qr_checkin_enabled == 1 && doc.qr_checkin_ip_restriction == 1",
+   "fieldname": "qr_checkin_allowed_ips",
+   "fieldtype": "Small Text",
+   "label": "QR Checkin Allowed IPs",
+   "description": "Allowed IP addresses for QR check-in, one per line. Example:\n192.168.1.100\n192.168.1.0/24\n10.0.0.1"
   },
   {
    "fieldname": "attendance_settings_section",

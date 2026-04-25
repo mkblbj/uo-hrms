@@ -6,6 +6,7 @@ import leaveRoutes from "./leaves"
 import claimRoutes from "./claims"
 import employeeAdvanceRoutes from "./advances"
 import salarySlipRoutes from "./salary_slips"
+import workRosterRoutes from "./work_roster"
 
 const routes = [
 	{
@@ -31,9 +32,9 @@ const routes = [
 				component: () => import("@/views/attendance/Dashboard.vue"),
 			},
 			{
-				path: "/dashboard/leaves",
-				name: "LeavesDashboard",
-				component: () => import("@/views/leave/Dashboard.vue"),
+				path: "/dashboard/work-roster",
+				name: "WorkRosterDashboard",
+				component: () => import("@/views/work_roster/Dashboard.vue"),
 			},
 			{
 				path: "/dashboard/expense-claims",
@@ -63,6 +64,11 @@ const routes = [
 		component: () => import("@/views/Notifications.vue"),
 	},
 	{
+		path: "/notifications/:id",
+		name: "NotificationDetail",
+		component: () => import("@/views/NotificationDetail.vue"),
+	},
+	{
 		path: "/settings",
 		name: "Settings",
 		component: () => import("@/views/AppSettings.vue"),
@@ -77,6 +83,7 @@ const routes = [
 	...claimRoutes,
 	...employeeAdvanceRoutes,
 	...salarySlipRoutes,
+	...workRosterRoutes,
 ]
 
 const router = createRouter({

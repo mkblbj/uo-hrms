@@ -1,0 +1,20 @@
+{
+ "app": "hrms",
+ "creation": "2025-11-17 20:33:43.167514",
+ "docstatus": 0,
+ "doctype": "Desktop Icon",
+ "hidden": 0,
+ "icon": "monitor-check",
+ "icon_type": "App",
+ "idx": 13,
+ "label": "UO HR",
+ "link": "/app/overview",
+ "link_type": "External",
+ "logo_url": "/assets/hrms/images/frappe-hr-logo.svg",
+ "modified": "2025-11-19 10:17:44.773386",
+ "modified_by": "Administrator",
+ "name": "UO HR",
+ "owner": "Administrator",
+ "roles": [],
+ "standard": 1
+}

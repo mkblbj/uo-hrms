@@ -11771,4 +11771,3 @@ msgstr ""
 #: hrms/hr/doctype/job_requisition/job_requisition.js:22
 msgid "{} {} open for this position."
 msgstr ""
-

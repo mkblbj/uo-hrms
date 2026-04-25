@@ -74,8 +74,6 @@
    "fieldtype": "Datetime",
    "in_list_view": 1,
    "label": "Time",
-   "permlevel": 1,
-   "read_only_depends_on": "eval:doc.attendance;",
    "reqd": 1
   },
   {

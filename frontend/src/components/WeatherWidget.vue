@@ -1,0 +1,111 @@
+<template>
+	<div v-if="weather.data" class="weather-row">
+		<!-- 今天 -->
+		<div class="weather-cell">
+					<span class="weather-label">{{ getLabel('today') }}</span>
+			<span class="weather-temp">{{ Math.round(weather.data.temp_c) }}°</span>
+			<img :src="weather.data.condition.icon" :alt="weather.data.condition.text" class="weather-icon" />
+				</div>
+		<!-- 分隔线 -->
+		<div class="weather-divider"></div>
+		<!-- 明天 -->
+		<div v-if="forecast.data" class="weather-cell right">
+					<span class="weather-label">{{ getLabel('tomorrow') }}</span>
+			<span class="weather-temp">{{ Math.round(forecast.data.maxtemp_c) }}°/{{ Math.round(forecast.data.mintemp_c) }}°</span>
+			<img :src="forecast.data.condition.icon" :alt="forecast.data.condition.text" class="weather-icon" />
+		</div>
+	</div>
+</template>
+
+<script setup>
+import { createResource } from "frappe-ui"
+import { computed } from "vue"
+
+import { resolveHomeLanguage } from "@/utils/homeExperience"
+
+const props = defineProps({
+	lang: {
+		type: String,
+		default: null,
+	},
+})
+
+const currentLanguage = computed(() =>
+	resolveHomeLanguage(props.lang ? { lang: props.lang } : window.frappe?.boot),
+)
+
+const weather = createResource({
+	url: "hrms.api.get_weather_data",
+	auto: true,
+	cache: ["weather_data", 10 * 60 * 1000]
+})
+
+const forecast = createResource({
+	url: "hrms.api.get_weather_forecast",
+	auto: true,
+	cache: ["weather_forecast", 30 * 60 * 1000] // 缓存30分钟
+})
+
+function getLabel(key) {
+	const lang = currentLanguage.value
+	const labels = {
+		today: {
+			ja: "今日",
+			zh: "今天",
+			en: "Today"
+		},
+		tomorrow: {
+			ja: "明日",
+			zh: "明天",
+			en: "Tomorrow"
+		}
+	}
+	return labels[key]?.[lang] || labels[key]?.ja || key
+}
+</script>
+
+<style scoped>
+.weather-row {
+	background: rgba(255, 255, 255, 0.9);
+	border-radius: 16px;
+	padding: 10px 14px;
+	display: flex;
+	align-items: center;
+	box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+}
+
+.weather-cell {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+
+.weather-cell.right {
+	justify-content: flex-end;
+}
+
+.weather-divider {
+	width: 1px;
+	height: 32px;
+	background: #e5e7eb;
+	margin: 0 16px;
+}
+
+.weather-label {
+	font-size: 0.75rem;
+	font-weight: 500;
+	color: #6b7280;
+}
+
+.weather-temp {
+	font-size: 1rem;
+	font-weight: 700;
+	color: #111827;
+}
+
+.weather-icon {
+	width: 28px;
+	height: 28px;
+}
+</style>

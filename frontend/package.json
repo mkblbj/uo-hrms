@@ -1,7 +1,7 @@
 {
-	"name": "frappe-hr-ui",
+	"name": "uo-hr-ui",
 	"private": true,
-	"version": "0.0.0",
+	"version": "1.0.0-uo",
 	"type": "module",
 	"scripts": {
 		"dev": "vite",
@@ -14,12 +14,14 @@
 	"dependencies": {
 		"@ionic/vue": "^7.4.3",
 		"@ionic/vue-router": "^7.4.3",
+		"@simplewebauthn/browser": "^13.2.2",
 		"@vitejs/plugin-vue": "^4.4.0",
 		"autoprefixer": "^10.4.19",
 		"dayjs": "^1.11.11",
 		"feather-icons": "^4.29.1",
 		"firebase": "^10.8.0",
 		"frappe-ui": "0.1.105",
+		"html5-qrcode": "^2.3.8",
 		"postcss": "^8.4.5",
 		"tailwindcss": "^3.4.3",
 		"vite": "^5.4.10",

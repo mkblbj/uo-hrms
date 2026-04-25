@@ -351,7 +351,7 @@ msgstr "在{1}至{2}期间存在{0}（"
 #: hrms/hr/report/monthly_attendance_sheet/monthly_attendance_sheet.py:732
 #: hrms/payroll/doctype/payroll_settings/payroll_settings.json
 msgid "Absent"
-msgstr "缺勤"
+msgstr "未出勤"
 
 #. Label of the absent_days (Float) field in DocType 'Salary Slip'
 #: hrms/payroll/doctype/salary_slip/salary_slip.json
@@ -11775,3 +11775,405 @@ msgstr "{0}天"
 msgid "{} {} open for this position."
 msgstr "该职位有{}个{}空缺"
 
+
+# QR Attendance Translations
+#: hrms/api/qr_attendance.py
+msgid "Check-in location {0} does not exist"
+msgstr "打卡地点 {0} 不存在"
+
+#: hrms/api/qr_attendance.py
+msgid "Check-in location {0} is disabled"
+msgstr "打卡地点 {0} 已禁用"
+
+#: hrms/api/qr_attendance.py
+msgid "Please login before checking in"
+msgstr "请先登录系统再扫码打卡"
+
+#: hrms/api/qr_attendance.py
+msgid "Invalid QR code format, please scan again"
+msgstr "二维码格式无效，请重新扫码"
+
+#: hrms/api/qr_attendance.py
+msgid "Check-in location does not exist"
+msgstr "打卡地点不存在"
+
+#: hrms/api/qr_attendance.py
+msgid "Check-in location is disabled"
+msgstr "打卡地点已禁用"
+
+#: hrms/api/qr_attendance.py
+msgid "QR code is about to expire, please check in soon"
+msgstr "二维码即将过期，请尽快打卡"
+
+#: hrms/api/qr_attendance.py
+msgid "QR code has expired or is invalid, please scan again"
+msgstr "二维码已过期或无效，请重新扫码"
+
+#: hrms/api/qr_attendance.py
+msgid "Your account is not linked to an employee profile, please contact HR"
+msgstr "您的账号未关联员工档案，请联系 HR"
+
+#: hrms/api/qr_attendance.py
+msgid "checked in"
+msgstr "签到"
+
+#: hrms/api/qr_attendance.py
+msgid "checked out"
+msgstr "签退"
+
+#: hrms/api/qr_attendance.py
+msgid "You have already {0} within the last 5 minutes, please do not check in repeatedly"
+msgstr "您在 5 分钟内已经{0}过，请勿重复打卡"
+
+#: hrms/api/qr_attendance.py
+msgid "Check-in"
+msgstr "签到"
+
+#: hrms/api/qr_attendance.py
+msgid "Check-out"
+msgstr "签退"
+
+#: hrms/api/qr_attendance.py
+msgid "{0} successful"
+msgstr "{0}成功"
+
+# Frontend QR Scanner Translations
+#: frontend/src/components/QRScannerModal.vue
+msgid "Scan QR Code"
+msgstr "扫描二维码"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Position the QR code within the frame"
+msgstr "将二维码对准框内"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Start Scanning"
+msgstr "开始扫描"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Unable to access camera, please check permissions"
+msgstr "无法访问摄像头，请检查权限"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Verifying..."
+msgstr "正在验证..."
+
+#: frontend/src/components/CheckInPanel.vue
+msgid "Scan QR Code to {0}"
+msgstr "扫码{0}"
+
+
+msgid "Camera permission denied, please enable it in settings"
+msgstr "摄像头权限被拒绝,请在设置中启用"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Camera permission is required to scan QR codes"
+msgstr "需要摄像头权限才能扫描二维码"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Grant Camera Permission"
+msgstr "授予摄像头权限"
+
+#: frontend/src/components/CheckInPanel.vue
+msgid "View List"
+msgstr "查看列表"
+
+#: frontend/src/components/CheckInPanel.vue
+msgid "Unable to retrieve your location"
+msgstr "无法获取您的位置"
+
+#: frontend/src/components/EmployeeCheckinItem.vue
+msgid "Log Type"
+msgstr "打卡类型"
+
+#: frontend/src/components/EmployeeCheckinItem.vue
+msgid "Check In"
+msgstr "签到"
+
+#: frontend/src/components/EmployeeCheckinItem.vue
+msgid "Check Out"
+msgstr "签退"
+
+#: frontend/src/views/attendance/EmployeeCheckinList.vue
+msgid "Employee Checkin History"
+msgstr "打卡记录"
+
+#: frontend/src/data/config/requestSummaryFields.js
+msgid "ID"
+msgstr "编号"
+
+#: frontend/src/data/config/requestSummaryFields.js
+msgid "Date"
+msgstr "日期"
+
+#: frontend/src/data/config/requestSummaryFields.js
+msgid "Time"
+msgstr "时间"
+
+#: frontend/src/data/config/requestSummaryFields.js
+msgid "Latitude"
+msgstr "纬度"
+
+#: frontend/src/data/config/requestSummaryFields.js
+msgid "Longitude"
+msgstr "经度"
+
+#: frontend/src/components/AttendanceCalendar.vue
+msgid "Attendance Status"
+msgstr "考勤状态"
+
+#: frontend/src/components/AttendanceCalendar.vue
+msgid "Shift Information"
+msgstr "排班信息"
+
+#: frontend/src/components/AttendanceCalendar.vue
+msgid "No attendance or shift information for this date"
+msgstr "该日期暂无考勤和排班信息"
+
+#: frontend/src/components/AttendanceCalendar.vue
+msgid "Scheduled"
+msgstr "已排班"
+
+#: hrms/api/qr_attendance.py
+msgid "You just checked in {0} minutes ago. Please wait at least 15 minutes before checking out."
+msgstr "您刚刚在 {0} 分钟前签到，请等待至少 15 分钟后再签退。"
+
+#: hrms/api/qr_attendance.py
+msgid "You just checked out {0} minutes ago. Please wait at least 5 minutes before checking in."
+msgstr "您刚刚在 {0} 分钟前签退，请等待至少 5 分钟后再签到。"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Confirm Check In"
+msgstr "确认签到"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Confirm Check Out"
+msgstr "确认签退"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Cancel"
+msgstr "取消"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Unknown Location"
+msgstr "未知地点"
+
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Flexible Working Hours Settings"
+msgstr "弹性工时设置"
+
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Enable Time Rounding"
+msgstr "启用时间取整"
+
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Rounding Precision (minutes)"
+msgstr "取整精度（分钟）"
+
+#. Description of the 'Enable Time Rounding' (Check) field in DocType 'Shift Type'
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Round check-in time up and check-out time down to the nearest precision unit."
+msgstr "将签到时间向后取整，签退时间向前取整到最近的精度单位。"
+
+#. Description of the 'Rounding Precision' (Select) field in DocType 'Shift Type'
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Time rounding precision in minutes. Check-in rounds up, check-out rounds down."
+msgstr "时间取整精度（分钟）。签到向后取整，签退向前取整。"
+
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Enable Lunch Break Deduction"
+msgstr "启用午休扣除"
+
+#. Description of the 'Enable Lunch Break Deduction' (Check) field in DocType 'Shift Type'
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Deduct lunch break time from working hours if the work period overlaps with lunch time."
+msgstr "若工作时间与午休重叠，从工时中扣除午休时间。"
+
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Lunch Break Start"
+msgstr "午休开始"
+
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Lunch Break End"
+msgstr "午休结束"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin.js
+#: hrms/hr/doctype/attendance/attendance.js
+msgid "Recalculate Attendance"
+msgstr "重新计算考勤"
+
+#: hrms/hr/doctype/attendance/attendance.js
+msgid "Recalculate"
+msgstr "重新计算"
+
+#: hrms/hr/doctype/attendance/attendance.js
+msgid "This will cancel this attendance and recalculate based on checkin records. Continue?"
+msgstr "这将取消此考勤记录并根据打卡记录重新计算。是否继续？"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin.js
+msgid "This will recalculate attendance for {0} on {1}. Continue?"
+msgstr "这将为 {0} 重新计算 {1} 的考勤。是否继续？"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin.js
+msgid "Recalculating Attendance..."
+msgstr "正在重新计算考勤..."
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin.js
+msgid "Attendance recalculated: {0} hours, Status: {1}"
+msgstr "考勤已重新计算：{0} 小时，状态：{1}"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin.py
+msgid "Attendance {0} has been cancelled due to checkin time modification. Please recalculate attendance."
+msgstr "由于修改打卡时间，考勤 {0} 已被取消。请重新计算考勤。"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin_utils.py
+msgid "No active shift assignment found for employee {0} on {1}"
+msgstr "未找到员工 {0} 在 {1} 的有效班次分配"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin_utils.py
+msgid "No checkin records found for employee {0} on {1}"
+msgstr "未找到员工 {0} 在 {1} 的打卡记录"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin_utils.py
+msgid "Attendance recalculated successfully"
+msgstr "考勤重新计算成功"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin_utils.py
+msgid "Failed to create attendance record"
+msgstr "创建考勤记录失败"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin_utils.py
+msgid "Recalculated {0} of {1} days"
+msgstr "已重新计算 {0}/{1} 天"
+
+#: hrms/hr/report
+msgid "Monthly Working Hours Summary"
+msgstr "月度工时汇总"
+
+#: hrms/hr/report
+msgid "Employee Attendance Detail"
+msgstr "员工考勤明细"
+
+#: hrms/hr/report
+msgid "Employee ID"
+msgstr "员工编号"
+
+#: hrms/hr/report
+msgid "Employee Name"
+msgstr "员工姓名"
+
+#: hrms/hr/report
+msgid "Department"
+msgstr "部门"
+
+#: hrms/hr/report
+msgid "Present Days"
+msgstr "出勤天数"
+
+#: hrms/hr/report
+msgid "Absent Days"
+msgstr "缺勤天数"
+
+#: hrms/hr/report
+msgid "Leave Days"
+msgstr "请假天数"
+
+#: hrms/hr/report
+msgid "Half Days"
+msgstr "半天"
+
+#: hrms/hr/report
+msgid "Total Working Hours"
+msgstr "总工时"
+
+#: hrms/hr/report
+msgid "Late Entries"
+msgstr "迟到次数"
+
+#: hrms/hr/report
+msgid "Early Exits"
+msgstr "早退次数"
+
+#: hrms/hr/report
+msgid "Date"
+msgstr "日期"
+
+#: hrms/hr/report
+msgid "Day"
+msgstr "星期"
+
+#: hrms/hr/report
+msgid "Status"
+msgstr "状态"
+
+#: hrms/hr/report
+msgid "Check In"
+msgstr "签到"
+
+#: hrms/hr/report
+msgid "Check Out"
+msgstr "签退"
+
+#: hrms/hr/report
+msgid "Working Hours"
+msgstr "工时"
+
+#: hrms/hr/report
+msgid "Late Entry"
+msgstr "迟到"
+
+#: hrms/hr/report
+msgid "Early Exit"
+msgstr "早退"
+
+#: hrms/hr/report
+msgid "Shift"
+msgstr "班次"
+
+#: hrms/hr/report
+msgid "Year"
+msgstr "年份"
+
+#: hrms/hr/report
+msgid "Month"
+msgstr "月份"
+
+#: hrms/hr/report
+msgid "Company"
+msgstr "公司"
+
+#: hrms/hr/report
+msgid "Employee"
+msgstr "员工"
+
+#: hrms/hr/report
+msgid "Please select an employee"
+msgstr "请选择员工"
+
+#: hrms/hr/report
+msgid "Mon"
+msgstr "周一"
+
+#: hrms/hr/report
+msgid "Tue"
+msgstr "周二"
+
+#: hrms/hr/report
+msgid "Wed"
+msgstr "周三"
+
+#: hrms/hr/report
+msgid "Thu"
+msgstr "周四"
+
+#: hrms/hr/report
+msgid "Fri"
+msgstr "周五"
+
+#: hrms/hr/report
+msgid "Sat"
+msgstr "周六"
+
+#: hrms/hr/report
+msgid "Sun"
+msgstr "周日"

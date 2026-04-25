@@ -31,6 +31,13 @@
   "column_break_18",
   "enable_early_exit_marking",
   "early_exit_grace_period",
+  "flexible_hours_section",
+  "enable_time_rounding",
+  "rounding_precision",
+  "column_break_flex",
+  "enable_lunch_deduction",
+  "lunch_start",
+  "lunch_end",
   "overtime_section",
   "allow_overtime",
   "overtime_type"
@@ -190,6 +197,53 @@
    "label": "Automatically update Last Sync of Checkin"
   },
   {
+   "depends_on": "enable_auto_attendance",
+   "fieldname": "flexible_hours_section",
+   "fieldtype": "Section Break",
+   "label": "Flexible Working Hours Settings"
+  },
+  {
+   "default": "0",
+   "description": "Round check-in time up and check-out time down to the nearest precision unit.",
+   "fieldname": "enable_time_rounding",
+   "fieldtype": "Check",
+   "label": "Enable Time Rounding"
+  },
+  {
+   "default": "15",
+   "depends_on": "enable_time_rounding",
+   "description": "Time rounding precision in minutes. Check-in rounds up, check-out rounds down.",
+   "fieldname": "rounding_precision",
+   "fieldtype": "Select",
+   "label": "Rounding Precision (minutes)",
+   "options": "15\n30\n60"
+  },
+  {
+   "fieldname": "column_break_flex",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "description": "Deduct lunch break time from working hours if the work period overlaps with lunch time.",
+   "fieldname": "enable_lunch_deduction",
+   "fieldtype": "Check",
+   "label": "Enable Lunch Break Deduction"
+  },
+  {
+   "default": "12:00:00",
+   "depends_on": "enable_lunch_deduction",
+   "fieldname": "lunch_start",
+   "fieldtype": "Time",
+   "label": "Lunch Break Start"
+  },
+  {
+   "default": "13:00:00",
+   "depends_on": "enable_lunch_deduction",
+   "fieldname": "lunch_end",
+   "fieldtype": "Time",
+   "label": "Lunch Break End"
+  },
+  {
    "fieldname": "overtime_section",
    "fieldtype": "Section Break",
    "label": "Overtime"
@@ -210,7 +264,7 @@
   }
  ],
  "links": [],
- "modified": "2025-12-16 16:32:49.169920",
+ "modified": "2025-12-22 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "Shift Type",

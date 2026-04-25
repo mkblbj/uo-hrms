@@ -1,0 +1,932 @@
+# Language: Japanese (日本語)
+# Contributor: 株式会社UO
+msgid ""
+msgstr ""
+"Project-Id-Version: UO HR\n"
+"POT-Creation-Date: 2025-11-18 00:00\n"
+"Language: ja\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# Common Terms
+msgid "Employee"
+msgstr "従業員"
+
+msgid "Employee ID"
+msgstr "従業員ID"
+
+msgid "Employee Name"
+msgstr "従業員名"
+
+msgid "Department"
+msgstr "部門"
+
+msgid "Designation"
+msgstr "役職"
+
+msgid "Company"
+msgstr "会社"
+
+msgid "Branch"
+msgstr "支店"
+
+msgid "Gender"
+msgstr "性別"
+
+msgid "Date of Birth"
+msgstr "生年月日"
+
+msgid "Date of Joining"
+msgstr "入社日"
+
+msgid "Status"
+msgstr "ステータス"
+
+msgid "Active"
+msgstr "在職中"
+
+msgid "Inactive"
+msgstr "退職済"
+
+msgid "Left"
+msgstr "退職"
+
+# Attendance
+msgid "Attendance"
+msgstr "勤怠"
+
+msgid "Check In"
+msgstr "出勤"
+
+msgid "Check Out"
+msgstr "退勤"
+
+msgid "Present"
+msgstr "出勤"
+
+msgid "Absent"
+msgstr "未出勤"
+
+msgid "Half Day"
+msgstr "半日勤務"
+
+msgid "On Leave"
+msgstr "休暇中"
+
+msgid "Work From Home"
+msgstr "在宅勤務"
+
+msgid "Attendance Date"
+msgstr "勤怠日"
+
+msgid "Working Hours"
+msgstr "勤務時間"
+
+msgid "Late Entry"
+msgstr "遅刻"
+
+msgid "Early Exit"
+msgstr "早退"
+
+msgid "Overtime"
+msgstr "残業"
+
+# Leave Management
+msgid "Leave"
+msgstr "休暇"
+
+msgid "Leave Application"
+msgstr "休暇申請"
+
+msgid "Leave Type"
+msgstr "休暇種別"
+
+msgid "Leave Balance"
+msgstr "休暇残高"
+
+msgid "From Date"
+msgstr "開始日"
+
+msgid "To Date"
+msgstr "終了日"
+
+msgid "Total Leave Days"
+msgstr "休暇日数"
+
+msgid "Leave Approver"
+msgstr "承認者"
+
+msgid "Reason"
+msgstr "理由"
+
+msgid "Annual Leave"
+msgstr "年次有給休暇"
+
+msgid "Sick Leave"
+msgstr "病気休暇"
+
+msgid "Casual Leave"
+msgstr "事由休暇"
+
+msgid "Maternity Leave"
+msgstr "産休"
+
+msgid "Paternity Leave"
+msgstr "育休"
+
+msgid "Compensatory Leave"
+msgstr "代休"
+
+msgid "Leave Without Pay"
+msgstr "無給休暇"
+
+# Payroll
+msgid "Payroll"
+msgstr "給与"
+
+msgid "Salary"
+msgstr "給与"
+
+msgid "Salary Slip"
+msgstr "給与明細"
+
+msgid "Salary Structure"
+msgstr "給与体系"
+
+msgid "Basic Salary"
+msgstr "基本給"
+
+msgid "Gross Pay"
+msgstr "総支給額"
+
+msgid "Net Pay"
+msgstr "手取り額"
+
+msgid "Total Deduction"
+msgstr "控除合計"
+
+msgid "Earnings"
+msgstr "支給"
+
+msgid "Deductions"
+msgstr "控除"
+
+msgid "Allowance"
+msgstr "手当"
+
+msgid "Housing Allowance"
+msgstr "住宅手当"
+
+msgid "Transport Allowance"
+msgstr "交通費"
+
+msgid "Medical Allowance"
+msgstr "医療手当"
+
+msgid "Income Tax"
+msgstr "所得税"
+
+msgid "Social Insurance"
+msgstr "社会保険"
+
+msgid "Health Insurance"
+msgstr "健康保険"
+
+msgid "Pension"
+msgstr "厚生年金"
+
+msgid "Employment Insurance"
+msgstr "雇用保険"
+
+msgid "Payment Date"
+msgstr "支給日"
+
+# Expense Claims
+msgid "Expense Claim"
+msgstr "経費精算"
+
+msgid "Expense Type"
+msgstr "経費種別"
+
+msgid "Expense Date"
+msgstr "経費日付"
+
+msgid "Amount"
+msgstr "金額"
+
+msgid "Claimed Amount"
+msgstr "申請額"
+
+msgid "Approved Amount"
+msgstr "承認額"
+
+msgid "Description"
+msgstr "説明"
+
+msgid "Travel Expense"
+msgstr "出張費"
+
+msgid "Meal Expense"
+msgstr "食事代"
+
+msgid "Accommodation"
+msgstr "宿泊費"
+
+msgid "Fuel Expense"
+msgstr "燃料費"
+
+# Performance
+msgid "Performance"
+msgstr "評価"
+
+msgid "Appraisal"
+msgstr "考課"
+
+msgid "Goal"
+msgstr "目標"
+
+msgid "KRA"
+msgstr "重要業績指標"
+
+msgid "Rating"
+msgstr "評価"
+
+msgid "Self Appraisal"
+msgstr "自己評価"
+
+msgid "Manager Appraisal"
+msgstr "上司評価"
+
+# Recruitment
+msgid "Recruitment"
+msgstr "採用"
+
+msgid "Job Opening"
+msgstr "求人"
+
+msgid "Job Applicant"
+msgstr "応募者"
+
+msgid "Interview"
+msgstr "面接"
+
+msgid "Job Offer"
+msgstr "内定"
+
+msgid "Appointment Letter"
+msgstr "採用通知書"
+
+# Common Actions
+msgid "Submit"
+msgstr "提出"
+
+msgid "Save"
+msgstr "保存"
+
+msgid "Cancel"
+msgstr "キャンセル"
+
+msgid "Approve"
+msgstr "承認"
+
+msgid "Reject"
+msgstr "却下"
+
+msgid "Draft"
+msgstr "下書き"
+
+msgid "Submitted"
+msgstr "提出済"
+
+msgid "Approved"
+msgstr "承認済"
+
+msgid "Rejected"
+msgstr "却下済"
+
+msgid "Cancelled"
+msgstr "取消済"
+
+msgid "Pending"
+msgstr "保留中"
+
+msgid "Open"
+msgstr "未処理"
+
+msgid "Closed"
+msgstr "完了"
+
+# Time
+msgid "Today"
+msgstr "今日"
+
+msgid "Yesterday"
+msgstr "昨日"
+
+msgid "This Week"
+msgstr "今週"
+
+msgid "This Month"
+msgstr "今月"
+
+msgid "This Year"
+msgstr "今年"
+
+msgid "From"
+msgstr "開始"
+
+msgid "To"
+msgstr "終了"
+
+msgid "Date"
+msgstr "日付"
+
+msgid "Time"
+msgstr "時刻"
+
+# Messages
+msgid "Thank you for installing UO HR!"
+msgstr "UO HRをインストールしていただきありがとうございます！"
+
+msgid "Login to UO HR"
+msgstr "UO HRにログイン"
+
+msgid "Login to Frappe HR"
+msgstr "UO HRにログイン"
+
+msgid "Install UO HR"
+msgstr "UO HRをインストール"
+
+msgid "Install Frappe HR"
+msgstr "UO HRをインストール"
+
+msgid "UO HR"
+msgstr "UO HR"
+
+msgid "Frappe HR"
+msgstr "UO HR"
+
+msgid "No records found"
+msgstr "レコードが見つかりません"
+
+msgid "Loading..."
+msgstr "読み込み中..."
+
+msgid "Search"
+msgstr "検索"
+
+msgid "Filter"
+msgstr "フィルター"
+
+msgid "Export"
+msgstr "エクスポート"
+
+msgid "Print"
+msgstr "印刷"
+
+msgid "Settings"
+msgstr "設定"
+
+msgid "Home"
+msgstr "ホーム"
+
+msgid "Profile"
+msgstr "プロフィール"
+
+msgid "Logout"
+msgstr "ログアウト"
+
+msgid "Login"
+msgstr "ログイン"
+
+msgid "Email"
+msgstr "メール"
+
+msgid "Password"
+msgstr "パスワード"
+
+msgid "Forgot Password?"
+msgstr "パスワードをお忘れですか？"
+
+# Reports
+msgid "Reports"
+msgstr "レポート"
+
+msgid "Monthly Attendance Sheet"
+msgstr "月次勤怠表"
+
+msgid "Employee Leave Balance"
+msgstr "従業員休暇残高"
+
+msgid "Salary Register"
+msgstr "給与台帳"
+
+# Dashboard
+msgid "Dashboard"
+msgstr "ダッシュボード"
+
+msgid "Total Employees"
+msgstr "総従業員数"
+
+msgid "New Joiners"
+msgstr "新規入社"
+
+msgid "Exits"
+msgstr "退職者"
+
+msgid "Leaves Today"
+msgstr "本日の休暇"
+
+msgid "On Time"
+msgstr "定時"
+
+# Additional HR Terms
+msgid "Employee Onboarding"
+msgstr "入社手続き"
+
+msgid "Employee Separation"
+msgstr "退職手続き"
+
+msgid "Exit Interview"
+msgstr "退職面談"
+
+msgid "Training"
+msgstr "研修"
+
+msgid "Shift"
+msgstr "シフト"
+
+msgid "Shift Type"
+msgstr "シフト種別"
+
+msgid "Shift Assignment"
+msgstr "シフト割当"
+
+msgid "Holiday List"
+msgstr "休日カレンダー"
+
+msgid "National Holiday"
+msgstr "国民の祝日"
+
+msgid "Weekly Off"
+msgstr "週休"
+
+# Check-in/Check-out Messages
+msgid "Success"
+msgstr "成功"
+
+msgid "Check-out successful!"
+msgstr "退勤が完了しました！"
+
+msgid "Check-in successful!"
+msgstr "出勤が完了しました！"
+
+msgid "{0} successful!"
+msgstr "{0}が完了しました！"
+
+msgid "Check-in"
+msgstr "出勤"
+
+msgid "Check-out"
+msgstr "退勤"
+
+msgid "Confirm {0}"
+msgstr "{0}を確認"
+
+msgid "Last {0} was at {1}"
+msgstr "最後の{0}時刻：{1}"
+
+msgid "Error"
+msgstr "エラー"
+
+msgid "{0} failed!"
+msgstr "{0}が失敗しました！"
+
+msgid "Hey"
+msgstr "こんにちは"
+
+msgid "Last check-out was at"
+msgstr "最後の退勤時刻"
+
+msgid "View List"
+msgstr "リストを見る"
+
+msgid "Quick Links"
+msgstr "クイックリンク"
+
+msgid "Request Attendance"
+msgstr "勤怠申請"
+
+msgid "Request a Shift"
+msgstr "シフト申請"
+
+msgid "Request Leave"
+msgstr "休暇申請"
+
+msgid "Claim an Expense"
+msgstr "経費精算"
+
+msgid "Request an Advance"
+msgstr "前払い申請"
+
+msgid "View Salary Slips"
+msgstr "給与明細を見る"
+
+#: frontend/src/components/InstallPrompt.vue:8
+msgid "Get the app on your device for easy access & a better experience!"
+msgstr "デバイスにアプリをインストールして、より便利にアクセスできます！"
+
+#: frontend/src/components/InstallPrompt.vue:41
+msgid "Get the app on your iPhone for easy access & a better experience"
+msgstr "iPhoneにアプリをインストールして、より便利にご利用いただけます"
+# QR Attendance Translations
+#: hrms/api/qr_attendance.py
+msgid "Check-in location {0} does not exist"
+msgstr "チェックイン場所 {0} が存在しません"
+
+#: hrms/api/qr_attendance.py
+msgid "Check-in location {0} is disabled"
+msgstr "チェックイン場所 {0} は無効になっています"
+
+#: hrms/api/qr_attendance.py
+msgid "Please login before checking in"
+msgstr "チェックインする前にログインしてください"
+
+#: hrms/api/qr_attendance.py
+msgid "Invalid QR code format, please scan again"
+msgstr "QRコードの形式が無効です。もう一度スキャンしてください"
+
+#: hrms/api/qr_attendance.py
+msgid "Check-in location does not exist"
+msgstr "チェックイン場所が存在しません"
+
+#: hrms/api/qr_attendance.py
+msgid "Check-in location is disabled"
+msgstr "チェックイン場所が無効になっています"
+
+#: hrms/api/qr_attendance.py
+msgid "QR code is about to expire, please check in soon"
+msgstr "QRコードの有効期限が近づいています。早めにチェックインしてください"
+
+#: hrms/api/qr_attendance.py
+msgid "QR code has expired or is invalid, please scan again"
+msgstr "QRコードの有効期限が切れているか無効です。もう一度スキャンしてください"
+
+#: hrms/api/qr_attendance.py
+msgid "Your account is not linked to an employee profile, please contact HR"
+msgstr "アカウントが従業員プロファイルにリンクされていません。人事部にお問い合わせください"
+
+#: hrms/api/qr_attendance.py
+msgid "checked in"
+msgstr "出勤"
+
+#: hrms/api/qr_attendance.py
+msgid "checked out"
+msgstr "退勤"
+
+#: hrms/api/qr_attendance.py
+msgid "You have already {0} within the last 5 minutes, please do not check in repeatedly"
+msgstr "5分以内に既に{0}しています。重複してチェックインしないでください"
+
+#: hrms/api/qr_attendance.py
+msgid "Check-in"
+msgstr "出勤"
+
+#: hrms/api/qr_attendance.py
+msgid "Check-out"
+msgstr "退勤"
+
+#: hrms/api/qr_attendance.py
+msgid "{0} successful"
+msgstr "{0}成功"
+
+# Frontend QR Scanner Translations
+#: frontend/src/components/QRScannerModal.vue
+msgid "Scan QR Code"
+msgstr "QRコードをスキャン"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Position the QR code within the frame"
+msgstr "QRコードをフレーム内に配置してください"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Start Scanning"
+msgstr "スキャン開始"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Unable to access camera, please check permissions"
+msgstr "カメラにアクセスできません。権限を確認してください"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Verifying..."
+msgstr "確認中..."
+
+#: frontend/src/components/CheckInPanel.vue
+msgid "Scan QR Code to {0}"
+msgstr "QRコードで{0}"
+
+#: frontend/src/components/CheckInPanel.vue
+msgid "View List"
+msgstr "リストを表示"
+
+#: frontend/src/components/CheckInPanel.vue
+msgid "Unable to retrieve your location"
+msgstr "位置情報を取得できません"
+
+#: frontend/src/components/EmployeeCheckinItem.vue
+msgid "Log Type"
+msgstr "記録タイプ"
+
+#: frontend/src/components/EmployeeCheckinItem.vue
+msgid "Check In"
+msgstr "出勤"
+
+#: frontend/src/components/EmployeeCheckinItem.vue
+msgid "Check Out"
+msgstr "退勤"
+
+#: frontend/src/views/attendance/EmployeeCheckinList.vue
+msgid "Employee Checkin History"
+msgstr "出退勤履歴"
+
+#: frontend/src/data/config/requestSummaryFields.js
+msgid "ID"
+msgstr "ID"
+
+#: frontend/src/data/config/requestSummaryFields.js
+msgid "Date"
+msgstr "日付"
+
+#: frontend/src/data/config/requestSummaryFields.js
+msgid "Time"
+msgstr "時間"
+
+#: frontend/src/data/config/requestSummaryFields.js
+msgid "Latitude"
+msgstr "緯度"
+
+#: frontend/src/data/config/requestSummaryFields.js
+msgid "Longitude"
+msgstr "経度"
+
+
+#: frontend/src/components/AttendanceCalendar.vue
+msgid "Attendance Status"
+msgstr "勤怠状態"
+
+#: frontend/src/components/AttendanceCalendar.vue
+msgid "Shift Information"
+msgstr "シフト情報"
+
+#: frontend/src/components/AttendanceCalendar.vue
+msgid "No attendance or shift information for this date"
+msgstr "この日付には勤怠またはシフト情報がありません"
+
+#: frontend/src/components/AttendanceCalendar.vue
+msgid "Scheduled"
+msgstr "シフト予定"
+
+#: hrms/api/qr_attendance.py
+msgid "You just checked in {0} minutes ago. Please wait at least 15 minutes before checking out."
+msgstr "{0}分前にチェックインしたばかりです。チェックアウトするには少なくとも15分お待ちください。"
+
+#: hrms/api/qr_attendance.py
+msgid "You just checked out {0} minutes ago. Please wait at least 5 minutes before checking in."
+msgstr "{0}分前にチェックアウトしたばかりです。チェックインするには少なくとも5分お待ちください。"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Confirm Check In"
+msgstr "チェックイン確認"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Confirm Check Out"
+msgstr "チェックアウト確認"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Cancel"
+msgstr "キャンセル"
+
+#: frontend/src/components/QRScannerModal.vue
+msgid "Unknown Location"
+msgstr "不明な場所"
+
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Flexible Working Hours Settings"
+msgstr "フレキシブル勤務時間設定"
+
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Enable Time Rounding"
+msgstr "時間丸めを有効化"
+
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Rounding Precision (minutes)"
+msgstr "丸め精度（分）"
+
+#. Description of the 'Enable Time Rounding' (Check) field in DocType 'Shift Type'
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Round check-in time up and check-out time down to the nearest precision unit."
+msgstr "出勤時間を切り上げ、退勤時間を切り捨てて最寄りの精度単位に丸めます。"
+
+#. Description of the 'Rounding Precision' (Select) field in DocType 'Shift Type'
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Time rounding precision in minutes. Check-in rounds up, check-out rounds down."
+msgstr "時間丸め精度（分）。出勤は切り上げ、退勤は切り捨て。"
+
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Enable Lunch Break Deduction"
+msgstr "昼休み控除を有効化"
+
+#. Description of the 'Enable Lunch Break Deduction' (Check) field in DocType 'Shift Type'
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Deduct lunch break time from working hours if the work period overlaps with lunch time."
+msgstr "勤務時間が昼休みと重複する場合、労働時間から昼休み時間を控除します。"
+
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Lunch Break Start"
+msgstr "昼休み開始"
+
+#: hrms/hr/doctype/shift_type/shift_type.json
+msgid "Lunch Break End"
+msgstr "昼休み終了"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin.js
+#: hrms/hr/doctype/attendance/attendance.js
+msgid "Recalculate Attendance"
+msgstr "勤怠を再計算"
+
+#: hrms/hr/doctype/attendance/attendance.js
+msgid "Recalculate"
+msgstr "再計算"
+
+#: hrms/hr/doctype/attendance/attendance.js
+msgid "This will cancel this attendance and recalculate based on checkin records. Continue?"
+msgstr "この勤怠記録をキャンセルし、打刻記録に基づいて再計算します。続行しますか？"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin.js
+msgid "This will recalculate attendance for {0} on {1}. Continue?"
+msgstr "{1} の {0} の勤怠を再計算します。続行しますか？"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin.js
+msgid "Recalculating Attendance..."
+msgstr "勤怠を再計算中..."
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin.js
+msgid "Attendance recalculated: {0} hours, Status: {1}"
+msgstr "勤怠再計算完了：{0} 時間、状態：{1}"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin.py
+msgid "Attendance {0} has been cancelled due to checkin time modification. Please recalculate attendance."
+msgstr "打刻時間の変更により、勤怠 {0} がキャンセルされました。勤怠を再計算してください。"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin_utils.py
+msgid "No active shift assignment found for employee {0} on {1}"
+msgstr "従業員 {0} の {1} に有効なシフト割り当てが見つかりません"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin_utils.py
+msgid "No checkin records found for employee {0} on {1}"
+msgstr "従業員 {0} の {1} の打刻記録が見つかりません"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin_utils.py
+msgid "Attendance recalculated successfully"
+msgstr "勤怠の再計算が完了しました"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin_utils.py
+msgid "Failed to create attendance record"
+msgstr "勤怠記録の作成に失敗しました"
+
+#: hrms/hr/doctype/employee_checkin/employee_checkin_utils.py
+msgid "Recalculated {0} of {1} days"
+msgstr "{1} 日中 {0} 日を再計算しました"
+
+#: hrms/hr/report
+msgid "Monthly Working Hours Summary"
+msgstr "月次勤務時間集計"
+
+#: hrms/hr/report
+msgid "Employee Attendance Detail"
+msgstr "従業員勤怠明細"
+
+#: hrms/hr/report
+msgid "Employee ID"
+msgstr "従業員ID"
+
+#: hrms/hr/report
+msgid "Employee Name"
+msgstr "従業員名"
+
+#: hrms/hr/report
+msgid "Department"
+msgstr "部署"
+
+#: hrms/hr/report
+msgid "Present Days"
+msgstr "出勤日数"
+
+#: hrms/hr/report
+msgid "Absent Days"
+msgstr "欠勤日数"
+
+#: hrms/hr/report
+msgid "Leave Days"
+msgstr "休暇日数"
+
+#: hrms/hr/report
+msgid "Half Days"
+msgstr "半日"
+
+#: hrms/hr/report
+msgid "Total Working Hours"
+msgstr "総勤務時間"
+
+#: hrms/hr/report
+msgid "Late Entries"
+msgstr "遅刻回数"
+
+#: hrms/hr/report
+msgid "Early Exits"
+msgstr "早退回数"
+
+#: hrms/hr/report
+msgid "Date"
+msgstr "日付"
+
+#: hrms/hr/report
+msgid "Day"
+msgstr "曜日"
+
+#: hrms/hr/report
+msgid "Status"
+msgstr "状態"
+
+#: hrms/hr/report
+msgid "Check In"
+msgstr "出勤"
+
+#: hrms/hr/report
+msgid "Check Out"
+msgstr "退勤"
+
+#: hrms/hr/report
+msgid "Working Hours"
+msgstr "勤務時間"
+
+#: hrms/hr/report
+msgid "Late Entry"
+msgstr "遅刻"
+
+#: hrms/hr/report
+msgid "Early Exit"
+msgstr "早退"
+
+#: hrms/hr/report
+msgid "Shift"
+msgstr "シフト"
+
+#: hrms/hr/report
+msgid "Year"
+msgstr "年"
+
+#: hrms/hr/report
+msgid "Month"
+msgstr "月"
+
+#: hrms/hr/report
+msgid "Company"
+msgstr "会社"
+
+#: hrms/hr/report
+msgid "Employee"
+msgstr "従業員"
+
+#: hrms/hr/report
+msgid "Please select an employee"
+msgstr "従業員を選択してください"
+
+#: hrms/hr/report
+msgid "Mon"
+msgstr "月"
+
+#: hrms/hr/report
+msgid "Tue"
+msgstr "火"
+
+#: hrms/hr/report
+msgid "Wed"
+msgstr "水"
+
+#: hrms/hr/report
+msgid "Thu"
+msgstr "木"
+
+#: hrms/hr/report
+msgid "Fri"
+msgstr "金"
+
+#: hrms/hr/report
+msgid "Sat"
+msgstr "土"
+
+#: hrms/hr/report
+msgid "Sun"
+msgstr "日"
