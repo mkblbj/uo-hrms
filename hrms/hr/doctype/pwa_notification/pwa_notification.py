@@ -28,40 +28,34 @@ class PWANotification(Document):
 		# 默认来源用户为当前登录用户
 		if not self.from_user:
 			self.from_user = frappe.session.user
-		
+
 		# 群发处理
 		if self.send_to_all:
 			self.send_to_all_employees()
 			frappe.throw(
-				frappe._("通知已成功发送给所有员工！"),
-				frappe.ValidationError,
-				title=frappe._("发送成功")
+				frappe._("通知已成功发送给所有员工！"), frappe.ValidationError, title=frappe._("发送成功")
 			)
-		
+
 		# 多选用户处理
 		if self.recipients and len(self.recipients) > 0:
 			self.send_to_multiple_users()
 			frappe.throw(
-				frappe._("通知已成功发送给选中的用户！"),
-				frappe.ValidationError,
-				title=frappe._("发送成功")
+				frappe._("通知已成功发送给选中的用户！"), frappe.ValidationError, title=frappe._("发送成功")
 			)
-	
+
 	def send_to_all_employees(self):
 		"""发送通知给所有有 User 账号的员工"""
 		employees = frappe.get_all(
-			"Employee",
-			filters={"status": "Active", "user_id": ["is", "set"]},
-			pluck="user_id"
+			"Employee", filters={"status": "Active", "user_id": ["is", "set"]}, pluck="user_id"
 		)
-		
+
 		for user_id in employees:
 			if user_id:
 				self._create_notification_for_user(user_id)
-		
+
 		frappe.db.commit()
 		frappe.msgprint(f"已成功发送通知给 {len(employees)} 位员工")
-	
+
 	def send_to_multiple_users(self):
 		"""发送通知给多个选中的用户"""
 		count = 0
@@ -69,10 +63,10 @@ class PWANotification(Document):
 			if recipient.user:
 				self._create_notification_for_user(recipient.user)
 				count += 1
-		
+
 		frappe.db.commit()
 		frappe.msgprint(f"已成功发送通知给 {count} 位用户")
-	
+
 	def _create_notification_for_user(self, user_id):
 		"""创建单个用户的通知"""
 		notification = frappe.new_doc("PWA Notification")
@@ -86,7 +80,7 @@ class PWANotification(Document):
 		notification.send_to_all = 0
 		notification.flags.ignore_permissions = True
 		notification.insert()
-	
+
 	def get_display_message(self):
 		"""获取实际要显示的消息内容"""
 		if self.use_html_source and self.html_source:

@@ -64,42 +64,56 @@ frappe.ui.form.on("Employee Checkin", {
 
 	add_recalculate_attendance_button(frm) {
 		// Add button to recalculate attendance for this date
-		frm.add_custom_button(__("Recalculate Attendance"), function () {
-			let checkin_date = frappe.datetime.str_to_obj(frm.doc.time).toISOString().split('T')[0];
-			
-			frappe.confirm(
-				__("This will recalculate attendance for {0} on {1}. Continue?", [frm.doc.employee_name, checkin_date]),
-				function() {
-					frappe.call({
-						method: "hrms.hr.doctype.employee_checkin.employee_checkin_utils.recalculate_attendance",
-						args: {
-							employee: frm.doc.employee,
-							date: checkin_date
-						},
-						freeze: true,
-						freeze_message: __("Recalculating Attendance..."),
-						callback: function(r) {
-							if (r.message) {
-								if (r.message.status === "success") {
-									frappe.show_alert({
-										message: __("Attendance recalculated: {0} hours, Status: {1}", [
-											r.message.working_hours,
-											r.message.attendance_status
-										]),
-										indicator: "green"
-									});
-									frm.reload_doc();
-								} else {
-									frappe.show_alert({
-										message: r.message.message,
-										indicator: r.message.status === "warning" ? "orange" : "red"
-									});
+		frm.add_custom_button(
+			__("Recalculate Attendance"),
+			function () {
+				let checkin_date = frappe.datetime
+					.str_to_obj(frm.doc.time)
+					.toISOString()
+					.split("T")[0];
+
+				frappe.confirm(
+					__("This will recalculate attendance for {0} on {1}. Continue?", [
+						frm.doc.employee_name,
+						checkin_date,
+					]),
+					function () {
+						frappe.call({
+							method: "hrms.hr.doctype.employee_checkin.employee_checkin_utils.recalculate_attendance",
+							args: {
+								employee: frm.doc.employee,
+								date: checkin_date,
+							},
+							freeze: true,
+							freeze_message: __("Recalculating Attendance..."),
+							callback: function (r) {
+								if (r.message) {
+									if (r.message.status === "success") {
+										frappe.show_alert({
+											message: __(
+												"Attendance recalculated: {0} hours, Status: {1}",
+												[
+													r.message.working_hours,
+													r.message.attendance_status,
+												],
+											),
+											indicator: "green",
+										});
+										frm.reload_doc();
+									} else {
+										frappe.show_alert({
+											message: r.message.message,
+											indicator:
+												r.message.status === "warning" ? "orange" : "red",
+										});
+									}
 								}
-							}
-						}
-					});
-				}
-			);
-		}, __("Actions"));
+							},
+						});
+					},
+				);
+			},
+			__("Actions"),
+		);
 	},
 });

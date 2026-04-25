@@ -33,39 +33,51 @@ frappe.ui.form.on("Attendance", {
 				__("Recalculate"),
 				() => {
 					frappe.confirm(
-						__("This will cancel this attendance and recalculate based on checkin records. Continue?"),
-						function() {
+						__(
+							"This will cancel this attendance and recalculate based on checkin records. Continue?",
+						),
+						function () {
 							frappe.call({
 								method: "hrms.hr.doctype.employee_checkin.employee_checkin_utils.recalculate_attendance",
 								args: {
 									employee: frm.doc.employee,
-									date: frm.doc.attendance_date
+									date: frm.doc.attendance_date,
 								},
 								freeze: true,
 								freeze_message: __("Recalculating Attendance..."),
-								callback: function(r) {
+								callback: function (r) {
 									if (r.message) {
 										if (r.message.status === "success") {
 											frappe.show_alert({
-												message: __("Attendance recalculated: {0} hours, Status: {1}", [
-													r.message.working_hours,
-													r.message.attendance_status
-												]),
-												indicator: "green"
+												message: __(
+													"Attendance recalculated: {0} hours, Status: {1}",
+													[
+														r.message.working_hours,
+														r.message.attendance_status,
+													],
+												),
+												indicator: "green",
 											});
 											// Navigate to new attendance
-											frappe.set_route("Form", "Attendance", r.message.attendance);
+											frappe.set_route(
+												"Form",
+												"Attendance",
+												r.message.attendance,
+											);
 										} else {
 											frappe.show_alert({
 												message: r.message.message,
-												indicator: r.message.status === "warning" ? "orange" : "red"
+												indicator:
+													r.message.status === "warning"
+														? "orange"
+														: "red",
 											});
 											frm.reload_doc();
 										}
 									}
-								}
+								},
 							});
-						}
+						},
 					);
 				},
 				__("Actions"),

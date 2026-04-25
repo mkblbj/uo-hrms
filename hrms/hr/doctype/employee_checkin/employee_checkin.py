@@ -79,24 +79,24 @@ class EmployeeCheckin(Document):
 		if self.attendance and self.has_value_changed("time"):
 			# Auto-cancel the linked attendance when time is changed
 			self._cancel_linked_attendance()
-	
+
 	def _cancel_linked_attendance(self):
 		"""Cancel the linked attendance record when checkin time is modified"""
 		if not self.attendance:
 			return
-		
+
 		attendance_doc = frappe.get_doc("Attendance", self.attendance)
 		if attendance_doc.docstatus == 1:  # Submitted
 			attendance_doc.flags.ignore_permissions = True
 			attendance_doc.cancel()
 			frappe.msgprint(
-				_("Attendance {0} has been cancelled due to checkin time modification. Please recalculate attendance.").format(
-					frappe.bold(self.attendance)
-				),
+				_(
+					"Attendance {0} has been cancelled due to checkin time modification. Please recalculate attendance."
+				).format(frappe.bold(self.attendance)),
 				alert=True,
-				indicator="orange"
+				indicator="orange",
 			)
-		
+
 		# Clear the attendance link
 		self.attendance = None
 
@@ -134,24 +134,34 @@ class EmployeeCheckin(Document):
 			self.shift_start = shift_actual_timings.start_datetime
 			self.shift_end = shift_actual_timings.end_datetime
 			self.overtime_type = shift_actual_timings.overtime_type or None
-			
+
 			# Fix: Ensure shift_actual_end is correctly calculated for overnight checkout
 			# When actual_end time is earlier than actual_start time (e.g., 03:00 < 04:00),
 			# it means the shift extends into the next day
 			self._fix_overnight_shift_actual_end()
-	
+
 	def _fix_overnight_shift_actual_end(self):
 		"""Fix shift_actual_end for shifts with overnight checkout grace period"""
 		if not self.shift_actual_start or not self.shift_actual_end or not self.shift_start:
 			return
-		
+
 		# Get the time components
-		actual_start_time = self.shift_actual_start.time() if hasattr(self.shift_actual_start, 'time') else self.shift_actual_start
-		actual_end_time = self.shift_actual_end.time() if hasattr(self.shift_actual_end, 'time') else self.shift_actual_end
-		
+		actual_start_time = (
+			self.shift_actual_start.time()
+			if hasattr(self.shift_actual_start, "time")
+			else self.shift_actual_start
+		)
+		actual_end_time = (
+			self.shift_actual_end.time() if hasattr(self.shift_actual_end, "time") else self.shift_actual_end
+		)
+
 		# If actual_end time is before actual_start time, actual_end should be on the next day
 		if actual_end_time < actual_start_time:
-			shift_date = self.shift_start.date() if hasattr(self.shift_start, 'date') else get_datetime(self.shift_start).date()
+			shift_date = (
+				self.shift_start.date()
+				if hasattr(self.shift_start, "date")
+				else get_datetime(self.shift_start).date()
+			)
 			# Recalculate shift_actual_end to be on the next day
 			next_day = shift_date + timedelta(days=1)
 			self.shift_actual_end = datetime.combine(next_day, actual_end_time)

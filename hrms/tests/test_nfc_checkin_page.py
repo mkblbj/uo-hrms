@@ -1,6 +1,5 @@
-from pathlib import Path
 import unittest
-
+from pathlib import Path
 
 HTML_FILE = Path(__file__).resolve().parents[1] / "www" / "nfc_checkin.html"
 
