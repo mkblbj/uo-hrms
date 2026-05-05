@@ -10,6 +10,9 @@ import { parse } from "@vue/compiler-sfc"
 import * as homeExperience from "./homeExperience.js"
 import {
 	buildSuccessOverlayModel,
+	CHECKIN_SUCCESS_ANIMATION_IDS,
+	CHECKOUT_SUCCESS_ANIMATION_IDS,
+	chooseSuccessAnimationId,
 	getStatusChipMeta,
 	getPrimaryScanCopy,
 	getBottomTabItems,
@@ -510,9 +513,11 @@ test("builds a check-in success overlay model with attendance routing", () => {
 			lang: "zh",
 			responseMessage: { time: "2026-04-15 09:02:00", location: "office-10F" },
 			monthHours: 126.5,
+			random: () => 0,
 		}),
 		{
 			variant: "checkin",
+			animationId: "runner",
 			statusLabel: "出勤成功",
 			title: "开始上班",
 			primaryLabel: "查看今日勤怠",
@@ -534,9 +539,11 @@ test("builds a check-out success overlay model with month hours and tomorrow not
 		lang: "zh",
 		responseMessage: { time: "2026-04-15 18:06:00", location: "office-10F" },
 		monthHours: 126.5,
+		random: () => 0,
 	})
 
 	assert.equal(model.variant, "checkout")
+	assert.equal(model.animationId, "coffee")
 	assert.equal(model.statusLabel, "退勤成功")
 	assert.equal(model.primaryRoute.name, "EmployeeCheckinListView")
 	assert.deepEqual(model.infoRows, [
@@ -544,6 +551,45 @@ test("builds a check-out success overlay model with month hours and tomorrow not
 		{ label: "当月工时", value: "126.50 小时" },
 		{ label: "说明", value: "今天的工时信息，将于明天可查看。" },
 	])
+})
+
+test("success animation pools expose check-in and check-out variants", () => {
+	assert.deepEqual(CHECKIN_SUCCESS_ANIMATION_IDS, ["runner", "office-lights", "work-launch"])
+	assert.deepEqual(CHECKOUT_SUCCESS_ANIMATION_IDS, [
+		"coffee",
+		"curvy-bulldog-27",
+		"wet-mayfly-23",
+		"kind-snail-5",
+		"tall-fish-38",
+	])
+})
+
+test("success animation selection is deterministic from the supplied random value", () => {
+	assert.equal(chooseSuccessAnimationId("IN", () => 0), "runner")
+	assert.equal(chooseSuccessAnimationId("IN", () => 0.999), "work-launch")
+	assert.equal(chooseSuccessAnimationId("OUT", () => 0), "coffee")
+	assert.equal(chooseSuccessAnimationId("OUT", () => 0.999), "tall-fish-38")
+
+	assert.equal(
+		buildSuccessOverlayModel({
+			action: "IN",
+			lang: "zh",
+			responseMessage: { time: "2026-04-15 09:02:00", location: "office-10F" },
+			monthHours: 126.5,
+			random: () => 0.5,
+		}).animationId,
+		"office-lights",
+	)
+	assert.equal(
+		buildSuccessOverlayModel({
+			action: "OUT",
+			lang: "zh",
+			responseMessage: { time: "2026-04-15 18:06:00", location: "office-10F" },
+			monthHours: 126.5,
+			random: () => 0.8,
+		}).animationId,
+		"tall-fish-38",
+	)
 })
 
 test("success overlay controller opens the overlay and reveals actions after the configured delay", async () => {

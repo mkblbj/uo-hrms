@@ -2,6 +2,14 @@ import { normalizeLanguage } from "./language.js"
 
 const DEFAULT_HOME_LANGUAGE = "zh"
 export const CHECKIN_STATUS_CHANGED_EVENT = "checkin-status-changed"
+export const CHECKIN_SUCCESS_ANIMATION_IDS = ["runner", "office-lights", "work-launch"]
+export const CHECKOUT_SUCCESS_ANIMATION_IDS = [
+	"coffee",
+	"curvy-bulldog-27",
+	"wet-mayfly-23",
+	"kind-snail-5",
+	"tall-fish-38",
+]
 
 const COPY = {
 	zh: {
@@ -116,6 +124,13 @@ function toDisplayTime(value) {
 		2,
 		"0"
 	)}`
+}
+
+export function chooseSuccessAnimationId(action, random = Math.random) {
+	const pool = action === "IN" ? CHECKIN_SUCCESS_ANIMATION_IDS : CHECKOUT_SUCCESS_ANIMATION_IDS
+	const rawValue = Number(random())
+	const normalizedValue = Number.isFinite(rawValue) ? Math.min(Math.max(rawValue, 0), 0.999999) : 0
+	return pool[Math.floor(normalizedValue * pool.length)] || pool[0]
 }
 
 function withOverlayDescription(model, description) {
@@ -317,13 +332,16 @@ export function buildSuccessOverlayModel({
 	lang = "zh",
 	responseMessage,
 	monthHours = 0,
+	random = Math.random,
 }) {
 	const resolvedLang = normalizeLanguage(lang) || DEFAULT_HOME_LANGUAGE
+	const animationId = chooseSuccessAnimationId(action, random)
 
 	if (action === "IN") {
 		return withOverlayDescription(
 			{
 				variant: "checkin",
+				animationId,
 				statusLabel:
 					{
 						zh: "出勤成功",
@@ -396,6 +414,7 @@ export function buildSuccessOverlayModel({
 	return withOverlayDescription(
 		{
 			variant: "checkout",
+			animationId,
 			statusLabel:
 				{
 					zh: "退勤成功",

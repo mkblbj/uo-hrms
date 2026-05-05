@@ -9,11 +9,11 @@
 		<div class="success-overlay" :class="model.variant">
 			<div class="success-status">{{ model.statusLabel }}</div>
 			<div class="success-motion">
-				<CheckInRunnerAnimation
-					v-if="model.variant === 'checkin'"
-					:key="`runner-${motionKey}`"
+				<SuccessAnimationSwitcher
+					:key="`${model.animationId}-${motionKey}`"
+					:variant="model.variant"
+					:animation-id="model.animationId"
 				/>
-				<CheckOutCoffeeAnimation v-else :key="`coffee-${motionKey}`" />
 			</div>
 			<h2 class="success-title">{{ model.title }}</h2>
 			<p v-if="model.description" class="success-description">
@@ -41,8 +41,7 @@
 import { IonModal } from "@ionic/vue"
 import { ref } from "vue"
 
-import CheckInRunnerAnimation from "@/components/home/success/CheckInRunnerAnimation.vue"
-import CheckOutCoffeeAnimation from "@/components/home/success/CheckOutCoffeeAnimation.vue"
+import SuccessAnimationSwitcher from "@/components/home/success/SuccessAnimationSwitcher.vue"
 
 defineProps({
 	isOpen: Boolean,
