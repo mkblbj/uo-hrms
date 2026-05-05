@@ -268,6 +268,21 @@
             opacity: 1;
         }
 
+        .success-overlay__animation {
+            display: none;
+        }
+
+        .success-overlay[data-active-animation="runner"] [data-success-animation="runner"],
+        .success-overlay[data-active-animation="office-lights"] [data-success-animation="office-lights"],
+        .success-overlay[data-active-animation="work-launch"] [data-success-animation="work-launch"],
+        .success-overlay[data-active-animation="coffee"] [data-success-animation="coffee"],
+        .success-overlay[data-active-animation="curvy-bulldog-27"] [data-success-animation="curvy-bulldog-27"],
+        .success-overlay[data-active-animation="wet-mayfly-23"] [data-success-animation="wet-mayfly-23"],
+        .success-overlay[data-active-animation="kind-snail-5"] [data-success-animation="kind-snail-5"],
+        .success-overlay[data-active-animation="tall-fish-38"] [data-success-animation="tall-fish-38"] {
+            display: block;
+        }
+
         .success-overlay__content {
             position: relative;
             z-index: 2;
@@ -330,13 +345,37 @@
         }
 
         .success-runner-scene,
-        .success-coffee-scene {
+        .success-office-lights-scene,
+        .success-work-launch-scene,
+        .success-coffee-scene,
+        .success-curvy-bulldog-scene,
+        .success-wet-mayfly-scene,
+        .success-kind-snail-scene,
+        .success-tall-fish-scene {
             position: absolute;
             inset: 0;
         }
 
         .success-runner-scene {
             overflow: hidden;
+        }
+
+        .success-office-lights-scene,
+        .success-work-launch-scene,
+        .success-curvy-bulldog-scene,
+        .success-wet-mayfly-scene,
+        .success-kind-snail-scene,
+        .success-tall-fish-scene {
+            place-items: center;
+        }
+
+        .success-overlay[data-active-animation="office-lights"] .success-office-lights-scene,
+        .success-overlay[data-active-animation="work-launch"] .success-work-launch-scene,
+        .success-overlay[data-active-animation="curvy-bulldog-27"] .success-curvy-bulldog-scene,
+        .success-overlay[data-active-animation="wet-mayfly-23"] .success-wet-mayfly-scene,
+        .success-overlay[data-active-animation="kind-snail-5"] .success-kind-snail-scene,
+        .success-overlay[data-active-animation="tall-fish-38"] .success-tall-fish-scene {
+            display: grid;
         }
 
         .success-runner-lines {
@@ -495,7 +534,105 @@
             border-radius: 0 0 0 2px;
         }
 
-        .success-coffee-scene {
+        .success-office-lights-loader {
+            position: relative;
+            width: 132px;
+            height: 126px;
+            padding: 18px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 11px;
+            border-radius: 18px 18px 8px 8px;
+            background: linear-gradient(180deg, #1e3a8a 0%, #172554 100%);
+            box-shadow: 0 22px 42px rgba(15, 23, 42, 0.34), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        }
+
+        .success-office-lights-loader::before {
+            content: "";
+            position: absolute;
+            width: 52px;
+            height: 10px;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-radius: 8px 8px 0 0;
+            background: #0f172a;
+        }
+
+        .success-office-lights-loader span {
+            border-radius: 7px;
+            background: rgba(148, 163, 184, 0.28);
+            animation: office-light-on 2.4s ease-in-out infinite;
+        }
+
+        .success-office-lights-loader span:nth-child(2n) {
+            animation-delay: 0.18s;
+        }
+
+        .success-office-lights-loader span:nth-child(3n) {
+            animation-delay: 0.36s;
+        }
+
+        .success-work-launch-loader {
+            position: relative;
+            width: 196px;
+            height: 112px;
+            padding: 14px;
+            border-radius: 18px;
+            background: linear-gradient(180deg, rgba(15, 23, 42, 0.92), rgba(30, 64, 175, 0.82));
+            box-shadow: 0 24px 46px rgba(15, 23, 42, 0.32), inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+        }
+
+        .success-work-launch-header {
+            display: flex;
+            gap: 6px;
+        }
+
+        .success-work-launch-header span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(191, 219, 254, 0.66);
+        }
+
+        .success-work-launch-lines {
+            display: grid;
+            gap: 8px;
+            margin-top: 18px;
+        }
+
+        .success-work-launch-lines span {
+            height: 7px;
+            border-radius: 999px;
+            background: rgba(226, 232, 240, 0.18);
+        }
+
+        .success-work-launch-lines span:nth-child(1) { width: 74%; }
+        .success-work-launch-lines span:nth-child(2) { width: 54%; }
+        .success-work-launch-lines span:nth-child(3) { width: 64%; }
+
+        .success-work-launch-bar {
+            position: absolute;
+            left: 14px;
+            right: 14px;
+            bottom: 14px;
+            height: 18px;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, 0.42);
+            overflow: hidden;
+        }
+
+        .success-work-launch-bar span {
+            display: block;
+            width: 0;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #38bdf8, #22c55e, #facc15);
+            animation: work-launch-fill 2.2s ease-in-out infinite;
+        }
+
+        .success-overlay[data-active-animation="coffee"] .success-coffee-scene {
             display: flex;
             align-items: flex-start;
             justify-content: center;
@@ -728,6 +865,201 @@
             border-radius: 10px;
         }
 
+        .success-curvy-bulldog-loader {
+            position: relative;
+            width: 130px;
+            height: 80px;
+        }
+
+        .success-curvy-bulldog-loader::before {
+            content: "";
+            position: absolute;
+            inset: 18px 7px 10px;
+            border-radius: 999px 999px 26px 26px;
+            background: linear-gradient(135deg, #f8fafc, #cbd5e1);
+            box-shadow: 0 18px 32px rgba(15, 23, 42, 0.28);
+            animation: curvy-bulldog-body 1.8s ease-in-out infinite;
+        }
+
+        .success-curvy-bulldog-loader::after {
+            content: "";
+            position: absolute;
+            right: 0;
+            top: 22px;
+            width: 42px;
+            height: 36px;
+            border-radius: 20px 22px 16px 18px;
+            background: #f8fafc;
+            box-shadow: inset -7px -5px 0 #cbd5e1, -72px 2px 0 -10px #f8fafc;
+            animation: curvy-bulldog-head 1.8s ease-in-out infinite;
+        }
+
+        .success-curvy-bulldog-loader span {
+            position: absolute;
+            bottom: 0;
+            width: 13px;
+            height: 28px;
+            border-radius: 999px;
+            background: #e2e8f0;
+            transform-origin: top center;
+            animation: curvy-bulldog-step 0.9s ease-in-out infinite;
+        }
+
+        .success-curvy-bulldog-loader span:nth-child(1) { left: 28px; }
+        .success-curvy-bulldog-loader span:nth-child(2) { left: 58px; animation-delay: -0.45s; }
+        .success-curvy-bulldog-loader span:nth-child(3) { left: 88px; }
+
+        .success-wet-mayfly-loader {
+            position: relative;
+            width: 150px;
+            height: 96px;
+        }
+
+        .success-wet-mayfly-loader::before,
+        .success-wet-mayfly-loader::after {
+            content: "";
+            position: absolute;
+            top: 15px;
+            width: 72px;
+            height: 44px;
+            border-radius: 72px 72px 10px 72px;
+            background: rgba(125, 211, 252, 0.34);
+            box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.26);
+            transform-origin: bottom right;
+            animation: wet-mayfly-wing 1.4s ease-in-out infinite;
+        }
+
+        .success-wet-mayfly-loader::before { left: 0; }
+        .success-wet-mayfly-loader::after {
+            right: 0;
+            transform: scaleX(-1);
+            animation-name: wet-mayfly-wing-right;
+        }
+
+        .success-wet-mayfly-loader span {
+            position: absolute;
+            left: 50%;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #f8fafc;
+            transform: translateX(-50%);
+            box-shadow: 0 0 18px rgba(255, 255, 255, 0.56);
+            animation: wet-mayfly-drop 1.4s ease-in-out infinite;
+        }
+
+        .success-wet-mayfly-loader span:nth-child(1) { top: 32px; }
+        .success-wet-mayfly-loader span:nth-child(2) { top: 48px; width: 15px; height: 15px; animation-delay: 0.08s; }
+        .success-wet-mayfly-loader span:nth-child(3) { top: 62px; width: 12px; height: 12px; animation-delay: 0.16s; }
+        .success-wet-mayfly-loader span:nth-child(4) { top: 75px; width: 8px; height: 8px; animation-delay: 0.24s; }
+
+        .success-kind-snail-loader {
+            position: relative;
+            width: 162px;
+            height: 104px;
+        }
+
+        .success-kind-snail-body {
+            position: absolute;
+            left: 28px;
+            bottom: 20px;
+            width: 94px;
+            height: 52px;
+            border-radius: 48px 52px 34px 34px;
+            background: linear-gradient(180deg, #c49164, #8a5f3c);
+            box-shadow: inset 0 -8px 0 rgba(70, 44, 24, 0.18), 0 18px 30px rgba(15, 23, 42, 0.22);
+            animation: kind-snail-body 1.8s ease-in-out infinite;
+        }
+
+        .success-kind-snail-head {
+            position: absolute;
+            right: 16px;
+            bottom: 36px;
+            width: 40px;
+            height: 34px;
+            border-radius: 22px 20px 18px 18px;
+            background: #b98256;
+            animation: kind-snail-head 1.8s ease-in-out infinite;
+        }
+
+        .success-kind-snail-head::before,
+        .success-kind-snail-head::after {
+            content: "";
+            position: absolute;
+            top: 12px;
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: #1f2937;
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.38);
+        }
+
+        .success-kind-snail-head::before { left: 9px; }
+        .success-kind-snail-head::after { right: 9px; }
+
+        .success-kind-snail-bubble {
+            position: absolute;
+            right: 8px;
+            top: 15px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.66);
+            animation: kind-snail-bubble 2s ease-in-out infinite;
+        }
+
+        .success-kind-snail-bubble:last-child {
+            right: 36px;
+            top: 2px;
+            width: 8px;
+            height: 8px;
+            animation-delay: 0.35s;
+        }
+
+        .success-tall-fish-loader {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            perspective: 220px;
+        }
+
+        .success-tall-fish-loader span {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            border-radius: 50%;
+            border-style: outset;
+            background: transparent;
+            transform-origin: 50% 50%;
+            animation: tall-fish-orbit 1.1s cubic-bezier(0.49, 0.06, 0.43, 0.85) infinite;
+        }
+
+        .success-tall-fish-loader span:nth-child(1) {
+            width: 112px;
+            height: 112px;
+            margin: -56px 0 0 -56px;
+            border-width: 30px;
+            border-color: #1e3f57;
+        }
+
+        .success-tall-fish-loader span:nth-child(2) {
+            width: 132px;
+            height: 132px;
+            margin: -66px 0 0 -66px;
+            border-width: 22px;
+            border-color: #447891;
+            animation-delay: 75ms;
+        }
+
+        .success-tall-fish-loader span:nth-child(3) {
+            width: 150px;
+            height: 150px;
+            margin: -75px 0 0 -75px;
+            border-width: 15px;
+            border-color: #6bb2cd;
+            animation-delay: 150ms;
+        }
+
         @keyframes runner-line-1 {
             0% { left: 200%; }
             100% { left: -200%; opacity: 0; }
@@ -780,6 +1112,100 @@
             80% { transform: translate(-50%, -50%) scale(1.18) translate(-2px, -1px) rotate(1deg); }
             90% { transform: translate(-50%, -50%) scale(1.18) translate(2px, 1px) rotate(0deg); }
             100% { transform: translate(-50%, -50%) scale(1.18) translate(1px, -2px) rotate(-1deg); }
+        }
+
+        @keyframes office-light-on {
+            0%, 18% {
+                background: rgba(148, 163, 184, 0.28);
+                box-shadow: 0 0 0 rgba(251, 191, 36, 0);
+            }
+            36%, 82% {
+                background: #fde68a;
+                box-shadow: 0 0 18px rgba(251, 191, 36, 0.8);
+            }
+            100% {
+                background: rgba(148, 163, 184, 0.32);
+                box-shadow: 0 0 0 rgba(251, 191, 36, 0);
+            }
+        }
+
+        @keyframes work-launch-fill {
+            0% { width: 0; }
+            68%, 88% { width: 100%; }
+            100% { width: 0; }
+        }
+
+        @keyframes curvy-bulldog-body {
+            0%, 100% { transform: translateY(0) rotate(-2deg); }
+            50% { transform: translateY(-8px) rotate(2deg); }
+        }
+
+        @keyframes curvy-bulldog-head {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(4px, -5px); }
+        }
+
+        @keyframes curvy-bulldog-step {
+            0%, 100% { transform: rotate(-10deg) translateY(0); }
+            50% { transform: rotate(12deg) translateY(6px); }
+        }
+
+        @keyframes wet-mayfly-wing {
+            0%, 100% { transform: rotate(-12deg); }
+            50% { transform: rotate(18deg) translateY(-8px); }
+        }
+
+        @keyframes wet-mayfly-wing-right {
+            0%, 100% { transform: scaleX(-1) rotate(-12deg); }
+            50% { transform: scaleX(-1) rotate(18deg) translateY(-8px); }
+        }
+
+        @keyframes wet-mayfly-drop {
+            0%, 100% {
+                transform: translateX(-50%) translateY(0);
+                opacity: 0.65;
+            }
+            50% {
+                transform: translateX(-50%) translateY(-8px);
+                opacity: 1;
+            }
+        }
+
+        @keyframes kind-snail-body {
+            0%, 100% { transform: translateX(-4px); }
+            50% { transform: translateX(6px); }
+        }
+
+        @keyframes kind-snail-head {
+            0%, 100% { transform: translate(0, 0); }
+            50% { transform: translate(7px, -4px); }
+        }
+
+        @keyframes kind-snail-bubble {
+            0% {
+                transform: translateY(12px) scale(0.72);
+                opacity: 0;
+            }
+            40%, 70% { opacity: 0.9; }
+            100% {
+                transform: translateY(-18px) scale(1);
+                opacity: 0;
+            }
+        }
+
+        @keyframes tall-fish-orbit {
+            0% {
+                filter: brightness(1);
+                transform: rotateX(24deg) rotateY(20deg) rotateZ(0deg) translateZ(-25px);
+            }
+            50% {
+                filter: brightness(1.18);
+                transform: rotateX(20deg) rotateY(20deg) rotateZ(50deg) translateZ(0);
+            }
+            100% {
+                filter: brightness(1);
+                transform: rotateX(24deg) rotateY(20deg) rotateZ(0deg) translateZ(-25px);
+            }
         }
 
         @keyframes coffee-smoke {
@@ -921,7 +1347,7 @@
         <div class="success-overlay__glow success-overlay__glow--bottom"></div>
 
         <div class="success-overlay__stage success-overlay__stage--in">
-            <div class="success-runner-scene" aria-hidden="true">
+            <div class="success-runner-scene success-overlay__animation" data-success-animation="runner" aria-hidden="true">
                 <div class="success-runner-loader">
                     <span><span></span><span></span><span></span><span></span></span>
                     <div class="success-runner-base">
@@ -933,10 +1359,28 @@
                     <span></span><span></span><span></span><span></span>
                 </div>
             </div>
+            <div class="success-office-lights-scene success-overlay__animation" data-success-animation="office-lights" aria-hidden="true">
+                <div class="success-office-lights-loader">
+                    <span></span><span></span><span></span>
+                    <span></span><span></span><span></span>
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+            <div class="success-work-launch-scene success-overlay__animation" data-success-animation="work-launch" aria-hidden="true">
+                <div class="success-work-launch-loader">
+                    <div class="success-work-launch-header">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <div class="success-work-launch-lines">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <div class="success-work-launch-bar"><span></span></div>
+                </div>
+            </div>
         </div>
 
         <div class="success-overlay__stage success-overlay__stage--out">
-            <div class="success-coffee-scene" aria-hidden="true">
+            <div class="success-coffee-scene success-overlay__animation" data-success-animation="coffee" aria-hidden="true">
                 <div class="success-coffee-loader">
                     <div class="success-coffee-container">
                         <div class="success-coffee-header">
@@ -955,6 +1399,33 @@
                             <div class="success-coffee-medium__cup"></div>
                         </div>
                     </div>
+                </div>
+            </div>
+            <!-- Source inspiration: https://uiverse.io/Shoh2008/curvy-bulldog-27 (MIT License). -->
+            <div class="success-curvy-bulldog-scene success-overlay__animation" data-success-animation="curvy-bulldog-27" aria-hidden="true">
+                <div class="success-curvy-bulldog-loader">
+                    <span></span><span></span><span></span>
+                </div>
+            </div>
+            <!-- Source inspiration: https://uiverse.io/Nawsome/wet-mayfly-23 (MIT License). -->
+            <div class="success-wet-mayfly-scene success-overlay__animation" data-success-animation="wet-mayfly-23" aria-hidden="true">
+                <div class="success-wet-mayfly-loader">
+                    <span></span><span></span><span></span><span></span>
+                </div>
+            </div>
+            <!-- Source inspiration: https://uiverse.io/Novaxlo/kind-snail-5 (MIT License). -->
+            <div class="success-kind-snail-scene success-overlay__animation" data-success-animation="kind-snail-5" aria-hidden="true">
+                <div class="success-kind-snail-loader">
+                    <div class="success-kind-snail-body"></div>
+                    <div class="success-kind-snail-head"></div>
+                    <div class="success-kind-snail-bubble"></div>
+                    <div class="success-kind-snail-bubble"></div>
+                </div>
+            </div>
+            <!-- Source inspiration: https://uiverse.io/Pradeepsaranbishnoi/tall-fish-38 (MIT License). -->
+            <div class="success-tall-fish-scene success-overlay__animation" data-success-animation="tall-fish-38" aria-hidden="true">
+                <div class="success-tall-fish-loader">
+                    <span></span><span></span><span></span>
                 </div>
             </div>
         </div>
@@ -1007,20 +1478,24 @@
         const urlParams = new URLSearchParams(window.location.search);
         const checkinLocation = urlParams.get('loc') || urlParams.get('location') || 'unknown';
         const statusContainer = document.getElementById('status-container');
+        const successOverlayEl = document.getElementById('success-overlay');
         const successTitleEl = document.getElementById('success-title');
         const successEyebrowEl = document.getElementById('success-eyebrow');
         const successEmployeeNameEl = document.getElementById('success-employee-name');
         const successTimeEl = document.getElementById('success-checkin-time');
         const successLocationEl = document.getElementById('success-location');
+        const CHECKIN_SUCCESS_ANIMATIONS = ['runner', 'office-lights', 'work-launch'];
+        const CHECKOUT_SUCCESS_ANIMATIONS = ['coffee', 'curvy-bulldog-27', 'wet-mayfly-23', 'kind-snail-5', 'tall-fish-38'];
 
         console.log('[NFC] Location:', checkinLocation);
         document.getElementById('location-badge').textContent = '📍 ' + checkinLocation;
 
         function hideSuccessOverlay() {
             document.body.classList.remove('success-mode');
-            document.getElementById('success-overlay').classList.add('hidden');
-            document.getElementById('success-overlay').classList.remove('success-overlay--in', 'success-overlay--out');
-            document.getElementById('success-overlay').setAttribute('aria-hidden', 'true');
+            successOverlayEl.classList.add('hidden');
+            successOverlayEl.classList.remove('success-overlay--in', 'success-overlay--out');
+            successOverlayEl.removeAttribute('data-active-animation');
+            successOverlayEl.setAttribute('aria-hidden', 'true');
         }
 
         function showStatus(status) {
@@ -1043,18 +1518,30 @@
             return String(value);
         }
 
+        function chooseSuccessAnimationId(logType) {
+            const pool = logType === 'IN' ? CHECKIN_SUCCESS_ANIMATIONS : CHECKOUT_SUCCESS_ANIMATIONS;
+            return pool[Math.floor(Math.random() * pool.length)] || pool[0];
+        }
+
+        function setSuccessAnimation(logType, animationId) {
+            const nextAnimationId = animationId || chooseSuccessAnimationId(logType);
+            successOverlayEl.setAttribute('data-active-animation', nextAnimationId);
+        }
+
         function showSuccess(data) {
             const isCheckin = data.log_type === 'IN';
             const employeeName = data.employee_name || '—';
             const overlayTitle = isCheckin ? '出勤打刻完了' : '退勤打刻完了';
             const overlayEyebrow = isCheckin ? 'CHECK IN COMPLETE' : 'CHECK OUT COMPLETE';
+            const animationId = chooseSuccessAnimationId(data.log_type);
 
             statusContainer.classList.add('hidden');
             document.body.classList.add('success-mode');
             document.getElementById('success-overlay').classList.remove('hidden');
-            document.getElementById('success-overlay').setAttribute('aria-hidden', 'false');
-            document.getElementById('success-overlay').classList.toggle('success-overlay--in', isCheckin);
-            document.getElementById('success-overlay').classList.toggle('success-overlay--out', !isCheckin);
+            successOverlayEl.setAttribute('aria-hidden', 'false');
+            successOverlayEl.classList.toggle('success-overlay--in', isCheckin);
+            successOverlayEl.classList.toggle('success-overlay--out', !isCheckin);
+            setSuccessAnimation(data.log_type, animationId);
 
             successEyebrowEl.textContent = overlayEyebrow;
             successTitleEl.textContent = overlayTitle;

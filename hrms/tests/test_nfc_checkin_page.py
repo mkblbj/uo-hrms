@@ -52,6 +52,28 @@ class TestNfcCheckinPage(unittest.TestCase):
 		self.assertNotIn("const successHeadlineNameEl =", html)
 		self.assertNotIn("successHeadlineNameEl.textContent = employeeName;", html)
 
+	def test_success_overlay_has_random_animation_pools(self):
+		html = read_template()
+
+		self.assertIn("const CHECKIN_SUCCESS_ANIMATIONS = ['runner', 'office-lights', 'work-launch'];", html)
+		self.assertIn(
+			"const CHECKOUT_SUCCESS_ANIMATIONS = ['coffee', 'curvy-bulldog-27', 'wet-mayfly-23', 'kind-snail-5', 'tall-fish-38'];",
+			html,
+		)
+		self.assertIn("function chooseSuccessAnimationId(logType)", html)
+		self.assertIn("function setSuccessAnimation(logType, animationId)", html)
+		for animation_id in [
+			"runner",
+			"office-lights",
+			"work-launch",
+			"coffee",
+			"curvy-bulldog-27",
+			"wet-mayfly-23",
+			"kind-snail-5",
+			"tall-fish-38",
+		]:
+			self.assertIn(f'data-success-animation="{animation_id}"', html)
+
 	def test_ios_safe_area_is_covered_without_black_bars(self):
 		html = read_template()
 
