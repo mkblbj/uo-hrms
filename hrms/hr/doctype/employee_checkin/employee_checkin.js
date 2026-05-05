@@ -67,10 +67,7 @@ frappe.ui.form.on("Employee Checkin", {
 		frm.add_custom_button(
 			__("Recalculate Attendance"),
 			function () {
-				let checkin_date = frappe.datetime
-					.str_to_obj(frm.doc.time)
-					.toISOString()
-					.split("T")[0];
+				let checkin_date = frm.doc.time.split(/[ T]/)[0];
 
 				frappe.confirm(
 					__("This will recalculate attendance for {0} on {1}. Continue?", [

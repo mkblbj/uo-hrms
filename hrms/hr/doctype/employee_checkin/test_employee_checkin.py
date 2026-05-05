@@ -2,6 +2,7 @@
 # See license.txt
 
 from datetime import datetime, timedelta
+from inspect import signature
 
 import frappe
 from frappe.utils import (
@@ -24,6 +25,7 @@ from hrms.hr.doctype.employee_checkin.employee_checkin import (
 	calculate_working_hours,
 	mark_attendance_and_link_log,
 )
+from hrms.hr.doctype.employee_checkin.employee_checkin_utils import recalculate_attendance
 from hrms.hr.doctype.leave_type.test_leave_type import create_leave_type
 from hrms.hr.doctype.shift_type.test_shift_type import make_shift_assignment, setup_shift_type
 from hrms.payroll.doctype.salary_slip.test_salary_slip import make_holiday_list, make_leave_application
@@ -607,6 +609,42 @@ class TestEmployeeCheckin(HRMSTestSuite):
 		self.assertEqual(log1.shift_actual_start, datetime.combine(date, get_time("06:00:00")))
 		log2.reload()
 		self.assertEqual(log2.shift_actual_start, datetime.combine(date, get_time("06:00:00")))
+
+	def test_recalculate_attendance_has_whitelisted_type_annotations(self):
+		recalculate_signature = signature(recalculate_attendance)
+
+		self.assertIs(recalculate_signature.parameters["employee"].annotation, str)
+		self.assertIs(recalculate_signature.parameters["date"].annotation, str)
+
+	def test_recalculate_attendance_creates_attendance_from_checkins(self):
+		shift = setup_shift_type(shift_type="Recalculate Attendance Shift")
+		employee = make_employee("recalculate_attendance@example.com", company="_Test Company")
+		date = getdate()
+		make_shift_assignment(shift.name, employee, date)
+
+		in_log = make_checkin(employee, datetime.combine(date, get_time("08:30:00")), log_type="IN")
+		out_log = make_checkin(employee, datetime.combine(date, get_time("12:15:00")), log_type="OUT")
+
+		result = recalculate_attendance(employee, str(date))
+
+		self.assertEqual(result["status"], "success")
+		attendance = frappe.db.get_value(
+			"Attendance",
+			{"employee": employee, "attendance_date": date, "docstatus": 1},
+			["name", "status", "working_hours", "in_time", "out_time", "shift"],
+			as_dict=True,
+		)
+		self.assertIsNotNone(attendance)
+		self.assertEqual(attendance.status, "Present")
+		self.assertEqual(attendance.working_hours, 3.75)
+		self.assertEqual(attendance.in_time, in_log.time)
+		self.assertEqual(attendance.out_time, out_log.time)
+		self.assertEqual(attendance.shift, shift.name)
+
+		in_log.reload()
+		out_log.reload()
+		self.assertEqual(in_log.attendance, attendance.name)
+		self.assertEqual(out_log.attendance, attendance.name)
 
 	def test_if_logs_are_marked_invalid(self):
 		# time window is 7 to 13

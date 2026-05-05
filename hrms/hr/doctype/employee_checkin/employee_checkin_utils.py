@@ -5,11 +5,11 @@ from datetime import datetime, timedelta
 
 import frappe
 from frappe import _
-from frappe.utils import get_datetime, getdate
+from frappe.utils import getdate
 
 
 @frappe.whitelist()
-def recalculate_attendance(employee, date):
+def recalculate_attendance(employee: str, date: str) -> dict:
 	"""
 	Recalculate attendance for a specific employee and date.
 
@@ -89,6 +89,7 @@ def recalculate_attendance(employee, date):
 			"shift_end",
 			"shift_actual_start",
 			"shift_actual_end",
+			"offshift",
 		],
 		order_by="time",
 	)
@@ -99,28 +100,15 @@ def recalculate_attendance(employee, date):
 			"message": _("No checkin records found for employee {0} on {1}").format(employee, date),
 		}
 
-	# Step 5: Calculate attendance using shift's get_attendance method
 	shift_doc = frappe.get_doc("Shift Type", shift_name)
 
 	# Update checkins with shift info if missing
 	for checkin in checkins:
-		if not checkin.shift:
-			frappe.db.set_value(
-				"Employee Checkin",
-				checkin.name,
-				{
-					"shift": shift_name,
-					"shift_start": datetime.combine(
-						date, get_datetime(f"{date} {shift_doc.start_time}").time()
-					),
-					"shift_end": datetime.combine(date, get_datetime(f"{date} {shift_doc.end_time}").time()),
-				},
-			)
-			checkin.shift = shift_name
-			checkin.shift_start = datetime.combine(
-				date, get_datetime(f"{date} {shift_doc.start_time}").time()
-			)
-			checkin.shift_end = datetime.combine(date, get_datetime(f"{date} {shift_doc.end_time}").time())
+		if not checkin.shift or checkin.offshift:
+			checkin_doc = frappe.get_doc("Employee Checkin", checkin.name)
+			checkin_doc.fetch_shift()
+			checkin_doc.flags.ignore_validate = True
+			checkin_doc.save()
 
 	# Reload checkins with updated shift info
 	checkins = frappe.get_all(
@@ -140,12 +128,24 @@ def recalculate_attendance(employee, date):
 			"shift_end",
 			"shift_actual_start",
 			"shift_actual_end",
+			"offshift",
 		],
 		order_by="time",
 	)
 
-	# Calculate attendance
-	status, working_hours, late_entry, early_exit, in_time, out_time = shift_doc.get_attendance(checkins)
+	checkins = [checkin for checkin in checkins if checkin.shift == shift_name and not checkin.offshift]
+
+	if not checkins:
+		return {
+			"status": "warning",
+			"message": _("No valid checkin records found for employee {0} on {1}").format(employee, date),
+		}
+
+	status, working_hours, late_entry, early_exit, in_time, out_time = shift_doc.get_attendance(
+		checkins,
+		shift_doc.working_hours_threshold_for_absent,
+		shift_doc.working_hours_threshold_for_half_day,
+	)
 
 	# Step 6: Create new attendance
 	from hrms.hr.doctype.employee_checkin.employee_checkin import mark_attendance_and_link_log
@@ -178,7 +178,7 @@ def recalculate_attendance(employee, date):
 
 
 @frappe.whitelist()
-def recalculate_attendance_for_date_range(employee, from_date, to_date):
+def recalculate_attendance_for_date_range(employee: str, from_date: str, to_date: str) -> dict:
 	"""
 	Recalculate attendance for a date range.
 
