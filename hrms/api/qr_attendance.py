@@ -15,6 +15,7 @@ import frappe
 from frappe import _
 from frappe.utils import get_datetime, now, now_datetime
 
+from hrms.api.checkin_cooldown import is_checkin_cooldown_exempt
 from hrms.hr.utils import get_distance_between_coordinates
 
 TIME_SLOT_SECONDS = 30  # 二维码时间片,与前端保持一致
@@ -191,49 +192,50 @@ def qr_checkin(
 	if not employee:
 		frappe.throw(_("Your account is not linked to an employee profile, please contact HR"))
 
-	# 6. 获取上次打卡记录，用于间隔检查
-	last_checkin = frappe.db.get_value(
-		"Employee Checkin", {"employee": employee}, ["log_type", "time"], order_by="time desc"
-	)
-
-	if last_checkin:
-		last_type, last_time = last_checkin
-		minutes_since = (now_datetime() - get_datetime(last_time)).total_seconds() / 60
-
-		# 签到后 15 分钟内不能签退（防止误操作）
-		if last_type == "IN" and log_type == "OUT" and minutes_since < 15:
-			frappe.throw(
-				_(
-					"You just checked in {0} minutes ago. Please wait at least 15 minutes before checking out."
-				).format(int(minutes_since))
-			)
-
-		# 签退后 5 分钟内不能签到（防止误操作）
-		if last_type == "OUT" and log_type == "IN" and minutes_since < 5:
-			frappe.throw(
-				_(
-					"You just checked out {0} minutes ago. Please wait at least 5 minutes before checking in."
-				).format(int(minutes_since))
-			)
-
-	# 7. 防重复打卡检查(5分钟内不能重复相同类型的打卡)
-	recent_checkin = frappe.db.get_all(
-		"Employee Checkin",
-		filters={
-			"employee": employee,
-			"log_type": log_type,
-			"time": (">", now_datetime() - timedelta(minutes=5)),
-		},
-		limit=1,
-	)
-
-	if recent_checkin:
-		action = _("checked in") if log_type == "IN" else _("checked out")
-		frappe.throw(
-			_("You have already {0} within the last 5 minutes, please do not check in repeatedly").format(
-				action
-			)
+	if not is_checkin_cooldown_exempt(employee):
+		# 6. 获取上次打卡记录，用于间隔检查
+		last_checkin = frappe.db.get_value(
+			"Employee Checkin", {"employee": employee}, ["log_type", "time"], order_by="time desc"
 		)
+
+		if last_checkin:
+			last_type, last_time = last_checkin
+			minutes_since = (now_datetime() - get_datetime(last_time)).total_seconds() / 60
+
+			# 签到后 15 分钟内不能签退（防止误操作）
+			if last_type == "IN" and log_type == "OUT" and minutes_since < 15:
+				frappe.throw(
+					_(
+						"You just checked in {0} minutes ago. Please wait at least 15 minutes before checking out."
+					).format(int(minutes_since))
+				)
+
+			# 签退后 5 分钟内不能签到（防止误操作）
+			if last_type == "OUT" and log_type == "IN" and minutes_since < 5:
+				frappe.throw(
+					_(
+						"You just checked out {0} minutes ago. Please wait at least 5 minutes before checking in."
+					).format(int(minutes_since))
+				)
+
+		# 7. 防重复打卡检查(5分钟内不能重复相同类型的打卡)
+		recent_checkin = frappe.db.get_all(
+			"Employee Checkin",
+			filters={
+				"employee": employee,
+				"log_type": log_type,
+				"time": (">", now_datetime() - timedelta(minutes=5)),
+			},
+			limit=1,
+		)
+
+		if recent_checkin:
+			action = _("checked in") if log_type == "IN" else _("checked out")
+			frappe.throw(
+				_(
+					"You have already {0} within the last 5 minutes, please do not check in repeatedly"
+				).format(action)
+			)
 
 	# 8. 地理位置验证（如果启用了地理位置追踪）
 	allow_geolocation_tracking = frappe.db.get_single_value("HR Settings", "allow_geolocation_tracking")

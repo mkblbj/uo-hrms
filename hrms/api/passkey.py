@@ -15,6 +15,8 @@ import frappe
 from frappe import _
 from frappe.utils import get_datetime, now, now_datetime
 
+from hrms.api.checkin_cooldown import is_checkin_cooldown_exempt
+
 # WebAuthn 配置
 RP_ID = "erphr.toiroworld.com"
 RP_NAME = "UO HR System"
@@ -308,15 +310,16 @@ def passkey_checkin(
 	else:
 		log_type = "IN"
 
-	# 防重复打卡检查（5分钟内）
-	recent_checkin = frappe.db.get_all(
-		"Employee Checkin",
-		filters={"employee": employee, "time": (">", now_datetime() - timedelta(minutes=5))},
-		limit=1,
-	)
+	if not is_checkin_cooldown_exempt(employee):
+		# 防重复打卡检查（5分钟内）
+		recent_checkin = frappe.db.get_all(
+			"Employee Checkin",
+			filters={"employee": employee, "time": (">", now_datetime() - timedelta(minutes=5))},
+			limit=1,
+		)
 
-	if recent_checkin:
-		frappe.throw(_("You have already checked in within the last 5 minutes"))
+		if recent_checkin:
+			frappe.throw(_("You have already checked in within the last 5 minutes"))
 
 	# 创建 Employee Checkin
 	checkin_data = {
