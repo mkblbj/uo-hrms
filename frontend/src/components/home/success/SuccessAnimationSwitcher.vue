@@ -5,9 +5,7 @@
 <script setup>
 import { computed } from "vue"
 
-import CheckInOfficeLightsAnimation from "@/components/home/success/CheckInOfficeLightsAnimation.vue"
 import CheckInRunnerAnimation from "@/components/home/success/CheckInRunnerAnimation.vue"
-import CheckInWorkLaunchAnimation from "@/components/home/success/CheckInWorkLaunchAnimation.vue"
 import CheckOutCoffeeAnimation from "@/components/home/success/CheckOutCoffeeAnimation.vue"
 import CheckOutCurvyBulldogAnimation from "@/components/home/success/CheckOutCurvyBulldogAnimation.vue"
 import CheckOutKindSnailAnimation from "@/components/home/success/CheckOutKindSnailAnimation.vue"
@@ -27,8 +25,6 @@ const props = defineProps({
 
 const animationComponents = {
 	runner: CheckInRunnerAnimation,
-	"office-lights": CheckInOfficeLightsAnimation,
-	"work-launch": CheckInWorkLaunchAnimation,
 	coffee: CheckOutCoffeeAnimation,
 	"curvy-bulldog-27": CheckOutCurvyBulldogAnimation,
 	"wet-mayfly-23": CheckOutWetMayflyAnimation,

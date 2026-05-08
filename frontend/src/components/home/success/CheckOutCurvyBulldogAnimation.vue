@@ -1,14 +1,10 @@
 <template>
 	<div class="curvy-bulldog-shell" aria-hidden="true">
-		<div class="curvy-bulldog-loader">
-			<span></span>
-			<span></span>
-			<span></span>
-		</div>
+		<div class="loader"></div>
 	</div>
 </template>
 
-<!-- Source inspiration: https://uiverse.io/Shoh2008/curvy-bulldog-27 (MIT License). -->
+<!-- Source: https://uiverse.io/Shoh2008/curvy-bulldog-27 (MIT License). -->
 <style scoped>
 .curvy-bulldog-shell {
 	width: 220px;
@@ -18,89 +14,101 @@
 	justify-content: center;
 }
 
-.curvy-bulldog-loader {
+.loader {
+	width: 120px;
+	height: 150px;
+	background-color: #fff;
+	background-repeat: no-repeat;
+	background-image: linear-gradient(#ddd 50%, #bbb 51%),
+		linear-gradient(#ddd, #ddd), linear-gradient(#ddd, #ddd),
+		radial-gradient(ellipse at center, #aaa 25%, #eee 26%, #eee 50%, #0000 55%),
+		radial-gradient(ellipse at center, #aaa 25%, #eee 26%, #eee 50%, #0000 55%),
+		radial-gradient(ellipse at center, #aaa 25%, #eee 26%, #eee 50%, #0000 55%);
+	background-position: 0 20px, 45px 0, 8px 6px, 55px 3px, 75px 3px, 95px 3px;
+	background-size: 100% 4px, 1px 23px, 30px 8px, 15px 15px, 15px 15px, 15px 15px;
 	position: relative;
-	width: 130px;
-	height: 80px;
+	border-radius: 6%;
+	animation: shake 3s ease-in-out infinite;
+	transform-origin: 60px 180px;
 }
 
-.curvy-bulldog-loader::before {
+.loader::before {
 	content: "";
 	position: absolute;
-	inset: 18px 7px 10px;
-	border-radius: 999px 999px 26px 26px;
-	background: linear-gradient(135deg, #f8fafc, #cbd5e1);
-	box-shadow: 0 18px 32px rgba(15, 23, 42, 0.28);
-	animation: curvy-bulldog-body 1.8s ease-in-out infinite;
+	left: 5px;
+	top: 100%;
+	width: 7px;
+	height: 5px;
+	background: #aaa;
+	border-radius: 0 0 4px 4px;
+	box-shadow: 102px 0 #aaa;
 }
 
-.curvy-bulldog-loader::after {
+.loader::after {
 	content: "";
 	position: absolute;
+	width: 95px;
+	height: 95px;
+	left: 0;
 	right: 0;
-	top: 22px;
-	width: 42px;
-	height: 36px;
-	border-radius: 20px 22px 16px 18px;
-	background: #f8fafc;
-	box-shadow: inset -7px -5px 0 #cbd5e1, -72px 2px 0 -10px #f8fafc;
-	animation: curvy-bulldog-head 1.8s ease-in-out infinite;
+	margin: auto;
+	bottom: 20px;
+	background-color: #bbdefb;
+	background-image: linear-gradient(
+			to right,
+			#0004 0%,
+			#0004 49%,
+			#0000 50%,
+			#0000 100%
+		),
+		linear-gradient(135deg, #64b5f6 50%, #607d8b 51%);
+	background-size: 30px 100%, 90px 80px;
+	border-radius: 50%;
+	background-repeat: repeat, no-repeat;
+	background-position: 0 0;
+	box-sizing: border-box;
+	border: 10px solid #ddd;
+	box-shadow: 0 0 0 4px #999 inset, 0 0 6px 6px #0004 inset;
+	animation: spin 3s ease-in-out infinite;
 }
 
-.curvy-bulldog-loader span {
-	position: absolute;
-	bottom: 0;
-	width: 13px;
-	height: 28px;
-	border-radius: 999px;
-	background: #e2e8f0;
-	transform-origin: top center;
-	animation: curvy-bulldog-step 0.9s ease-in-out infinite;
-}
-
-.curvy-bulldog-loader span:nth-child(1) {
-	left: 28px;
-}
-
-.curvy-bulldog-loader span:nth-child(2) {
-	left: 58px;
-	animation-delay: -0.45s;
-}
-
-.curvy-bulldog-loader span:nth-child(3) {
-	left: 88px;
-}
-
-@keyframes curvy-bulldog-body {
-	0%,
-	100% {
-		transform: translateY(0) rotate(-2deg);
+@keyframes spin {
+	0% {
+		transform: rotate(0deg);
 	}
 
 	50% {
-		transform: translateY(-8px) rotate(2deg);
+		transform: rotate(360deg);
+	}
+
+	75% {
+		transform: rotate(750deg);
+	}
+
+	100% {
+		transform: rotate(1800deg);
 	}
 }
 
-@keyframes curvy-bulldog-head {
+@keyframes shake {
+	65%,
+	80%,
+	88%,
+	96% {
+		transform: rotate(0.5deg);
+	}
+
+	50%,
+	75%,
+	84%,
+	92% {
+		transform: rotate(-0.5deg);
+	}
+
 	0%,
+	50%,
 	100% {
-		transform: translate(0, 0);
-	}
-
-	50% {
-		transform: translate(4px, -5px);
-	}
-}
-
-@keyframes curvy-bulldog-step {
-	0%,
-	100% {
-		transform: rotate(-10deg) translateY(0);
-	}
-
-	50% {
-		transform: rotate(12deg) translateY(6px);
+		transform: rotate(0);
 	}
 }
 </style>

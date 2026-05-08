@@ -6,14 +6,6 @@ import path from "node:path"
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url))
 const runnerSource = readFileSync(path.join(currentDir, "success", "CheckInRunnerAnimation.vue"), "utf8")
-const officeLightsSource = readFileSync(
-	path.join(currentDir, "success", "CheckInOfficeLightsAnimation.vue"),
-	"utf8"
-)
-const workLaunchSource = readFileSync(
-	path.join(currentDir, "success", "CheckInWorkLaunchAnimation.vue"),
-	"utf8"
-)
 const coffeeSource = readFileSync(path.join(currentDir, "success", "CheckOutCoffeeAnimation.vue"), "utf8")
 const curvyBulldogSource = readFileSync(
 	path.join(currentDir, "success", "CheckOutCurvyBulldogAnimation.vue"),
@@ -52,32 +44,39 @@ test("coffee animation keeps the original machine markup and delayed liquid cycl
 	assert.match(coffeeSource, /@keyframes smokeTwo/i)
 })
 
-test("check-in animation pool includes office lights and work launch variants", () => {
-	assert.match(officeLightsSource, /office-lights-shell/)
-	assert.match(officeLightsSource, /office-window/)
-	assert.match(officeLightsSource, /@keyframes office-light-on/i)
-
-	assert.match(workLaunchSource, /work-launch-shell/)
-	assert.match(workLaunchSource, /work-launch-bar__fill/)
-	assert.match(workLaunchSource, /@keyframes work-launch-fill/i)
+test("check-in animation pool only maps the runner variant", () => {
+	assert.doesNotMatch(switcherSource, /office-lights/)
+	assert.doesNotMatch(switcherSource, /work-launch/)
 })
 
-test("check-out animation pool includes the requested uiverse variants", () => {
+test("check-out animation pool keeps the requested uiverse source variants", () => {
 	assert.match(curvyBulldogSource, /uiverse\.io\/Shoh2008\/curvy-bulldog-27/)
-	assert.match(curvyBulldogSource, /curvy-bulldog-shell/)
+	assert.match(curvyBulldogSource, /class="loader"/)
+	assert.match(curvyBulldogSource, /background-image:\s*linear-gradient\(#ddd 50%, #bbb 51%\)/)
+	assert.match(curvyBulldogSource, /@keyframes spin/)
+	assert.match(curvyBulldogSource, /@keyframes shake/)
+
 	assert.match(wetMayflySource, /uiverse\.io\/Nawsome\/wet-mayfly-23/)
-	assert.match(wetMayflySource, /wet-mayfly-shell/)
+	assert.match(wetMayflySource, /class="wheel-and-hamster"/)
+	assert.match(wetMayflySource, /class="hamster__limb hamster__limb--fr"/)
+	assert.match(wetMayflySource, /@keyframes hamsterFRLimb/)
+	assert.match(wetMayflySource, /@keyframes spoke/)
+
 	assert.match(kindSnailSource, /uiverse\.io\/Novaxlo\/kind-snail-5/)
-	assert.match(kindSnailSource, /kind-snail-shell/)
+	assert.match(kindSnailSource, /class="capybaraloader"/)
+	assert.match(kindSnailSource, /class="capyhead"/)
+	assert.match(kindSnailSource, /@keyframes moveleg2/)
+	assert.match(kindSnailSource, /@keyframes moveline/)
+
 	assert.match(tallFishSource, /uiverse\.io\/Pradeepsaranbishnoi\/tall-fish-38/)
-	assert.match(tallFishSource, /tall-fish-shell/)
+	assert.match(tallFishSource, /class="🤚"/)
+	assert.match(tallFishSource, /class="👉"/)
+	assert.match(tallFishSource, /@keyframes tap-upper-4/)
 })
 
 test("success animation switcher maps every configured animation id", () => {
 	for (const animationId of [
 		"runner",
-		"office-lights",
-		"work-launch",
 		"coffee",
 		"curvy-bulldog-27",
 		"wet-mayfly-23",

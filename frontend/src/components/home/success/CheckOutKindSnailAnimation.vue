@@ -1,15 +1,35 @@
 <template>
 	<div class="kind-snail-shell" aria-hidden="true">
-		<div class="kind-snail-loader">
-			<div class="kind-snail-body"></div>
-			<div class="kind-snail-head"></div>
-			<div class="kind-snail-bubble kind-snail-bubble--one"></div>
-			<div class="kind-snail-bubble kind-snail-bubble--two"></div>
+		<div class="capybaraloader">
+			<div class="capybara">
+				<div class="capy">
+					<div class="capyleg"></div>
+					<div class="capyleg2"></div>
+					<div class="capyleg2"></div>
+					<div class="capyhead">
+						<div class="capyear">
+							<div class="capyear2"></div>
+						</div>
+						<div class="capyear">
+							<div class="capyear2"></div>
+						</div>
+						<div class="capymouth">
+							<div class="capylips"></div>
+							<div class="capylips"></div>
+						</div>
+						<div class="capyeye"></div>
+						<div class="capyeye"></div>
+					</div>
+				</div>
+			</div>
+			<div class="loader">
+				<div class="loaderline"></div>
+			</div>
 		</div>
 	</div>
 </template>
 
-<!-- Source inspiration: https://uiverse.io/Novaxlo/kind-snail-5 (MIT License). -->
+<!-- Source: https://uiverse.io/Novaxlo/kind-snail-5 (MIT License). -->
 <style scoped>
 .kind-snail-shell {
 	width: 220px;
@@ -19,124 +39,223 @@
 	justify-content: center;
 }
 
-.kind-snail-loader {
+.capybaraloader {
+	width: 14em;
+	height: 10em;
 	position: relative;
-	width: 162px;
-	height: 104px;
+	z-index: 1;
+	--color: rgb(204, 125, 45);
+	--color2: rgb(83, 56, 28);
+	transform: scale(0.75);
 }
 
-.kind-snail-body {
-	position: absolute;
-	left: 28px;
-	bottom: 20px;
-	width: 94px;
-	height: 52px;
-	border-radius: 48px 52px 34px 34px;
-	background: linear-gradient(180deg, #c49164, #8a5f3c);
-	box-shadow: inset 0 -8px 0 rgba(70, 44, 24, 0.18), 0 18px 30px rgba(15, 23, 42, 0.22);
-	animation: kind-snail-body 1.8s ease-in-out infinite;
+.capybara {
+	width: 100%;
+	height: 7.5em;
+	position: relative;
+	z-index: 1;
 }
 
-.kind-snail-body::before {
-	content: "";
+.loader {
+	width: 100%;
+	height: 2.5em;
+	position: relative;
+	z-index: 1;
+	overflow: hidden;
+}
+
+.capy {
+	width: 85%;
+	height: 100%;
+	background: linear-gradient(var(--color), 90%, var(--color2));
+	border-radius: 45%;
+	position: relative;
+	z-index: 1;
+	animation: movebody 1s linear infinite;
+}
+
+.capyhead {
+	width: 7.5em;
+	height: 7em;
+	bottom: 0;
+	right: 0;
 	position: absolute;
-	left: 18px;
-	top: 10px;
-	width: 42px;
-	height: 25px;
+	background-color: var(--color);
+	z-index: 3;
+	border-radius: 3.5em;
+	box-shadow: -1em 0 var(--color2);
+	animation: movebody 1s linear infinite;
+}
+
+.capyear {
+	width: 2em;
+	height: 2em;
+	background: linear-gradient(-45deg, var(--color), 90%, var(--color2));
+	top: 0;
+	left: 0;
+	border-radius: 100%;
+	position: absolute;
+	overflow: hidden;
+	z-index: 3;
+}
+
+.capyear:nth-child(2) {
+	left: 5em;
+	background: linear-gradient(25deg, var(--color), 90%, var(--color2));
+}
+
+.capyear2 {
+	width: 100%;
+	height: 1em;
+	background-color: var(--color2);
+	bottom: 0;
+	left: 0.5em;
+	border-radius: 100%;
+	position: absolute;
+	transform: rotate(-45deg);
+}
+
+.capymouth {
+	width: 3.5em;
+	height: 2em;
+	background-color: var(--color2);
+	position: absolute;
+	bottom: 0;
+	left: 2.5em;
 	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.16);
+	display: flex;
+	justify-content: space-around;
+	align-items: center;
+	padding: 0.5em;
 }
 
-.kind-snail-head {
+.capylips {
+	width: 0.25em;
+	height: 0.75em;
+	border-radius: 100%;
+	transform: rotate(-45deg);
+	background-color: var(--color);
+}
+
+.capylips:nth-child(2) {
+	transform: rotate(45deg);
+}
+
+.capyeye {
+	width: 2em;
+	height: 0.5em;
+	background-color: var(--color2);
 	position: absolute;
-	right: 16px;
-	bottom: 36px;
-	width: 40px;
-	height: 34px;
-	border-radius: 22px 20px 18px 18px;
-	background: #b98256;
-	animation: kind-snail-head 1.8s ease-in-out infinite;
+	bottom: 3.5em;
+	left: 1.5em;
+	border-radius: 5em;
+	transform: rotate(45deg);
 }
 
-.kind-snail-head::before,
-.kind-snail-head::after {
-	content: "";
+.capyeye:nth-child(4) {
+	transform: rotate(-45deg);
+	left: 5.5em;
+	width: 1.75em;
+}
+
+.capyleg {
+	width: 6em;
+	height: 5em;
+	bottom: 0;
+	left: 0;
 	position: absolute;
-	top: 8px;
-	width: 5px;
-	height: 5px;
-	border-radius: 50%;
-	background: #1f2937;
-	box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.38);
+	background: linear-gradient(var(--color), 95%, var(--color2));
+	z-index: 2;
+	border-radius: 2em;
+	animation: movebody 1s linear infinite;
 }
 
-.kind-snail-head::before {
-	left: 9px;
-}
-
-.kind-snail-head::after {
-	right: 9px;
-}
-
-.kind-snail-bubble {
+.capyleg2 {
+	width: 1.75em;
+	height: 3em;
+	bottom: 0;
+	left: 3.25em;
 	position: absolute;
-	border-radius: 50%;
-	background: rgba(255, 255, 255, 0.66);
-	animation: kind-snail-bubble 2s ease-in-out infinite;
+	background: linear-gradient(var(--color), 80%, var(--color2));
+	z-index: 2;
+	border-radius: 0.75em;
+	box-shadow: inset 0 -0.5em var(--color2);
+	animation: moveleg 1s linear infinite;
 }
 
-.kind-snail-bubble--one {
-	right: 8px;
-	top: 15px;
-	width: 12px;
-	height: 12px;
+.capyleg2:nth-child(3) {
+	width: 1.25em;
+	left: 0.5em;
+	height: 2em;
+	animation: moveleg2 1s linear infinite 0.075s;
 }
 
-.kind-snail-bubble--two {
-	right: 36px;
-	top: 2px;
-	width: 8px;
-	height: 8px;
-	animation-delay: 0.35s;
-}
-
-@keyframes kind-snail-body {
-	0%,
-	100% {
-		transform: translateX(-4px);
-	}
-
-	50% {
-		transform: translateX(6px);
-	}
-}
-
-@keyframes kind-snail-head {
-	0%,
-	100% {
-		transform: translate(0, 0);
-	}
-
-	50% {
-		transform: translate(7px, -4px);
-	}
-}
-
-@keyframes kind-snail-bubble {
+@keyframes moveleg {
 	0% {
-		transform: translateY(12px) scale(0.72);
-		opacity: 0;
+		transform: rotate(-45deg) translateX(-5%);
 	}
 
-	40%,
-	70% {
-		opacity: 0.9;
+	50% {
+		transform: rotate(45deg) translateX(5%);
 	}
 
 	100% {
-		transform: translateY(-18px) scale(1);
-		opacity: 0;
+		transform: rotate(-45deg) translateX(-5%);
+	}
+}
+
+@keyframes moveleg2 {
+	0% {
+		transform: rotate(45deg);
+	}
+
+	50% {
+		transform: rotate(-45deg);
+	}
+
+	100% {
+		transform: rotate(45deg);
+	}
+}
+
+@keyframes movebody {
+	0% {
+		transform: translateX(0%);
+	}
+
+	50% {
+		transform: translateX(2%);
+	}
+
+	100% {
+		transform: translateX(0%);
+	}
+}
+
+.loaderline {
+	width: 50em;
+	height: 0.5em;
+	border-top: 0.5em dashed var(--color2);
+	animation: moveline 10s linear infinite;
+}
+
+@keyframes moveline {
+	0% {
+		transform: translateX(0%);
+		opacity: 0%;
+	}
+
+	5% {
+		opacity: 100%;
+	}
+
+	95% {
+		opacity: 100%;
+	}
+
+	100% {
+		opacity: 0%;
+		transform: translateX(-70%);
 	}
 }
 </style>
