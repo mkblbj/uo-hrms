@@ -554,7 +554,13 @@ test("builds a check-out success overlay model with month hours and tomorrow not
 })
 
 test("success animation pools expose check-in and check-out variants", () => {
-	assert.deepEqual(CHECKIN_SUCCESS_ANIMATION_IDS, ["runner"])
+	assert.deepEqual(CHECKIN_SUCCESS_ANIMATION_IDS, [
+		"runner",
+		"black-rabbit-68",
+		"popular-owl-27",
+		"empty-snail-69",
+		"mona-lisa",
+	])
 	assert.deepEqual(CHECKOUT_SUCCESS_ANIMATION_IDS, [
 		"coffee",
 		"curvy-bulldog-27",
@@ -566,7 +572,10 @@ test("success animation pools expose check-in and check-out variants", () => {
 
 test("success animation selection is deterministic from the supplied random value", () => {
 	assert.equal(chooseSuccessAnimationId("IN", () => 0), "runner")
-	assert.equal(chooseSuccessAnimationId("IN", () => 0.999), "runner")
+	assert.equal(chooseSuccessAnimationId("IN", () => 0.2), "black-rabbit-68")
+	assert.equal(chooseSuccessAnimationId("IN", () => 0.4), "popular-owl-27")
+	assert.equal(chooseSuccessAnimationId("IN", () => 0.6), "empty-snail-69")
+	assert.equal(chooseSuccessAnimationId("IN", () => 0.999), "mona-lisa")
 	assert.equal(chooseSuccessAnimationId("OUT", () => 0), "coffee")
 	assert.equal(chooseSuccessAnimationId("OUT", () => 0.999), "tall-fish-38")
 
@@ -578,7 +587,7 @@ test("success animation selection is deterministic from the supplied random valu
 			monthHours: 126.5,
 			random: () => 0.5,
 		}).animationId,
-		"runner",
+		"popular-owl-27",
 	)
 	assert.equal(
 		buildSuccessOverlayModel({

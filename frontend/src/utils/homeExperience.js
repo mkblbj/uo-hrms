@@ -2,7 +2,13 @@ import { normalizeLanguage } from "./language.js"
 
 const DEFAULT_HOME_LANGUAGE = "zh"
 export const CHECKIN_STATUS_CHANGED_EVENT = "checkin-status-changed"
-export const CHECKIN_SUCCESS_ANIMATION_IDS = ["runner"]
+export const CHECKIN_SUCCESS_ANIMATION_IDS = [
+	"runner",
+	"black-rabbit-68",
+	"popular-owl-27",
+	"empty-snail-69",
+	"mona-lisa",
+]
 export const CHECKOUT_SUCCESS_ANIMATION_IDS = [
 	"coffee",
 	"curvy-bulldog-27",

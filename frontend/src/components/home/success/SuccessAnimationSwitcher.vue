@@ -5,6 +5,10 @@
 <script setup>
 import { computed } from "vue"
 
+import CheckInBlackRabbitAnimation from "@/components/home/success/CheckInBlackRabbitAnimation.vue"
+import CheckInEmptySnailAnimation from "@/components/home/success/CheckInEmptySnailAnimation.vue"
+import CheckInMonaLisaAnimation from "@/components/home/success/CheckInMonaLisaAnimation.vue"
+import CheckInPopularOwlAnimation from "@/components/home/success/CheckInPopularOwlAnimation.vue"
 import CheckInRunnerAnimation from "@/components/home/success/CheckInRunnerAnimation.vue"
 import CheckOutCoffeeAnimation from "@/components/home/success/CheckOutCoffeeAnimation.vue"
 import CheckOutCurvyBulldogAnimation from "@/components/home/success/CheckOutCurvyBulldogAnimation.vue"
@@ -25,6 +29,10 @@ const props = defineProps({
 
 const animationComponents = {
 	runner: CheckInRunnerAnimation,
+	"black-rabbit-68": CheckInBlackRabbitAnimation,
+	"popular-owl-27": CheckInPopularOwlAnimation,
+	"empty-snail-69": CheckInEmptySnailAnimation,
+	"mona-lisa": CheckInMonaLisaAnimation,
 	coffee: CheckOutCoffeeAnimation,
 	"curvy-bulldog-27": CheckOutCurvyBulldogAnimation,
 	"wet-mayfly-23": CheckOutWetMayflyAnimation,

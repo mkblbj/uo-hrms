@@ -5,7 +5,19 @@ import { fileURLToPath } from "node:url"
 import path from "node:path"
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url))
-const runnerSource = readFileSync(path.join(currentDir, "success", "CheckInRunnerAnimation.vue"), "utf8")
+function readComponentSource(fileName) {
+	try {
+		return readFileSync(path.join(currentDir, "success", fileName), "utf8")
+	} catch {
+		return ""
+	}
+}
+
+const runnerSource = readComponentSource("CheckInRunnerAnimation.vue")
+const blackRabbitSource = readComponentSource("CheckInBlackRabbitAnimation.vue")
+const popularOwlSource = readComponentSource("CheckInPopularOwlAnimation.vue")
+const emptySnailSource = readComponentSource("CheckInEmptySnailAnimation.vue")
+const monaLisaSource = readComponentSource("CheckInMonaLisaAnimation.vue")
 const coffeeSource = readFileSync(path.join(currentDir, "success", "CheckOutCoffeeAnimation.vue"), "utf8")
 const curvyBulldogSource = readFileSync(
 	path.join(currentDir, "success", "CheckOutCurvyBulldogAnimation.vue"),
@@ -44,7 +56,31 @@ test("coffee animation keeps the original machine markup and delayed liquid cycl
 	assert.match(coffeeSource, /@keyframes smokeTwo/i)
 })
 
-test("check-in animation pool only maps the runner variant", () => {
+test("check-in animation pool maps the requested uiverse source variants", () => {
+	assert.match(blackRabbitSource, /uiverse\.io\/JohnnyCSilva\/black-rabbit-68/)
+	assert.match(blackRabbitSource, /class="coin"/)
+	assert.match(blackRabbitSource, /class="svg_back"/)
+	assert.match(blackRabbitSource, /@keyframes rotate_4001510/)
+	assert.match(blackRabbitSource, /fill="#F7931A"/)
+
+	assert.match(popularOwlSource, /uiverse\.io\/vinodjangid07\/popular-owl-27/)
+	assert.match(popularOwlSource, /class="truckWrapper"/)
+	assert.match(popularOwlSource, /class="truckBody"/)
+	assert.match(popularOwlSource, /@keyframes roadAnimation/)
+	assert.match(popularOwlSource, /class="lampPost"/)
+
+	assert.match(emptySnailSource, /uiverse\.io\/Nawsome\/empty-snail-69/)
+	assert.match(emptySnailSource, /class="switch switch--auto-on"/)
+	assert.match(emptySnailSource, /\.switch input:checked \+ \.button/)
+	assert.match(emptySnailSource, /@keyframes empty-snail-auto-on/)
+	assert.match(emptySnailSource, /@keyframes flicker/)
+
+	assert.match(monaLisaSource, /Uiverse\.io by SelfMadeSystem/)
+	assert.match(monaLisaSource, /class="loader"/)
+	assert.match(monaLisaSource, /pathLength="360"/)
+	assert.match(monaLisaSource, /@keyframes dashArray/)
+	assert.match(monaLisaSource, /@keyframes dashOffset/)
+
 	assert.doesNotMatch(switcherSource, /office-lights/)
 	assert.doesNotMatch(switcherSource, /work-launch/)
 })
@@ -77,6 +113,10 @@ test("check-out animation pool keeps the requested uiverse source variants", () 
 test("success animation switcher maps every configured animation id", () => {
 	for (const animationId of [
 		"runner",
+		"black-rabbit-68",
+		"popular-owl-27",
+		"empty-snail-69",
+		"mona-lisa",
 		"coffee",
 		"curvy-bulldog-27",
 		"wet-mayfly-23",
