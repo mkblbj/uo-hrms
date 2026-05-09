@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>NFC チェックイン - UO HR</title>
     <link rel="icon" href="/assets/hrms/images/favicon.png">
-    <link rel="stylesheet" href="/assets/hrms/css/nfc_success_animations.css">
+    <link rel="stylesheet" href="/assets/hrms/css/nfc_success_animations.css?v={{ animation_css_version or 'dev' }}">
     <style>
         :root {
             color-scheme: dark;
@@ -488,7 +488,8 @@
         const successTimeEl = document.getElementById('success-checkin-time');
         const successLocationEl = document.getElementById('success-location');
         const CHECKIN_SUCCESS_ANIMATIONS = ['runner', 'black-rabbit-68', 'popular-owl-27', 'empty-snail-69', 'mona-lisa'];
-        const CHECKOUT_SUCCESS_ANIMATIONS = ['coffee', 'curvy-bulldog-27', 'wet-mayfly-23', 'kind-snail-5', 'tall-fish-38'];
+        const CHECKOUT_SUCCESS_ANIMATIONS = ['coffee', 'curvy-bulldog-27', 'wet-mayfly-23', 'kind-snail-5', 'tall-fish-38', 'sweet-jellyfish-62', 'chatty-zebra-11', 'neat-tiger-82', 'foolish-rabbit-13', 'stale-panda-35', 'nasty-vampirebat-71', 'happy-dog-58', 'lucky-emu-65', 'tender-baboon-47', 'wet-goose-61', 'light-termite-47', 'tidy-skunk-55'];
+        const ANIMATION_BAG_STORAGE_PREFIX = 'hrms:nfc-success-animation-bag';
 
         console.log('[NFC] Location:', checkinLocation);
         document.getElementById('location-badge').textContent = '📍 ' + checkinLocation;
@@ -521,9 +522,95 @@
             return String(value);
         }
 
+        function getSuccessAnimationBagKey(logType) {
+            return ANIMATION_BAG_STORAGE_PREFIX + ':' + (logType === 'IN' ? 'in' : 'out');
+        }
+
+        function getLastSuccessAnimationKey(logType) {
+            return getSuccessAnimationBagKey(logType) + ':last';
+        }
+
+        function normalizeRandomValue() {
+            return Math.min(Math.max(Number(Math.random()) || 0, 0), 0.999999);
+        }
+
+        function shuffleAnimationPool(pool, previousAnimationId) {
+            const bag = pool.slice();
+            for (let index = bag.length - 1; index > 0; index--) {
+                const swapIndex = Math.floor(normalizeRandomValue() * (index + 1));
+                const currentAnimationId = bag[index];
+                bag[index] = bag[swapIndex];
+                bag[swapIndex] = currentAnimationId;
+            }
+
+            if (bag.length > 1 && bag[0] === previousAnimationId) {
+                const swapIndex = bag.findIndex(function(animationId) {
+                    return animationId !== previousAnimationId;
+                });
+                const firstAnimationId = bag[0];
+                bag[0] = bag[swapIndex];
+                bag[swapIndex] = firstAnimationId;
+            }
+
+            return bag;
+        }
+
+        function readAnimationBag(logType, pool) {
+            const key = getSuccessAnimationBagKey(logType);
+            const poolSet = new Set(pool);
+            let bag = [];
+
+            try {
+                bag = JSON.parse(window.localStorage.getItem(key) || '[]');
+            } catch (error) {
+                bag = [];
+            }
+
+            if (!Array.isArray(bag)) return [];
+            const seen = new Set();
+            return bag.filter(function(animationId) {
+                if (!poolSet.has(animationId) || seen.has(animationId)) return false;
+                seen.add(animationId);
+                return true;
+            });
+        }
+
+        function writeAnimationBag(logType, bag) {
+            try {
+                window.localStorage.setItem(getSuccessAnimationBagKey(logType), JSON.stringify(bag));
+            } catch (error) {
+                console.warn('[NFC] Failed to persist animation bag:', error);
+            }
+        }
+
+        function readLastAnimationId(logType) {
+            try {
+                return window.localStorage.getItem(getLastSuccessAnimationKey(logType)) || '';
+            } catch (error) {
+                return '';
+            }
+        }
+
+        function writeLastAnimationId(logType, animationId) {
+            try {
+                window.localStorage.setItem(getLastSuccessAnimationKey(logType), animationId);
+            } catch (error) {
+                console.warn('[NFC] Failed to persist last animation:', error);
+            }
+        }
+
         function chooseSuccessAnimationId(logType) {
             const pool = logType === 'IN' ? CHECKIN_SUCCESS_ANIMATIONS : CHECKOUT_SUCCESS_ANIMATIONS;
-            return pool[Math.floor(Math.random() * pool.length)] || pool[0];
+            let bag = readAnimationBag(logType, pool);
+            if (!bag.length) {
+                bag = shuffleAnimationPool(pool, readLastAnimationId(logType));
+            }
+
+            const animationId = bag.shift() || pool[0];
+            writeAnimationBag(logType, bag);
+            writeLastAnimationId(logType, animationId);
+            console.log('[NFC] Success animation:', animationId);
+            return animationId;
         }
 
         function setSuccessAnimation(logType, animationId) {

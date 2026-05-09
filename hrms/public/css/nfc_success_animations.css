@@ -14,7 +14,19 @@
         .success-overlay[data-active-animation="curvy-bulldog-27"] [data-success-animation="curvy-bulldog-27"],
         .success-overlay[data-active-animation="wet-mayfly-23"] [data-success-animation="wet-mayfly-23"],
         .success-overlay[data-active-animation="kind-snail-5"] [data-success-animation="kind-snail-5"],
-        .success-overlay[data-active-animation="tall-fish-38"] [data-success-animation="tall-fish-38"] {
+        .success-overlay[data-active-animation="tall-fish-38"] [data-success-animation="tall-fish-38"],
+        .success-overlay[data-active-animation="sweet-jellyfish-62"] [data-success-animation="sweet-jellyfish-62"],
+        .success-overlay[data-active-animation="chatty-zebra-11"] [data-success-animation="chatty-zebra-11"],
+        .success-overlay[data-active-animation="neat-tiger-82"] [data-success-animation="neat-tiger-82"],
+        .success-overlay[data-active-animation="foolish-rabbit-13"] [data-success-animation="foolish-rabbit-13"],
+        .success-overlay[data-active-animation="stale-panda-35"] [data-success-animation="stale-panda-35"],
+        .success-overlay[data-active-animation="nasty-vampirebat-71"] [data-success-animation="nasty-vampirebat-71"],
+        .success-overlay[data-active-animation="happy-dog-58"] [data-success-animation="happy-dog-58"],
+        .success-overlay[data-active-animation="lucky-emu-65"] [data-success-animation="lucky-emu-65"],
+        .success-overlay[data-active-animation="tender-baboon-47"] [data-success-animation="tender-baboon-47"],
+        .success-overlay[data-active-animation="wet-goose-61"] [data-success-animation="wet-goose-61"],
+        .success-overlay[data-active-animation="light-termite-47"] [data-success-animation="light-termite-47"],
+        .success-overlay[data-active-animation="tidy-skunk-55"] [data-success-animation="tidy-skunk-55"] {
             display: block;
         }
 
@@ -27,23 +39,47 @@
         .success-curvy-bulldog-scene,
         .success-wet-mayfly-scene,
         .success-kind-snail-scene,
-        .success-tall-fish-scene {
+        .success-tall-fish-scene,
+        .success-sweet-jellyfish-scene,
+        .success-chatty-zebra-scene,
+        .success-neat-tiger-scene,
+        .success-foolish-rabbit-scene,
+        .success-stale-panda-scene,
+        .success-nasty-vampirebat-scene,
+        .success-happy-dog-scene,
+        .success-lucky-emu-scene,
+        .success-tender-baboon-scene,
+        .success-wet-goose-scene,
+        .success-light-termite-scene,
+        .success-tidy-skunk-scene {
             position: absolute;
             inset: 0;
         }
 
-        .success-runner-scene {
+        .success-runner-scene,
+        .success-foolish-rabbit-scene {
             overflow: hidden;
         }
 
-        .success-curvy-bulldog-scene,
         .success-coin-scene,
         .success-truck-scene,
         .success-switch-scene,
         .success-mona-lisa-scene,
+        .success-curvy-bulldog-scene,
         .success-wet-mayfly-scene,
         .success-kind-snail-scene,
-        .success-tall-fish-scene {
+        .success-tall-fish-scene,
+        .success-sweet-jellyfish-scene,
+        .success-chatty-zebra-scene,
+        .success-neat-tiger-scene,
+        .success-stale-panda-scene,
+        .success-nasty-vampirebat-scene,
+        .success-happy-dog-scene,
+        .success-lucky-emu-scene,
+        .success-tender-baboon-scene,
+        .success-wet-goose-scene,
+        .success-light-termite-scene,
+        .success-tidy-skunk-scene {
             place-items: center;
         }
 
@@ -54,7 +90,18 @@
         .success-overlay[data-active-animation="curvy-bulldog-27"] .success-curvy-bulldog-scene,
         .success-overlay[data-active-animation="wet-mayfly-23"] .success-wet-mayfly-scene,
         .success-overlay[data-active-animation="kind-snail-5"] .success-kind-snail-scene,
-        .success-overlay[data-active-animation="tall-fish-38"] .success-tall-fish-scene {
+        .success-overlay[data-active-animation="tall-fish-38"] .success-tall-fish-scene,
+        .success-overlay[data-active-animation="sweet-jellyfish-62"] .success-sweet-jellyfish-scene,
+        .success-overlay[data-active-animation="chatty-zebra-11"] .success-chatty-zebra-scene,
+        .success-overlay[data-active-animation="neat-tiger-82"] .success-neat-tiger-scene,
+        .success-overlay[data-active-animation="stale-panda-35"] .success-stale-panda-scene,
+        .success-overlay[data-active-animation="nasty-vampirebat-71"] .success-nasty-vampirebat-scene,
+        .success-overlay[data-active-animation="happy-dog-58"] .success-happy-dog-scene,
+        .success-overlay[data-active-animation="lucky-emu-65"] .success-lucky-emu-scene,
+        .success-overlay[data-active-animation="tender-baboon-47"] .success-tender-baboon-scene,
+        .success-overlay[data-active-animation="wet-goose-61"] .success-wet-goose-scene,
+        .success-overlay[data-active-animation="light-termite-47"] .success-light-termite-scene,
+        .success-overlay[data-active-animation="tidy-skunk-55"] .success-tidy-skunk-scene {
             display: grid;
         }
 
@@ -1549,3 +1596,2744 @@
                 transform: translateY(100%);
             }
         }
+
+
+        /* Additional checkout animations from Uiverse. */
+
+        /* Source: https://uiverse.io/vinodjangid07/sweet-jellyfish-62 (MIT License). */
+/* From Uiverse.io by vinodjangid07  - Tags: animation, loading, loader */
+.success-sweet-jellyfish-scene .loader {
+  width: fit-content;
+  height: fit-content;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.success-sweet-jellyfish-scene .wrapper {
+  width: fit-content;
+  height: fit-content;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.success-sweet-jellyfish-scene .catContainer {
+  width: 100%;
+  height: fit-content;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.success-sweet-jellyfish-scene .catbody {
+  width: 80px;
+}
+.success-sweet-jellyfish-scene .tail {
+  position: absolute;
+  width: 17px;
+  top: 50%;
+  animation: nfc-checkout-sweet-jellyfish-62-tail 0.5s ease-in infinite alternate-reverse;
+  transform-origin: top;
+}
+@keyframes nfc-checkout-sweet-jellyfish-62-tail {
+  0% {
+    transform: rotateZ(60deg);
+  }
+  50% {
+    transform: rotateZ(0deg);
+  }
+  100% {
+    transform: rotateZ(-20deg);
+  }
+}
+.success-sweet-jellyfish-scene .wall {
+  width: 300px;
+}
+.success-sweet-jellyfish-scene .text {
+  display: flex;
+  flex-direction: column;
+  width: 50px;
+  position: absolute;
+  margin: 0px 0px 100px 120px;
+}
+.success-sweet-jellyfish-scene .zzz {
+  color: black;
+  font-weight: 700;
+  font-size: 15px;
+  animation: nfc-checkout-sweet-jellyfish-62-zzz 2s linear infinite;
+}
+.success-sweet-jellyfish-scene .bigzzz {
+  color: black;
+  font-weight: 700;
+  font-size: 25px;
+  margin-left: 10px;
+  animation: nfc-checkout-sweet-jellyfish-62-zzz 2.3s linear infinite;
+}
+@keyframes nfc-checkout-sweet-jellyfish-62-zzz {
+  0% {
+    color: transparent;
+  }
+  50% {
+    color: black;
+  }
+  100% {
+    color: transparent;
+  }
+}
+
+
+        /* Source: https://uiverse.io/StealthWorm/chatty-zebra-11 (MIT License). */
+/* From Uiverse.io by StealthWorm - Tags: loader, love, death, robots */
+.success-chatty-zebra-scene .loader {
+  display: flex;
+  position: relative;
+  justify-items: center;
+  align-items: center;
+  gap: 1rem;
+  height: 55px;
+  width: 200px;
+  overflow: hidden;
+}
+
+.success-chatty-zebra-scene .container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  height: 200px;
+  position: relative;
+  align-items: center;
+}
+
+.success-chatty-zebra-scene .carousel {
+  display: flex;
+  gap: 1rem;
+  flex-direction: column;
+  position: absolute;
+  width: 100%;
+  transform-origin: center;
+  animation-delay: 2s;
+}
+
+.success-chatty-zebra-scene .loader .container:nth-child(3) {
+  justify-content: flex-start;
+  justify-items: flex-start;
+  animation: nfc-checkout-chatty-zebra-11-scroll-up 4s infinite ease-in-out;
+  animation-delay: 3s;
+}
+
+.success-chatty-zebra-scene .loader .container:nth-child(2) {
+  justify-content: flex-end;
+  justify-items: flex-end;
+  animation: nfc-checkout-chatty-zebra-11-scroll-down 4s infinite ease-in-out;
+  animation-delay: 3s;
+}
+
+.success-chatty-zebra-scene .loader .container:nth-child(1) {
+  justify-content: flex-end;
+  justify-items: flex-end;
+  animation: nfc-checkout-chatty-zebra-11-scroll-down 3s infinite ease-in-out;
+  animation-delay: 3s;
+}
+
+.success-chatty-zebra-scene .love {
+  background: red;
+  display: flex;
+  width: 30px;
+  height: 30px;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  left: 8px;
+  margin: 0.8rem 4px;
+  transform: rotate(45deg);
+  animation-delay: 2s;
+}
+
+.success-chatty-zebra-scene .love::before,.success-chatty-zebra-scene  .love::after {
+  content: '';
+  position: absolute;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: red;
+}
+
+.success-chatty-zebra-scene .love::before {
+  left: -16px;
+}
+
+.success-chatty-zebra-scene .love::after {
+  top: -16px;
+}
+
+.success-chatty-zebra-scene .death {
+  display: flex;
+  width: 100%;
+  height: 55px;
+  position: relative;
+  align-items: center;
+  justify-content: center;
+  animation: nfc-checkout-chatty-zebra-11-rotation 3s infinite ease-in-out;
+  animation-delay: 1s;
+}
+
+.success-chatty-zebra-scene .death:after {
+  content: '';
+  height: 63px;
+  position: absolute;
+  border-left: 12px solid red;
+  transform: rotate(45deg);
+  border-radius: 8px;
+  top: -4px;
+}
+
+.success-chatty-zebra-scene .death:before {
+  content: '';
+  height: 60px;
+  position: absolute;
+  border-left: 12px solid red;
+  transform: rotate(-45deg);
+}
+
+.success-chatty-zebra-scene .loader:hover {
+  animation: none;
+}
+
+.success-chatty-zebra-scene .robots {
+  display: flex;
+  width: 100%;
+  height: 55px;
+  justify-content: space-between;
+  background-color: #ff0000;
+  border-radius: 0 8px 8px;
+  padding: 8px;
+  animation-delay: 5s;
+}
+
+.success-chatty-zebra-scene .robots::after {
+  content: '';
+  width: 12px;
+  height: 12px;
+  top: 0;
+  left: 0;
+  background-color: #ffffff;
+  border-radius: 50%;
+  animation-delay: 2s;
+  animation: nfc-checkout-chatty-zebra-11-blink 0.5s 2 forwards;
+}
+
+.success-chatty-zebra-scene .robots::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  top: 0;
+  left: 0;
+  background-color: #ffffff;
+  border-radius: 50%;
+  animation-delay: 2s;
+  animation: nfc-checkout-chatty-zebra-11-blink 0.5s 2 forwards;
+}
+
+@keyframes nfc-checkout-chatty-zebra-11-scroll-up {
+  0% {
+    transform: translateY(0);
+    filter: blur(0);
+  }
+
+  30% {
+    transform: translateY(-150%);
+    filter: blur(10px);
+  }
+
+  60% {
+    transform: translateY(0);
+    filter: blur(0px);
+  }
+}
+
+@keyframes nfc-checkout-chatty-zebra-11-scroll-down {
+  0% {
+    transform: translateY(0);
+    filter: blur(0);
+  }
+
+  30% {
+    transform: translateY(150%);
+    filter: blur(10px);
+  }
+
+  60% {
+    transform: translateY(0);
+    filter: blur(0px);
+  }
+}
+
+@keyframes nfc-checkout-chatty-zebra-11-rotation {
+  20%, 100% {
+    transform: rotate(180deg);
+  }
+}
+
+@keyframes nfc-checkout-chatty-zebra-11-blink {
+  0% {
+    height: 0;
+  }
+
+  20% {
+    height: 12px;
+  }
+
+  100% {
+    height: 12px;
+  }
+}
+
+
+        /* Source: https://uiverse.io/alexruix/neat-tiger-82 (MIT License). */
+/* From Uiverse.io by alexruix - Tags: loader */
+.success-neat-tiger-scene .loader {
+  width: 112px;
+  height: 112px;
+}
+
+.success-neat-tiger-scene .box1,.success-neat-tiger-scene
+.box2,.success-neat-tiger-scene
+.box3 {
+  border: 16px solid #f5f5f5;
+  box-sizing: border-box;
+  position: absolute;
+  display: block;
+}
+
+.success-neat-tiger-scene .box1 {
+  width: 112px;
+  height: 48px;
+  margin-top: 64px;
+  margin-left: 0px;
+  animation: nfc-checkout-neat-tiger-82-abox1 4s 1s forwards ease-in-out infinite;
+}
+
+.success-neat-tiger-scene .box2 {
+  width: 48px;
+  height: 48px;
+  margin-top: 0px;
+  margin-left: 0px;
+  animation: nfc-checkout-neat-tiger-82-abox2 4s 1s forwards ease-in-out infinite;
+}
+
+.success-neat-tiger-scene .box3 {
+  width: 48px;
+  height: 48px;
+  margin-top: 0px;
+  margin-left: 64px;
+  animation: nfc-checkout-neat-tiger-82-abox3 4s 1s forwards ease-in-out infinite;
+}
+
+@keyframes nfc-checkout-neat-tiger-82-abox1 {
+  0% {
+    width: 112px;
+    height: 48px;
+    margin-top: 64px;
+    margin-left: 0px;
+  }
+
+  12.5% {
+    width: 48px;
+    height: 48px;
+    margin-top: 64px;
+    margin-left: 0px;
+  }
+
+  25% {
+    width: 48px;
+    height: 48px;
+    margin-top: 64px;
+    margin-left: 0px;
+  }
+
+  37.5% {
+    width: 48px;
+    height: 48px;
+    margin-top: 64px;
+    margin-left: 0px;
+  }
+
+  50% {
+    width: 48px;
+    height: 48px;
+    margin-top: 64px;
+    margin-left: 0px;
+  }
+
+  62.5% {
+    width: 48px;
+    height: 48px;
+    margin-top: 64px;
+    margin-left: 0px;
+  }
+
+  75% {
+    width: 48px;
+    height: 112px;
+    margin-top: 0px;
+    margin-left: 0px;
+  }
+
+  87.5% {
+    width: 48px;
+    height: 48px;
+    margin-top: 0px;
+    margin-left: 0px;
+  }
+
+  100% {
+    width: 48px;
+    height: 48px;
+    margin-top: 0px;
+    margin-left: 0px;
+  }
+}
+
+@keyframes nfc-checkout-neat-tiger-82-abox2 {
+  0% {
+    width: 48px;
+    height: 48px;
+    margin-top: 0px;
+    margin-left: 0px;
+  }
+
+  12.5% {
+    width: 48px;
+    height: 48px;
+    margin-top: 0px;
+    margin-left: 0px;
+  }
+
+  25% {
+    width: 48px;
+    height: 48px;
+    margin-top: 0px;
+    margin-left: 0px;
+  }
+
+  37.5% {
+    width: 48px;
+    height: 48px;
+    margin-top: 0px;
+    margin-left: 0px;
+  }
+
+  50% {
+    width: 112px;
+    height: 48px;
+    margin-top: 0px;
+    margin-left: 0px;
+  }
+
+  62.5% {
+    width: 48px;
+    height: 48px;
+    margin-top: 0px;
+    margin-left: 64px;
+  }
+
+  75% {
+    width: 48px;
+    height: 48px;
+    margin-top: 0px;
+    margin-left: 64px;
+  }
+
+  87.5% {
+    width: 48px;
+    height: 48px;
+    margin-top: 0px;
+    margin-left: 64px;
+  }
+
+  100% {
+    width: 48px;
+    height: 48px;
+    margin-top: 0px;
+    margin-left: 64px;
+  }
+}
+
+@keyframes nfc-checkout-neat-tiger-82-abox3 {
+  0% {
+    width: 48px;
+    height: 48px;
+    margin-top: 0px;
+    margin-left: 64px;
+  }
+
+  12.5% {
+    width: 48px;
+    height: 48px;
+    margin-top: 0px;
+    margin-left: 64px;
+  }
+
+  25% {
+    width: 48px;
+    height: 112px;
+    margin-top: 0px;
+    margin-left: 64px;
+  }
+
+  37.5% {
+    width: 48px;
+    height: 48px;
+    margin-top: 64px;
+    margin-left: 64px;
+  }
+
+  50% {
+    width: 48px;
+    height: 48px;
+    margin-top: 64px;
+    margin-left: 64px;
+  }
+
+  62.5% {
+    width: 48px;
+    height: 48px;
+    margin-top: 64px;
+    margin-left: 64px;
+  }
+
+  75% {
+    width: 48px;
+    height: 48px;
+    margin-top: 64px;
+    margin-left: 64px;
+  }
+
+  87.5% {
+    width: 48px;
+    height: 48px;
+    margin-top: 64px;
+    margin-left: 64px;
+  }
+
+  100% {
+    width: 112px;
+    height: 48px;
+    margin-top: 64px;
+    margin-left: 0px;
+  }
+}
+
+
+        /* Source: https://uiverse.io/whoisyourdeadie/foolish-rabbit-13 (MIT License). */
+.success-foolish-rabbit-scene .matrix-container {
+	position: relative;
+	width: 100%;
+	height: 100%;
+	min-width: min(92vw, 760px);
+	min-height: min(52vh, 420px);
+	background: #000;
+	display: flex;
+	overflow: hidden;
+	border-radius: 18px;
+}
+
+.success-foolish-rabbit-scene .matrix-pattern {
+	position: relative;
+	width: 1000px;
+	height: 100%;
+	flex-shrink: 0;
+}
+
+.success-foolish-rabbit-scene .matrix-column {
+	position: absolute;
+	top: -100%;
+	width: 20px;
+	height: 100%;
+	font-size: 16px;
+	line-height: 18px;
+	font-weight: bold;
+	animation: nfc-checkout-foolish-rabbit-13-fall linear infinite;
+	white-space: nowrap;
+}
+
+.success-foolish-rabbit-scene .matrix-column::before {
+	content: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲンABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+	position: absolute;
+	top: 0;
+	left: 0;
+	background: linear-gradient(0deg, rgba(185, 79, 255, 1) 0%, rgba(255, 69, 69, 1) 20%, rgba(252, 176, 69, 1) 40%, rgba(252, 237, 69, 1) 60%, rgba(69, 252, 90, 1) 80%, rgba(69, 206, 252, 1) 100%);
+	-webkit-background-clip: text;
+	background-clip: text;
+	-webkit-text-fill-color: transparent;
+	writing-mode: vertical-lr;
+	letter-spacing: 1px;
+	text-rendering: optimizeLegibility;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	animation: nfc-checkout-foolish-rabbit-13-rainbowShift 5s infinite;
+}
+
+.success-foolish-rabbit-scene .matrix-column:nth-child(1) { left: 0px; animation-delay: -2.5s; animation-duration: 3s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(2) { left: 25px; animation-delay: -3.2s; animation-duration: 4s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(3) { left: 50px; animation-delay: -1.8s; animation-duration: 2.5s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(4) { left: 75px; animation-delay: -2.9s; animation-duration: 3.5s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(5) { left: 100px; animation-delay: -1.5s; animation-duration: 3s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(6) { left: 125px; animation-delay: -3.8s; animation-duration: 4.5s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(7) { left: 150px; animation-delay: -2.1s; animation-duration: 2.8s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(8) { left: 175px; animation-delay: -2.7s; animation-duration: 3.2s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(9) { left: 200px; animation-delay: -3.4s; animation-duration: 3.8s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(10) { left: 225px; animation-delay: -1.9s; animation-duration: 2.7s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(11) { left: 250px; animation-delay: -3.6s; animation-duration: 4.2s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(12) { left: 275px; animation-delay: -2.3s; animation-duration: 3.1s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(13) { left: 300px; animation-delay: -3.1s; animation-duration: 3.6s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(14) { left: 325px; animation-delay: -2.6s; animation-duration: 2.9s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(15) { left: 350px; animation-delay: -3.7s; animation-duration: 4.1s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(16) { left: 375px; animation-delay: -2.8s; animation-duration: 3.3s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(17) { left: 400px; animation-delay: -3.3s; animation-duration: 3.7s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(18) { left: 425px; animation-delay: -2.2s; animation-duration: 2.6s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(19) { left: 450px; animation-delay: -3.9s; animation-duration: 4.3s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(20) { left: 475px; animation-delay: -2.4s; animation-duration: 3.4s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(21) { left: 500px; animation-delay: -1.7s; animation-duration: 2.4s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(22) { left: 525px; animation-delay: -3.5s; animation-duration: 3.9s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(23) { left: 550px; animation-delay: -2s; animation-duration: 3s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(24) { left: 575px; animation-delay: -4s; animation-duration: 4.4s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(25) { left: 600px; animation-delay: -1.6s; animation-duration: 2.3s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(26) { left: 625px; animation-delay: -3s; animation-duration: 3.5s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(27) { left: 650px; animation-delay: -3.8s; animation-duration: 4s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(28) { left: 675px; animation-delay: -2.5s; animation-duration: 2.8s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(29) { left: 700px; animation-delay: -3.2s; animation-duration: 3.6s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(30) { left: 725px; animation-delay: -2.7s; animation-duration: 3.2s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(31) { left: 750px; animation-delay: -1.8s; animation-duration: 2.7s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(32) { left: 775px; animation-delay: -3.6s; animation-duration: 4.1s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(33) { left: 800px; animation-delay: -2.1s; animation-duration: 3.1s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(34) { left: 825px; animation-delay: -3.4s; animation-duration: 3.7s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(35) { left: 850px; animation-delay: -2.8s; animation-duration: 2.9s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(36) { left: 875px; animation-delay: -3.7s; animation-duration: 4.2s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(37) { left: 900px; animation-delay: -2.3s; animation-duration: 3.3s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(38) { left: 925px; animation-delay: -1.9s; animation-duration: 2.5s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(39) { left: 950px; animation-delay: -3.5s; animation-duration: 3.8s; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(40) { left: 975px; animation-delay: -2.6s; animation-duration: 3.4s; }
+
+.success-foolish-rabbit-scene .matrix-column:nth-child(odd)::before { content: "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン123456789"; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(even)::before { content: "ガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポヴァィゥェォャュョッABCDEFGHIJKLMNOPQRSTUVWXYZ"; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(3n)::before { content: "アカサタナハマヤラワイキシチニヒミリウクスツヌフムユルエケセテネヘメレオコソトノホモヨロヲン0987654321"; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(4n)::before { content: "ンヲロヨモホノトソコオレメヘネテセケエルユムフヌツスクウリミヒニチシキイワラヤマハナタサカア"; }
+.success-foolish-rabbit-scene .matrix-column:nth-child(5n)::before { content: "ガザダバパギジヂビピグズヅブプゲゼデベペゴゾドボポヴァィゥェォャュョッ!@#$%^&*()_+-=[]{}|;:,.<>?"; }
+
+@keyframes nfc-checkout-foolish-rabbit-13-fall {
+	0% { transform: translateY(-10%); opacity: 1; }
+	100% { transform: translateY(200%); opacity: 0; }
+}
+
+@keyframes nfc-checkout-foolish-rabbit-13-rainbowShift {
+	0% { color: linear-gradient(0deg, red, orange, yellow); }
+	50% { color: linear-gradient(0deg, green, blue, indigo); }
+	100% { color: linear-gradient(0deg, violet, red, orange); }
+}
+
+@media (max-width: 768px) {
+	.success-foolish-rabbit-scene .matrix-container { min-width: min(92vw, 520px); }
+	.success-foolish-rabbit-scene .matrix-column { font-size: 14px; line-height: 16px; width: 18px; }
+}
+
+@media (max-width: 480px) {
+	.success-foolish-rabbit-scene .matrix-container { min-height: min(44vh, 320px); }
+	.success-foolish-rabbit-scene .matrix-column { font-size: 12px; line-height: 14px; width: 15px; }
+}
+
+        /* Source: https://uiverse.io/Shoh2008/stale-panda-35 (MIT License). */
+/* From Uiverse.io by Shoh2008 - Tags: loader */
+.success-stale-panda-scene .loader {
+  width: 106px;
+  height: 56px;
+  display: block;
+  margin: 30px auto;
+  background-image: linear-gradient(#e1e1e1 50px, transparent 0), linear-gradient(#e1e1e1 50px, transparent 0), linear-gradient(#e1e1e1 50px, transparent 0), linear-gradient(#e1e1e1 50px, transparent 0), radial-gradient(circle 14px, #e1e1e1 100%, transparent 0);
+  background-size: 48px 15px , 15px 35px, 15px 35px, 25px 15px, 28px 28px;
+  background-position: 25px 5px, 58px 20px, 25px 17px, 2px 37px, 76px 0px;
+  background-repeat: no-repeat;
+  position: relative;
+  transform: rotate(-45deg);
+  box-sizing: border-box;
+}
+
+.success-stale-panda-scene .loader::after,.success-stale-panda-scene
+.loader::before {
+  content: '';
+  position: absolute;
+  width: 56px;
+  height: 56px;
+  border: 6px solid #e1e1e1;
+  border-radius: 50%;
+  left: -45px;
+  top: -10px;
+  background-repeat: no-repeat;
+  background-image: linear-gradient(#e1e1e1 64px, transparent 0), linear-gradient(#e1e1e1 66px, transparent 0), radial-gradient(circle 4px, #e1e1e1 100%, transparent 0);
+  background-size: 40px 1px , 1px 40px, 8px 8px;
+  background-position: center center;
+  box-sizing: border-box;
+  animation: nfc-checkout-stale-panda-35-bike 0.3s linear infinite;
+}
+
+.success-stale-panda-scene .loader::before {
+  left: 25px;
+  top: 60px;
+}
+
+@keyframes nfc-checkout-stale-panda-35-bike {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+
+        /* Source: https://uiverse.io/TheAbieza/nasty-vampirebat-71 (MIT License). */
+/* From Uiverse.io by TheAbieza - Tags: flat design, loader, github, rotate, animated, vscode, music, box-shadow */
+.success-nasty-vampirebat-scene .container {
+  width: 175px;
+  height: 175px;
+  background-color: #ABC4AA;
+  border-radius: 10px;
+  position: relative;
+  box-shadow: 5px 5px 0 0 #675D50;
+}
+
+.success-nasty-vampirebat-scene .plate {
+  width: fit-content;
+}
+
+.success-nasty-vampirebat-scene .plate .black,.success-nasty-vampirebat-scene
+.plate .white,.success-nasty-vampirebat-scene
+.plate .center,.success-nasty-vampirebat-scene
+.plate .border {
+  border-radius: 100%;
+}
+
+.success-nasty-vampirebat-scene .container,.success-nasty-vampirebat-scene
+.plate .black,.success-nasty-vampirebat-scene
+.plate .white,.success-nasty-vampirebat-scene
+.plate .border {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.success-nasty-vampirebat-scene .plate .black {
+  width: 150px;
+  height: 150px;
+  background-color: #675D50;
+  animation: nfc-checkout-nasty-vampirebat-71-rotation 2s infinite linear;
+}
+
+@keyframes nfc-checkout-nasty-vampirebat-71-rotation {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(359deg);
+  }
+}
+
+.success-nasty-vampirebat-scene .plate .white {
+  width: 70px;
+  height: 70px;
+  background-color: #F3DEBA;
+}
+
+.success-nasty-vampirebat-scene .plate .center {
+  width: 20px;
+  height: 20px;
+  background-color: #675D50;
+}
+
+.success-nasty-vampirebat-scene .plate .border {
+  width: 111px;
+  height: 111px;
+  border-top: 3px solid #F3DEBA;
+  border-bottom: 3px solid #F3DEBA;
+  border-left: 3px solid #675D50;
+  border-right: 3px solid #675D50;
+}
+
+.success-nasty-vampirebat-scene .player {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  width: fit-content;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  margin-bottom: 8px;
+  margin-right: 8px;
+  rotate: -45deg;
+}
+
+.success-nasty-vampirebat-scene .player .circ {
+  width: 25px;
+  height: 25px;
+  background-color: #F3DEBA;
+  border-radius: 100%;
+  z-index: 1;
+}
+
+.success-nasty-vampirebat-scene .player .rect {
+  width: 10px;
+  height: 55px;
+  background-color: #F3DEBA;
+  position: absolute;
+  bottom: 0;
+  margin-bottom: 5px;
+}
+
+
+        /* Source: https://uiverse.io/csemszepp/happy-dog-58 (MIT License). */
+/* From Uiverse.io by csemszepp - Source: https://codepen.io/poziomq/details/Lbyomj - Tags: loader, animated, #darthvader */
+.success-happy-dog-scene ::-moz-selection {
+  background: #2D3363;
+  color: #FAEECF
+}
+
+.success-happy-dog-scene ::selection {
+  background: #2D3363;
+  color: #FAEECF
+}
+
+.success-happy-dog-scene .text {
+  position: absolute;
+  bottom: 20px;
+  left: 25px;
+  color: black;
+  font-family: Arial,sans-serif;
+  text-transform: uppercase;
+  font-size: 14px;
+  line-height: 28px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  z-index: 99
+}
+
+.success-happy-dog-scene a {
+  color: #6172BA;
+  text-decoration: none;
+  cursor: pointer
+}
+
+.success-happy-dog-scene a:hover {
+  text-decoration: underline
+}
+
+.success-happy-dog-scene .vader {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: inline-block;
+  -webkit-transform: translate(-50%,-50%);
+  transform: translate(-50%,-50%)
+}
+
+.success-happy-dog-scene .vader .head {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  margin-bottom: -10px;
+  z-index: 1
+}
+
+.success-happy-dog-scene .vader .helmet {
+  position: absolute;
+  top: 0;
+  left: 5px;
+  width: 90px;
+  height: 80px;
+  background: #222222;
+  border-radius: 80px 80px 0 0
+}
+
+.success-happy-dog-scene .vader .helmet::before {
+  content: '';
+  display: inline-block;
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 50px;
+  height: 8px;
+  margin-left: -25px;
+  background: #040507;
+  border-radius: 25px 25px 0 0 / 8px 8px 0 0
+}
+
+.success-happy-dog-scene .vader .helmet::after {
+  content: '';
+  display: inline-block;
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  margin-left: -25px;
+  height: 0;
+  width: 0;
+  border-left: 25px solid transparent;
+  border-right: 25px solid transparent;
+  border-top: 24px solid #040507
+}
+
+.success-happy-dog-scene .vader .helmet span {
+  position: absolute;
+  top: 50%;
+  width: 35px;
+  height: 55px;
+  background: #040507
+}
+
+.success-happy-dog-scene .vader .helmet .left {
+  left: -6px;
+  -webkit-transform: rotate(25deg);
+  transform: rotate(25deg)
+}
+
+.success-happy-dog-scene .vader .helmet .right {
+  right: -6px;
+  -webkit-transform: rotate(-25deg);
+  transform: rotate(-25deg)
+}
+
+.success-happy-dog-scene .vader .helmet span::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  width: 8px;
+  height: 55px;
+  background: #222222
+}
+
+.success-happy-dog-scene .vader .helmet .left::before {
+  left: 0
+}
+
+.success-happy-dog-scene .vader .helmet .right::before {
+  right: 0
+}
+
+.success-happy-dog-scene .vader .line {
+  position: absolute;
+  top: -3px;
+  left: 50%;
+  width: 6px;
+  height: 38px;
+  margin-left: -3px;
+  background: #343434
+}
+
+.success-happy-dog-scene .vader .line::before {
+  content: '';
+  display: inline-block;
+  position: absolute;
+  left: -4px;
+  bottom: 0;
+  width: 4px;
+  height: 12px;
+  background: #040507
+}
+
+.success-happy-dog-scene .vader .line::after {
+  content: '';
+  display: inline-block;
+  position: absolute;
+  right: -4px;
+  bottom: 0;
+  width: 4px;
+  height: 12px;
+  background: #040507
+}
+
+.success-happy-dog-scene .vader .mask {
+  position: absolute;
+  bottom: 19px;
+  left: 50%
+}
+
+.success-happy-dog-scene .vader .mask span {
+  position: absolute;
+  top: 0;
+  width: 4px;
+  height: 4px;
+  border-radius: 1px;
+  background: #C6C6C6
+}
+
+.success-happy-dog-scene .vader .mask .top {
+  left: 50%;
+  margin-top: -16px;
+  margin-left: -2px
+}
+
+.success-happy-dog-scene .vader .mask .top::before {
+  content: '';
+  display: inline-block;
+  position: absolute;
+  left: -7px;
+  top: -2px;
+  width: 4px;
+  height: 24px;
+  background: #040507;
+  border-radius: 4px;
+  -webkit-transform: rotate(40deg);
+  transform: rotate(40deg)
+}
+
+.success-happy-dog-scene .vader .mask .top::after {
+  content: '';
+  display: inline-block;
+  position: absolute;
+  right: -7px;
+  top: -2px;
+  width: 4px;
+  height: 24px;
+  background: #040507;
+  border-radius: 4px;
+  -webkit-transform: rotate(-40deg);
+  transform: rotate(-40deg)
+}
+
+.success-happy-dog-scene .vader .mask .left {
+  left: 12px
+}
+
+.success-happy-dog-scene .vader .mask .center {
+  left: 50%;
+  margin-top: -16px;
+  margin-left: -2px
+}
+
+.success-happy-dog-scene .vader .mask .right {
+  right: 12px
+}
+
+.success-happy-dog-scene .vader .grill {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  width: 20px;
+  margin-left: -10px
+}
+
+.success-happy-dog-scene .vader .grill span {
+  position: absolute;
+  bottom: -5px;
+  width: 2px;
+  margin-left: -1px;
+  background: #C6C6C6
+}
+
+.success-happy-dog-scene .vader .grill .left {
+  left: 4px;
+  height: 10px
+}
+
+.success-happy-dog-scene .vader .grill .center {
+  left: 50%;
+  height: 17px
+}
+
+.success-happy-dog-scene .vader .grill .right {
+  right: 2px;
+  height: 10px
+}
+
+.success-happy-dog-scene .vader .eyes {
+  position: absolute;
+  top: 35px;
+  left: 10px;
+  width: 80px;
+  height: 40px;
+  border-radius: 40px;
+  background: #343434
+}
+
+.success-happy-dog-scene .vader .eyes::before {
+  content: '';
+  display: inline-block;
+  position: absolute;
+  top: 33px;
+  left: 5px;
+  height: 0;
+  width: 0;
+  border-left: 35px solid transparent;
+  border-right: 35px solid transparent;
+  border-top: 30px solid #343434
+}
+
+.success-happy-dog-scene .vader .eyes span {
+  position: absolute;
+  top: 5px;
+  width: 30px;
+  height: 30px;
+  border-radius: 30px;
+  background: #010000;
+  -webkit-transition: background .3s ease-in-out;
+  transition: background .3s ease-in-out
+}
+
+.success-happy-dog-scene .vader .eyes .left {
+  left: 7px
+}
+
+.success-happy-dog-scene .vader .eyes .right {
+  right: 7px
+}
+
+.success-happy-dog-scene .vader .torso {
+  position: relative;
+  width: 60px;
+  height: 80px;
+  border-radius: 50px 50px 0 0;
+  margin: 0 auto;
+  background: #222222
+}
+
+.success-happy-dog-scene .vader .torso::before {
+  content: '';
+  display: inline-block;
+  position: absolute;
+  left: -20px;
+  top: -15px;
+  width: 100px;
+  height: 115px;
+  border-radius: 50px 50px 0 0;
+  margin: 0 auto;
+  background: #040507;
+  z-index: -1
+}
+
+.success-happy-dog-scene .vader .belt {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  height: 10px;
+  background: #040507
+}
+
+.success-happy-dog-scene .vader .belt span::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 20px;
+  height: 10px;
+  border-radius: 10px;
+  margin-left: -10px;
+  background: #C6C6C6
+}
+
+.success-happy-dog-scene .vader .neck {
+  position: absolute;
+  left: 6px;
+  top: 3px;
+  width: 48px;
+  height: 8px;
+  background: #010000;
+  z-index: 5
+}
+
+.success-happy-dog-scene .vader .neck::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 8px;
+  width: 32px;
+  height: 10px;
+  background: #222222;
+  border-radius: 0 0 4px 4px
+}
+
+.success-happy-dog-scene .vader .neck::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 8px;
+  width: 32px;
+  height: 1px;
+  background: #666666
+}
+
+.success-happy-dog-scene .vader .neck span {
+  position: absolute;
+  top: 0;
+  width: 6px;
+  height: 125%;
+  margin-left: -3px;
+  background: #434343
+}
+
+.success-happy-dog-scene .vader .neck .left {
+  left: 6px;
+  -webkit-transform: rotate(30deg);
+  transform: rotate(30deg);
+  border-radius: 5px 0 0 0
+}
+
+.success-happy-dog-scene .vader .neck .center {
+  left: 50%;
+  top: 2px
+}
+
+.success-happy-dog-scene .vader .neck .right {
+  right: 3px;
+  -webkit-transform: rotate(-30deg);
+  transform: rotate(-30deg);
+  border-radius: 0 5px 0 0
+}
+
+.success-happy-dog-scene .vader .neck .bottom {
+  position: absolute;
+  top: 8px;
+  left: 4px;
+  width: 46px;
+  height: 5px;
+  background: #222222
+}
+
+.success-happy-dog-scene .vader .plate {
+  position: absolute;
+  left: 15px;
+  top: 25px;
+  width: 30px;
+  height: 32px;
+  background: #343434
+}
+
+.success-happy-dog-scene .vader .plate .red_top {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 12px;
+  height: 18px;
+  background: #d81f27
+}
+
+.success-happy-dog-scene .vader .plate .red_top::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 5px;
+  background: rgba(0,0,0,0.2)
+}
+
+.success-happy-dog-scene .vader .plate .red_top::after {
+  content: '';
+  position: absolute;
+  bottom: 5px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #343434
+}
+
+.success-happy-dog-scene .vader .plate .red_center {
+  position: absolute;
+  right: 2px;
+  top: 12px;
+  width: 12px;
+  height: 8px;
+  background: #d81f27
+}
+
+.success-happy-dog-scene .vader .plate .red_center::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  width: 100%;
+  height: 4px;
+  background: rgba(0,0,0,0.2)
+}
+
+.success-happy-dog-scene .vader .plate .red_center::after {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: #343434
+}
+
+.success-happy-dog-scene .vader .plate .red_bottom {
+  position: absolute;
+  right: 2px;
+  bottom: 2px;
+  width: 4px;
+  height: 8px;
+  background: #d81f27
+}
+
+.success-happy-dog-scene .vader .plate .blue {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  width: 12px;
+  height: 8px;
+  background: #455caa
+}
+
+.success-happy-dog-scene .vader .plate .blue::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: #343434
+}
+
+.success-happy-dog-scene .vader .plate .gray {
+  position: absolute;
+  left: 2px;
+  bottom: 2px;
+  width: 20px;
+  height: 8px;
+  background: #9f9fa1
+}
+
+.success-happy-dog-scene .vader .plate .gray::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 0;
+  width: 2px;
+  height: 100%;
+  background: #343434
+}
+
+.success-happy-dog-scene .vader .plate .gray::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 8px;
+  height: 100%;
+  background: rgba(0,0,0,0.2)
+}
+
+.success-happy-dog-scene .vader .legs {
+  position: relative;
+  width: 50px;
+  height: 20px;
+  margin: 0 auto;
+  background: #222222
+}
+
+.success-happy-dog-scene .vader .legs::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 20px;
+  height: 100%;
+  margin-left: -10px;
+  background: #040507
+}
+
+.success-happy-dog-scene .vader .boots {
+  position: absolute;
+  bottom: 0;
+  left: 50%
+}
+
+.success-happy-dog-scene .vader .boots span {
+  content: '';
+  display: inline-block;
+  position: absolute;
+  top: 0;
+  width: 30px;
+  height: 10px;
+  background: #040507
+}
+
+.success-happy-dog-scene .vader .boots .left {
+  left: 10px;
+  border-radius: 0 15px 0 0
+}
+
+.success-happy-dog-scene .vader .boots .right {
+  right: 10px;
+  border-radius: 15px 0 0 0
+}
+
+.success-happy-dog-scene .vader .hand {
+  position: absolute;
+  top: 60%;
+  z-index: 2
+}
+
+.success-happy-dog-scene .vader .hand.left {
+  left: -2px;
+  top: 82%
+}
+
+.success-happy-dog-scene .vader .hand.right {
+  right: -20px
+}
+
+.success-happy-dog-scene .vader .hand .hand {
+  position: absolute;
+  top: 0;
+  width: 11px;
+  height: 22px;
+  margin-top: -12px;
+  margin-left: -12px;
+  background: #040507
+}
+
+.success-happy-dog-scene .vader .hand.left .hand {
+  left: 0;
+  border-radius: 22px 0 0 22px
+}
+
+.success-happy-dog-scene .vader .hand.right .hand {
+  right: 0;
+  width: 22px;
+  border-radius: 22px
+}
+
+.success-happy-dog-scene .vader .sword {
+  position: absolute;
+  top: 50%;
+  left: -20px;
+  z-index: 10
+}
+
+.success-happy-dog-scene .vader .sword .handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 6px;
+  height: 30px;
+  margin-left: -3px;
+  background: #343434
+}
+
+.success-happy-dog-scene .vader .sword .handle::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 100%;
+  height: 5px;
+  background: #888888
+}
+
+.success-happy-dog-scene .vader .sword .handle::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  top: 5px;
+  width: 4px;
+  height: 5px;
+  background: #343434
+}
+
+.success-happy-dog-scene .vader .sword .light {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 20px;
+  height: 120px;
+  margin-left: -10px;
+  background: rgba(248,80,50,0);
+  background: -moz-linear-gradient(left, rgba(248,80,50,0) 10%, rgba(247,67,37,0) 20%, rgba(246,41,12,0.67) 40%, rgba(255,176,166,1) 50%, rgba(246,41,12,0.67) 60%, rgba(236,51,30,0) 80%, rgba(231,56,39,0) 90%);
+  background: -webkit-gradient(left top, right top, color-stop(10%, rgba(248,80,50,0)), color-stop(20%, rgba(247,67,37,0)), color-stop(40%, rgba(246,41,12,0.67)), color-stop(50%, rgba(255,176,166,1)), color-stop(60%, rgba(246,41,12,0.67)), color-stop(80%, rgba(236,51,30,0)), color-stop(90%, rgba(231,56,39,0)));
+  background: -webkit-linear-gradient(left, rgba(248,80,50,0) 10%, rgba(247,67,37,0) 20%, rgba(246,41,12,0.67) 40%, rgba(255,176,166,1) 50%, rgba(246,41,12,0.67) 60%, rgba(236,51,30,0) 80%, rgba(231,56,39,0) 90%);
+  background: -o-linear-gradient(left, rgba(248,80,50,0) 10%, rgba(247,67,37,0) 20%, rgba(246,41,12,0.67) 40%, rgba(255,176,166,1) 50%, rgba(246,41,12,0.67) 60%, rgba(236,51,30,0) 80%, rgba(231,56,39,0) 90%);
+  background: -ms-linear-gradient(left, rgba(248,80,50,0) 10%, rgba(247,67,37,0) 20%, rgba(246,41,12,0.67) 40%, rgba(255,176,166,1) 50%, rgba(246,41,12,0.67) 60%, rgba(236,51,30,0) 80%, rgba(231,56,39,0) 90%);
+  background: linear-gradient(to right, rgba(248,80,50,0) 10%, rgba(247,67,37,0) 20%, rgba(246,41,12,0.67) 40%, rgba(255,176,166,1) 50%, rgba(246,41,12,0.67) 60%, rgba(236,51,30,0) 80%, rgba(231,56,39,0) 90%);
+}
+
+.success-happy-dog-scene .vader .sword .light::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 3px;
+  height: 120px;
+  margin-left: -1px;
+  background: rgba(248,80,50,1);
+  z-index: -1
+}
+
+.success-happy-dog-scene .vader .shadow {
+  position: absolute;
+  bottom: -17px;
+  left: -25px;
+  display: block;
+  width: 150px;
+  height: 14px;
+  background: rgba(0,0,0,0.15);
+  border-radius: 50%
+}
+
+.success-happy-dog-scene .animation-right {
+  -webkit-animation: animationHandRight 1.5s linear infinite;
+  animation: nfc-checkout-happy-dog-58-animationHandRight 1.5s linear infinite
+}
+
+@-webkit-keyframes nfc-checkout-happy-dog-58-animationHandRight {
+  0% {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg)
+  }
+
+  100% {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg)
+  }
+}
+
+@keyframes nfc-checkout-happy-dog-58-animationHandRight {
+  0% {
+    -webkit-transform: rotate(0deg);
+    transform: rotate(0deg)
+  }
+
+  100% {
+    -webkit-transform: rotate(360deg);
+    transform: rotate(360deg)
+  }
+}
+
+.success-happy-dog-scene .animation-left {
+  -webkit-animation: animationHandLeft 3s ease-in-out infinite;
+  animation: nfc-checkout-happy-dog-58-animationHandLeft 3s ease-in-out infinite
+}
+
+@-webkit-keyframes nfc-checkout-happy-dog-58-animationHandLeft {
+  0%, 100% {
+    -webkit-transform: translateX(0) rotate(-25deg);
+    transform: translateX(0) rotate(-25deg)
+  }
+
+  50% {
+    -webkit-transform: translateX(150px) rotate(25deg);
+    transform: translateX(150px) rotate(25deg)
+  }
+}
+
+@keyframes nfc-checkout-happy-dog-58-animationHandLeft {
+  0%, 100% {
+    -webkit-transform: translateX(0) rotate(-25deg);
+    transform: translateX(0) rotate(-25deg)
+  }
+
+  50% {
+    -webkit-transform: translateX(150px) rotate(25deg);
+    transform: translateX(150px) rotate(25deg)
+  }
+}
+
+.success-happy-dog-scene .vader:hover .eyes .left {
+  background: #d81f27
+}
+
+.success-happy-dog-scene .vader:hover .eyes .right {
+  background: #455caa
+}
+
+
+        /* Source: https://uiverse.io/Shoh2008/lucky-emu-65 (MIT License). */
+/* From Uiverse.io by Shoh2008 - Tags: loader, bear */
+.success-lucky-emu-scene .loader {
+  width: 160px;
+  height: 185px;
+  position: relative;
+  background: #fff;
+  border-radius: 100px 100px 0 0;
+}
+
+.success-lucky-emu-scene .loader:after {
+  content: "";
+  position: absolute;
+  width: 100px;
+  height: 125px;
+  left: 50%;
+  top: 25px;
+  transform: translateX(-50%);
+  background-image: radial-gradient(circle, #000 48%, transparent 55%),
+    radial-gradient(circle, #000 48%, transparent 55%),
+    radial-gradient(circle, #fff 30%, transparent 45%),
+    radial-gradient(circle, #000 48%, transparent 51%),
+    linear-gradient(#000 20px, transparent 0),
+    linear-gradient(#cfecf9 60px, transparent 0),
+    radial-gradient(circle, #cfecf9 50%, transparent 51%),
+    radial-gradient(circle, #cfecf9 50%, transparent 51%);
+  background-repeat: no-repeat;
+  background-size: 16px 16px, 16px 16px, 10px 10px, 42px 42px, 12px 3px,
+    50px 25px, 70px 70px, 70px 70px;
+  background-position: 25px 10px, 55px 10px, 36px 44px, 50% 30px, 50% 85px,
+    50% 50px, 50% 22px, 50% 45px;
+  animation: nfc-checkout-lucky-emu-65-faceLift 3s linear infinite alternate;
+}
+
+.success-lucky-emu-scene .loader:before {
+  content: "";
+  position: absolute;
+  width: 140%;
+  height: 125px;
+  left: -20%;
+  top: 0;
+  background-image: radial-gradient(circle, #fff 48%, transparent 50%),
+    radial-gradient(circle, #fff 48%, transparent 50%);
+  background-repeat: no-repeat;
+  background-size: 65px 65px;
+  background-position: 0px 12px, 145px 12px;
+  animation: nfc-checkout-lucky-emu-65-earLift 3s linear infinite alternate;
+}
+
+@keyframes nfc-checkout-lucky-emu-65-faceLift {
+  0% {
+    transform: translateX(-60%);
+  }
+
+  100% {
+    transform: translateX(-30%);
+  }
+}
+
+@keyframes nfc-checkout-lucky-emu-65-earLift {
+  0% {
+    transform: translateX(10px);
+  }
+
+  100% {
+    transform: translateX(0px);
+  }
+}
+
+
+        /* Source: https://uiverse.io/Subaashbala/tender-baboon-47 (MIT License). */
+/* From Uiverse.io by Subaashbala  - Tags: loader, game, animated, bounce animation */
+.success-tender-baboon-scene .loader {
+  position: relative;
+  width: 18rem; /* Reposition the obstacles and the bird if the width is changed */
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 50%;
+  background: linear-gradient(to bottom, #6ccee7 60%, white);
+}
+.success-tender-baboon-scene #bird {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-80%, -50%);
+  width: 3rem;
+  height: auto;
+  animation: nfc-checkout-tender-baboon-47-flap 500ms linear infinite;
+}
+.success-tender-baboon-scene .flappyBirdScene,.success-tender-baboon-scene
+.flappyBirdSceneBottom {
+  display: flex;
+  width: 20rem;
+  top: -23%;
+  position: relative;
+}
+.success-tender-baboon-scene .sceneTop {
+  display: flex;
+  width: fit-content;
+  animation: nfc-checkout-tender-baboon-47-flow 5s linear infinite;
+}
+.success-tender-baboon-scene .sceneBottom {
+  display: flex;
+  width: fit-content;
+  animation: nfc-checkout-tender-baboon-47-flowBottom 5s linear infinite;
+}
+.success-tender-baboon-scene #birdObstacle {
+  height: 8rem;
+  width: 2rem;
+  background: linear-gradient(
+    to right,
+    #9de558 0px,
+    #9de558 3px,
+    #e7ff8d 3px,
+    #e7ff8d 5px,
+    #9de858 5px,
+    #9de858 10px,
+    #74c029 10px,
+    #74c029 13px,
+    #9de558 13px,
+    #9de558 15px,
+    #74c029 22px,
+    #74c029 28px,
+    #59811a 28px,
+    #59811a 100%
+  );
+  border: solid;
+  position: relative;
+}
+.success-tender-baboon-scene .flappyBirdSceneBottom {
+  bottom: -25%;
+  left: 0;
+}
+.success-tender-baboon-scene #birdObstacle::after {
+  content: "";
+  position: absolute;
+  width: 135%;
+  height: 1.25rem;
+  top: 100%;
+  left: 50%;
+  border: solid;
+  transform: translate(-50%, 0);
+  background: linear-gradient(
+    to right,
+    #9de558 0px,
+    #9de558 3px,
+    #e7ff8d 3px,
+    #e7ff8d 5px,
+    #9de858 5px,
+    #9de858 10px,
+    #74c029 10px,
+    #74c029 13px,
+    #9de558 13px,
+    #9de558 15px,
+    #74c029 22px,
+    #74c029 28px,
+    #59811a 28px,
+    #59811a 100%
+  );
+}
+.success-tender-baboon-scene .birdObs2 {
+  transform: translate(0%, 15%);
+  left: 15%;
+}
+.success-tender-baboon-scene .birdObs3 {
+  transform: translate(0, 18%);
+  left: 30%;
+}
+.success-tender-baboon-scene .birdObs4 {
+  transform: translate(0, 15%);
+  left: 45%;
+}
+@keyframes nfc-checkout-tender-baboon-47-flap {
+  from {
+    transform: translate(-80%, -50%);
+  }
+  25% {
+    transform: translate(-80%, -50%) rotate(-15deg);
+  }
+  50% {
+    transform: translate(-80%, -12%) rotate(5deg);
+  }
+  100% {
+    transform: translate(-80%, -50%);
+  }
+}
+@keyframes nfc-checkout-tender-baboon-47-flow {
+  from {
+    transform: translate(0, -43%);
+  }
+  to {
+    transform: translate(-50%, -43%);
+  }
+}
+@keyframes nfc-checkout-tender-baboon-47-flowBottom {
+  from {
+    transform: translate(0, 75%) rotateX(180deg);
+  }
+  to {
+    transform: translate(-50%, 75%) rotateX(180deg);
+  }
+}
+
+
+        /* Source: https://uiverse.io/vikas7754/wet-goose-61 (MIT License). */
+/* From Uiverse.io by vikas7754  - Website: https://codepen.io/jh3y/pen/mddgjzM - Tags: card */
+.success-wet-goose-scene .truck {
+  --width: 220;
+}
+
+.success-wet-goose-scene .truck * {
+  transition: all 0.25s ease;
+}
+
+.success-wet-goose-scene .truck {
+  position: relative;
+  width: calc(var(--width) * 1px);
+  height: calc(var(--width) * 0.33px);
+}
+
+.success-wet-goose-scene .truck:after {
+  content: "";
+  height: 5%;
+  width: 100%;
+  background: #000;
+  position: absolute;
+  left: 0;
+  bottom: 5%;
+  border-radius: 100%;
+  filter: blur(10px);
+}
+
+.success-wet-goose-scene .truck__indicator {
+  height: 2%;
+  width: 3%;
+  position: absolute;
+  right: 1.5%;
+  background: #915d08;
+  top: 64%;
+  opacity: 0.45;
+  z-index: 10;
+}
+
+.success-wet-goose-scene .truck__foglight {
+  height: 2%;
+  width: 1%;
+  position: absolute;
+  left: 2%;
+  background: #911308;
+  top: 58%;
+  opacity: 0.45;
+  z-index: 10;
+}
+
+.success-wet-goose-scene .truck__taillight {
+  height: 2%;
+  width: 1%;
+  background: radial-gradient(circle at center, #ffebeb, #f00), #f00;
+  box-shadow: 0 0 30px 5px #f33;
+  position: absolute;
+  top: 25%;
+  z-index: 10;
+  left: 0;
+}
+
+.success-wet-goose-scene .truck__taillight:after {
+  content: "";
+  height: 100%;
+  width: 800%;
+  background: #ff4d4d;
+  position: absolute;
+  right: 0;
+  top: 0;
+  border-radius: 25%;
+  filter: blur(8px);
+  box-shadow: 0 0 60px 5px #ff8080;
+}
+
+.success-wet-goose-scene .truck__headlight {
+  height: 5%;
+  width: 4%;
+  position: absolute;
+  right: 0;
+  border-radius: 25%;
+  top: 42%;
+  z-index: 10;
+  transform: rotate(4deg);
+  background: #fff;
+  box-shadow: 0 0 40px 5px #9bf, 0 0 2px 2px #b3ccff inset;
+}
+
+.success-wet-goose-scene .truck__wheel {
+  position: absolute;
+}
+
+.success-wet-goose-scene .truck__wheel--front {
+  height: 57%;
+  width: 21%;
+  bottom: 0;
+  left: 75%;
+  z-index: 4;
+  transform: rotate(2deg);
+}
+
+.success-wet-goose-scene .truck__wheel--rear {
+  height: 57%;
+  width: 21%;
+  bottom: 2%;
+  left: 10%;
+  z-index: 4;
+  transform: rotate(2deg);
+}
+
+.success-wet-goose-scene .truck-wheel {
+  border-radius: 100%;
+  height: calc(var(--width) * 0.15px);
+  width: calc(var(--width) * 0.15px);
+  background: #242424;
+  border-top: 1px solid #ccc;
+  position: absolute;
+  bottom: 0;
+  left: 52%;
+  transform: translate(-50%, 0);
+}
+
+.success-wet-goose-scene .truck-wheel__rim {
+  height: 60%;
+  width: 60%;
+  background: radial-gradient(circle at center, transparent, #666), #0d0d0d;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 100%;
+  animation: nfc-checkout-wet-goose-61-spin 0.35s infinite linear;
+}
+
+.success-wet-goose-scene .truck-wheel__rim:after {
+  content: "";
+  height: 35%;
+  width: 35%;
+  background: radial-gradient(
+      circle at center,
+      #0d0d0d,
+      #0d0d0d 40%,
+      transparent 40%
+    ),
+    radial-gradient(circle at center, #262626, #262626 40%, transparent),
+    #8c8c8c;
+  border: 1px solid #1a1a1a;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 100%;
+  z-index: 2;
+}
+
+@-moz-keyframes nfc-checkout-wet-goose-61-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+@-webkit-keyframes nfc-checkout-wet-goose-61-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+@-o-keyframes nfc-checkout-wet-goose-61-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+@keyframes nfc-checkout-wet-goose-61-spin {
+  to {
+    transform: translate(-50%, -50%) rotate(360deg);
+  }
+}
+
+.success-wet-goose-scene .truck-wheel__spoke {
+  position: absolute;
+  height: 60%;
+  width: 20%;
+  background: linear-gradient(0deg, transparent, #1a1a1a 50%), #808080;
+  border-left: 1px solid #4d4d4d;
+  border-right: 1px solid #333;
+  border-radius: 0 0 25% 25%;
+  top: 50%;
+  left: 50%;
+  transform-origin: top center;
+  transform: translate(-50%, 0) rotate(calc(360 / 7 * var(--index) * 1deg));
+}
+
+.success-wet-goose-scene .truck__wheel-arch {
+  background: #080808;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 1%;
+  height: 54%;
+  -webkit-clip-path: polygon(0 100%, 23% 0, 81% 0%, 95% 60%, 95% 100%);
+  clip-path: polygon(0 100%, 23% 0, 81% 0%, 95% 60%, 95% 100%);
+}
+.success-wet-goose-scene .truck__wheel-arch-trim {
+  position: absolute;
+}
+.success-wet-goose-scene .truck__wheel-arch-trim--top {
+  top: 0;
+  left: 25%;
+  background: #8c8c8c;
+  height: 5%;
+  width: 53%;
+  z-index: 2;
+}
+.success-wet-goose-scene .truck__wheel-arch-trim--left {
+  top: 0;
+  left: -20%;
+  background: linear-gradient(160deg, transparent, #666), #333;
+  height: 5%;
+  width: 44%;
+  transform-origin: top right;
+  transform: rotate(-60deg);
+}
+.success-wet-goose-scene .truck__wheel-arch-trim--right {
+  top: 0;
+  left: 79%;
+  background: linear-gradient(-158deg, transparent, #666), #333;
+  height: 5%;
+  width: 35%;
+  transform-origin: top left;
+  transform: rotate(58deg);
+}
+.success-wet-goose-scene .truck__body {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+}
+.success-wet-goose-scene .truck__body--top {
+  background: linear-gradient(90deg, #f4f1f1, #bfbfbf 50%), #e8e3e3;
+  height: 33%;
+  width: 100%;
+  top: 0;
+  transform: rotate(3deg);
+  -webkit-clip-path: polygon(0 100%, 58% 0, 98% 100%);
+  clip-path: polygon(0 100%, 58% 0, 98% 100%);
+}
+.success-wet-goose-scene .truck__body--top:before {
+  --groove: #999;
+  content: "";
+  background: linear-gradient(
+      95deg,
+      transparent,
+      transparent 2%,
+      var(--groove) 2%,
+      var(--groove) 3%,
+      transparent 3%
+    ),
+    linear-gradient(
+      75deg,
+      transparent,
+      transparent 47%,
+      var(--groove) 47%,
+      var(--groove) 48%,
+      transparent 48%
+    ),
+    linear-gradient(
+      78deg,
+      transparent,
+      transparent 95%,
+      var(--groove) 95%,
+      var(--groove) 96%,
+      transparent 96%
+    );
+  position: absolute;
+  height: 55%;
+  width: 40%;
+  left: 36%;
+  bottom: 0;
+  -webkit-clip-path: polygon(0 100%, 0 0, 100% 58%, 100% 100%);
+  clip-path: polygon(0 100%, 0 0, 100% 58%, 100% 100%);
+}
+.success-wet-goose-scene .truck__body--mid {
+  position: absolute;
+  width: 100%;
+  height: 36%;
+  top: 25%;
+  transform: rotate(3deg);
+  transform-origin: top left;
+  z-index: 2;
+}
+.success-wet-goose-scene .truck__body--mid:after {
+  content: "";
+  position: absolute;
+  background: #1f1f1f;
+  height: 20%;
+  width: 5%;
+  bottom: 20%;
+  right: -0.25%;
+  opacity: 1;
+  border-left: 1px solid #1a1a1a;
+}
+.success-wet-goose-scene .truck__body--mid:before {
+  content: "";
+  position: absolute;
+  background: #0f0f0f;
+  height: 20%;
+  width: 5%;
+  bottom: 5%;
+  right: 0%;
+  border-radius: 0 0 50% 25%;
+  border-left: 1px solid #141414;
+}
+.success-wet-goose-scene .truck__body--bottom {
+  top: 50%;
+  height: 32%;
+}
+.success-wet-goose-scene .truck__rear-bumper {
+  position: absolute;
+  height: 1px;
+  width: 9%;
+  background: #808080;
+  top: 38%;
+  left: 2.5%;
+  transform-origin: top left;
+  transform: rotate(3deg);
+}
+.success-wet-goose-scene .truck__side-skirt {
+  height: 1px;
+  width: 43%;
+  position: absolute;
+  bottom: 19%;
+  left: 32%;
+  transform-origin: top left;
+  transform: rotate(1deg);
+  background: #808080;
+}
+.success-wet-goose-scene .truck__underpanel {
+  background: #080808;
+  height: 65%;
+  width: 100%;
+  position: absolute;
+  bottom: 0;
+  -webkit-clip-path: polygon(2% 0, 14% 100%, 88% 100%, 99% 60%, 99% 40%);
+  clip-path: polygon(2% 0, 14% 100%, 88% 100%, 99% 60%, 99% 40%);
+}
+.success-wet-goose-scene .truck__mid-body {
+  --groove: #262626;
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(
+      84deg,
+      transparent,
+      transparent 36.75%,
+      var(--groove) 36.75%,
+      var(--groove) 37.25%,
+      transparent 37.25%
+    ),
+    linear-gradient(
+      83deg,
+      transparent,
+      transparent 55.75%,
+      var(--groove) 55.75%,
+      var(--groove) 56.25%,
+      transparent 56.25%
+    ),
+    linear-gradient(
+      88deg,
+      transparent,
+      transparent 75%,
+      var(--groove) 75%,
+      var(--groove) 75.5%,
+      transparent 75.5%
+    ),
+    linear-gradient(90deg, transparent, transparent 96%, #1f1f1f 96%),
+    linear-gradient(90deg, transparent, #262626), #333;
+  -webkit-clip-path: polygon(0 0, 3% 100%, 80% 84%, 99.5% 78%, 100% 10%, 98% 0);
+  clip-path: polygon(0 0, 3% 100%, 80% 84%, 99.5% 78%, 100% 10%, 98% 0);
+}
+.success-wet-goose-scene .truck__mid-body:after,.success-wet-goose-scene
+.truck__mid-body:before {
+  content: "";
+  position: absolute;
+  width: 4%;
+  height: 4%;
+  left: 38%;
+  top: 6%;
+  border: 1px solid #4d4d4d;
+  border-radius: 25%;
+}
+.success-wet-goose-scene .truck__mid-body:before {
+  left: 58%;
+}
+.success-wet-goose-scene .truck__window {
+  --window-black: rgba(0, 0, 0, 0.85);
+  --window-white: rgba(255, 255, 255, 0.3);
+  position: absolute;
+  height: 80%;
+  width: 60%;
+  background: #000;
+  left: 37%;
+  transform: skew(-5deg);
+  -webkit-clip-path: polygon(0 100%, 0 55%, 34.5% 11%, 85% 108%);
+  clip-path: polygon(0 100%, 0 55%, 34.5% 11%, 85% 108%);
+}
+.success-wet-goose-scene .truck__window-glass {
+  background: linear-gradient(
+      0deg,
+      var(--window-black) 0,
+      var(--window-black) 15%,
+      transparent 15%
+    ),
+    linear-gradient(90deg, transparent, var(--window-black) 90%),
+    linear-gradient(90deg, var(--window-white), transparent 80%),
+    linear-gradient(
+      68deg,
+      transparent,
+      transparent 30%,
+      var(--window-black) 30%,
+      var(--window-black) 31%,
+      transparent 31%,
+      transparent 55%,
+      var(--window-black) 55%,
+      var(--window-black) 56%,
+      transparent 56%
+    ),
+    var(--window-white);
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  height: 88%;
+  width: 98%;
+  -webkit-clip-path: polygon(0 100%, 0 55%, 34.5% 11%, 85% 105%);
+  clip-path: polygon(0 100%, 0 55%, 34.5% 11%, 85% 105%);
+}
+.success-wet-goose-scene .truck__window:before {
+  content: "";
+  background: #000;
+  position: absolute;
+  height: 10%;
+  width: 100%;
+  bottom: 0;
+  transform: rotate(2deg);
+  z-index: -1;
+  -webkit-clip-path: polygon(40% 100%, 100% -100%, 100% 100%);
+  clip-path: polygon(40% 100%, 100% -100%, 100% 100%);
+}
+@-moz-keyframes nfc-checkout-wet-goose-61-backdrop {
+  from {
+    transform: translate(calc(var(--distance) * 1em), 0);
+  }
+  to {
+    transform: translate(calc(var(--distance) * -1em), 0);
+  }
+}
+@-webkit-keyframes nfc-checkout-wet-goose-61-backdrop {
+  from {
+    transform: translate(calc(var(--distance) * 1em), 0);
+  }
+  to {
+    transform: translate(calc(var(--distance) * -1em), 0);
+  }
+}
+@-o-keyframes nfc-checkout-wet-goose-61-backdrop {
+  from {
+    transform: translate(calc(var(--distance) * 1em), 0);
+  }
+  to {
+    transform: translate(calc(var(--distance) * -1em), 0);
+  }
+}
+@keyframes nfc-checkout-wet-goose-61-backdrop {
+  from {
+    transform: translate(calc(var(--distance) * 1em), 0);
+  }
+  to {
+    transform: translate(calc(var(--distance) * -1em), 0);
+  }
+}
+
+
+        /* Source: https://uiverse.io/Lakshay-art/light-termite-47 (MIT License). */
+/* From Uiverse.io by Lakshay-art - Tags: animation, minimalist, card, hover, realistic, cartoon, shinchan, boochan */
+.success-light-termite-scene .face {
+  position: relative;
+  width: 300px;
+  height: 350px;
+  background-color: #6C757D;
+  background: linear-gradient(180deg,#452824 184px,#f2bbad 34px);
+    /* transform: translateX(0px); */
+  border-top-right-radius: 250px 350px;
+  border-top-left-radius: 250px 350px;
+  border-bottom-left-radius: 250px 250px;
+  border-bottom-right-radius: 250px 250px;
+  border: 5px solid black;
+}
+
+.success-light-termite-scene .hairs {
+  height: 180px;
+  background-color: #f2bbad;
+  position: absolute;
+  width: 290px;
+  border-top-right-radius: 250px 350px;
+  border-top-left-radius: 250px 350px;
+  top: 25px;
+}
+
+.success-light-termite-scene .snow {
+  transform: translateX(150px);
+  transform-origin: right;
+}
+
+.success-light-termite-scene .mountain-cap-1,.success-light-termite-scene  .mountain-cap-2,.success-light-termite-scene  .mountain-cap-3,.success-light-termite-scene .mountain-cap-4 {
+  position: absolute;
+  top: 20px;
+  border-left: 20px solid transparent;
+  border-right: 20px solid transparent;
+  border-top: 40px solid #452824;
+}
+
+.success-light-termite-scene .mountain-cap-1 {
+  left: -65px;
+}
+
+.success-light-termite-scene .mountain-cap-2 {
+  left: -35px;
+}
+
+.success-light-termite-scene .mountain-cap-3 {
+  left: -5px;
+}
+
+.success-light-termite-scene .mountain-cap-4 {
+  left: 25px;
+}
+
+.success-light-termite-scene .earL {
+  border-top-right-radius: 250px 350px;
+  border-top-left-radius: 250px 350px;
+  border-bottom-left-radius: 250px 250px;
+  border-bottom-right-radius: 250px 250px;
+  height: 70px;
+  width: 50px;
+  background-color: #f2bbad;
+  position: absolute;
+  left: -30px;
+  top: 150px;
+  z-index: -1;
+  border: 5px solid black;
+}
+
+.success-light-termite-scene .earR {
+  border-top-right-radius: 250px 350px;
+  border-top-left-radius: 250px 350px;
+  border-bottom-left-radius: 250px 250px;
+  border-bottom-right-radius: 250px 250px;
+  height: 70px;
+  width: 50px;
+  background-color: #f2bbad;
+  position: absolute;
+  right: -30px;
+  top: 150px;
+  z-index: -4;
+  border: 5px solid black;
+}
+
+.success-light-termite-scene .eyeR {
+  border-top-right-radius: 250px 350px;
+  border-top-left-radius: 250px 350px;
+  border-bottom-left-radius: 250px 250px;
+  border-bottom-right-radius: 250px 250px;
+  height: 10px;
+  width: 10px;
+  background-color: black;
+  position: absolute;
+  left: 128px;
+  top: 120px;
+  z-index: 2;
+  animation: nfc-checkout-light-termite-47-blinkR 5s infinite linear;
+}
+
+.success-light-termite-scene .eyeL {
+  border-top-right-radius: 250px 350px;
+  border-top-left-radius: 250px 350px;
+  border-bottom-left-radius: 250px 250px;
+  border-bottom-right-radius: 250px 250px;
+  height: 10px;
+  width: 10px;
+  background-color: black;
+  position: absolute;
+  right: 128px;
+  top: 120px;
+  z-index: 2;
+  animation: nfc-checkout-light-termite-47-blinkL 5s infinite linear;
+}
+
+.success-light-termite-scene .nose {
+  background: #fefefe;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: #0F0;
+  position: absolute;
+  top: 220px;
+  left: 140px;
+  scale: 1 1;
+  transition: all ease-in-out .3s;
+  z-index: 100;
+}
+
+.success-light-termite-scene .nose:hover {
+  scale: 1 1.25;
+  top: 236px;
+}
+
+.success-light-termite-scene .nose:active {
+  animation: nfc-checkout-light-termite-47-propeller .5s infinite linear;
+  transform-origin: 50% -55px;
+  scale: 1 1.25;
+  top: 220px;
+  animation-delay: .5s;
+}
+
+@keyframes nfc-checkout-light-termite-47-propeller {
+  to {
+    transform: rotateZ(360deg);
+  }
+}
+
+@keyframes nfc-checkout-light-termite-47-blinkL {
+  98% {
+    height: 10px;
+    width: 10px;
+    right: 128px;
+    top: 120px;
+  }
+
+  100% {
+    height: 3px;
+    width: 11px;
+    right: 126px;
+    top: 123px;
+  }
+}
+
+@keyframes nfc-checkout-light-termite-47-blinkR {
+  98% {
+    height: 10px;
+    width: 10px;
+    left: 128px;
+    top: 120px;
+  }
+
+  100% {
+    height: 3px;
+    width: 11px;
+    left: 126px;
+    top: 123px;
+  }
+}
+
+.success-light-termite-scene .nose:before {
+  content: "";
+  position: absolute;
+  top: -64px;
+  left: 50%;
+  border: 10px solid transparent;
+  border-bottom: 62px solid #fefefe;
+  transform: translateX(-50%);
+}
+
+.success-light-termite-scene .mouth {
+  position: absolute;
+  top: 300px;
+  left: 140px;
+  background: #a36655;
+  width: 25px;
+  height: 18px;
+  border: 5px solid black;
+  border-radius: 50%;
+  transition: all .3s linear;
+}
+
+.success-light-termite-scene .face:active .mouth {
+  top: 290px;
+  width: 60px;
+  height: 25px;
+  left: 123px;
+  border-radius: 7px 7px 130px 130px;
+}
+
+.success-light-termite-scene .face:active .smileL {
+  height: 30px;
+  width: 30px;
+}
+
+.success-light-termite-scene .face:active .smileR {
+  height: 30px;
+  width: 30px;
+}
+
+.success-light-termite-scene .bo {
+  z-index: 10;
+  zoom: 0.8;
+}
+
+.success-light-termite-scene .smileL {
+  position: absolute;
+  height: 0px;
+  width: 0px;
+  rotate: 310deg;
+  top: 180px;
+  left: 70px;
+  transition: all .1s linear;
+}
+
+.success-light-termite-scene .smileR {
+  position: absolute;
+  height: 0px;
+  width: 0px;
+  rotate: 310deg;
+  top: 180px;
+  right: 70px;
+  transition: all .1s linear;
+}
+
+
+        /* Source: https://uiverse.io/JkHuger/tidy-skunk-55 (MIT License). */
+/* From Uiverse.io by JkHuger - Tags: loader, pacman */
+.success-tidy-skunk-scene .circle {
+  position: relative;
+  left: -100px;
+  width: 0;
+  height: 0;
+  border: 50px solid #FDD835;
+  border-radius: 50%;
+  border-right-color: transparent;
+  animation: nfc-checkout-tidy-skunk-55-move 5s linear 0s infinite normal forwards;
+}
+
+.success-tidy-skunk-scene .circle:before {
+  content: "";
+  position: absolute;
+  top: -50px;
+  left: -50px;
+  width: 0;
+  height: 0;
+  border: 50px solid #FDD835;
+  border-radius: 50%;
+  border-right-color: transparent;
+  animation: nfc-checkout-tidy-skunk-55-chomp1 .25s ease-in-out 0s infinite normal forwards;
+}
+
+.success-tidy-skunk-scene .circle:after {
+  content: "";
+  position: absolute;
+  top: -50px;
+  left: -50px;
+  width: 0;
+  height: 0;
+  border: 50px solid #FDD835;
+  border-radius: 50%;
+  border-right-color: transparent;
+  animation: nfc-checkout-tidy-skunk-55-chomp2 .25s ease-in-out 0s infinite normal forwards;
+}
+
+.success-tidy-skunk-scene .loader {
+  position: relative;
+  top: 50px;
+  width: 300px;
+  height: 0px;
+  border-top: 10px dotted black;
+  animation: nfc-checkout-tidy-skunk-55-loader_4013 5s ease-in-out 0s infinite normal forwards;
+}
+
+.success-tidy-skunk-scene .dots {
+  position: relative;
+  top: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.success-tidy-skunk-scene .dot {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  margin: 0 10px;
+  border-radius: 50%;
+  background: #1E88E5;
+  animation: nfc-checkout-tidy-skunk-55-dot1 5s linear 0s infinite none normal;
+}
+
+.success-tidy-skunk-scene .dot:nth-child(1) {
+  animation-delay: 0s
+}
+
+.success-tidy-skunk-scene .dot:nth-child(2) {
+  animation-delay: 0.25s
+}
+
+.success-tidy-skunk-scene .dot:nth-child(3) {
+  animation-delay: 0.5s
+}
+
+.success-tidy-skunk-scene .dot:nth-child(4) {
+  animation-delay: 0.75s
+}
+
+.success-tidy-skunk-scene .dot:nth-child(5) {
+  animation-delay: 1s
+}
+
+.success-tidy-skunk-scene .dot:nth-child(6) {
+  animation-delay: 1.25s
+}
+
+.success-tidy-skunk-scene .dot:nth-child(7) {
+  animation-delay: 1.5s
+}
+
+.success-tidy-skunk-scene .dot:nth-child(8) {
+  animation-delay: 1.75s
+}
+
+.success-tidy-skunk-scene .dot:nth-child(9) {
+  animation-delay: 1.9s
+}
+
+.success-tidy-skunk-scene .dot:nth-child(10) {
+  animation-delay: 2.1s
+}
+
+.success-tidy-skunk-scene .dots2 {
+  position: relative;
+  top: 50px;
+  left: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.success-tidy-skunk-scene .dot2 {
+  position: relative;
+  left: -10px;
+  width: 10px;
+  height: 10px;
+  margin: 0 10px;
+  border-radius: 50%;
+  background: #F44336;
+  opacity: 0;
+  animation: nfc-checkout-tidy-skunk-55-dot2 5s linear 0s infinite none normal;
+}
+
+.success-tidy-skunk-scene .dot2:nth-child(10) {
+  animation-delay: 2.5s
+}
+
+.success-tidy-skunk-scene .dot2:nth-child(9) {
+  animation-delay: 2.75s
+}
+
+.success-tidy-skunk-scene .dot2:nth-child(8) {
+  animation-delay: 3.0s
+}
+
+.success-tidy-skunk-scene .dot2:nth-child(7) {
+  animation-delay: 3.25s
+}
+
+.success-tidy-skunk-scene .dot2:nth-child(6) {
+  animation-delay: 3.5s
+}
+
+.success-tidy-skunk-scene .dot2:nth-child(5) {
+  animation-delay: 3.75s
+}
+
+.success-tidy-skunk-scene .dot2:nth-child(4) {
+  animation-delay: 4.0s
+}
+
+.success-tidy-skunk-scene .dot2:nth-child(3) {
+  animation-delay: 4.25s
+}
+
+.success-tidy-skunk-scene .dot2:nth-child(2) {
+  animation-delay: 4.5s
+}
+
+.success-tidy-skunk-scene .dot2:nth-child(1) {
+  animation-delay: 4.6s
+}
+/* #F44336;, #1E88E5, #FDD835; */
+@keyframes nfc-checkout-tidy-skunk-55-chomp1 {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  50% {
+    transform: rotate(45deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes nfc-checkout-tidy-skunk-55-chomp2 {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  50% {
+    transform: rotate(-45deg);
+  }
+
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes nfc-checkout-tidy-skunk-55-move {
+  0%, 100% {
+    left: -100px;
+  }
+
+  0%, 48% {
+    transform: rotateY(0deg);
+  }
+
+  50%, 100% {
+    transform: rotateY(180deg);
+  }
+
+  50% {
+    left: 100%;
+  }
+}
+
+@keyframes nfc-checkout-tidy-skunk-55-loader_4013 {
+  0%, 100% {
+    border-top: 10px dotted #1E88E5;
+  }
+
+  0%, 48% {
+    border-top: 10px dotted #1E88E5;
+  }
+
+  50%, 100% {
+    border-top: 10px dotted #F44336;
+  }
+
+  50% {
+    border-top: 10px dotted #F44336;
+  }
+}
+
+@keyframes nfc-checkout-tidy-skunk-55-dot1 {
+  0%,4% {
+    background: #1E88E5;
+    opacity: 1;
+  }
+
+  5%,94% {
+    background: #F44336;
+    opacity: 0;
+  }
+
+  95%,100% {
+    background: #1E88E5;
+    opacity: 1;
+  }
+}
+
+@keyframes nfc-checkout-tidy-skunk-55-dot2 {
+  0%,4% {
+    background: #F44336;
+    opacity: 1;
+  }
+
+  5%,94% {
+    opacity: 0;
+  }
+
+  95%,100% {
+    background: #F44336;
+    opacity: 1;
+  }
+}

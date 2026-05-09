@@ -76,11 +76,11 @@ class TestNfcCheckinPage(unittest.TestCase):
 			html,
 		)
 		self.assertIn(
-			"const CHECKOUT_SUCCESS_ANIMATIONS = ['coffee', 'curvy-bulldog-27', 'wet-mayfly-23', 'kind-snail-5', 'tall-fish-38'];",
+			"const CHECKOUT_SUCCESS_ANIMATIONS = ['coffee', 'curvy-bulldog-27', 'wet-mayfly-23', 'kind-snail-5', 'tall-fish-38', 'sweet-jellyfish-62', 'chatty-zebra-11', 'neat-tiger-82', 'foolish-rabbit-13', 'stale-panda-35', 'nasty-vampirebat-71', 'happy-dog-58', 'lucky-emu-65', 'tender-baboon-47', 'wet-goose-61', 'light-termite-47', 'tidy-skunk-55'];",
 			html,
 		)
 		self.assertIn(
-			'<link rel="stylesheet" href="/assets/hrms/css/nfc_success_animations.css">',
+			'<link rel="stylesheet" href="/assets/hrms/css/nfc_success_animations.css?v={{ animation_css_version or \'dev\' }}">',
 			html,
 		)
 		self.assertIn(
@@ -88,6 +88,9 @@ class TestNfcCheckinPage(unittest.TestCase):
 			html,
 		)
 		self.assertIn("function chooseSuccessAnimationId(logType)", html)
+		self.assertIn("const ANIMATION_BAG_STORAGE_PREFIX = 'hrms:nfc-success-animation-bag';", html)
+		self.assertIn("function shuffleAnimationPool(pool, previousAnimationId)", html)
+		self.assertIn("function readAnimationBag(logType, pool)", html)
 		self.assertIn("function setSuccessAnimation(logType, animationId)", html)
 		for animation_id in [
 			"runner",
@@ -100,6 +103,18 @@ class TestNfcCheckinPage(unittest.TestCase):
 			"wet-mayfly-23",
 			"kind-snail-5",
 			"tall-fish-38",
+			"sweet-jellyfish-62",
+			"chatty-zebra-11",
+			"neat-tiger-82",
+			"foolish-rabbit-13",
+			"stale-panda-35",
+			"nasty-vampirebat-71",
+			"happy-dog-58",
+			"lucky-emu-65",
+			"tender-baboon-47",
+			"wet-goose-61",
+			"light-termite-47",
+			"tidy-skunk-55",
 		]:
 			self.assertIn(f'data-success-animation="{animation_id}"', animation_template)
 		self.assertNotIn('data-success-animation="office-lights"', animation_template)
@@ -119,6 +134,31 @@ class TestNfcCheckinPage(unittest.TestCase):
 		self.assertIn("wheel-and-hamster", animation_template)
 		self.assertIn("capybaraloader", animation_template)
 		self.assertIn('class="🤚"', animation_template)
+		self.assertIn("https://uiverse.io/vinodjangid07/sweet-jellyfish-62", animation_template)
+		self.assertIn('class="catContainer"', animation_template)
+		self.assertIn("https://uiverse.io/StealthWorm/chatty-zebra-11", animation_template)
+		self.assertIn('class="carousel"', animation_template)
+		self.assertIn("https://uiverse.io/alexruix/neat-tiger-82", animation_template)
+		self.assertIn('class="box1"', animation_template)
+		self.assertIn("https://uiverse.io/whoisyourdeadie/foolish-rabbit-13", animation_template)
+		self.assertIn('class="matrix-container"', animation_template)
+		self.assertIn("matrix-column", animation_css)
+		self.assertIn("https://uiverse.io/Shoh2008/stale-panda-35", animation_template)
+		self.assertIn("nfc-checkout-stale-panda-35-bike", animation_css)
+		self.assertIn("https://uiverse.io/TheAbieza/nasty-vampirebat-71", animation_template)
+		self.assertIn('class="plate"', animation_template)
+		self.assertIn("https://uiverse.io/csemszepp/happy-dog-58", animation_template)
+		self.assertIn('class="vader"', animation_template)
+		self.assertIn("https://uiverse.io/Shoh2008/lucky-emu-65", animation_template)
+		self.assertIn("nfc-checkout-lucky-emu-65-faceLift", animation_css)
+		self.assertIn("https://uiverse.io/Subaashbala/tender-baboon-47", animation_template)
+		self.assertIn('id="bird"', animation_template)
+		self.assertIn("https://uiverse.io/vikas7754/wet-goose-61", animation_template)
+		self.assertIn('class="truck__headlight"', animation_template)
+		self.assertIn("https://uiverse.io/Lakshay-art/light-termite-47", animation_template)
+		self.assertIn('class="face"', animation_template)
+		self.assertIn("https://uiverse.io/JkHuger/tidy-skunk-55", animation_template)
+		self.assertIn('class="dots2"', animation_template)
 		self.assertNotIn("https://uiverse.io/JohnnyCSilva/black-rabbit-68", html)
 		self.assertNotIn('class="truckWrapper"', html)
 

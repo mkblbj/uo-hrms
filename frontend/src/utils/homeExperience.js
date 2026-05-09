@@ -15,7 +15,21 @@ export const CHECKOUT_SUCCESS_ANIMATION_IDS = [
 	"wet-mayfly-23",
 	"kind-snail-5",
 	"tall-fish-38",
+	"sweet-jellyfish-62",
+	"chatty-zebra-11",
+	"neat-tiger-82",
+	"foolish-rabbit-13",
+	"stale-panda-35",
+	"nasty-vampirebat-71",
+	"happy-dog-58",
+	"lucky-emu-65",
+	"tender-baboon-47",
+	"wet-goose-61",
+	"light-termite-47",
+	"tidy-skunk-55",
 ]
+const SUCCESS_ANIMATION_BAG_STORAGE_PREFIX = "hrms:success-animation-bag"
+const successAnimationBagMemory = new Map()
 
 const COPY = {
 	zh: {
@@ -132,11 +146,136 @@ function toDisplayTime(value) {
 	)}`
 }
 
-export function chooseSuccessAnimationId(action, random = Math.random) {
-	const pool = action === "IN" ? CHECKIN_SUCCESS_ANIMATION_IDS : CHECKOUT_SUCCESS_ANIMATION_IDS
+function getSuccessAnimationPool(action) {
+	return action === "IN" ? CHECKIN_SUCCESS_ANIMATION_IDS : CHECKOUT_SUCCESS_ANIMATION_IDS
+}
+
+function normalizeRandomValue(random = Math.random) {
 	const rawValue = Number(random())
-	const normalizedValue = Number.isFinite(rawValue) ? Math.min(Math.max(rawValue, 0), 0.999999) : 0
-	return pool[Math.floor(normalizedValue * pool.length)] || pool[0]
+	return Number.isFinite(rawValue) ? Math.min(Math.max(rawValue, 0), 0.999999) : 0
+}
+
+function getDefaultAnimationStorage() {
+	try {
+		return globalThis?.localStorage
+	} catch {
+		return null
+	}
+}
+
+function getAnimationStorage(storage = getDefaultAnimationStorage()) {
+	return storage && typeof storage.getItem === "function" && typeof storage.setItem === "function"
+		? storage
+		: null
+}
+
+function getAnimationBagKey(action) {
+	return `${SUCCESS_ANIMATION_BAG_STORAGE_PREFIX}:${action === "IN" ? "in" : "out"}`
+}
+
+function getLastAnimationKey(action) {
+	return `${getAnimationBagKey(action)}:last`
+}
+
+function readAnimationBag(action, pool, storage) {
+	const key = getAnimationBagKey(action)
+	const poolSet = new Set(pool)
+	let bag = null
+
+	if (storage) {
+		try {
+			bag = JSON.parse(storage.getItem(key) || "[]")
+		} catch {
+			bag = []
+		}
+	} else {
+		bag = successAnimationBagMemory.get(key) || []
+	}
+
+	if (!Array.isArray(bag)) return []
+	const seen = new Set()
+	return bag.filter((animationId) => {
+		if (!poolSet.has(animationId) || seen.has(animationId)) return false
+		seen.add(animationId)
+		return true
+	})
+}
+
+function writeAnimationBag(action, bag, storage) {
+	const key = getAnimationBagKey(action)
+	if (storage) {
+		try {
+			storage.setItem(key, JSON.stringify(bag))
+		} catch {
+			successAnimationBagMemory.set(key, bag)
+		}
+		return
+	}
+
+	successAnimationBagMemory.set(key, bag)
+}
+
+function readLastAnimationId(action, storage) {
+	const key = getLastAnimationKey(action)
+	if (storage) {
+		try {
+			return storage.getItem(key) || ""
+		} catch {
+			return successAnimationBagMemory.get(key) || ""
+		}
+	}
+
+	return successAnimationBagMemory.get(key) || ""
+}
+
+function writeLastAnimationId(action, animationId, storage) {
+	const key = getLastAnimationKey(action)
+	if (storage) {
+		try {
+			storage.setItem(key, animationId)
+		} catch {
+			successAnimationBagMemory.set(key, animationId)
+		}
+		return
+	}
+
+	successAnimationBagMemory.set(key, animationId)
+}
+
+function shuffleAnimationPool(pool, random = Math.random, previousAnimationId = "") {
+	const bag = [...pool]
+	for (let index = bag.length - 1; index > 0; index--) {
+		const swapIndex = Math.floor(normalizeRandomValue(random) * (index + 1))
+		const currentAnimationId = bag[index]
+		bag[index] = bag[swapIndex]
+		bag[swapIndex] = currentAnimationId
+	}
+
+	if (bag.length > 1 && bag[0] === previousAnimationId) {
+		const swapIndex = bag.findIndex((animationId) => animationId !== previousAnimationId)
+		const firstAnimationId = bag[0]
+		bag[0] = bag[swapIndex]
+		bag[swapIndex] = firstAnimationId
+	}
+
+	return bag
+}
+
+export function chooseSuccessAnimationId(action, random = Math.random, storage = getDefaultAnimationStorage()) {
+	const pool = getSuccessAnimationPool(action)
+	if (!pool.length) return ""
+
+	const animationStorage = getAnimationStorage(storage)
+	let bag = readAnimationBag(action, pool, animationStorage)
+	if (!bag.length) {
+		bag = shuffleAnimationPool(pool, random, readLastAnimationId(action, animationStorage))
+	}
+
+	const animationId = bag.shift() || pool[0]
+	writeAnimationBag(action, bag, animationStorage)
+	writeLastAnimationId(action, animationId, animationStorage)
+
+	return animationId
 }
 
 function withOverlayDescription(model, description) {
@@ -339,9 +478,10 @@ export function buildSuccessOverlayModel({
 	responseMessage,
 	monthHours = 0,
 	random = Math.random,
+	animationStorage = getDefaultAnimationStorage(),
 }) {
 	const resolvedLang = normalizeLanguage(lang) || DEFAULT_HOME_LANGUAGE
-	const animationId = chooseSuccessAnimationId(action, random)
+	const animationId = chooseSuccessAnimationId(action, random, animationStorage)
 
 	if (action === "IN") {
 		return withOverlayDescription(

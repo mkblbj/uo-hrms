@@ -35,6 +35,18 @@ const tallFishSource = readFileSync(
 	path.join(currentDir, "success", "CheckOutTallFishAnimation.vue"),
 	"utf8"
 )
+const sweetJellyfishSource = readComponentSource("CheckOutSweetJellyfishAnimation.vue")
+const chattyZebraSource = readComponentSource("CheckOutChattyZebraAnimation.vue")
+const neatTigerSource = readComponentSource("CheckOutNeatTigerAnimation.vue")
+const foolishRabbitSource = readComponentSource("CheckOutFoolishRabbitAnimation.vue")
+const stalePandaSource = readComponentSource("CheckOutStalePandaAnimation.vue")
+const nastyVampirebatSource = readComponentSource("CheckOutNastyVampirebatAnimation.vue")
+const happyDogSource = readComponentSource("CheckOutHappyDogAnimation.vue")
+const luckyEmuSource = readComponentSource("CheckOutLuckyEmuAnimation.vue")
+const tenderBaboonSource = readComponentSource("CheckOutTenderBaboonAnimation.vue")
+const wetGooseSource = readComponentSource("CheckOutWetGooseAnimation.vue")
+const lightTermiteSource = readComponentSource("CheckOutLightTermiteAnimation.vue")
+const tidySkunkSource = readComponentSource("CheckOutTidySkunkAnimation.vue")
 const switcherSource = readFileSync(
 	path.join(currentDir, "success", "SuccessAnimationSwitcher.vue"),
 	"utf8"
@@ -108,6 +120,52 @@ test("check-out animation pool keeps the requested uiverse source variants", () 
 	assert.match(tallFishSource, /class="🤚"/)
 	assert.match(tallFishSource, /class="👉"/)
 	assert.match(tallFishSource, /@keyframes tap-upper-4/)
+
+	assert.match(sweetJellyfishSource, /uiverse\.io\/vinodjangid07\/sweet-jellyfish-62/)
+	assert.match(sweetJellyfishSource, /class="catContainer"/)
+	assert.match(sweetJellyfishSource, /class="bigzzz"/)
+
+	assert.match(chattyZebraSource, /uiverse\.io\/StealthWorm\/chatty-zebra-11/)
+	assert.match(chattyZebraSource, /class="carousel"/)
+	assert.match(chattyZebraSource, /class="robots"/)
+
+	assert.match(neatTigerSource, /uiverse\.io\/alexruix\/neat-tiger-82/)
+	assert.match(neatTigerSource, /class="box1"/)
+	assert.match(neatTigerSource, /@keyframes abox3/)
+
+	assert.match(foolishRabbitSource, /uiverse\.io\/whoisyourdeadie\/foolish-rabbit-13/)
+	assert.match(foolishRabbitSource, /class="matrix-container"/)
+	assert.match(foolishRabbitSource, /@keyframes fall/)
+
+	assert.match(stalePandaSource, /uiverse\.io\/Shoh2008\/stale-panda-35/)
+	assert.match(stalePandaSource, /@keyframes bike/)
+
+	assert.match(nastyVampirebatSource, /uiverse\.io\/TheAbieza\/nasty-vampirebat-71/)
+	assert.match(nastyVampirebatSource, /class="plate"/)
+	assert.match(nastyVampirebatSource, /@keyframes rotation/)
+
+	assert.match(happyDogSource, /uiverse\.io\/csemszepp\/happy-dog-58/)
+	assert.match(happyDogSource, /class="vader"/)
+	assert.match(happyDogSource, /class="sword animation-left"/)
+
+	assert.match(luckyEmuSource, /uiverse\.io\/Shoh2008\/lucky-emu-65/)
+	assert.match(luckyEmuSource, /@keyframes faceLift/)
+
+	assert.match(tenderBaboonSource, /uiverse\.io\/Subaashbala\/tender-baboon-47/)
+	assert.match(tenderBaboonSource, /id="bird"/)
+	assert.match(tenderBaboonSource, /@keyframes flap/)
+
+	assert.match(wetGooseSource, /uiverse\.io\/vikas7754\/wet-goose-61/)
+	assert.match(wetGooseSource, /class="truck"/)
+	assert.match(wetGooseSource, /class="truck__headlight"/)
+
+	assert.match(lightTermiteSource, /uiverse\.io\/Lakshay-art\/light-termite-47/)
+	assert.match(lightTermiteSource, /class="face"/)
+	assert.match(lightTermiteSource, /class="smileL"/)
+
+	assert.match(tidySkunkSource, /uiverse\.io\/JkHuger\/tidy-skunk-55/)
+	assert.match(tidySkunkSource, /class="dots2"/)
+	assert.match(tidySkunkSource, /@keyframes chomp2/)
 })
 
 test("success animation switcher maps every configured animation id", () => {
@@ -122,6 +180,18 @@ test("success animation switcher maps every configured animation id", () => {
 		"wet-mayfly-23",
 		"kind-snail-5",
 		"tall-fish-38",
+		"sweet-jellyfish-62",
+		"chatty-zebra-11",
+		"neat-tiger-82",
+		"foolish-rabbit-13",
+		"stale-panda-35",
+		"nasty-vampirebat-71",
+		"happy-dog-58",
+		"lucky-emu-65",
+		"tender-baboon-47",
+		"wet-goose-61",
+		"light-termite-47",
+		"tidy-skunk-55",
 	]) {
 		assert.match(switcherSource, new RegExp(`"${animationId}"`))
 	}

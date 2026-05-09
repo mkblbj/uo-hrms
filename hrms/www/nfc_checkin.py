@@ -6,6 +6,8 @@ NFC Checkin Page Controller
 路由: /nfc-checkin 或 /nfc-checkin?loc=xxx
 """
 
+from pathlib import Path
+
 import frappe
 
 no_cache = 1
@@ -26,5 +28,15 @@ def get_context(context):
 	context.location = location
 	context.title = f"NFC 打卡 - {location}"
 	context.no_cache = 1
+	context.animation_css_version = get_animation_css_version()
 
 	return context
+
+
+def get_animation_css_version():
+	"""Return a stable cache-buster for the external animation stylesheet."""
+	css_path = Path(frappe.get_app_path("hrms", "public", "css", "nfc_success_animations.css"))
+	try:
+		return str(int(css_path.stat().st_mtime))
+	except OSError:
+		return "dev"

@@ -100,6 +100,33 @@ function createFakeTimers() {
 	}
 }
 
+function createMemoryStorage() {
+	const values = new Map()
+
+	return {
+		getItem(key) {
+			return values.has(key) ? values.get(key) : null
+		},
+		setItem(key, value) {
+			values.set(key, String(value))
+		},
+		removeItem(key) {
+			values.delete(key)
+		},
+	}
+}
+
+function createBlockedStorage() {
+	return {
+		getItem() {
+			throw new Error("storage blocked")
+		},
+		setItem() {
+			throw new Error("storage blocked")
+		},
+	}
+}
+
 test("returns working and off-work chip metadata for zh and ja", () => {
 	assert.deepEqual(getStatusChipMeta(true, "zh"), {
 		label: "正在出勤",
@@ -517,7 +544,7 @@ test("builds a check-in success overlay model with attendance routing", () => {
 		}),
 		{
 			variant: "checkin",
-			animationId: "runner",
+			animationId: "black-rabbit-68",
 			statusLabel: "出勤成功",
 			title: "开始上班",
 			primaryLabel: "查看今日勤怠",
@@ -543,7 +570,7 @@ test("builds a check-out success overlay model with month hours and tomorrow not
 	})
 
 	assert.equal(model.variant, "checkout")
-	assert.equal(model.animationId, "coffee")
+	assert.equal(model.animationId, "curvy-bulldog-27")
 	assert.equal(model.statusLabel, "退勤成功")
 	assert.equal(model.primaryRoute.name, "EmployeeCheckinListView")
 	assert.deepEqual(model.infoRows, [
@@ -567,17 +594,24 @@ test("success animation pools expose check-in and check-out variants", () => {
 		"wet-mayfly-23",
 		"kind-snail-5",
 		"tall-fish-38",
+		"sweet-jellyfish-62",
+		"chatty-zebra-11",
+		"neat-tiger-82",
+		"foolish-rabbit-13",
+		"stale-panda-35",
+		"nasty-vampirebat-71",
+		"happy-dog-58",
+		"lucky-emu-65",
+		"tender-baboon-47",
+		"wet-goose-61",
+		"light-termite-47",
+		"tidy-skunk-55",
 	])
 })
 
 test("success animation selection is deterministic from the supplied random value", () => {
-	assert.equal(chooseSuccessAnimationId("IN", () => 0), "runner")
-	assert.equal(chooseSuccessAnimationId("IN", () => 0.2), "black-rabbit-68")
-	assert.equal(chooseSuccessAnimationId("IN", () => 0.4), "popular-owl-27")
-	assert.equal(chooseSuccessAnimationId("IN", () => 0.6), "empty-snail-69")
-	assert.equal(chooseSuccessAnimationId("IN", () => 0.999), "mona-lisa")
-	assert.equal(chooseSuccessAnimationId("OUT", () => 0), "coffee")
-	assert.equal(chooseSuccessAnimationId("OUT", () => 0.999), "tall-fish-38")
+	assert.equal(chooseSuccessAnimationId("IN", () => 0, createMemoryStorage()), "black-rabbit-68")
+	assert.equal(chooseSuccessAnimationId("OUT", () => 5 / 17, createMemoryStorage()), "nasty-vampirebat-71")
 
 	assert.equal(
 		buildSuccessOverlayModel({
@@ -586,8 +620,9 @@ test("success animation selection is deterministic from the supplied random valu
 			responseMessage: { time: "2026-04-15 09:02:00", location: "office-10F" },
 			monthHours: 126.5,
 			random: () => 0.5,
+			animationStorage: createMemoryStorage(),
 		}).animationId,
-		"popular-owl-27",
+		"runner",
 	)
 	assert.equal(
 		buildSuccessOverlayModel({
@@ -595,10 +630,31 @@ test("success animation selection is deterministic from the supplied random valu
 			lang: "zh",
 			responseMessage: { time: "2026-04-15 18:06:00", location: "office-10F" },
 			monthHours: 126.5,
-			random: () => 0.8,
+			random: () => 16 / 17,
+			animationStorage: createMemoryStorage(),
 		}).animationId,
-		"tall-fish-38",
+		"coffee",
 	)
+})
+
+test("success animation selection uses a shuffle bag without repeats inside a round", () => {
+	for (const [action, pool] of [
+		["IN", CHECKIN_SUCCESS_ANIMATION_IDS],
+		["OUT", CHECKOUT_SUCCESS_ANIMATION_IDS],
+	]) {
+		const storage = createMemoryStorage()
+		const firstRound = Array.from({ length: pool.length }, () =>
+			chooseSuccessAnimationId(action, () => 0, storage)
+		)
+
+		assert.equal(new Set(firstRound).size, pool.length)
+		assert.deepEqual(new Set(firstRound), new Set(pool))
+		assert.notEqual(chooseSuccessAnimationId(action, () => 0, storage), firstRound.at(-1))
+	}
+})
+
+test("success animation selection falls back when persisted storage is blocked", () => {
+	assert.ok(CHECKIN_SUCCESS_ANIMATION_IDS.includes(chooseSuccessAnimationId("IN", () => 0, createBlockedStorage())))
 })
 
 test("success overlay controller opens the overlay and reveals actions after the configured delay", async () => {
