@@ -30,8 +30,6 @@
 		</div>
 
 		<div class="heatmap-legend" aria-hidden="true">
-			<span>{{ t("noAttendance") }}</span>
-			<span style="background: #fde68a"></span>
 			<span>{{ t("less") }}</span>
 			<span style="background: #bbf7d0"></span>
 			<span style="background: #86efac"></span>
@@ -67,7 +65,6 @@ const copy = {
 	error: { zh: "暂时无法加载考勤记录", ja: "勤怠記録を読み込めません", en: "Unable to load attendance" },
 	less: { zh: "少", ja: "少", en: "Less" },
 	more: { zh: "多", ja: "多", en: "More" },
-	noAttendance: { zh: "无考勤", ja: "勤怠なし", en: "No attendance" },
 	hours: { zh: "小时", ja: "時間", en: "hours" },
 	noRecord: { zh: "无记录", ja: "記録なし", en: "No record" },
 }
@@ -252,8 +249,7 @@ onMounted(loadAttendance)
 	color: #64748b;
 }
 
-.heatmap-legend span:nth-child(2),
-.heatmap-legend span:nth-child(n + 4):nth-child(-n + 8) {
+.heatmap-legend span:not(:first-child):not(:last-child) {
 	width: 12px;
 	height: 12px;
 	border-radius: 3px;

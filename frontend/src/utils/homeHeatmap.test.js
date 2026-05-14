@@ -36,14 +36,14 @@ test("maps attendance statuses and working hours to fixed colors", () => {
 	)
 })
 
-test("maps non-attendance days to a single no-attendance color", () => {
+test("maps non-attendance days to a single quiet gray color", () => {
 	assert.equal(
 		getAttendanceHeatmapCellMeta({
 			event: { attendance: "Holiday" },
 			date: "2026-05-10",
 			today: "2026-05-14",
 		}).color,
-		"#fde68a"
+		"#e2e8f0"
 	)
 	assert.equal(
 		getAttendanceHeatmapCellMeta({
@@ -51,7 +51,7 @@ test("maps non-attendance days to a single no-attendance color", () => {
 			date: "2026-05-11",
 			today: "2026-05-14",
 		}).color,
-		"#fde68a"
+		"#e2e8f0"
 	)
 	assert.equal(
 		getAttendanceHeatmapCellMeta({
@@ -59,7 +59,7 @@ test("maps non-attendance days to a single no-attendance color", () => {
 			date: "2026-05-12",
 			today: "2026-05-14",
 		}).color,
-		"#fde68a"
+		"#e2e8f0"
 	)
 	assert.equal(
 		getAttendanceHeatmapCellMeta({
@@ -67,7 +67,7 @@ test("maps non-attendance days to a single no-attendance color", () => {
 			date: "2026-05-13",
 			today: "2026-05-14",
 		}).color,
-		"#fde68a"
+		"#e2e8f0"
 	)
 })
 

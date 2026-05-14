@@ -1,6 +1,6 @@
 export const DEFAULT_STANDARD_DAY_HOURS = 8
 
-const NO_ATTENDANCE_COLOR = "#fde68a"
+const NO_ATTENDANCE_COLOR = "#e2e8f0"
 const LEVEL_COLORS = ["#bbf7d0", "#86efac", "#4ade80", "#16a34a", "#166534"]
 
 function toDate(value) {

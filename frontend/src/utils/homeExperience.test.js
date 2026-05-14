@@ -529,6 +529,8 @@ test("AttendanceHeatmapCard uses the real attendance calendar API and heatmap he
 	assert.match(source, /buildHeatmapMonthMarkers/)
 	assert.match(source, /heatmap-months/)
 	assert.match(source, /repeat\(7/)
+	assert.doesNotMatch(source, /noAttendance/)
+	assert.doesNotMatch(source, /无考勤/)
 	assert.doesNotMatch(source, /Math\.random/)
 	assert.doesNotMatch(source, /home-v2/)
 })
