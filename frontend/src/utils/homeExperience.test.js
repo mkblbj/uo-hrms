@@ -38,6 +38,11 @@ const homeSummaryCardPath = path.resolve(
 	currentDir,
 	"../components/work_roster/HomeSummaryCard.vue"
 )
+const homeStatsGridPath = path.resolve(currentDir, "../components/home/HomeStatsGrid.vue")
+const attendanceHeatmapCardPath = path.resolve(
+	currentDir,
+	"../components/home/AttendanceHeatmapCard.vue"
+)
 let checkInPanelHelpersPromise = null
 
 async function loadVueNamedExports(vueFilePath) {
@@ -503,6 +508,26 @@ test("HomeSummaryCard keeps roster empty copy in a single source", () => {
 	assert.doesNotMatch(source, /\btodayEmptyHint:\s*\{/)
 	assert.doesNotMatch(source, /\bnextEmpty:\s*\{/)
 	assert.doesNotMatch(source, /\bnextEmptyHint:\s*\{/)
+})
+
+test("HomeStatsGrid renders both month and cumulative dashboard fields", () => {
+	const source = fs.readFileSync(homeStatsGridPath, "utf8")
+
+	assert.match(source, /month_hours/)
+	assert.match(source, /month_present/)
+	assert.match(source, /total_hours/)
+	assert.match(source, /total_present_days/)
+	assert.doesNotMatch(source, /1842/)
+	assert.doesNotMatch(source, /236/)
+})
+
+test("AttendanceHeatmapCard uses the real attendance calendar API and heatmap helper", () => {
+	const source = fs.readFileSync(attendanceHeatmapCardPath, "utf8")
+
+	assert.match(source, /hrms\.api\.get_attendance_calendar_events/)
+	assert.match(source, /buildRecentWeekdayHeatmap/)
+	assert.doesNotMatch(source, /Math\.random/)
+	assert.doesNotMatch(source, /home-v2/)
 })
 
 test("home modules share one language helper instead of local fallbacks", () => {
