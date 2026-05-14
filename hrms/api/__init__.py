@@ -107,6 +107,37 @@ def get_current_employee() -> str:
 	return employee
 
 
+def get_attendance_day_weight(status: str | None) -> float:
+	if status in ("Present", "Work From Home"):
+		return 1
+	if status == "Half Day":
+		return 0.5
+	return 0
+
+
+def calculate_pwa_attendance_totals(attendance_rows: list[dict]) -> dict:
+	total_hours = 0
+	total_present_days = 0
+
+	for row in attendance_rows:
+		total_hours += float(row.get("working_hours") or 0)
+		total_present_days += get_attendance_day_weight(row.get("status"))
+
+	return {
+		"total_hours": round(total_hours, 2),
+		"total_present_days": total_present_days,
+	}
+
+
+def get_employee_total_attendance_stats(employee: str) -> dict:
+	attendance_rows = frappe.get_all(
+		"Attendance",
+		filters={"employee": employee, "docstatus": 1},
+		fields=["status", "working_hours"],
+	)
+	return calculate_pwa_attendance_totals(attendance_rows)
+
+
 # HR Settings
 @frappe.whitelist()
 def get_employee_dashboard_stats() -> dict:
@@ -152,6 +183,7 @@ def get_employee_dashboard_stats() -> dict:
 
 	# 本月总工时（从考勤记录获取，已包含班次的时间舍入和午餐扣除）
 	month_hours = float(attendance_stats.month_hours or 0)
+	total_attendance_stats = get_employee_total_attendance_stats(employee.name)
 
 	# 今日打卡记录
 	today_checkins = frappe.get_all(
@@ -188,6 +220,8 @@ def get_employee_dashboard_stats() -> dict:
 		"month_half_days": attendance_stats.half_days or 0,
 		"today_hours": round(today_hours, 2),
 		"month_hours": round(month_hours, 2),
+		"total_hours": total_attendance_stats["total_hours"],
+		"total_present_days": total_attendance_stats["total_present_days"],
 		"today_checkins": len(today_checkins),
 		"first_checkin_today": today_checkins[0].time if today_checkins else None,
 		"last_checkin_today": today_checkins[-1].time if today_checkins else None,
