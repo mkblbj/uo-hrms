@@ -6,15 +6,28 @@ import frappeui from "frappe-ui/vite"
 import path from "path"
 import fs from "fs"
 
+const packageJson = JSON.parse(fs.readFileSync(new URL("./package.json", import.meta.url), "utf8"))
+const frontendBuildTime = process.env.HRMS_FRONTEND_BUILD_TIME || new Date().toISOString()
+const frontendVersion =
+	process.env.HRMS_FRONTEND_VERSION || `${packageJson.version}-${frontendBuildTime}`
+
 export default defineConfig({
 	server: {
 		port: 8080,
 		proxy: getProxyOptions(),
 		allowedHosts: true,
 	},
+	define: {
+		__HRMS_FRONTEND_VERSION__: JSON.stringify(frontendVersion),
+		__HRMS_FRONTEND_BUILD_TIME__: JSON.stringify(frontendBuildTime),
+	},
 	plugins: [
 		vue(),
 		frappeui(),
+		emitFrontendVersionPlugin({
+			version: frontendVersion,
+			buildTime: frontendBuildTime,
+		}),
 		VitePWA({
 			registerType: "autoUpdate",
 			strategies: "injectManifest",
@@ -80,14 +93,23 @@ export default defineConfig({
 		},
 	},
 	optimizeDeps: {
-		include: [
-			"frappe-ui > feather-icons",
-			"showdown",
-			"tailwind.config.js",
-			"engine.io-client",
-		],
+		include: ["frappe-ui > feather-icons", "showdown", "tailwind.config.js", "engine.io-client"],
 	},
 })
+
+function emitFrontendVersionPlugin({ version, buildTime }) {
+	return {
+		name: "hrms-frontend-version",
+		apply: "build",
+		generateBundle() {
+			this.emitFile({
+				type: "asset",
+				fileName: "frontend-version.json",
+				source: JSON.stringify({ version, buildTime }, null, "\t"),
+			})
+		},
+	}
+}
 
 function getProxyOptions() {
 	const config = getCommonSiteConfig()
