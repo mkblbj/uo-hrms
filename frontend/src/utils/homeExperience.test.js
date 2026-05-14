@@ -451,7 +451,7 @@ test("keeps the hero state unresolved until work status is explicitly available"
 test("guards hero summary and CTA rendering behind nullable props", () => {
 	const source = fs.readFileSync(homeHeroCardPath, "utf8")
 
-	assert.match(source, /<p\s+v-if="summary"\s+class="hero-summary">/)
+	assert.match(source, /v-if="summary"\s+class="hero-status"/)
 	assert.match(source, /<button\s+v-if="cta"\s+type="button"\s+class="hero-cta"/)
 	assert.match(source, /summary:\s*\{\s*type:\s*String,\s*default:\s*null/)
 	assert.match(source, /cta:\s*\{\s*type:\s*Object,\s*default:\s*null/)
@@ -530,9 +530,21 @@ test("AttendanceHeatmapCard uses the real attendance calendar API and heatmap he
 	assert.doesNotMatch(source, /home-v2/)
 })
 
+test("CheckInPanel uses OD home modules without demo data or random heatmap behavior", () => {
+	const source = fs.readFileSync(checkInPanelPath, "utf8")
+
+	assert.match(source, /HomeHeroCard/)
+	assert.match(source, /HomeSummaryCard/)
+	assert.match(source, /HomeStatsGrid/)
+	assert.match(source, /AttendanceHeatmapCard/)
+	assert.match(source, /latestNotification/)
+	assert.doesNotMatch(source, /Math\.random/)
+	assert.doesNotMatch(source, /home-v2/)
+	assert.doesNotMatch(source, /累计总工时\s*<\/div>\s*<div[^>]*>1,842/)
+})
+
 test("home modules share one language helper instead of local fallbacks", () => {
 	const panelSource = fs.readFileSync(checkInPanelPath, "utf8")
-	const weatherSource = fs.readFileSync(weatherWidgetPath, "utf8")
 	const summarySource = fs.readFileSync(homeSummaryCardPath, "utf8")
 	const chipSource = fs.readFileSync(
 		path.resolve(currentDir, "../components/home/HomeStatusChip.vue"),
@@ -541,13 +553,10 @@ test("home modules share one language helper instead of local fallbacks", () => 
 
 	assert.match(panelSource, /resolveHomeLanguage/)
 	assert.match(panelSource, /<HomeSummaryCard\s+:lang="currentLanguage"/)
-	assert.match(panelSource, /<WeatherWidget\s+:lang="currentLanguage"/)
+	assert.match(panelSource, /weatherSummary/)
+	assert.match(panelSource, /hrms\.api\.get_weather_data/)
+	assert.doesNotMatch(panelSource, /<WeatherWidget/)
 	assert.doesNotMatch(panelSource, /frappe\.boot(?:\?\.|\.?)lang/)
-
-	assert.match(weatherSource, /resolveHomeLanguage/)
-	assert.match(weatherSource, /currentLanguage/)
-	assert.doesNotMatch(weatherSource, /\|\|\s*["'](?:ja|zh|en)["']/)
-	assert.doesNotMatch(weatherSource, /frappe\.boot(?:\?\.|\.?)lang/)
 
 	assert.match(summarySource, /resolveHomeLanguage/)
 	assert.match(summarySource, /currentLanguage/)

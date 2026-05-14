@@ -28,7 +28,7 @@
 		</div>
 
 		<div v-else class="grid grid-cols-2 gap-3">
-			<div class="rounded-2xl bg-white px-4 py-4 shadow-sm border-l-4 border-blue-500">
+			<div class="rounded-2xl bg-white px-4 py-4 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.02)] border-t-[3px] border-blue-600">
 				<div class="text-xs font-medium text-blue-600">{{ t("todayShift") }}</div>
 				<template v-if="summaryResource.data?.today_entry">
 					<div class="mt-3 text-2xl font-bold leading-none text-gray-900">
@@ -47,7 +47,7 @@
 				</template>
 			</div>
 
-			<div class="rounded-2xl bg-white px-4 py-4 shadow-sm border-l-4 border-emerald-500">
+			<div class="rounded-2xl bg-white px-4 py-4 shadow-[0_1px_3px_rgba(15,23,42,0.04),0_4px_12px_rgba(15,23,42,0.02)] border-t-[3px] border-emerald-500">
 				<div class="text-xs font-medium text-emerald-600">{{ t("nextShift") }}</div>
 				<template v-if="summaryResource.data?.next_entry">
 					<div class="mt-3 text-sm font-semibold text-gray-600">

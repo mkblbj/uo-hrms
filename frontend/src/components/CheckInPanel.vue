@@ -4,50 +4,36 @@
 			:employee-name="employee?.data?.first_name || employee?.data?.employee_name || ''"
 			:greeting="getGreeting()"
 			:date-label="formatDate()"
+			:weather-text="weatherSummary"
 			:summary="heroSummary"
 			:cta="primaryScanMeta"
 			@scan="openQRScanner"
 		/>
 
+		<div class="home-section-title">{{ getSectionTitle("schedule_stats") }}</div>
 		<HomeSummaryCard :lang="currentLanguage" />
-		<WeatherWidget :lang="currentLanguage" />
+		<HomeStatsGrid :stats="dashboardStats.data" :lang="currentLanguage" />
+		<AttendanceHeatmapCard :lang="currentLanguage" />
 
-		<div v-if="dashboardStats.data" class="stats-row stats-row--subtle">
-			<div class="stat-card hours">
-				<div class="stat-value">{{ formatHours(dashboardStats.data.month_hours) }}</div>
-				<div class="stat-label">{{ getStatsLabel("month_hours") }}</div>
-			</div>
-			<div class="stat-card present">
-				<div class="stat-value">{{ dashboardStats.data.month_present }}</div>
-				<div class="stat-label">{{ getStatsLabel("month_present") }}</div>
-			</div>
-		</div>
-
-		<!-- 最新通知卡片 -->
 		<router-link
 			:to="{ name: 'Notifications' }"
 			class="notification-card"
 			v-if="latestNotification.data"
 		>
-			<div class="notification-header">
-				<div class="notification-icon">
-					<FeatherIcon name="bell" class="w-4 h-4" />
-				</div>
-				<span class="notification-title">{{ getNotificationTitle() }}</span>
-				<FeatherIcon name="chevron-right" class="w-4 h-4 text-gray-400" />
+			<div class="notification-icon">
+				<FeatherIcon name="bell" class="w-4 h-4" />
 			</div>
-			<div class="notification-content" v-if="getNotificationDisplayMessage()">
-				<div
-					class="notification-message prose prose-sm"
-					v-html="truncateHtml(getNotificationDisplayMessage(), 80)"
-				></div>
+			<div class="notification-body">
+				<div class="notification-title">{{ getNotificationTitle() }}</div>
+				<div class="notification-message" v-if="getNotificationDisplayMessage()">
+					{{ stripHtml(getNotificationDisplayMessage()) }}
+				</div>
+				<div class="notification-empty" v-else>{{ getNoNotificationText() }}</div>
 				<div class="notification-time">
 					{{ formatNotificationTime(latestNotification.data.creation) }}
 				</div>
 			</div>
-			<div class="notification-empty" v-else>
-				{{ getNoNotificationText() }}
-			</div>
+			<FeatherIcon name="chevron-right" class="notification-arrow" />
 		</router-link>
 	</div>
 
@@ -167,10 +153,11 @@ import { createResource, toast, FeatherIcon } from "frappe-ui"
 import { computed, inject, onBeforeUnmount, reactive, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
 
+import AttendanceHeatmapCard from "@/components/home/AttendanceHeatmapCard.vue"
 import CheckinSuccessOverlay from "@/components/home/CheckinSuccessOverlay.vue"
-import QRScannerModal from "@/components/QRScannerModal.vue"
-import WeatherWidget from "@/components/WeatherWidget.vue"
 import HomeHeroCard from "@/components/home/HomeHeroCard.vue"
+import HomeStatsGrid from "@/components/home/HomeStatsGrid.vue"
+import QRScannerModal from "@/components/QRScannerModal.vue"
 import HomeSummaryCard from "@/components/work_roster/HomeSummaryCard.vue"
 import { formatTimestamp } from "@/utils/formatters"
 import {
@@ -214,6 +201,12 @@ const dashboardStats = createResource({
 	auto: true,
 })
 
+const weather = createResource({
+	url: "hrms.api.get_weather_data",
+	auto: true,
+	cache: ["weather_data", 10 * 60 * 1000],
+})
+
 const latestNotification = createResource({
 	url: "hrms.api.get_latest_notification",
 	auto: true,
@@ -233,6 +226,12 @@ const heroCardMeta = computed(() =>
 )
 const primaryScanMeta = computed(() => heroCardMeta.value.cta)
 const heroSummary = computed(() => heroCardMeta.value.summary)
+const weatherSummary = computed(() => {
+	if (!weather.data) return ""
+	const icon = weather.data?.condition?.text ? "⛅" : ""
+	const temp = Math.round(weather.data.temp_c)
+	return `${icon} ${temp}°`.trim()
+})
 
 const openQRScanner = () => {
 	if (!settings.data?.allow_employee_checkin_from_mobile_app || !primaryScanMeta.value) return
@@ -437,48 +436,15 @@ function formatDate() {
 	}
 }
 
-function formatHours(hours) {
-	if (!hours) return "0.00"
-	return hours.toFixed(2)
-}
-
-function getStatsLabel(key) {
-	const lang = currentLanguage
-
-	const labels = {
-		today_hours: {
-			ja: "今日の勤務時間",
-			zh: "今日工作时长",
-			en: "Today's Hours",
-		},
-		month_hours: {
-			ja: "今月の勤務時間",
-			zh: "本月工作时长",
-			en: "This Month",
-		},
-		month_present: {
-			ja: "今月の出勤",
-			zh: "本月出勤",
-			en: "Days Present",
-		},
-		month_absent: {
-			ja: "今月の休み",
-			zh: "本月休息",
-			en: "Days Rest",
-		},
-		hours_unit: {
-			ja: "時間",
-			zh: "小时",
-			en: "hours",
-		},
-		days_unit: {
-			ja: "日",
-			zh: "天",
-			en: "days",
+function getSectionTitle(key) {
+	const titles = {
+		schedule_stats: {
+			ja: "シフト & 統計",
+			zh: "排班 & 统计",
+			en: "Schedule & Stats",
 		},
 	}
-
-	return labels[key]?.[lang] || labels[key]?.zh || key
+	return titles[key]?.[currentLanguage] || titles[key]?.zh || key
 }
 
 function getNotificationTitle() {
@@ -514,31 +480,6 @@ function getNotificationDisplayMessage() {
 		return data.html_source
 	}
 	return data.message || ""
-}
-
-function truncateHtml(html, maxLength) {
-	if (!html) return ""
-	const tmp = document.createElement("div")
-	tmp.innerHTML = html
-	const text = tmp.textContent || tmp.innerText || ""
-
-	// 如果纯文本内容较短，直接返回原 HTML
-	if (text.length <= maxLength) {
-		return html
-	}
-
-	// 否则截取并保留基本 HTML 结构
-	// 简单处理：截取文本并保留第一个段落或元素的样式
-	const truncatedText = text.substring(0, maxLength) + "..."
-
-	// 尝试保留简单的 HTML 格式
-	const firstTag = html.match(/^<(\w+)[^>]*>/)
-	if (firstTag) {
-		const tagName = firstTag[1]
-		return `<${tagName}>${truncatedText}</${tagName}>`
-	}
-
-	return truncatedText
 }
 
 function formatNotificationTime(dateStr) {
@@ -585,147 +526,77 @@ function formatNotificationTime(dateStr) {
 	width: 100%;
 	flex: 1;
 }
-.stats-row {
-	display: grid;
-	grid-template-columns: repeat(2, 1fr);
-	gap: 12px;
-}
-.stat-card {
-	background: white;
-	border-radius: 14px;
-	padding: 20px 16px;
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-	border-left: 4px solid;
-}
-.stat-card.hours {
-	border-color: #8b5cf6;
-}
-.stat-card.present {
-	border-color: #10b981;
-}
-.stat-value {
-	font-size: 32px;
-	font-weight: 700;
-	color: #111827;
-	line-height: 1;
-}
-.stat-label {
-	font-size: 13px;
-	color: #6b7280;
-	margin-top: 8px;
+
+.home-section-title {
+	margin: 2px 2px -4px;
+	font-size: 14px;
+	font-weight: 800;
+	color: #0f172a;
 }
 
-.stats-row--subtle .stat-card {
-	box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
-	padding: 16px 14px;
-}
-
-.stats-row--subtle .stat-value {
-	font-size: 28px;
-}
-
-/* 通知卡片 */
 .notification-card {
-	display: block;
-	background: white;
+	display: flex;
+	align-items: center;
+	gap: 12px;
 	border-radius: 14px;
-	padding: 14px 16px;
-	box-shadow: 0 4px 14px rgba(15, 23, 42, 0.04);
+	background: #ffffff;
+	padding: 14px;
+	box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.02);
 	text-decoration: none;
-	transition: all 0.2s ease;
-	border-left: 3px solid #f59e0b;
-}
-
-.notification-card:hover {
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-	transform: translateY(-1px);
+	color: inherit;
+	transition: transform 0.14s ease, box-shadow 0.14s ease;
 }
 
 .notification-card:active {
-	transform: translateY(0);
-}
-
-.notification-header {
-	display: flex;
-	align-items: center;
-	gap: 8px;
+	transform: scale(0.99);
+	box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
 }
 
 .notification-icon {
-	width: 28px;
-	height: 28px;
-	border-radius: 8px;
-	background: rgba(245, 158, 11, 0.1);
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	color: #f59e0b;
+	flex: 0 0 32px;
+	width: 32px;
+	height: 32px;
+	border-radius: 8px;
+	background: #fffbeb;
+	color: #d97706;
+}
+
+.notification-body {
+	min-width: 0;
+	flex: 1;
 }
 
 .notification-title {
-	flex: 1;
-	font-size: 14px;
-	font-weight: 600;
-	color: #374151;
-}
-
-.notification-content {
-	margin-top: 10px;
-	padding-left: 36px;
-}
-
-.notification-message {
 	font-size: 13px;
-	color: #6b7280;
-	line-height: 1.5;
-	word-break: break-word;
+	font-weight: 800;
+	color: #0f172a;
 }
 
-.notification-message :deep(h1),
-.notification-message :deep(h2),
-.notification-message :deep(h3) {
-	font-size: 14px;
-	font-weight: 600;
-	margin: 0 0 4px 0;
-	color: #374151;
-}
-
-.notification-message :deep(p) {
-	margin: 0;
-}
-
-.notification-message :deep(strong) {
-	font-weight: 600;
-}
-
-.notification-message :deep(a) {
-	color: #2563eb;
-	text-decoration: underline;
-}
-
-.notification-message :deep(ul),
-.notification-message :deep(ol) {
-	margin: 4px 0;
-	padding-left: 16px;
-}
-
-.notification-message :deep(img) {
-	max-width: 100%;
-	max-height: 60px;
-	border-radius: 4px;
-	margin: 4px 0;
+.notification-message,
+.notification-empty {
+	margin-top: 3px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 12px;
+	font-weight: 500;
+	color: #64748b;
 }
 
 .notification-time {
-	font-size: 11px;
-	color: #9ca3af;
 	margin-top: 4px;
+	font-size: 11px;
+	font-weight: 600;
+	color: #94a3b8;
 }
 
-.notification-empty {
-	margin-top: 8px;
-	padding-left: 36px;
-	font-size: 13px;
-	color: #9ca3af;
+.notification-arrow {
+	flex: 0 0 auto;
+	width: 16px;
+	height: 16px;
+	color: #94a3b8;
 }
 </style>

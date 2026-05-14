@@ -2,7 +2,7 @@
 	<ion-page>
 		<ion-header class="ion-no-border">
 			<div class="w-full">
-				<div class="flex flex-col bg-white shadow-sm p-4">
+				<div class="flex flex-col bg-[#f0f4f8] px-4 pb-3 pt-3">
 					<div class="flex flex-row justify-between items-center">
 						<div class="flex flex-row items-center gap-2 min-w-0">
 							<button
@@ -24,7 +24,7 @@
 							<router-link
 								:to="{ name: 'Notifications' }"
 								v-slot="{ navigate }"
-								class="flex flex-col items-center"
+								class="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm"
 							>
 								<span class="relative inline-block" @click="navigate">
 									<FeatherIcon name="bell" class="h-6 w-6" />

@@ -50,8 +50,8 @@ onBeforeUnmount(() => {
 .home-container {
 	display: flex;
 	flex-direction: column;
-	padding: 12px;
+	padding: 12px 16px 20px;
 	min-height: calc(100vh - 110px);
-	background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+	background: #f0f4f8;
 }
 </style>
