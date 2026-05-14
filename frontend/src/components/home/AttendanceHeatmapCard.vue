@@ -8,24 +8,31 @@
 		<div v-if="attendanceResource.loading" class="heatmap-loading">{{ t("loading") }}</div>
 		<div v-else-if="attendanceResource.error" class="heatmap-empty">{{ t("error") }}</div>
 		<div v-else class="heatmap-body">
-			<div class="heatmap-weekdays" aria-hidden="true">
-				<span v-for="day in weekdayLabels" :key="day">{{ day }}</span>
-			</div>
-			<div class="heatmap-grid">
-				<span
-					v-for="cell in heatmapCells"
-					:key="cell.date"
-					class="heatmap-cell"
-					:style="{ backgroundColor: cell.color }"
-					:title="cellLabel(cell)"
-					:aria-label="cellLabel(cell)"
-				></span>
+			<div class="heatmap-calendar">
+				<div class="heatmap-month-spacer" aria-hidden="true"></div>
+				<div class="heatmap-months" aria-hidden="true">
+					<span v-for="marker in monthMarkers" :key="marker.key">{{ marker.label }}</span>
+				</div>
+				<div class="heatmap-weekdays" aria-hidden="true">
+					<span v-for="day in weekdayLabels" :key="day">{{ day }}</span>
+				</div>
+				<div class="heatmap-grid">
+					<span
+						v-for="cell in heatmapCells"
+						:key="cell.date"
+						class="heatmap-cell"
+						:style="{ backgroundColor: cell.color }"
+						:title="cellLabel(cell)"
+						:aria-label="cellLabel(cell)"
+					></span>
+				</div>
 			</div>
 		</div>
 
 		<div class="heatmap-legend" aria-hidden="true">
+			<span>{{ t("noAttendance") }}</span>
+			<span style="background: #fde68a"></span>
 			<span>{{ t("less") }}</span>
-			<span style="background: #f1f5f9"></span>
 			<span style="background: #bbf7d0"></span>
 			<span style="background: #86efac"></span>
 			<span style="background: #4ade80"></span>
@@ -40,7 +47,7 @@
 import { computed, onMounted } from "vue"
 import { createResource } from "frappe-ui"
 
-import { buildRecentWeekdayHeatmap } from "@/utils/homeHeatmap"
+import { buildHeatmapMonthMarkers, buildRecentWeekdayHeatmap } from "@/utils/homeHeatmap"
 
 const props = defineProps({
 	lang: {
@@ -60,14 +67,15 @@ const copy = {
 	error: { zh: "暂时无法加载考勤记录", ja: "勤怠記録を読み込めません", en: "Unable to load attendance" },
 	less: { zh: "少", ja: "少", en: "Less" },
 	more: { zh: "多", ja: "多", en: "More" },
+	noAttendance: { zh: "无考勤", ja: "勤怠なし", en: "No attendance" },
 	hours: { zh: "小时", ja: "時間", en: "hours" },
 	noRecord: { zh: "无记录", ja: "記録なし", en: "No record" },
 }
 
 const weekdayMap = {
-	zh: ["一", "二", "三", "四", "五"],
-	ja: ["月", "火", "水", "木", "金"],
-	en: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+	zh: ["一", "二", "三", "四", "五", "六", "日"],
+	ja: ["月", "火", "水", "木", "金", "土", "日"],
+	en: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
 }
 
 const attendanceResource = createResource({
@@ -99,12 +107,12 @@ function getRange() {
 	monday.setDate(today.getDate() + 1 - day)
 	const fromDate = new Date(monday)
 	fromDate.setDate(monday.getDate() - 12 * 7)
-	const friday = new Date(monday)
-	friday.setDate(monday.getDate() + 4)
+	const sunday = new Date(monday)
+	sunday.setDate(monday.getDate() + 6)
 
 	return {
 		from_date: toDateString(fromDate),
-		to_date: toDateString(friday),
+		to_date: toDateString(sunday),
 	}
 }
 
@@ -117,6 +125,12 @@ const heatmapCells = computed(() =>
 	buildRecentWeekdayHeatmap({
 		events: attendanceResource.data || {},
 		today: props.today,
+	})
+)
+const monthMarkers = computed(() =>
+	buildHeatmapMonthMarkers({
+		cells: heatmapCells.value,
+		lang: props.lang,
 	})
 )
 
@@ -161,14 +175,44 @@ onMounted(loadAttendance)
 }
 
 .heatmap-body {
-	display: flex;
-	align-items: stretch;
-	gap: 6px;
+	width: 100%;
+}
+
+.heatmap-calendar {
+	display: grid;
+	grid-template-columns: 18px minmax(0, 1fr);
+	grid-template-rows: auto auto;
+	column-gap: 6px;
+	row-gap: 4px;
+}
+
+.heatmap-month-spacer {
+	grid-column: 1;
+	grid-row: 1;
+}
+
+.heatmap-months {
+	grid-column: 2;
+	grid-row: 1;
+	display: grid;
+	grid-template-columns: repeat(13, minmax(0, 1fr));
+	gap: 3px;
+	min-height: 14px;
+	font-size: 10px;
+	font-weight: 700;
+	color: #64748b;
+}
+
+.heatmap-months span {
+	overflow: hidden;
+	white-space: nowrap;
 }
 
 .heatmap-weekdays {
+	grid-column: 1;
+	grid-row: 2;
 	display: grid;
-	grid-template-rows: repeat(5, 1fr);
+	grid-template-rows: repeat(7, 1fr);
 	gap: 3px;
 	font-size: 10px;
 	color: #64748b;
@@ -182,10 +226,12 @@ onMounted(loadAttendance)
 }
 
 .heatmap-grid {
-	flex: 1;
+	grid-column: 2;
+	grid-row: 2;
 	display: grid;
 	grid-template-columns: repeat(13, minmax(0, 1fr));
-	grid-template-rows: repeat(5, 1fr);
+	grid-template-rows: repeat(7, 1fr);
+	grid-auto-flow: column;
 	gap: 3px;
 }
 
@@ -206,7 +252,8 @@ onMounted(loadAttendance)
 	color: #64748b;
 }
 
-.heatmap-legend span:not(:first-child):not(:last-child) {
+.heatmap-legend span:nth-child(2),
+.heatmap-legend span:nth-child(n + 4):nth-child(-n + 8) {
 	width: 12px;
 	height: 12px;
 	border-radius: 3px;

@@ -10,10 +10,11 @@
 			@scan="openQRScanner"
 		/>
 
+		<AttendanceHeatmapCard :lang="currentLanguage" />
+
 		<div class="home-section-title">{{ getSectionTitle("schedule_stats") }}</div>
 		<HomeSummaryCard :lang="currentLanguage" />
 		<HomeStatsGrid :stats="dashboardStats.data" :lang="currentLanguage" />
-		<AttendanceHeatmapCard :lang="currentLanguage" />
 
 		<router-link
 			:to="{ name: 'Notifications' }"

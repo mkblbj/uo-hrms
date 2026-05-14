@@ -1,9 +1,6 @@
 export const DEFAULT_STANDARD_DAY_HOURS = 8
 
-const EMPTY_COLOR = "#f1f5f9"
-const HOLIDAY_COLOR = "#e2e8f0"
-const ABSENT_COLOR = "#fecaca"
-const LEAVE_COLOR = "#fde68a"
+const NO_ATTENDANCE_COLOR = "#fde68a"
 const LEVEL_COLORS = ["#bbf7d0", "#86efac", "#4ade80", "#16a34a", "#166534"]
 
 function toDate(value) {
@@ -45,6 +42,10 @@ function getFallbackHours(status, standardDayHours) {
 	return 0
 }
 
+function hasAttendance(status, hours) {
+	return status === "Present" || status === "Work From Home" || status === "Half Day" || hours > 0
+}
+
 export function getAttendanceHeatmapCellMeta({
 	event = null,
 	date,
@@ -58,23 +59,11 @@ export function getAttendanceHeatmapCellMeta({
 	const hours = Number(event?.working_hours ?? getFallbackHours(status, standardDayHours))
 
 	if (isFuture) {
-		return { level: 0, color: EMPTY_COLOR, isFuture: true }
+		return { level: 0, color: NO_ATTENDANCE_COLOR, isFuture: true }
 	}
 
-	if (!event || !status) {
-		return { level: 0, color: EMPTY_COLOR, isFuture: false }
-	}
-
-	if (status === "Holiday") {
-		return { level: 0, color: HOLIDAY_COLOR, isFuture: false }
-	}
-
-	if (status === "Absent") {
-		return { level: 0, color: ABSENT_COLOR, isFuture: false }
-	}
-
-	if (status === "On Leave") {
-		return { level: 0, color: LEAVE_COLOR, isFuture: false }
+	if (!event || !hasAttendance(status, hours)) {
+		return { level: 0, color: NO_ATTENDANCE_COLOR, isFuture: false }
 	}
 
 	const level = getLevelForRatio(hours / standardDayHours)
@@ -96,7 +85,7 @@ export function buildRecentWeekdayHeatmap({
 	const cells = []
 
 	for (let week = 0; week < weeks; week++) {
-		for (let weekday = 1; weekday <= 5; weekday++) {
+		for (let weekday = 1; weekday <= 7; weekday++) {
 			const date = addDays(firstWeekStart, week * 7 + (weekday - 1))
 			const dateString = toDateString(date)
 			const event = events[dateString] || null
@@ -117,4 +106,30 @@ export function buildRecentWeekdayHeatmap({
 	}
 
 	return cells
+}
+
+function getMonthLabel(dateString, lang) {
+	const month = Number(dateString.slice(5, 7))
+	if (lang === "en") {
+		return new Date(`${dateString}T00:00:00`).toLocaleString("en", { month: "short" })
+	}
+	return `${month}月`
+}
+
+export function buildHeatmapMonthMarkers({ cells = [], lang = "zh", daysPerWeek = 7 } = {}) {
+	const weeks = []
+
+	for (let index = 0; index < cells.length; index += daysPerWeek) {
+		const cell = cells[index]
+		if (cell) weeks.push(cell)
+	}
+
+	return weeks.map((cell, index) => {
+		const month = cell.date.slice(5, 7)
+		const previousMonth = index > 0 ? weeks[index - 1].date.slice(5, 7) : null
+		return {
+			key: cell.date,
+			label: index === 0 || month !== previousMonth ? getMonthLabel(cell.date, lang) : "",
+		}
+	})
 }

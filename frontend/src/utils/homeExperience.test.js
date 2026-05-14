@@ -526,6 +526,9 @@ test("AttendanceHeatmapCard uses the real attendance calendar API and heatmap he
 
 	assert.match(source, /hrms\.api\.get_attendance_calendar_events/)
 	assert.match(source, /buildRecentWeekdayHeatmap/)
+	assert.match(source, /buildHeatmapMonthMarkers/)
+	assert.match(source, /heatmap-months/)
+	assert.match(source, /repeat\(7/)
 	assert.doesNotMatch(source, /Math\.random/)
 	assert.doesNotMatch(source, /home-v2/)
 })
@@ -541,6 +544,15 @@ test("CheckInPanel uses OD home modules without demo data or random heatmap beha
 	assert.doesNotMatch(source, /Math\.random/)
 	assert.doesNotMatch(source, /home-v2/)
 	assert.doesNotMatch(source, /累计总工时\s*<\/div>\s*<div[^>]*>1,842/)
+})
+
+test("CheckInPanel places attendance heatmap before schedule guidance", () => {
+	const source = fs.readFileSync(checkInPanelPath, "utf8")
+
+	assert.ok(
+		source.indexOf("<AttendanceHeatmapCard") < source.indexOf("<HomeSummaryCard"),
+		"attendance heatmap should be above schedule guidance"
+	)
 })
 
 test("home modules share one language helper instead of local fallbacks", () => {
