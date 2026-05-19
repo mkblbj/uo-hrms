@@ -55,22 +55,24 @@ export function getAttendanceHeatmapCellMeta({
 	const dateValue = toDate(date)
 	const todayValue = toDate(today)
 	const isFuture = dateValue > todayValue
+	const isToday = dateValue.getTime() === todayValue.getTime()
 	const status = event?.attendance || ""
 	const hours = Number(event?.working_hours ?? getFallbackHours(status, standardDayHours))
 
 	if (isFuture) {
-		return { level: 0, color: NO_ATTENDANCE_COLOR, isFuture: true }
+		return { level: 0, color: NO_ATTENDANCE_COLOR, isFuture: true, isToday }
 	}
 
 	if (!event || !hasAttendance(status, hours)) {
-		return { level: 0, color: NO_ATTENDANCE_COLOR, isFuture: false }
+		return { level: 0, color: NO_ATTENDANCE_COLOR, isFuture: false, isToday }
 	}
 
 	const level = getLevelForRatio(hours / standardDayHours)
 	return {
 		level,
-		color: level > 0 ? LEVEL_COLORS[level - 1] : EMPTY_COLOR,
+		color: level > 0 ? LEVEL_COLORS[level - 1] : NO_ATTENDANCE_COLOR,
 		isFuture: false,
+		isToday,
 	}
 }
 

@@ -27,6 +27,7 @@ import {
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url))
 const homeHeroCardPath = path.resolve(currentDir, "../components/home/HomeHeroCard.vue")
+const homeScanActionBarPath = path.resolve(currentDir, "../components/home/HomeScanActionBar.vue")
 const checkInPanelPath = path.resolve(currentDir, "../components/CheckInPanel.vue")
 const checkinSuccessOverlayPath = path.resolve(
 	currentDir,
@@ -34,6 +35,8 @@ const checkinSuccessOverlayPath = path.resolve(
 )
 const weatherWidgetPath = path.resolve(currentDir, "../components/WeatherWidget.vue")
 const homeViewPath = path.resolve(currentDir, "../views/Home.vue")
+const baseLayoutPath = path.resolve(currentDir, "../components/BaseLayout.vue")
+const bottomTabsPath = path.resolve(currentDir, "../components/BottomTabs.vue")
 const homeSummaryCardPath = path.resolve(
 	currentDir,
 	"../components/work_roster/HomeSummaryCard.vue"
@@ -49,13 +52,13 @@ async function loadVueNamedExports(vueFilePath) {
 	const source = fs.readFileSync(vueFilePath, "utf8")
 	const { descriptor } = parse(source, { filename: vueFilePath })
 
-	assert.ok(descriptor.script, `${path.basename(vueFilePath)} should expose a plain <script> helper block`)
+	assert.ok(
+		descriptor.script,
+		`${path.basename(vueFilePath)} should expose a plain <script> helper block`
+	)
 
 	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "hrms-home-experience-"))
-	const modulePath = path.join(
-		tempDir,
-		`${path.basename(vueFilePath, ".vue")}.${Date.now()}.mjs`
-	)
+	const modulePath = path.join(tempDir, `${path.basename(vueFilePath, ".vue")}.${Date.now()}.mjs`)
 	fs.writeFileSync(modulePath, descriptor.script.content, "utf8")
 
 	return import(pathToFileURL(modulePath).href)
@@ -448,13 +451,35 @@ test("keeps the hero state unresolved until work status is explicitly available"
 	assert.match(source, /allowPrimaryScan:\s*isMobileCheckinAllowed\.value/)
 })
 
-test("guards hero summary and CTA rendering behind nullable props", () => {
+test("HomeHeroCard owns the v3 13-by-7 attendance hero surface", () => {
 	const source = fs.readFileSync(homeHeroCardPath, "utf8")
 
-	assert.match(source, /v-if="summary"\s+class="hero-status"/)
-	assert.match(source, /<button\s+v-if="cta"\s+type="button"\s+class="hero-cta"/)
-	assert.match(source, /summary:\s*\{\s*type:\s*String,\s*default:\s*null/)
-	assert.match(source, /cta:\s*\{\s*type:\s*Object,\s*default:\s*null/)
+	assert.match(source, /hrms\.api\.get_attendance_calendar_events/)
+	assert.match(source, /work_roster\.api\.schedule\.get_home_schedule_summary/)
+	assert.match(source, /buildRecentWeekdayHeatmap/)
+	assert.match(source, /buildHeatmapMonthMarkers/)
+	assert.match(source, /buildShiftProgress/)
+	assert.match(source, /hero-progress/)
+	assert.match(source, /hero-heatmap-grid/)
+	assert.match(source, /hero-mini-stats/)
+	assert.match(source, /is-today/)
+	assert.match(source, /repeat\(7/)
+	assert.match(source, /grid-template-columns:\s*18px minmax\(0,\s*1fr\)/)
+	assert.match(source, /repeat\(13,\s*minmax\(0,\s*1fr\)\)/)
+	assert.doesNotMatch(source, /58%/)
+	assert.doesNotMatch(source, /8%/)
+	assert.doesNotMatch(source, /hero-status/)
+	assert.doesNotMatch(source, /<button\s+v-if="cta"/)
+})
+
+test("HomeHeroCard keeps the current-day heatmap ring inside the cell", () => {
+	const source = fs.readFileSync(homeHeroCardPath, "utf8")
+
+	assert.doesNotMatch(source, /\.hero-heatmap-calendar\s*\{[^}]*overflow:\s*hidden/)
+	assert.match(
+		source,
+		/\.hero-heatmap-cell\.is-today\s*\{[^}]*box-shadow:\s*inset 0 0 0 2px #0a0a0a/
+	)
 })
 
 test("returns the compressed roster empty copy", () => {
@@ -510,51 +535,68 @@ test("HomeSummaryCard keeps roster empty copy in a single source", () => {
 	assert.doesNotMatch(source, /\bnextEmptyHint:\s*\{/)
 })
 
-test("HomeStatsGrid renders both month and cumulative dashboard fields", () => {
+test("HomeStatsGrid keeps only the lightweight all-time capsule fields", () => {
 	const source = fs.readFileSync(homeStatsGridPath, "utf8")
 
-	assert.match(source, /month_hours/)
-	assert.match(source, /month_present/)
+	assert.match(source, /ALL-TIME/)
+	assert.match(source, /home-stats-capsule/)
 	assert.match(source, /total_hours/)
 	assert.match(source, /total_present_days/)
+	assert.doesNotMatch(source, /month_hours/)
+	assert.doesNotMatch(source, /month_present/)
 	assert.doesNotMatch(source, /1842/)
 	assert.doesNotMatch(source, /236/)
 })
 
-test("AttendanceHeatmapCard uses the real attendance calendar API and heatmap helper", () => {
-	const source = fs.readFileSync(attendanceHeatmapCardPath, "utf8")
+test("HomeScanActionBar owns the fixed scan action without QR submission logic", () => {
+	const source = fs.readFileSync(homeScanActionBarPath, "utf8")
 
-	assert.match(source, /hrms\.api\.get_attendance_calendar_events/)
-	assert.match(source, /buildRecentWeekdayHeatmap/)
-	assert.match(source, /buildHeatmapMonthMarkers/)
-	assert.match(source, /heatmap-months/)
-	assert.match(source, /repeat\(7/)
-	assert.doesNotMatch(source, /noAttendance/)
-	assert.doesNotMatch(source, /无考勤/)
-	assert.doesNotMatch(source, /Math\.random/)
-	assert.doesNotMatch(source, /home-v2/)
+	assert.match(source, /position:\s*fixed/)
+	assert.match(source, /bottom:\s*10px/)
+	assert.match(source, /background:\s*rgba\(10,\s*10,\s*10,\s*0\.86\)/)
+	assert.match(source, /backdrop-filter:\s*blur\(18px\)/)
+	assert.match(source, /CHECK_IN/)
+	assert.match(source, /CHECK_OUT/)
+	assert.match(source, /DONE/)
+	assert.doesNotMatch(source, /78px/)
+	assert.doesNotMatch(source, /QRScannerModal/)
+	assert.doesNotMatch(source, /qr_checkin/)
 })
 
-test("CheckInPanel uses OD home modules without demo data or random heatmap behavior", () => {
+test("CheckInPanel composes the v3 home body without notification or standalone heatmap cards", () => {
 	const source = fs.readFileSync(checkInPanelPath, "utf8")
 
 	assert.match(source, /HomeHeroCard/)
 	assert.match(source, /HomeSummaryCard/)
 	assert.match(source, /HomeStatsGrid/)
-	assert.match(source, /AttendanceHeatmapCard/)
-	assert.match(source, /latestNotification/)
+	assert.match(source, /HomeScanActionBar/)
+	assert.match(source, /:work-status="props\.workStatus\?\.data"/)
+	assert.doesNotMatch(source, /:summary="heroSummary"/)
+	assert.doesNotMatch(source, /AttendanceHeatmapCard/)
+	assert.doesNotMatch(source, /latestNotification/)
 	assert.doesNotMatch(source, /Math\.random/)
 	assert.doesNotMatch(source, /home-v2/)
 	assert.doesNotMatch(source, /累计总工时\s*<\/div>\s*<div[^>]*>1,842/)
 })
 
-test("CheckInPanel places attendance heatmap before schedule guidance", () => {
+test("CheckInPanel places the hero heatmap before schedule guidance", () => {
 	const source = fs.readFileSync(checkInPanelPath, "utf8")
 
 	assert.ok(
-		source.indexOf("<AttendanceHeatmapCard") < source.indexOf("<HomeSummaryCard"),
-		"attendance heatmap should be above schedule guidance"
+		source.indexOf("<HomeHeroCard") < source.indexOf("<HomeSummaryCard"),
+		"hero heatmap should be above schedule guidance"
 	)
+})
+
+test("home v3 keeps the existing BaseLayout logo and BottomTabs active indicator untouched", () => {
+	const baseSource = fs.readFileSync(baseLayoutPath, "utf8")
+	const tabsSource = fs.readFileSync(bottomTabsPath, "utf8")
+	const panelSource = fs.readFileSync(checkInPanelPath, "utf8")
+
+	assert.match(baseSource, /src="\/uo-hr-logo\.png"/)
+	assert.match(tabsSource, /border-blue-600 text-blue-700/)
+	assert.doesNotMatch(panelSource, /uo-hr-logo/)
+	assert.doesNotMatch(panelSource, /BottomTabs/)
 })
 
 test("home modules share one language helper instead of local fallbacks", () => {
@@ -604,7 +646,7 @@ test("builds a check-in success overlay model with attendance routing", () => {
 				{ label: "打卡方式", value: "扫码 / PWA" },
 				{ label: "地点", value: "office-10F" },
 			],
-		},
+		}
 	)
 })
 
@@ -658,8 +700,14 @@ test("success animation pools expose check-in and check-out variants", () => {
 })
 
 test("success animation selection is deterministic from the supplied random value", () => {
-	assert.equal(chooseSuccessAnimationId("IN", () => 0, createMemoryStorage()), "black-rabbit-68")
-	assert.equal(chooseSuccessAnimationId("OUT", () => 5 / 17, createMemoryStorage()), "nasty-vampirebat-71")
+	assert.equal(
+		chooseSuccessAnimationId("IN", () => 0, createMemoryStorage()),
+		"black-rabbit-68"
+	)
+	assert.equal(
+		chooseSuccessAnimationId("OUT", () => 5 / 17, createMemoryStorage()),
+		"nasty-vampirebat-71"
+	)
 
 	assert.equal(
 		buildSuccessOverlayModel({
@@ -670,7 +718,7 @@ test("success animation selection is deterministic from the supplied random valu
 			random: () => 0.5,
 			animationStorage: createMemoryStorage(),
 		}).animationId,
-		"runner",
+		"runner"
 	)
 	assert.equal(
 		buildSuccessOverlayModel({
@@ -681,7 +729,7 @@ test("success animation selection is deterministic from the supplied random valu
 			random: () => 16 / 17,
 			animationStorage: createMemoryStorage(),
 		}).animationId,
-		"coffee",
+		"coffee"
 	)
 })
 
@@ -697,12 +745,19 @@ test("success animation selection uses a shuffle bag without repeats inside a ro
 
 		assert.equal(new Set(firstRound).size, pool.length)
 		assert.deepEqual(new Set(firstRound), new Set(pool))
-		assert.notEqual(chooseSuccessAnimationId(action, () => 0, storage), firstRound.at(-1))
+		assert.notEqual(
+			chooseSuccessAnimationId(action, () => 0, storage),
+			firstRound.at(-1)
+		)
 	}
 })
 
 test("success animation selection falls back when persisted storage is blocked", () => {
-	assert.ok(CHECKIN_SUCCESS_ANIMATION_IDS.includes(chooseSuccessAnimationId("IN", () => 0, createBlockedStorage())))
+	assert.ok(
+		CHECKIN_SUCCESS_ANIMATION_IDS.includes(
+			chooseSuccessAnimationId("IN", () => 0, createBlockedStorage())
+		)
+	)
 })
 
 test("success overlay controller opens the overlay and reveals actions after the configured delay", async () => {

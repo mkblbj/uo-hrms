@@ -87,6 +87,7 @@ test("builds a 13 week by 7 day grid ending at the current week", () => {
 	assert.ok(cells.some((cell) => cell.date === "2026-05-11" && cell.level === 4))
 	assert.ok(cells.some((cell) => cell.date === "2026-05-12" && cell.level === 2))
 	assert.ok(cells.some((cell) => cell.date === "2026-05-17" && cell.weekday === 7))
+	assert.ok(cells.some((cell) => cell.date === "2026-05-14" && cell.isToday))
 	assert.ok(cells.some((cell) => cell.date === "2026-05-15" && cell.isFuture))
 })
 

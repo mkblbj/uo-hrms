@@ -1,42 +1,28 @@
 <template>
 	<div class="checkin-panel">
 		<HomeHeroCard
+			ref="heroCardRef"
 			:employee-name="employee?.data?.first_name || employee?.data?.employee_name || ''"
 			:greeting="getGreeting()"
 			:date-label="formatDate()"
 			:weather-text="weatherSummary"
-			:summary="heroSummary"
-			:cta="primaryScanMeta"
-			@scan="openQRScanner"
+			:work-status="props.workStatus?.data"
+			:stats="dashboardStats.data"
+			:stats-loading="dashboardStats.loading"
+			:lang="currentLanguage"
 		/>
 
-		<AttendanceHeatmapCard :lang="currentLanguage" />
-
-		<div class="home-section-title">{{ getSectionTitle("schedule_stats") }}</div>
 		<HomeSummaryCard :lang="currentLanguage" />
 		<HomeStatsGrid :stats="dashboardStats.data" :lang="currentLanguage" />
-
-		<router-link
-			:to="{ name: 'Notifications' }"
-			class="notification-card"
-			v-if="latestNotification.data"
-		>
-			<div class="notification-icon">
-				<FeatherIcon name="bell" class="w-4 h-4" />
-			</div>
-			<div class="notification-body">
-				<div class="notification-title">{{ getNotificationTitle() }}</div>
-				<div class="notification-message" v-if="getNotificationDisplayMessage()">
-					{{ stripHtml(getNotificationDisplayMessage()) }}
-				</div>
-				<div class="notification-empty" v-else>{{ getNoNotificationText() }}</div>
-				<div class="notification-time">
-					{{ formatNotificationTime(latestNotification.data.creation) }}
-				</div>
-			</div>
-			<FeatherIcon name="chevron-right" class="notification-arrow" />
-		</router-link>
 	</div>
+
+	<HomeScanActionBar
+		:cta="primaryScanMeta"
+		:work-status="props.workStatus?.data"
+		:lang="currentLanguage"
+		:disabled="!isMobileCheckinAllowed"
+		@scan="openQRScanner"
+	/>
 
 	<!-- 扫码模态框 -->
 	<QRScannerModal
@@ -59,7 +45,8 @@
 </template>
 
 <script>
-const defaultSchedule = (callback, delay) => (globalThis.window || globalThis).setTimeout(callback, delay)
+const defaultSchedule = (callback, delay) =>
+	(globalThis.window || globalThis).setTimeout(callback, delay)
 const defaultCancel = (timerId) => (globalThis.window || globalThis).clearTimeout(timerId)
 
 function hasActiveSuccessOverlay(state) {
@@ -150,13 +137,13 @@ export function createSuccessOverlayController({
 </script>
 
 <script setup>
-import { createResource, toast, FeatherIcon } from "frappe-ui"
+import { createResource, toast } from "frappe-ui"
 import { computed, inject, onBeforeUnmount, reactive, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
 
-import AttendanceHeatmapCard from "@/components/home/AttendanceHeatmapCard.vue"
 import CheckinSuccessOverlay from "@/components/home/CheckinSuccessOverlay.vue"
 import HomeHeroCard from "@/components/home/HomeHeroCard.vue"
+import HomeScanActionBar from "@/components/home/HomeScanActionBar.vue"
 import HomeStatsGrid from "@/components/home/HomeStatsGrid.vue"
 import QRScannerModal from "@/components/QRScannerModal.vue"
 import HomeSummaryCard from "@/components/work_roster/HomeSummaryCard.vue"
@@ -182,6 +169,7 @@ const route = useRoute()
 const router = useRouter()
 const showQRScanner = ref(false)
 const qrScannerRef = ref(null)
+const heroCardRef = ref(null)
 const currentLanguage = resolveHomeLanguage(window.frappe?.boot)
 const successOverlayState = reactive({
 	isOpen: false,
@@ -208,11 +196,6 @@ const weather = createResource({
 	cache: ["weather_data", 10 * 60 * 1000],
 })
 
-const latestNotification = createResource({
-	url: "hrms.api.get_latest_notification",
-	auto: true,
-})
-
 const isMobileCheckinAllowed = computed(() =>
 	Boolean(settings.data?.allow_employee_checkin_from_mobile_app)
 )
@@ -226,7 +209,6 @@ const heroCardMeta = computed(() =>
 	})
 )
 const primaryScanMeta = computed(() => heroCardMeta.value.cta)
-const heroSummary = computed(() => heroCardMeta.value.summary)
 const weatherSummary = computed(() => {
 	if (!weather.data) return ""
 	const icon = weather.data?.condition?.text ? "⛅" : ""
@@ -325,6 +307,11 @@ const handleQRScanSuccess = async (token, latitude = null, longitude = null) => 
 				await dashboardStats.reload()
 			} catch (reloadError) {
 				console.error("Failed to refresh dashboard stats", reloadError)
+			}
+			try {
+				await heroCardRef.value?.reloadAttendance?.()
+			} catch (reloadError) {
+				console.error("Failed to refresh attendance heatmap", reloadError)
 			}
 
 			// 发送全局事件通知工作状态徽章更新
@@ -436,168 +423,15 @@ function formatDate() {
 		return dayjs().format("ddd, D MMMM, YYYY")
 	}
 }
-
-function getSectionTitle(key) {
-	const titles = {
-		schedule_stats: {
-			ja: "シフト & 統計",
-			zh: "排班 & 统计",
-			en: "Schedule & Stats",
-		},
-	}
-	return titles[key]?.[currentLanguage] || titles[key]?.zh || key
-}
-
-function getNotificationTitle() {
-	const lang = currentLanguage
-	if (lang === "ja") return "お知らせ"
-	if (lang === "zh") return "最新通知"
-	return "Notifications"
-}
-
-function getNoNotificationText() {
-	const lang = currentLanguage
-	if (lang === "ja") return "新しいお知らせはありません"
-	if (lang === "zh") return "暂无新通知"
-	return "No new notifications"
-}
-
-function stripHtml(html) {
-	if (!html) return ""
-	const tmp = document.createElement("div")
-	tmp.innerHTML = html
-	const text = tmp.textContent || tmp.innerText || ""
-	// 截取前50个字符
-	return text.length > 50 ? text.substring(0, 50) + "..." : text
-}
-
-function getNotificationDisplayMessage() {
-	const data = latestNotification.data
-	if (!data) return ""
-	// 优先使用 API 返回的 display_message
-	if (data.display_message) return data.display_message
-	// 如果使用 HTML 源代码模式
-	if (data.use_html_source && data.html_source) {
-		return data.html_source
-	}
-	return data.message || ""
-}
-
-function formatNotificationTime(dateStr) {
-	if (!dateStr) return ""
-	const date = dayjs(dateStr)
-	const now = dayjs()
-	const diffMinutes = now.diff(date, "minute")
-	const diffHours = now.diff(date, "hour")
-	const diffDays = now.diff(date, "day")
-
-	const lang = currentLanguage
-
-	if (diffMinutes < 1) {
-		return lang === "ja" ? "たった今" : lang === "zh" ? "刚刚" : "Just now"
-	} else if (diffMinutes < 60) {
-		return lang === "ja"
-			? `${diffMinutes}分前`
-			: lang === "zh"
-			? `${diffMinutes}分钟前`
-			: `${diffMinutes}m ago`
-	} else if (diffHours < 24) {
-		return lang === "ja"
-			? `${diffHours}時間前`
-			: lang === "zh"
-			? `${diffHours}小时前`
-			: `${diffHours}h ago`
-	} else if (diffDays < 7) {
-		return lang === "ja"
-			? `${diffDays}日前`
-			: lang === "zh"
-			? `${diffDays}天前`
-			: `${diffDays}d ago`
-	} else {
-		return date.format("MM/DD")
-	}
-}
 </script>
 
 <style scoped>
 .checkin-panel {
 	display: flex;
 	flex-direction: column;
-	gap: 16px;
+	gap: 14px;
 	width: 100%;
 	flex: 1;
-}
-
-.home-section-title {
-	margin: 2px 2px -4px;
-	font-size: 14px;
-	font-weight: 800;
-	color: #0f172a;
-}
-
-.notification-card {
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	border-radius: 14px;
-	background: #ffffff;
-	padding: 14px;
-	box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.02);
-	text-decoration: none;
-	color: inherit;
-	transition: transform 0.14s ease, box-shadow 0.14s ease;
-}
-
-.notification-card:active {
-	transform: scale(0.99);
-	box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
-}
-
-.notification-icon {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	flex: 0 0 32px;
-	width: 32px;
-	height: 32px;
-	border-radius: 8px;
-	background: #fffbeb;
-	color: #d97706;
-}
-
-.notification-body {
-	min-width: 0;
-	flex: 1;
-}
-
-.notification-title {
-	font-size: 13px;
-	font-weight: 800;
-	color: #0f172a;
-}
-
-.notification-message,
-.notification-empty {
-	margin-top: 3px;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	font-size: 12px;
-	font-weight: 500;
-	color: #64748b;
-}
-
-.notification-time {
-	margin-top: 4px;
-	font-size: 11px;
-	font-weight: 600;
-	color: #94a3b8;
-}
-
-.notification-arrow {
-	flex: 0 0 auto;
-	width: 16px;
-	height: 16px;
-	color: #94a3b8;
+	padding-bottom: 110px;
 }
 </style>

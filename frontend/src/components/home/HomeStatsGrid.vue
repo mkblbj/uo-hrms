@@ -1,21 +1,26 @@
 <template>
-	<div class="home-stats-grid">
-		<div v-for="card in cards" :key="card.key" class="home-stat-card">
-			<div class="home-stat-icon" :class="card.tone">
-				<FeatherIcon :name="card.icon" class="h-4 w-4" />
+	<section class="home-stats-capsule">
+		<div class="stats-capsule-label">ALL-TIME</div>
+		<div class="stats-capsule-items">
+			<div class="stats-capsule-item">
+				<span>{{ label("totalHours") }}</span>
+				<strong
+					>{{ formatNumber(props.stats?.total_hours) }}<small>{{ label("hours") }}</small></strong
+				>
 			</div>
-			<div class="home-stat-value">
-				{{ card.value }}<span class="home-stat-unit">{{ card.unit }}</span>
+			<div class="stats-capsule-divider" aria-hidden="true"></div>
+			<div class="stats-capsule-item">
+				<span>{{ label("totalPresent") }}</span>
+				<strong
+					>{{ formatNumber(props.stats?.total_present_days)
+					}}<small>{{ label("days") }}</small></strong
+				>
 			</div>
-			<div class="home-stat-label">{{ card.label }}</div>
 		</div>
-	</div>
+	</section>
 </template>
 
 <script setup>
-import { computed } from "vue"
-import { FeatherIcon } from "frappe-ui"
-
 const props = defineProps({
 	stats: {
 		type: Object,
@@ -28,9 +33,7 @@ const props = defineProps({
 })
 
 const labels = {
-	monthHours: { zh: "本月工时", ja: "今月の勤務時間", en: "This Month" },
-	monthPresent: { zh: "本月出勤", ja: "今月の出勤", en: "Days Present" },
-	totalHours: { zh: "累计总工时", ja: "累計勤務時間", en: "Total Hours" },
+	totalHours: { zh: "累计工时", ja: "累計時間", en: "Total Hours" },
 	totalPresent: { zh: "累计出勤", ja: "累計出勤", en: "Total Days" },
 	hours: { zh: "h", ja: "h", en: "h" },
 	days: { zh: "天", ja: "日", en: "d" },
@@ -44,107 +47,77 @@ function formatNumber(value) {
 	const numeric = Number(value || 0)
 	return Number.isInteger(numeric) ? numeric.toLocaleString() : numeric.toFixed(1)
 }
-
-const cards = computed(() => [
-	{
-		key: "month_hours",
-		icon: "clock",
-		tone: "blue",
-		value: formatNumber(props.stats?.month_hours),
-		unit: label("hours"),
-		label: label("monthHours"),
-	},
-	{
-		key: "month_present",
-		icon: "check-circle",
-		tone: "green",
-		value: formatNumber(props.stats?.month_present),
-		unit: label("days"),
-		label: label("monthPresent"),
-	},
-	{
-		key: "total_hours",
-		icon: "bar-chart-2",
-		tone: "purple",
-		value: formatNumber(props.stats?.total_hours),
-		unit: label("hours"),
-		label: label("totalHours"),
-	},
-	{
-		key: "total_present_days",
-		icon: "calendar",
-		tone: "amber",
-		value: formatNumber(props.stats?.total_present_days),
-		unit: label("days"),
-		label: label("totalPresent"),
-	},
-])
 </script>
 
 <style scoped>
-.home-stats-grid {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
-	gap: 10px;
-}
-
-.home-stat-card {
-	min-height: 112px;
-	border-radius: 16px;
-	background: #ffffff;
-	padding: 14px;
-	box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04), 0 4px 12px rgba(15, 23, 42, 0.02);
-}
-
-.home-stat-icon {
+.home-stats-capsule {
 	display: flex;
 	align-items: center;
-	justify-content: center;
-	width: 28px;
-	height: 28px;
-	border-radius: 8px;
-	margin-bottom: 10px;
+	justify-content: space-between;
+	gap: 14px;
+	border: 1px solid #ede9dd;
+	border-radius: 999px;
+	background: #ffffff;
+	padding: 10px 14px;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 18px rgba(15, 23, 42, 0.04);
 }
 
-.home-stat-icon.blue {
-	background: #eff6ff;
-	color: #2563eb;
-}
-
-.home-stat-icon.green {
-	background: #ecfdf5;
-	color: #10b981;
-}
-
-.home-stat-icon.purple {
-	background: #f3e8ff;
-	color: #7c3aed;
-}
-
-.home-stat-icon.amber {
-	background: #fffbeb;
-	color: #d97706;
-}
-
-.home-stat-value {
-	font-size: 28px;
+.stats-capsule-label {
+	flex: 0 0 auto;
+	border-radius: 999px;
+	background: #0a0a0a;
+	padding: 7px 10px;
+	font-size: 10px;
 	line-height: 1;
+	font-weight: 900;
+	color: #ffffff;
+}
+
+.stats-capsule-items {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 10px;
+	min-width: 0;
+	flex: 1;
+}
+
+.stats-capsule-item {
+	min-width: 0;
+	text-align: right;
+}
+
+.stats-capsule-item span {
+	display: block;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 10px;
+	line-height: 1.2;
 	font-weight: 800;
-	color: #0f172a;
+	color: #64748b;
+}
+
+.stats-capsule-item strong {
+	display: block;
+	margin-top: 3px;
+	font-size: 17px;
+	line-height: 1;
+	font-weight: 900;
+	color: #0a0a0a;
 	font-variant-numeric: tabular-nums;
 }
 
-.home-stat-unit {
+.stats-capsule-item small {
 	margin-left: 2px;
-	font-size: 13px;
-	font-weight: 600;
+	font-size: 10px;
+	font-weight: 800;
 	color: #64748b;
 }
 
-.home-stat-label {
-	margin-top: 6px;
-	font-size: 12px;
-	font-weight: 600;
-	color: #64748b;
+.stats-capsule-divider {
+	width: 1px;
+	height: 30px;
+	background: #ede9dd;
 }
 </style>
