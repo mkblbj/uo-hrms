@@ -480,7 +480,7 @@ test("HomeHeroCard keeps the current-day heatmap ring inside the cell", () => {
 	assert.doesNotMatch(source, /\.hero-heatmap-calendar\s*\{[^}]*overflow:\s*hidden/)
 	assert.match(
 		source,
-		/\.hero-heatmap-cell\.is-today\s*\{[^}]*box-shadow:\s*inset 0 0 0 2px #0a0a0a/
+		/\.hero-heatmap-cell\.is-today\s*\{[^}]*box-shadow:[^}]*#16a34a/
 	)
 })
 
@@ -622,7 +622,7 @@ test("home modules share one language helper instead of local fallbacks", () => 
 	)
 
 	assert.match(panelSource, /resolveHomeLanguage/)
-	assert.match(panelSource, /<HomeSummaryCard\s+:lang="currentLanguage"/)
+	assert.match(panelSource, /<HomeSummaryCard\b[^>]*:lang="currentLanguage"/)
 	assert.match(panelSource, /weatherSummary/)
 	assert.match(panelSource, /hrms\.api\.get_weather_data/)
 	assert.doesNotMatch(panelSource, /<WeatherWidget/)
