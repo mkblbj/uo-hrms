@@ -25,7 +25,7 @@
 				</div>
 			</div>
 			<div class="hero-progress-track" aria-hidden="true">
-				<span :style="{ width: `${shiftProgress.percent}%` }"></span>
+				<span ref="progressFillRef" :style="{ width: `${displayedProgress}%` }"></span>
 			</div>
 		</div>
 
@@ -83,7 +83,7 @@
 
 <script setup>
 import { createResource } from "frappe-ui"
-import { computed, onBeforeUnmount, onMounted, ref } from "vue"
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import { buildHeatmapMonthMarkers, buildRecentWeekdayHeatmap } from "@/utils/homeHeatmap"
 import { buildShiftProgress } from "@/utils/homeShiftProgress"
@@ -203,6 +203,13 @@ const shiftProgress = computed(() =>
 		lang: props.lang,
 	})
 )
+const progressFillRef = ref(null)
+const displayedProgress = ref(0)
+const prefersReducedMotion =
+	typeof window !== "undefined" && typeof window.matchMedia === "function"
+		? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+		: false
+
 const heatmapCells = computed(() =>
 	buildRecentWeekdayHeatmap({
 		events: attendanceResource.data || {},
@@ -255,6 +262,16 @@ onMounted(() => {
 	progressTimer = setInterval(() => {
 		currentTime.value = new Date()
 	}, 60 * 1000)
+
+	if (prefersReducedMotion) {
+		displayedProgress.value = shiftProgress.value?.percent || 0
+		return
+	}
+	requestAnimationFrame(() => {
+		requestAnimationFrame(() => {
+			displayedProgress.value = shiftProgress.value?.percent || 0
+		})
+	})
 })
 
 onBeforeUnmount(() => {
@@ -263,6 +280,16 @@ onBeforeUnmount(() => {
 		progressTimer = null
 	}
 })
+
+watch(
+	() => shiftProgress.value?.percent ?? 0,
+	(next) => {
+		// After the initial 0→percent animation has fired, keep displayed in sync.
+		// If we're still showing 0 (animation hasn't fired yet), do nothing — onMounted will set it.
+		if (displayedProgress.value === 0 && next !== 0 && !prefersReducedMotion) return
+		displayedProgress.value = next
+	},
+)
 
 defineExpose({ reloadAttendance, reloadSchedule })
 </script>
@@ -353,7 +380,7 @@ defineExpose({ reloadAttendance, reloadSchedule })
 	height: 100%;
 	border-radius: inherit;
 	background: linear-gradient(90deg, #86efac 0%, #16a34a 100%);
-	transition: width 0.25s ease;
+	transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .hero-progress.is-overtime {
@@ -547,6 +574,12 @@ defineExpose({ reloadAttendance, reloadSchedule })
 
 	.hero-heatmap-legend {
 		display: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.hero-progress-track span {
+		transition: none !important;
 	}
 }
 </style>
