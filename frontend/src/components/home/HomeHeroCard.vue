@@ -638,4 +638,15 @@ defineExpose({ reloadAttendance, reloadSchedule })
 		transition: none !important;
 	}
 }
+
+@media (prefers-reduced-motion: no-preference) {
+	.hero-heatmap-state {
+		animation: hm-state-pulse 1.4s ease-in-out infinite;
+	}
+}
+
+@keyframes hm-state-pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.55; }
+}
 </style>
