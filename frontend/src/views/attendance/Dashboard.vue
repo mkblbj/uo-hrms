@@ -29,7 +29,7 @@ const pageTitle = computed(() => {
 	flex: 1;
 	flex-direction: column;
 	min-height: 0;
-	padding: 16px 16px 24px;
-	background: #f5f5f5;
+	padding: 10px 16px 16px;
+	background: #f1eee7;
 }
 </style>
