@@ -518,7 +518,44 @@ defineExpose({ reloadAttendance, reloadSchedule })
 }
 
 .hero-heatmap-cell.is-today {
-	box-shadow: inset 0 0 0 2px #0a0a0a;
+	box-shadow: 0 0 0 2px #16a34a, 0 0 8px rgba(22, 163, 74, 0.35);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.hero-heatmap-cell.is-today {
+		animation: today-pulse 2800ms ease-in-out infinite;
+	}
+}
+
+@keyframes today-pulse {
+	0%, 100% {
+		box-shadow: 0 0 0 2px #16a34a, 0 0 8px rgba(22, 163, 74, 0.35);
+	}
+	50% {
+		box-shadow: 0 0 0 2px #16a34a, 0 0 14px rgba(22, 163, 74, 0.55);
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.intro-play .hero-heatmap-cell.is-today {
+		animation:
+			hm-cell-in 280ms ease-out forwards,
+			today-ring-in 1600ms ease-out forwards,
+			today-pulse 2800ms ease-in-out infinite;
+		animation-delay:
+			calc(var(--cell-index, 0) * 1.5ms),
+			calc(var(--cell-index, 0) * 1.5ms),
+			calc(var(--cell-index, 0) * 1.5ms + 1600ms);
+	}
+}
+
+@keyframes today-ring-in {
+	from {
+		box-shadow: 0 0 0 0 rgba(22, 163, 74, 0), 0 0 0 rgba(22, 163, 74, 0);
+	}
+	to {
+		box-shadow: 0 0 0 2px #16a34a, 0 0 8px rgba(22, 163, 74, 0.35);
+	}
 }
 
 .hero-heatmap-cell.is-future {
