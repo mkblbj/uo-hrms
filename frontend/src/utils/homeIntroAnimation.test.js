@@ -55,3 +55,8 @@ test("shouldPlayIntro returns false after markIntroPlayed", () => {
 test("handles missing storage / matchMedia gracefully (SSR-like)", () => {
 	assert.equal(shouldPlayIntro({ storage: null, matchMedia: null }), false)
 })
+
+test("plays intro when matchMedia is null but storage is valid", () => {
+	const storage = makeStorage()
+	assert.equal(shouldPlayIntro({ storage, matchMedia: null }), true)
+})
