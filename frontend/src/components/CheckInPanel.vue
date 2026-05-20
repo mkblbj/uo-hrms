@@ -1,7 +1,8 @@
 <template>
-	<div class="checkin-panel">
+	<div class="checkin-panel" :class="{ 'intro-play': introPlay }">
 		<HomeHeroCard
 			ref="heroCardRef"
+			class="intro-stagger intro-stagger-1"
 			:employee-name="employee?.data?.first_name || employee?.data?.employee_name || ''"
 			:greeting="getGreeting()"
 			:date-label="formatDate()"
@@ -12,8 +13,8 @@
 			:lang="currentLanguage"
 		/>
 
-		<HomeSummaryCard :lang="currentLanguage" />
-		<HomeStatsGrid :stats="dashboardStats.data" :lang="currentLanguage" />
+		<HomeSummaryCard class="intro-stagger intro-stagger-2" :lang="currentLanguage" />
+		<HomeStatsGrid class="intro-stagger intro-stagger-3" :stats="dashboardStats.data" :lang="currentLanguage" />
 	</div>
 
 	<HomeScanActionBar
@@ -138,7 +139,7 @@ export function createSuccessOverlayController({
 
 <script setup>
 import { createResource, toast } from "frappe-ui"
-import { computed, inject, onBeforeUnmount, reactive, ref } from "vue"
+import { computed, inject, onBeforeUnmount, onMounted, reactive, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
 
 import CheckinSuccessOverlay from "@/components/home/CheckinSuccessOverlay.vue"
@@ -154,6 +155,7 @@ import {
 	getHeroCardMeta,
 	resolveHomeLanguage,
 } from "@/utils/homeExperience"
+import { shouldPlayIntro, markIntroPlayed } from "@/utils/homeIntroAnimation"
 
 const props = defineProps({
 	workStatus: {
@@ -170,6 +172,7 @@ const router = useRouter()
 const showQRScanner = ref(false)
 const qrScannerRef = ref(null)
 const heroCardRef = ref(null)
+const introPlay = ref(false)
 const currentLanguage = resolveHomeLanguage(window.frappe?.boot)
 const successOverlayState = reactive({
 	isOpen: false,
@@ -373,6 +376,15 @@ const handleQRScanSuccess = async (token, latitude = null, longitude = null) => 
 	}
 }
 
+onMounted(() => {
+	const storage = typeof window !== "undefined" ? window.sessionStorage : null
+	const matchMedia = typeof window !== "undefined" ? window.matchMedia.bind(window) : null
+	if (shouldPlayIntro({ storage, matchMedia })) {
+		introPlay.value = true
+		markIntroPlayed({ storage })
+	}
+})
+
 onBeforeUnmount(() => {
 	successOverlayController.dispose()
 })
@@ -433,5 +445,20 @@ function formatDate() {
 	width: 100%;
 	flex: 1;
 	padding-bottom: 110px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.checkin-panel.intro-play .intro-stagger {
+		opacity: 0;
+		transform: translateY(6px);
+		animation: ckp-stagger-in 320ms ease-out forwards;
+	}
+	.checkin-panel.intro-play .intro-stagger-1 { animation-delay: 0ms; }
+	.checkin-panel.intro-play .intro-stagger-2 { animation-delay: 80ms; }
+	.checkin-panel.intro-play .intro-stagger-3 { animation-delay: 160ms; }
+}
+
+@keyframes ckp-stagger-in {
+	to { opacity: 1; transform: translateY(0); }
 }
 </style>
