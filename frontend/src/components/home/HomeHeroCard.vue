@@ -58,11 +58,11 @@
 				</div>
 				<div class="hero-heatmap-grid">
 					<span
-						v-for="cell in heatmapCells"
+						v-for="(cell, idx) in heatmapCells"
 						:key="cell.date"
 						class="hero-heatmap-cell"
 						:class="{ 'is-today': cell.isToday, 'is-future': cell.isFuture }"
-						:style="{ backgroundColor: cell.color }"
+						:style="{ backgroundColor: cell.color, '--cell-index': idx }"
 						:title="cellLabel(cell)"
 						:aria-label="cellLabel(cell)"
 					></span>
@@ -523,6 +523,22 @@ defineExpose({ reloadAttendance, reloadSchedule })
 
 .hero-heatmap-cell.is-future {
 	opacity: 0.74;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.intro-play .hero-heatmap-cell {
+		opacity: 0;
+		transform: translateY(4px);
+		animation: hm-cell-in 280ms ease-out forwards;
+		animation-delay: calc(var(--cell-index, 0) * 1.5ms);
+	}
+}
+
+@keyframes hm-cell-in {
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
 }
 
 .hero-mini-stats {
