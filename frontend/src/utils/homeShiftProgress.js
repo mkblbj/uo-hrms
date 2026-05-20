@@ -2,22 +2,47 @@ const LABELS = {
 	zh: {
 		pending: "待出勤",
 		working: "出勤中",
+		overtime: "加班中",
 		done: "已退勤",
 	},
 	ja: {
 		pending: "出勤前",
 		working: "勤務中",
+		overtime: "残業中",
 		done: "退勤済",
 	},
 	en: {
 		pending: "Pending",
 		working: "Working",
+		overtime: "Overtime",
 		done: "Off Work",
+	},
+}
+
+const OVERTIME_COPY = {
+	zh: {
+		activePrefix: "已超",
+		donePrefix: "加班",
+		totalPrefix: "共",
+	},
+	ja: {
+		activePrefix: "超過",
+		donePrefix: "残業",
+		totalPrefix: "合計",
+	},
+	en: {
+		activePrefix: "Over by",
+		donePrefix: "Overtime",
+		totalPrefix: "Total",
 	},
 }
 
 function pickLabel(lang, key) {
 	return LABELS[lang]?.[key] || LABELS.zh[key]
+}
+
+function pickOvertimeCopy(lang) {
+	return OVERTIME_COPY[lang] || OVERTIME_COPY.zh
 }
 
 function normalizeTimeText(value) {
@@ -83,6 +108,10 @@ function roundPercent(value) {
 	return Math.round(value * 100) / 100
 }
 
+function roundHours(value) {
+	return Math.round(value * 100) / 100
+}
+
 function resolveStatus(workStatus) {
 	if (workStatus?.status) return workStatus.status
 	if (typeof workStatus === "boolean") return workStatus ? "working" : "off_work"
@@ -110,6 +139,26 @@ function resolveEndTime({ stats, workStatus, now, status }) {
 	)
 }
 
+function buildWorkedLabel({
+	hasOvertime,
+	statusKey,
+	overtimeHours,
+	totalWorkedHours,
+	workedHours,
+	shiftHours,
+	lang,
+}) {
+	if (!hasOvertime) {
+		return `${workedHours.toFixed(1)} / ${shiftHours.toFixed(1)}h`
+	}
+
+	const copy = pickOvertimeCopy(lang)
+	const prefix = statusKey === "overtime" ? copy.activePrefix : copy.donePrefix
+	return `${prefix} ${overtimeHours.toFixed(1)}h · ${copy.totalPrefix} ${totalWorkedHours.toFixed(
+		1
+	)}h`
+}
+
 export function buildShiftProgress({
 	schedule,
 	stats = {},
@@ -133,26 +182,49 @@ export function buildShiftProgress({
 	if (shiftHours <= 0) return null
 
 	const status = resolveStatus(workStatus)
-	const statusKey = status === "working" ? "working" : status === "off_work" ? "done" : "pending"
 	const actualStart = resolveStartTime({ stats, workStatus })
 	const actualEnd = resolveEndTime({ stats, workStatus, now: nowValue, status })
 	let workedHours = 0
+	let totalWorkedHours = 0
 
 	if (actualStart && actualEnd && actualEnd > actualStart) {
 		const boundedStart = actualStart < scheduledStart ? scheduledStart : actualStart
 		const boundedEnd = actualEnd > scheduledEnd ? scheduledEnd : actualEnd
 		workedHours = diffHours(boundedEnd, boundedStart)
+		totalWorkedHours = diffHours(actualEnd, boundedStart)
 	}
 
-	const percent = roundPercent(clamp((workedHours / shiftHours) * 100, 0, 100))
+	const overtimeHours = roundHours(Math.max(0, totalWorkedHours - workedHours))
+	const hasOvertime = overtimeHours > 0
+	const statusKey =
+		status === "working" && hasOvertime
+			? "overtime"
+			: status === "working"
+			? "working"
+			: status === "off_work"
+			? "done"
+			: "pending"
+	const percent = hasOvertime ? 100 : roundPercent(clamp((workedHours / shiftHours) * 100, 0, 100))
 
 	return {
 		percent,
 		statusKey,
 		statusLabel: pickLabel(lang, statusKey),
 		rangeLabel: schedule?.scheduled_time || `${startText}-${endText}`,
-		workedLabel: `${workedHours.toFixed(1)} / ${shiftHours.toFixed(1)}h`,
+		workedLabel: buildWorkedLabel({
+			hasOvertime,
+			statusKey,
+			overtimeHours,
+			totalWorkedHours,
+			workedHours,
+			shiftHours,
+			lang,
+		}),
 		shiftHours,
-		workedHours,
+		workedHours: roundHours(workedHours),
+		totalWorkedHours: roundHours(totalWorkedHours),
+		overtimeHours,
+		hasOvertime,
+		tone: hasOvertime ? "overtime" : "normal",
 	}
 }

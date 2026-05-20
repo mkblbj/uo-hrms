@@ -460,6 +460,8 @@ test("HomeHeroCard owns the v3 13-by-7 attendance hero surface", () => {
 	assert.match(source, /buildHeatmapMonthMarkers/)
 	assert.match(source, /buildShiftProgress/)
 	assert.match(source, /hero-progress/)
+	assert.match(source, /is-overtime/)
+	assert.match(source, /shiftProgress\.tone === ['"]overtime['"]/)
 	assert.match(source, /hero-heatmap-grid/)
 	assert.match(source, /hero-mini-stats/)
 	assert.match(source, /is-today/)
@@ -561,6 +563,18 @@ test("HomeScanActionBar owns the fixed scan action without QR submission logic",
 	assert.doesNotMatch(source, /78px/)
 	assert.doesNotMatch(source, /QRScannerModal/)
 	assert.doesNotMatch(source, /qr_checkin/)
+})
+
+test("HomeScanActionBar keeps the scan CTA clickable after checkout", () => {
+	const source = fs.readFileSync(homeScanActionBarPath, "utf8")
+	const checkInCtaIndex = source.indexOf('props.cta?.action === "IN"')
+	const offWorkDoneIndex = source.indexOf('props.workStatus?.status === "off_work"')
+
+	assert.notEqual(checkInCtaIndex, -1)
+	assert.notEqual(offWorkDoneIndex, -1)
+	assert.ok(checkInCtaIndex < offWorkDoneIndex)
+	assert.doesNotMatch(source, /props\.disabled\s*\|\|\s*isDone\.value/)
+	assert.match(source, /props\.disabled\s*\|\|\s*!props\.cta/)
 })
 
 test("CheckInPanel composes the v3 home body without notification or standalone heatmap cards", () => {

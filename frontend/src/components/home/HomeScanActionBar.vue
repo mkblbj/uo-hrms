@@ -80,12 +80,13 @@ function pick(key, field) {
 }
 
 const actionMode = computed(() => {
-	if (props.workStatus?.status === "off_work") return DONE
 	if (props.cta?.action === "OUT") return CHECK_OUT
+	if (props.cta?.action === "IN") return CHECK_IN
+	if (props.workStatus?.status === "off_work") return DONE
 	return CHECK_IN
 })
 const isDone = computed(() => actionMode.value === DONE)
-const isDisabled = computed(() => props.disabled || isDone.value || !props.cta)
+const isDisabled = computed(() => props.disabled || !props.cta)
 const iconName = computed(() => {
 	if (isDone.value) return "check-circle"
 	return actionMode.value === CHECK_OUT ? "log-out" : "camera"

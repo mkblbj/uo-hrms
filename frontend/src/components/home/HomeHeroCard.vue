@@ -9,7 +9,11 @@
 			</div>
 		</div>
 
-		<div v-if="shiftProgress" class="hero-progress">
+		<div
+			v-if="shiftProgress"
+			class="hero-progress"
+			:class="{ 'is-overtime': shiftProgress.tone === 'overtime' }"
+		>
 			<div class="hero-progress-copy">
 				<div>
 					<span>{{ t("progressTitle") }}</span>
@@ -350,6 +354,22 @@ defineExpose({ reloadAttendance, reloadSchedule })
 	border-radius: inherit;
 	background: linear-gradient(90deg, #86efac 0%, #16a34a 100%);
 	transition: width 0.25s ease;
+}
+
+.hero-progress.is-overtime {
+	background: #fff7ed;
+}
+
+.hero-progress.is-overtime .hero-progress-copy strong {
+	color: #9a3412;
+}
+
+.hero-progress.is-overtime .hero-progress-track {
+	background: #fed7aa;
+}
+
+.hero-progress.is-overtime .hero-progress-track span {
+	background: linear-gradient(90deg, #fbbf24 0%, #f97316 100%);
 }
 
 .hero-heatmap {

@@ -67,6 +67,53 @@ test("uses the last check-out time for completed shifts", () => {
 	assert.equal(progress.workedLabel, "8.8 / 9.0h")
 })
 
+test("marks an active shift as overtime after the scheduled end", () => {
+	const progress = buildShiftProgress({
+		schedule,
+		stats: { first_checkin_today: "2026-05-19 09:00:00" },
+		workStatus: {
+			status: "working",
+			last_checkin: { log_type: "IN", time: "2026-05-19 09:00:00" },
+		},
+		now: "2026-05-19T18:36:00",
+		lang: "zh",
+	})
+
+	assert.equal(progress.percent, 100)
+	assert.equal(progress.statusKey, "overtime")
+	assert.equal(progress.statusLabel, "加班中")
+	assert.equal(progress.hasOvertime, true)
+	assert.equal(progress.overtimeHours, 0.6)
+	assert.equal(progress.totalWorkedHours, 9.6)
+	assert.equal(progress.workedLabel, "已超 0.6h · 共 9.6h")
+	assert.equal(progress.tone, "overtime")
+})
+
+test("keeps completed overtime visible after checkout", () => {
+	const progress = buildShiftProgress({
+		schedule,
+		stats: {
+			first_checkin_today: "2026-05-19 09:00:00",
+			last_checkin_today: "2026-05-19 18:45:00",
+		},
+		workStatus: {
+			status: "off_work",
+			last_checkin: { log_type: "OUT", time: "2026-05-19 18:45:00" },
+		},
+		now: "2026-05-19T19:00:00",
+		lang: "zh",
+	})
+
+	assert.equal(progress.percent, 100)
+	assert.equal(progress.statusKey, "done")
+	assert.equal(progress.statusLabel, "已退勤")
+	assert.equal(progress.hasOvertime, true)
+	assert.equal(progress.overtimeHours, 0.75)
+	assert.equal(progress.totalWorkedHours, 9.75)
+	assert.equal(progress.workedLabel, "加班 0.8h · 共 9.8h")
+	assert.equal(progress.tone, "overtime")
+})
+
 test("supports overnight shifts", () => {
 	const progress = buildShiftProgress({
 		schedule: {
