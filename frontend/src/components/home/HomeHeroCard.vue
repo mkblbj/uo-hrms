@@ -361,6 +361,32 @@ watch(
 	{ immediate: true },
 )
 
+watch(
+	() => props.introPlay,
+	(next, prev) => {
+		if (!(next && !prev)) return
+		if (prefersReducedMotion) {
+			displayedProgress.value = shiftProgress.value?.percent || 0
+			initialAnimationFired.value = true
+		} else {
+			initialAnimationFired.value = false
+			displayedProgress.value = 0
+			requestAnimationFrame(() => {
+				requestAnimationFrame(() => {
+					displayedProgress.value = shiftProgress.value?.percent || 0
+					initialAnimationFired.value = true
+				})
+			})
+		}
+		countUpStarted = false
+		displayedMonthHours.value = 0
+		displayedMonthDays.value = 0
+		displayedAvg.value = 0
+		displayedWorkedHours.value = 0
+		startCountUpsOnce()
+	},
+)
+
 defineExpose({ reloadAttendance, reloadSchedule })
 </script>
 

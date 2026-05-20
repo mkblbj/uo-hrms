@@ -2,7 +2,7 @@
 	<ion-page>
 		<ion-header class="ion-no-border">
 			<div class="w-full">
-				<div class="flex flex-col bg-[#f0f4f8] px-4 pb-3 pt-3">
+				<div class="flex flex-col bg-[#f1eee7] px-4 pb-3 pt-3">
 					<div class="flex flex-row justify-between items-center">
 						<div class="flex flex-row items-center gap-2 min-w-0">
 							<button

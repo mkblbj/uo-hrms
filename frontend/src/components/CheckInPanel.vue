@@ -377,6 +377,32 @@ const handleQRScanSuccess = async (token, latitude = null, longitude = null) => 
 	}
 }
 
+function getReducedMotion() {
+	if (typeof window === "undefined" || typeof window.matchMedia !== "function") return false
+	try {
+		return window.matchMedia("(prefers-reduced-motion: reduce)").matches
+	} catch (_) {
+		return false
+	}
+}
+
+function replayIntro() {
+	if (getReducedMotion()) return
+	introPlay.value = false
+	requestAnimationFrame(() => {
+		requestAnimationFrame(() => {
+			introPlay.value = true
+		})
+	})
+}
+
+function onVisibilityChange() {
+	if (typeof document === "undefined") return
+	if (document.visibilityState === "visible") {
+		replayIntro()
+	}
+}
+
 onMounted(() => {
 	const storage = typeof window !== "undefined" ? window.sessionStorage : null
 	const matchMedia = typeof window !== "undefined" ? window.matchMedia.bind(window) : null
@@ -384,10 +410,16 @@ onMounted(() => {
 		introPlay.value = true
 		markIntroPlayed({ storage })
 	}
+	if (typeof document !== "undefined") {
+		document.addEventListener("visibilitychange", onVisibilityChange)
+	}
 })
 
 onBeforeUnmount(() => {
 	successOverlayController.dispose()
+	if (typeof document !== "undefined") {
+		document.removeEventListener("visibilitychange", onVisibilityChange)
+	}
 })
 
 // 辅助函数

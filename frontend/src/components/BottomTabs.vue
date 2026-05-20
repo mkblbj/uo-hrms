@@ -1,7 +1,7 @@
 <template>
 	<ion-tab-bar
 		slot="bottom"
-		class="bg-white/95 shadow-sm border-t border-gray-200 sm:w-96 py-1.5 pb-2 standalone:pb-safe-bottom"
+		class="bg-[#f1eee7]/95 shadow-sm border-t border-[#e3dfd4] sm:w-96 py-1.5 pb-2 standalone:pb-safe-bottom"
 	>
 		<ion-tab-button
 			v-for="item in tabItems"
@@ -9,7 +9,7 @@
 			:tab="item.key"
 			:href="item.route"
 			:class="[
-				'bg-white text-xs space-y-1.5 border-t-2 transition active:scale-95',
+				'bg-transparent text-xs space-y-1.5 border-t-2 transition active:scale-95',
 				isActive(item)
 					? 'border-blue-600 text-blue-700 font-semibold'
 					: 'border-transparent text-gray-500 font-normal hover:text-gray-700',
