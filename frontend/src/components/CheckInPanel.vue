@@ -11,6 +11,7 @@
 			:stats="dashboardStats.data"
 			:stats-loading="dashboardStats.loading"
 			:lang="currentLanguage"
+			:intro-play="introPlay"
 		/>
 
 		<HomeSummaryCard class="intro-stagger intro-stagger-2" :lang="currentLanguage" />
@@ -450,12 +451,12 @@ function formatDate() {
 @media (prefers-reduced-motion: no-preference) {
 	.checkin-panel.intro-play .intro-stagger {
 		opacity: 0;
-		transform: translateY(6px);
-		animation: ckp-stagger-in 320ms ease-out forwards;
+		transform: translateY(12px);
+		animation: ckp-stagger-in 640ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 	}
 	.checkin-panel.intro-play .intro-stagger-1 { animation-delay: 0ms; }
-	.checkin-panel.intro-play .intro-stagger-2 { animation-delay: 80ms; }
-	.checkin-panel.intro-play .intro-stagger-3 { animation-delay: 160ms; }
+	.checkin-panel.intro-play .intro-stagger-2 { animation-delay: 150ms; }
+	.checkin-panel.intro-play .intro-stagger-3 { animation-delay: 300ms; }
 }
 
 @keyframes ckp-stagger-in {

@@ -21,7 +21,7 @@
 				</div>
 				<div class="hero-progress-value">
 					<span>{{ shiftProgress.rangeLabel }}</span>
-					<strong>{{ shiftProgress.workedLabel }}</strong>
+					<strong>{{ displayedWorkedLabel }}</strong>
 				</div>
 			</div>
 			<div class="hero-progress-track" aria-hidden="true">
@@ -87,6 +87,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import { buildHeatmapMonthMarkers, buildRecentWeekdayHeatmap } from "@/utils/homeHeatmap"
 import { buildShiftProgress } from "@/utils/homeShiftProgress"
+import { formatCountUp, runCountUp } from "@/utils/homeCountUp"
 
 const props = defineProps({
 	employeeName: { type: String, default: "" },
@@ -98,6 +99,7 @@ const props = defineProps({
 	statsLoading: { type: Boolean, default: false },
 	lang: { type: String, default: "zh" },
 	today: { type: [String, Date], default: () => new Date() },
+	introPlay: { type: Boolean, default: false },
 })
 
 const copy = {
@@ -205,6 +207,11 @@ const shiftProgress = computed(() =>
 )
 const displayedProgress = ref(0)
 const initialAnimationFired = ref(false)
+const displayedMonthHours = ref(0)
+const displayedMonthDays = ref(0)
+const displayedAvg = ref(0)
+const displayedWorkedHours = ref(0)
+let countUpStarted = false
 const prefersReducedMotion =
 	typeof window !== "undefined" && typeof window.matchMedia === "function"
 		? window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -223,31 +230,75 @@ const monthMarkers = computed(() =>
 	})
 )
 const miniStats = computed(() => {
-	const monthHours = Number(props.stats?.month_hours || 0)
-	const monthDays = Number(props.stats?.month_present || 0)
-	const avg = monthDays > 0 ? monthHours / monthDays : 0
-
 	return [
 		{
 			key: "month_hours",
 			label: t("monthHours"),
-			value: props.statsLoading ? "--" : formatNumber(monthHours, 1),
+			value: props.statsLoading ? "--" : formatCountUp(displayedMonthHours.value, 1),
 			unit: t("unitHours"),
 		},
 		{
 			key: "month_present",
 			label: t("monthDays"),
-			value: props.statsLoading ? "--" : formatNumber(monthDays),
+			value: props.statsLoading ? "--" : formatCountUp(displayedMonthDays.value, 0),
 			unit: t("unitDays"),
 		},
 		{
 			key: "avg_day",
 			label: t("avgDay"),
-			value: props.statsLoading ? "--" : formatNumber(avg, 1),
+			value: props.statsLoading ? "--" : formatCountUp(displayedAvg.value, 1),
 			unit: t("unitHours"),
 		},
 	]
 })
+
+const displayedWorkedLabel = computed(() => {
+	const sp = shiftProgress.value
+	if (!sp) return ""
+	if (sp.hasOvertime) return sp.workedLabel
+	const shift = sp.shiftHours || 0
+	return `${formatCountUp(displayedWorkedHours.value, 1)} / ${shift.toFixed(1)}h`
+})
+
+function startCountUpsOnce() {
+	if (countUpStarted) return
+	if (!props.stats || props.statsLoading) return
+	countUpStarted = true
+
+	const monthHoursTarget = Number(props.stats?.month_hours || 0)
+	const monthDaysTarget = Number(props.stats?.month_present || 0)
+	const avgTarget = monthDaysTarget > 0 ? monthHoursTarget / monthDaysTarget : 0
+	const workedTarget = Number(shiftProgress.value?.workedHours || 0)
+
+	if (prefersReducedMotion || !props.introPlay) {
+		displayedMonthHours.value = monthHoursTarget
+		displayedMonthDays.value = monthDaysTarget
+		displayedAvg.value = avgTarget
+		displayedWorkedHours.value = workedTarget
+		return
+	}
+
+	runCountUp({
+		target: monthHoursTarget,
+		duration: 1000,
+		onUpdate: (v) => (displayedMonthHours.value = v),
+	})
+	runCountUp({
+		target: monthDaysTarget,
+		duration: 1000,
+		onUpdate: (v) => (displayedMonthDays.value = v),
+	})
+	runCountUp({
+		target: avgTarget,
+		duration: 1000,
+		onUpdate: (v) => (displayedAvg.value = v),
+	})
+	runCountUp({
+		target: workedTarget,
+		duration: 1200,
+		onUpdate: (v) => (displayedWorkedHours.value = v),
+	})
+}
 
 function cellLabel(cell) {
 	const status = cell.event?.attendance || t("noRecord")
@@ -291,6 +342,23 @@ watch(
 		if (!initialAnimationFired.value && !prefersReducedMotion) return
 		displayedProgress.value = next
 	},
+)
+
+watch(
+	[() => props.stats, () => props.statsLoading, () => shiftProgress.value?.workedHours ?? 0],
+	() => {
+		if (countUpStarted) {
+			const monthHours = Number(props.stats?.month_hours || 0)
+			const monthDays = Number(props.stats?.month_present || 0)
+			displayedMonthHours.value = monthHours
+			displayedMonthDays.value = monthDays
+			displayedAvg.value = monthDays > 0 ? monthHours / monthDays : 0
+			displayedWorkedHours.value = Number(shiftProgress.value?.workedHours || 0)
+			return
+		}
+		startCountUpsOnce()
+	},
+	{ immediate: true },
 )
 
 defineExpose({ reloadAttendance, reloadSchedule })
@@ -382,7 +450,7 @@ defineExpose({ reloadAttendance, reloadSchedule })
 	height: 100%;
 	border-radius: inherit;
 	background: linear-gradient(90deg, #86efac 0%, #16a34a 100%);
-	transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+	transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .hero-progress.is-overtime {
@@ -538,13 +606,13 @@ defineExpose({ reloadAttendance, reloadSchedule })
 @media (prefers-reduced-motion: no-preference) {
 	.intro-play .hero-heatmap-cell.is-today {
 		animation:
-			hm-cell-in 280ms ease-out forwards,
-			today-ring-in 1600ms ease-out forwards,
+			hm-cell-in 560ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
+			today-ring-in 2400ms ease-out forwards,
 			today-pulse 2800ms ease-in-out infinite;
 		animation-delay:
-			calc(var(--cell-index, 0) * 1.5ms),
-			calc(var(--cell-index, 0) * 1.5ms),
-			calc(var(--cell-index, 0) * 1.5ms + 1600ms);
+			calc(var(--cell-index, 0) * 3.5ms),
+			calc(var(--cell-index, 0) * 3.5ms),
+			calc(var(--cell-index, 0) * 3.5ms + 2400ms);
 	}
 }
 
@@ -564,9 +632,9 @@ defineExpose({ reloadAttendance, reloadSchedule })
 @media (prefers-reduced-motion: no-preference) {
 	.intro-play .hero-heatmap-cell {
 		opacity: 0;
-		transform: translateY(4px);
-		animation: hm-cell-in 280ms ease-out forwards;
-		animation-delay: calc(var(--cell-index, 0) * 1.5ms);
+		transform: translateY(8px);
+		animation: hm-cell-in 560ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+		animation-delay: calc(var(--cell-index, 0) * 3.5ms);
 	}
 }
 
