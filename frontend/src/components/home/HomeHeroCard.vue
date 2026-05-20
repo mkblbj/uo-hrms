@@ -25,7 +25,7 @@
 				</div>
 			</div>
 			<div class="hero-progress-track" aria-hidden="true">
-				<span ref="progressFillRef" :style="{ width: `${displayedProgress}%` }"></span>
+				<span :style="{ width: `${displayedProgress}%` }"></span>
 			</div>
 		</div>
 
@@ -203,7 +203,6 @@ const shiftProgress = computed(() =>
 		lang: props.lang,
 	})
 )
-const progressFillRef = ref(null)
 const displayedProgress = ref(0)
 const initialAnimationFired = ref(false)
 const prefersReducedMotion =
