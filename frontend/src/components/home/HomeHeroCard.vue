@@ -205,6 +205,7 @@ const shiftProgress = computed(() =>
 )
 const progressFillRef = ref(null)
 const displayedProgress = ref(0)
+const initialAnimationFired = ref(false)
 const prefersReducedMotion =
 	typeof window !== "undefined" && typeof window.matchMedia === "function"
 		? window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -265,11 +266,13 @@ onMounted(() => {
 
 	if (prefersReducedMotion) {
 		displayedProgress.value = shiftProgress.value?.percent || 0
+		initialAnimationFired.value = true
 		return
 	}
 	requestAnimationFrame(() => {
 		requestAnimationFrame(() => {
 			displayedProgress.value = shiftProgress.value?.percent || 0
+			initialAnimationFired.value = true
 		})
 	})
 })
@@ -284,9 +287,9 @@ onBeforeUnmount(() => {
 watch(
 	() => shiftProgress.value?.percent ?? 0,
 	(next) => {
-		// After the initial 0→percent animation has fired, keep displayed in sync.
-		// If we're still showing 0 (animation hasn't fired yet), do nothing — onMounted will set it.
-		if (displayedProgress.value === 0 && next !== 0 && !prefersReducedMotion) return
+		// After the initial mount animation has fired, keep displayed in sync.
+		// If the initial animation hasn't fired yet, do nothing — onMounted will set it.
+		if (!initialAnimationFired.value && !prefersReducedMotion) return
 		displayedProgress.value = next
 	},
 )
