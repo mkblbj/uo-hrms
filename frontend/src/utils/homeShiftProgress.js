@@ -37,6 +37,8 @@ const OVERTIME_COPY = {
 	},
 }
 
+const DISPLAY_OVERTIME_THRESHOLD_HOURS = 0.5
+
 function pickLabel(lang, key) {
 	return LABELS[lang]?.[key] || LABELS.zh[key]
 }
@@ -195,7 +197,7 @@ export function buildShiftProgress({
 	}
 
 	const overtimeHours = roundHours(Math.max(0, totalWorkedHours - workedHours))
-	const hasOvertime = overtimeHours > 0
+	const hasOvertime = overtimeHours >= DISPLAY_OVERTIME_THRESHOLD_HOURS
 	const statusKey =
 		status === "working" && hasOvertime
 			? "overtime"

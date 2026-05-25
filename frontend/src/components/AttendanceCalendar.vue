@@ -13,7 +13,6 @@
 			</button>
 			<div class="month-label-wrap">
 				<span class="month-label">{{ monthTitle }}</span>
-				<span class="month-meta">{{ monthMeta }}</span>
 			</div>
 			<button class="nav-btn" @click="nextMonth" :aria-label="t('next')">
 				<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -72,31 +71,26 @@
 			</template>
 		</div>
 
-		<!-- Detail Strip -->
-		<div class="detail-strip" v-if="selectedCell">
-			<div class="ds-left">
-				<span class="ds-label">{{ selectedCell.is_today ? t("detail.today") : t("detail.selected") }}</span>
-				<span class="ds-date">{{ currentMonth }}/{{ selectedCell.day }}</span>
-				<span
-					class="ds-weekday"
-					:style="{ color: selectedCell.weekday === 0 ? colors.red : selectedCell.weekday === 6 ? colors.blue : colors.ink3 }"
-				>{{ weekdayHeaders[selectedCell.weekday] }}</span>
+		<!-- Month Summary Strip -->
+		<div class="detail-strip month-summary-strip">
+			<div class="month-summary-head">
+				<span class="month-summary-kicker">{{ monthTitle }}</span>
+				<strong>{{ t("summary.title") }}</strong>
 			</div>
-			<div class="ds-main">
-				<component :is="DetailMain" :cell="selectedCell" />
-				<component :is="DetailSub" :cell="selectedCell" />
+			<div class="month-summary-metrics">
+				<div class="month-summary-metric">
+					<span>{{ t("summary.totalHours") }}</span>
+					<strong>{{ monthSummary.hours }}<small>{{ metaLabels.hours }}</small></strong>
+				</div>
+				<div class="month-summary-metric">
+					<span>{{ t("summary.workDays") }}</span>
+					<strong>{{ monthSummary.workDays }}<small>{{ metaLabels.days }}</small></strong>
+				</div>
+				<div class="month-summary-metric">
+					<span>{{ t("summary.avgHours") }}</span>
+					<strong>{{ monthSummary.avg }}<small>{{ metaLabels.hours }}</small></strong>
+				</div>
 			</div>
-			<div class="ds-right" :style="detailPillStyle(selectedCell)">
-				<span
-					v-if="selectedCell.is_today && !selectedCell.out_time && isWorkLike(selectedCell)"
-					class="ongoing-dot"
-				/>
-				<component :is="StateIcon" :cell="selectedCell" />
-			</div>
-		</div>
-		<div class="detail-strip detail-empty" v-else>
-			<span class="empty-dot" />
-			<span class="empty-tip">{{ t("tip") }}</span>
 		</div>
 
 		<!-- Day Dialog -->
@@ -250,7 +244,8 @@ const messages = {
 			rest: "休",
 		},
 		monthLabel: (y, m) => `${y}年${m}月`,
-		meta: { hours: "h", days: "d", avg: "AVG" },
+		meta: { hours: "h", days: "天", avg: "日均" },
+		summary: { title: "月度汇总", totalHours: "本月工时", workDays: "出勤日", avgHours: "日均" },
 		detail: {
 			today: "今日",
 			selected: "日详情",
@@ -290,7 +285,8 @@ const messages = {
 			rest: "休",
 		},
 		monthLabel: (y, m) => `${y}年${m}月`,
-		meta: { hours: "h", days: "d", avg: "AVG" },
+		meta: { hours: "h", days: "日", avg: "平均" },
+		summary: { title: "月次サマリー", totalHours: "今月時間", workDays: "出勤日", avgHours: "平均" },
 		detail: {
 			today: "本日",
 			selected: "日詳細",
@@ -331,7 +327,8 @@ const messages = {
 		},
 		monthLabel: (y, m) =>
 			`${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m - 1]} ${y}`,
-		meta: { hours: "h", days: "d", avg: "AVG" },
+		meta: { hours: "h", days: "d", avg: "Avg" },
+		summary: { title: "Month Summary", totalHours: "Month Hours", workDays: "Days", avgHours: "Avg" },
 		detail: {
 			today: "Today",
 			selected: "Detail",
@@ -401,11 +398,9 @@ const attendanceMap = computed(() => attendanceResource.data || {})
 
 const todayStr = dayjs().format("YYYY-MM-DD")
 
-const monthMeta = computed(() => {
-	const lang = getLang()
-	const M = messages[lang] || messages.zh
-	const s = monthSummary.value
-	return `${s.hours}${M.meta.hours} · ${s.workDays}${M.meta.days} · ${M.meta.avg} ${s.avg}${M.meta.hours}`
+const metaLabels = computed(() => {
+	const M = messages[getLang()] || messages.zh
+	return M.meta
 })
 
 const monthTitle = computed(() => {
@@ -481,11 +476,6 @@ const monthSummary = computed(() => {
 		hours: trim(Math.round(hours * 10) / 10),
 		avg,
 	}
-})
-
-const selectedCell = computed(() => {
-	if (selectedDay.value == null) return null
-	return monthCells.value.find((c) => c.day === selectedDay.value) || null
 })
 
 const dialogCell = computed(() => {
@@ -699,76 +689,6 @@ function detailPillStyle(c) {
 	return { background: bg, border }
 }
 
-const DetailMain = {
-	props: ["cell"],
-	setup(props) {
-		return () => {
-			const c = props.cell
-			const isOngoing = c.is_today && !c.out_time && isWorkLike(c)
-			if (c.state === "holiday") {
-				return h(
-					"span",
-					{ class: "ds-main-line ds-main-text", style: { color: colors.ink } },
-					c.holiday || statusLabel(c),
-				)
-			}
-			if (isWorkLike(c)) {
-				return h("span", { class: "ds-main-line ds-time" }, [
-					c.in_time || "—:—",
-					h("span", { class: "sep" }, "—"),
-					isOngoing
-						? h("span", { class: "ongoing-dots", style: { color: colors.green_dk } }, "·····")
-						: c.out_time || "—:—",
-				])
-			}
-			return h(
-				"span",
-				{ class: "ds-main-line ds-main-text", style: { color: statusColor(c) } },
-				statusLabel(c),
-			)
-		}
-	},
-}
-
-const DetailSub = {
-	props: ["cell"],
-	setup(props) {
-		return () => {
-			const c = props.cell
-			const M = messages[getLang()] || messages.zh
-			if (isWorkLike(c)) {
-				const isOngoing = c.is_today && !c.out_time
-				const parts = []
-				parts.push(h("span", { class: "ds-mono" }, `${c.hours || 0}h`))
-				if (c.shift_label) {
-					parts.push(h("span", { class: "ds-bullet" }))
-					parts.push(h("span", {}, `${M.detail.shift} ${c.shift_label}`))
-				}
-				if (isOngoing) {
-					parts.push(h("span", { class: "ds-bullet" }))
-					parts.push(
-						h("span", { style: { color: colors.green_dk, fontWeight: 700 } }, `· ${M.detail.ongoing}`),
-					)
-				}
-				return h("div", { class: "ds-sub" }, parts)
-			}
-			if (c.state === "roster") {
-				const time =
-					c.shift_start && c.shift_end ? `${c.shift_start}—${c.shift_end}` : c.scheduled_time || ""
-				return h("div", { class: "ds-sub" }, [
-					h("span", { class: "ds-mono" }, time),
-					c.shift_label ? h("span", { class: "ds-bullet" }) : null,
-					c.shift_label ? h("span", {}, `${M.detail.shift} ${c.shift_label}`) : null,
-				])
-			}
-			if (c.state === "holiday") {
-				return h("div", { class: "ds-sub-mono" }, M.detail.holiday)
-			}
-			return h("div", { class: "ds-sub-faint" }, c.state === "rest" ? M.legend.rest : "")
-		}
-	},
-}
-
 const StateIcon = {
 	props: ["cell"],
 	setup(props) {
@@ -947,21 +867,13 @@ onIonViewWillEnter(() => {
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: 2px;
+	gap: 4px;
 }
 .month-label {
 	font-size: 18px;
 	font-weight: 700;
 	letter-spacing: -0.02em;
 	color: #0a0a0a;
-	font-variant-numeric: tabular-nums;
-}
-.month-meta {
-	font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
-	font-size: 9px;
-	font-weight: 700;
-	letter-spacing: 0.16em;
-	color: #adaaa3;
 	font-variant-numeric: tabular-nums;
 }
 
@@ -1099,131 +1011,63 @@ onIonViewWillEnter(() => {
 	min-height: 72px;
 	box-shadow: 0 1px 2px rgba(20, 18, 12, 0.03), 0 4px 16px -10px rgba(20, 18, 12, 0.06);
 }
-.detail-empty {
-	min-height: 48px;
-	color: #787570;
-	font-size: 12px;
+.month-summary-strip {
+	justify-content: space-between;
 }
-.empty-dot {
-	width: 6px;
-	height: 6px;
-	border-radius: 999px;
-	background: #adaaa3;
-}
-.empty-tip {
-	font-size: 12px;
-}
-.ds-left {
-	display: flex;
-	flex-direction: column;
-	gap: 3px;
-	min-width: 60px;
-}
-.ds-label {
-	font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
-	font-size: 9px;
-	color: #adaaa3;
-	letter-spacing: 0.16em;
-	font-weight: 700;
-}
-.ds-date {
-	font-size: 22px;
-	font-weight: 700;
-	color: #0a0a0a;
-	letter-spacing: -0.02em;
-	font-variant-numeric: tabular-nums;
-	line-height: 1;
-}
-.ds-weekday {
-	margin-top: 2px;
-	font-size: 10px;
-	font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
-	letter-spacing: 0.1em;
-	font-weight: 600;
-}
-.ds-main {
-	flex: 1;
-	min-width: 0;
+.month-summary-head {
 	display: flex;
 	flex-direction: column;
 	gap: 4px;
+	min-width: 0;
 }
-.ds-main-line {
-	font-size: 18px;
+.month-summary-kicker {
+	font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+	font-size: 9px;
 	font-weight: 700;
-	color: #0a0a0a;
-	letter-spacing: -0.01em;
-	overflow: hidden;
-	text-overflow: ellipsis;
+	letter-spacing: 0.14em;
+	color: #adaaa3;
 	white-space: nowrap;
 }
-.ds-time {
-	font-size: 22px;
-	font-weight: 700;
+.month-summary-head strong {
+	font-size: 17px;
+	line-height: 1.15;
+	font-weight: 800;
 	color: #0a0a0a;
-	letter-spacing: -0.02em;
-	font-variant-numeric: tabular-nums;
-	line-height: 1.05;
+	letter-spacing: 0;
 }
-.ds-time .sep {
-	color: #adaaa3;
-	font-weight: 400;
-	margin: 0 4px;
+.month-summary-metrics {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(52px, 1fr));
+	gap: 12px;
+	margin-left: auto;
 }
-.ongoing-dots {
-	font-weight: 700;
-}
-.ds-sub {
+.month-summary-metric {
 	display: flex;
-	align-items: baseline;
-	gap: 8px;
-	font-size: 11px;
-	color: #787570;
-	flex-wrap: wrap;
+	flex-direction: column;
+	align-items: flex-end;
+	gap: 4px;
+	min-width: 0;
 }
-.ds-mono {
-	font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
-	letter-spacing: 0.06em;
-	font-variant-numeric: tabular-nums;
-}
-.ds-bullet {
-	width: 2px;
-	height: 2px;
-	border-radius: 999px;
-	background: #adaaa3;
-	display: inline-block;
-}
-.ds-sub-mono {
-	font-size: 11px;
-	color: #787570;
-	font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
-	letter-spacing: 0.08em;
+.month-summary-metric span {
+	font-size: 10px;
 	font-weight: 700;
+	color: #787570;
+	white-space: nowrap;
 }
-.ds-sub-faint {
+.month-summary-metric strong {
+	font-size: 22px;
+	line-height: 1;
+	font-weight: 800;
+	color: #0a0a0a;
+	letter-spacing: 0;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+.month-summary-metric small {
+	margin-left: 2px;
 	font-size: 11px;
-	color: #adaaa3;
-}
-.ds-right {
-	width: 44px;
-	height: 44px;
-	border-radius: 12px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	position: relative;
-	flex-shrink: 0;
-}
-.ongoing-dot {
-	position: absolute;
-	top: 4px;
-	right: 4px;
-	width: 7px;
-	height: 7px;
-	border-radius: 999px;
-	background: #16a34a;
-	box-shadow: 0 0 6px rgba(22, 163, 74, 0.7);
-	animation: attn-pulse 1.6s ease-in-out infinite;
+	font-weight: 700;
+	color: #787570;
 }
 
 /* Dialog */

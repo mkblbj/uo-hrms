@@ -484,6 +484,15 @@ test("HomeHeroCard keeps the current-day heatmap ring inside the cell", () => {
 	)
 })
 
+test("HomeHeroCard synchronizes live worked hours outside the monthly stats animation", () => {
+	const source = fs.readFileSync(homeHeroCardPath, "utf8")
+	const startCountUpsOnce = source.match(/function startCountUpsOnce\(\) \{[\s\S]*?\n\}/)?.[0] || ""
+
+	assert.match(source, /function syncDisplayedWorkedHours/)
+	assert.match(source, /shiftProgress\.value\?\.workedHours/)
+	assert.doesNotMatch(startCountUpsOnce, /displayedWorkedHours/)
+})
+
 test("returns the compressed roster empty copy", () => {
 	assert.deepEqual(getRosterEmptyCopy("zh"), {
 		today: "今日无班次",

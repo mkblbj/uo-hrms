@@ -212,6 +212,7 @@ const displayedMonthDays = ref(0)
 const displayedAvg = ref(0)
 const displayedWorkedHours = ref(0)
 let countUpStarted = false
+let workedHoursCountUpCancel = null
 const prefersReducedMotion =
 	typeof window !== "undefined" && typeof window.matchMedia === "function"
 		? window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -268,13 +269,11 @@ function startCountUpsOnce() {
 	const monthHoursTarget = Number(props.stats?.month_hours || 0)
 	const monthDaysTarget = Number(props.stats?.month_present || 0)
 	const avgTarget = monthDaysTarget > 0 ? monthHoursTarget / monthDaysTarget : 0
-	const workedTarget = Number(shiftProgress.value?.workedHours || 0)
 
 	if (prefersReducedMotion || !props.introPlay) {
 		displayedMonthHours.value = monthHoursTarget
 		displayedMonthDays.value = monthDaysTarget
 		displayedAvg.value = avgTarget
-		displayedWorkedHours.value = workedTarget
 		return
 	}
 
@@ -293,11 +292,29 @@ function startCountUpsOnce() {
 		duration: 1000,
 		onUpdate: (v) => (displayedAvg.value = v),
 	})
-	runCountUp({
-		target: workedTarget,
-		duration: 1200,
-		onUpdate: (v) => (displayedWorkedHours.value = v),
-	})
+}
+
+function cancelWorkedHoursCountUp() {
+	if (workedHoursCountUpCancel) {
+		workedHoursCountUpCancel()
+		workedHoursCountUpCancel = null
+	}
+}
+
+function syncDisplayedWorkedHours({ animate = false } = {}) {
+	const workedTarget = Number(shiftProgress.value?.workedHours || 0)
+	cancelWorkedHoursCountUp()
+
+	if (animate && !prefersReducedMotion && props.introPlay) {
+		workedHoursCountUpCancel = runCountUp({
+			target: workedTarget,
+			duration: 1200,
+			onUpdate: (v) => (displayedWorkedHours.value = v),
+		})
+		return
+	}
+
+	displayedWorkedHours.value = workedTarget
 }
 
 function cellLabel(cell) {
@@ -332,6 +349,7 @@ onBeforeUnmount(() => {
 		clearInterval(progressTimer)
 		progressTimer = null
 	}
+	cancelWorkedHoursCountUp()
 })
 
 watch(
@@ -345,7 +363,7 @@ watch(
 )
 
 watch(
-	[() => props.stats, () => props.statsLoading, () => shiftProgress.value?.workedHours ?? 0],
+	[() => props.stats, () => props.statsLoading],
 	() => {
 		if (countUpStarted) {
 			const monthHours = Number(props.stats?.month_hours || 0)
@@ -353,10 +371,17 @@ watch(
 			displayedMonthHours.value = monthHours
 			displayedMonthDays.value = monthDays
 			displayedAvg.value = monthDays > 0 ? monthHours / monthDays : 0
-			displayedWorkedHours.value = Number(shiftProgress.value?.workedHours || 0)
 			return
 		}
 		startCountUpsOnce()
+	},
+	{ immediate: true },
+)
+
+watch(
+	() => shiftProgress.value?.workedHours ?? 0,
+	() => {
+		syncDisplayedWorkedHours()
 	},
 	{ immediate: true },
 )
@@ -384,6 +409,7 @@ watch(
 		displayedAvg.value = 0
 		displayedWorkedHours.value = 0
 		startCountUpsOnce()
+		syncDisplayedWorkedHours({ animate: true })
 	},
 )
 
