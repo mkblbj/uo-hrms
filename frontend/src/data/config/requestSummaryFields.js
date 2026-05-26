@@ -151,6 +151,44 @@ export const ATTENDANCE_REQUEST_FIELDS = [
 	},
 ]
 
+export const ATTENDANCE_CORRECTION_FIELDS = [
+	{
+		fieldname: "name",
+		label: "ID",
+		fieldtype: "Data",
+	},
+	{
+		fieldname: "attendance_date",
+		label: "Attendance Date",
+		fieldtype: "Date",
+	},
+	{
+		fieldname: "request_type",
+		label: "Request Type",
+		fieldtype: "Select",
+	},
+	{
+		fieldname: "requested_log_type",
+		label: "Log Type",
+		fieldtype: "Data",
+	},
+	{
+		fieldname: "requested_time",
+		label: "Requested Time",
+		fieldtype: "Datetime",
+	},
+	{
+		fieldname: "status",
+		label: "Status",
+		fieldtype: "Select",
+	},
+	{
+		fieldname: "reason",
+		label: "Reason",
+		fieldtype: "Small Text",
+	},
+]
+
 export const SHIFT_FIELDS = [
 	{
 		fieldname: "name",

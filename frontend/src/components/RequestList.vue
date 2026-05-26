@@ -50,6 +50,7 @@ import {
 	LEAVE_FIELDS,
 	EXPENSE_CLAIM_FIELDS,
 	ATTENDANCE_REQUEST_FIELDS,
+	ATTENDANCE_CORRECTION_FIELDS,
 	SHIFT_REQUEST_FIELDS,
 	SHIFT_FIELDS,
 } from "@/data/config/requestSummaryFields"
@@ -84,6 +85,7 @@ const fieldsMap = {
 	"Leave Application": LEAVE_FIELDS,
 	"Expense Claim": EXPENSE_CLAIM_FIELDS,
 	"Attendance Request": ATTENDANCE_REQUEST_FIELDS,
+	"Attendance Correction Request": ATTENDANCE_CORRECTION_FIELDS,
 	"Shift Request": SHIFT_REQUEST_FIELDS,
 	"Shift Assignment": SHIFT_FIELDS,
 }
