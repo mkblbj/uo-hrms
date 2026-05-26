@@ -5,11 +5,11 @@ from datetime import datetime, timedelta
 
 import frappe
 from frappe import _
-from frappe.utils import getdate
+from frappe.utils import get_timedelta, getdate
 
 
 @frappe.whitelist()
-def recalculate_attendance(employee: str, date: str) -> dict:
+def recalculate_attendance(employee: str, date: str, commit: bool = True) -> dict:
 	"""
 	Recalculate attendance for a specific employee and date.
 
@@ -21,6 +21,7 @@ def recalculate_attendance(employee: str, date: str) -> dict:
 	Args:
 	    employee: Employee ID
 	    date: Date string (YYYY-MM-DD)
+	    commit: Commit attendance recalculation changes before returning.
 
 	Returns:
 	    dict with status and message
@@ -37,22 +38,7 @@ def recalculate_attendance(employee: str, date: str) -> dict:
 		att_doc.flags.ignore_permissions = True
 		att_doc.cancel()
 
-	# Step 2: Clear attendance links from checkins for that date
-	start_datetime = datetime.combine(date, datetime.min.time())
-	end_datetime = datetime.combine(date, datetime.max.time())
-
-	frappe.db.sql(
-		"""
-        UPDATE `tabEmployee Checkin`
-        SET attendance = NULL
-        WHERE employee = %s
-          AND time >= %s
-          AND time <= %s
-    """,
-		(employee, start_datetime, end_datetime),
-	)
-
-	# Step 3: Get the shift for this employee
+	# Step 2: Get the shift for this employee
 	shift_name = frappe.db.get_value(
 		"Shift Assignment",
 		{
@@ -71,7 +57,22 @@ def recalculate_attendance(employee: str, date: str) -> dict:
 			"message": _("No active shift assignment found for employee {0} on {1}").format(employee, date),
 		}
 
-	# Step 4: Get checkins for this date
+	shift_doc = frappe.get_doc("Shift Type", shift_name)
+	start_datetime, end_datetime = get_attendance_recalculation_window(shift_doc, date)
+
+	# Step 3: Clear attendance links from checkins in this shift window
+	frappe.db.sql(
+		"""
+        UPDATE `tabEmployee Checkin`
+        SET attendance = NULL
+        WHERE employee = %s
+          AND time >= %s
+          AND time <= %s
+    """,
+		(employee, start_datetime, end_datetime),
+	)
+
+	# Step 4: Get checkins for this shift window
 	checkins = frappe.get_all(
 		"Employee Checkin",
 		filters={
@@ -98,9 +99,7 @@ def recalculate_attendance(employee: str, date: str) -> dict:
 		return {
 			"status": "warning",
 			"message": _("No checkin records found for employee {0} on {1}").format(employee, date),
-		}
-
-	shift_doc = frappe.get_doc("Shift Type", shift_name)
+			}
 
 	# Update checkins with shift info if missing
 	for checkin in checkins:
@@ -163,7 +162,8 @@ def recalculate_attendance(employee: str, date: str) -> dict:
 		None,  # overtime_type
 	)
 
-	frappe.db.commit()
+	if commit:
+		frappe.db.commit()
 
 	if attendance:
 		return {
@@ -175,6 +175,21 @@ def recalculate_attendance(employee: str, date: str) -> dict:
 		}
 	else:
 		return {"status": "error", "message": _("Failed to create attendance record")}
+
+
+def get_attendance_recalculation_window(shift_doc, date: str) -> tuple[datetime, datetime]:
+	date = getdate(date)
+	start_time = get_timedelta(shift_doc.start_time) or timedelta()
+	end_time = get_timedelta(shift_doc.end_time) or timedelta()
+	start_datetime = datetime.combine(date, datetime.min.time()) + start_time
+	end_datetime = datetime.combine(date, datetime.min.time()) + end_time
+
+	if start_time > end_time:
+		end_datetime += timedelta(days=1)
+
+	start_datetime -= timedelta(minutes=shift_doc.begin_check_in_before_shift_start_time or 0)
+	end_datetime += timedelta(minutes=shift_doc.allow_check_out_after_shift_end_time or 0)
+	return start_datetime, end_datetime
 
 
 @frappe.whitelist()
