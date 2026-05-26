@@ -105,3 +105,51 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 			for status in ("Applied", "Apply Failed", "Rejected"):
 				doc = frappe.get_doc({"doctype": "Attendance Correction Request", "status": status})
 				self.assertRaises(frappe.ValidationError, doc.validate_status_transition)
+
+	def test_resolve_approver_from_employee_field(self):
+		from erpnext.setup.doctype.employee.test_employee import make_employee
+
+		from hrms.hr.doctype.attendance_correction_request.attendance_correction_request import (
+			get_attendance_correction_approver,
+		)
+
+		employee = make_employee(
+			"attendance-correction-employee-approver@example.com",
+			company="_Test Company",
+		)
+		frappe.db.set_value(
+			"Employee",
+			employee,
+			"attendance_correction_approver",
+			"test@example.com",
+		)
+
+		self.assertEqual(get_attendance_correction_approver(employee), "test@example.com")
+
+	def test_resolve_approver_from_department_fallback(self):
+		from erpnext.setup.doctype.employee.test_employee import make_employee
+
+		from hrms.hr.doctype.attendance_correction_request.attendance_correction_request import (
+			get_attendance_correction_approver,
+		)
+
+		department = frappe.get_doc(
+			{
+				"doctype": "Department",
+				"department_name": "Attendance Correction Department",
+				"company": "_Test Company",
+			}
+		).insert(ignore_if_duplicate=True)
+
+		employee = make_employee(
+			"attendance-correction-department-approver@example.com",
+			company="_Test Company",
+			department=department.name,
+		)
+		department.append(
+			"attendance_correction_approver",
+			{"approver": "test@example.com"},
+		)
+		department.save()
+
+		self.assertEqual(get_attendance_correction_approver(employee), "test@example.com")

@@ -41,6 +41,8 @@ class AttendanceCorrectionRequest(Document):
 	def validate(self):
 		validate_active_employee(self.employee)
 		self.normalize_dates()
+		if not self.approver and self.status in {"Draft", "Pending"}:
+			self.approver = get_attendance_correction_approver(self.employee)
 		self.validate_status_transition()
 		self.validate_requested_time()
 		self.validate_original_checkin()
@@ -92,3 +94,28 @@ class AttendanceCorrectionRequest(Document):
 
 		if checkin_employee != self.employee:
 			frappe.throw(_("Original Checkin must belong to the selected Employee"))
+
+
+def get_attendance_correction_approver(employee: str) -> str:
+	employee_approver, department = frappe.db.get_value(
+		"Employee",
+		employee,
+		["attendance_correction_approver", "department"],
+	)
+	if employee_approver:
+		return employee_approver
+
+	if department:
+		department_approver = frappe.db.get_value(
+			"Department Approver",
+			{
+				"parent": department,
+				"parentfield": "attendance_correction_approver",
+				"idx": 1,
+			},
+			"approver",
+		)
+		if department_approver:
+			return department_approver
+
+	frappe.throw(_("Attendance Correction Approver is not configured for employee {0}.").format(employee))

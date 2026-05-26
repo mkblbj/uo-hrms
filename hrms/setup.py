@@ -153,6 +153,13 @@ def get_custom_fields():
 				"options": "Department Approver",
 				"insert_after": "leave_approvers",
 			},
+			{
+				"fieldname": "attendance_correction_approver",
+				"fieldtype": "Table",
+				"label": _("Attendance Correction Approver"),
+				"options": "Department Approver",
+				"insert_after": "expense_approvers",
+			},
 		],
 		"Designation": [
 			{
@@ -262,6 +269,14 @@ def get_custom_fields():
 				"label": _("Shift Request Approver"),
 				"options": "User",
 				"insert_after": "column_break_45",
+				"ignore_user_permissions": 1,
+			},
+			{
+				"fieldname": "attendance_correction_approver",
+				"fieldtype": "Link",
+				"label": _("Attendance Correction Approver"),
+				"options": "User",
+				"insert_after": "shift_request_approver",
 				"ignore_user_permissions": 1,
 			},
 			{
@@ -640,6 +655,7 @@ def get_user_types_data():
 				"Leave Type": ["read"],
 				"Leave Application": ["read", "write", "create", "delete"],
 				"Attendance Request": ["read", "write", "create", "delete"],
+				"Attendance Correction Request": ["read", "write", "create", "delete"],
 				"Compensatory Leave Request": ["read", "write", "create", "delete"],
 				# tax
 				"Employee Tax Exemption Declaration": ["read", "write", "create", "delete"],
