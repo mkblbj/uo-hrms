@@ -48,6 +48,7 @@ class AttendanceCorrectionRequest(Document):
 		self.validate_status_transition()
 		self.validate_requested_time()
 		self.validate_original_checkin()
+		self.validate_duplicate_pending_request()
 
 	def normalize_dates(self):
 		if self.attendance_date:
@@ -97,6 +98,32 @@ class AttendanceCorrectionRequest(Document):
 
 		if checkin_employee != self.employee:
 			frappe.throw(_("Original Checkin must belong to the selected Employee"))
+
+	def validate_duplicate_pending_request(self):
+		if self.status != "Pending":
+			return
+		existing = frappe.db.exists(
+			"Attendance Correction Request",
+			self.get_duplicate_pending_filters(),
+		)
+		if existing:
+			frappe.throw(
+				_("A pending attendance correction request already exists for this date and log type.")
+			)
+
+	def get_duplicate_pending_filters(self) -> dict:
+		filters = {
+			"employee": self.employee,
+			"request_type": self.request_type,
+			"status": "Pending",
+			"name": ["!=", self.name],
+		}
+		if self.request_type == "Correct Checkin Time":
+			filters["original_checkin"] = self.original_checkin
+		else:
+			filters["attendance_date"] = self.attendance_date
+			filters["requested_log_type"] = self.requested_log_type
+		return filters
 
 	def approve(self, approver: str | None = None):
 		if self.status != "Pending":

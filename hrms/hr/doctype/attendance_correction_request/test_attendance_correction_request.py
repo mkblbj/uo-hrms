@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import frappe
 
@@ -190,6 +190,530 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 		)
 		doc.insert(ignore_permissions=True)
 		return doc
+
+	def test_submit_api_creates_pending_request_for_current_employee(self):
+		from hrms.api.attendance_correction import submit_attendance_correction_request
+
+		employee, _shift = self.make_request_employee("attendance-correction-api-submit@example.com")
+		frappe.set_user("attendance-correction-api-submit@example.com")
+
+		result = submit_attendance_correction_request(
+			{
+				"attendance_date": "2026-05-20",
+				"request_type": "Forgot Check-in",
+				"requested_log_type": "IN",
+				"requested_time": "2026-05-20 09:05:00",
+				"reason": "Forgot to scan",
+			}
+		)
+
+		frappe.set_user("Administrator")
+		doc = frappe.get_doc("Attendance Correction Request", result["name"])
+		self.assertEqual(doc.employee, employee)
+		self.assertEqual(doc.status, "Pending")
+
+	def test_current_employee_api_returns_active_employee_for_session_user(self):
+		from hrms.api.attendance_correction import get_current_employee
+
+		employee, _shift = self.make_request_employee("attendance-correction-current-employee@example.com")
+
+		frappe.set_user("attendance-correction-current-employee@example.com")
+		self.assertEqual(get_current_employee(), employee)
+		frappe.set_user("Administrator")
+
+	def test_submit_api_accepts_json_payload_and_refetches_resources(self):
+		from hrms.api.attendance_correction import submit_attendance_correction_request
+
+		employee, _shift = self.make_request_employee("attendance-correction-api-json@example.com")
+
+		frappe.set_user("attendance-correction-api-json@example.com")
+		with patch("hrms.refetch_resource") as refetch_resource:
+			result = submit_attendance_correction_request(
+				"""
+				{
+					"attendance_date": "2026-05-20",
+					"request_type": "Forgot Check-out",
+					"requested_log_type": "OUT",
+					"requested_time": "2026-05-20 18:05:00",
+					"reason": "Forgot to scan"
+				}
+				"""
+			)
+		frappe.set_user("Administrator")
+
+		doc = frappe.get_doc("Attendance Correction Request", result["name"])
+		self.assertEqual(doc.employee, employee)
+		refetch_resource.assert_has_calls(
+			[
+				call("hrms:my_attendance_correction_requests", "attendance-correction-api-json@example.com"),
+				call("hrms:pending_attendance_correction_approvals", "test@example.com"),
+			]
+		)
+
+	def test_pending_approvals_api_returns_only_current_approver_requests(self):
+		from hrms.api.attendance_correction import get_pending_attendance_correction_approvals
+
+		employee, _shift = self.make_request_employee("attendance-correction-api-approval@example.com")
+		request = self.make_pending_request(
+			employee,
+			"Forgot Check-out",
+			"OUT",
+			"2026-05-20 18:05:00",
+		)
+
+		frappe.set_user("test@example.com")
+		results = get_pending_attendance_correction_approvals()
+		frappe.set_user("Administrator")
+
+		self.assertIn(request.name, {item["name"] for item in results})
+
+	def test_pending_approvals_api_excludes_other_approvers(self):
+		from hrms.api.attendance_correction import get_pending_attendance_correction_approvals
+
+		employee, _shift = self.make_request_employee("attendance-correction-api-current-approver@example.com")
+		current_request = self.make_pending_request(
+			employee,
+			"Forgot Check-out",
+			"OUT",
+			"2026-05-20 18:05:00",
+		)
+		other_employee, _other_shift = self.make_request_employee(
+			"attendance-correction-api-other-approver@example.com"
+		)
+		frappe.db.set_value("Employee", other_employee, "attendance_correction_approver", "test1@example.com")
+		other_request = self.make_pending_request(
+			other_employee,
+			"Forgot Check-in",
+			"IN",
+			"2026-05-20 09:05:00",
+		)
+
+		frappe.set_user("test@example.com")
+		results = get_pending_attendance_correction_approvals()
+		frappe.set_user("Administrator")
+		result_names = {item["name"] for item in results}
+
+		self.assertIn(current_request.name, result_names)
+		self.assertNotIn(other_request.name, result_names)
+
+	def test_pending_approvals_api_uses_explicit_approver_query(self):
+		from hrms.api.attendance_correction import get_pending_attendance_correction_approvals
+
+		with (
+			patch.object(frappe.session, "user", "test@example.com"),
+			patch("frappe.get_all", return_value=[{"name": "HR-ACR-API"}]) as get_all,
+		):
+			self.assertEqual(get_pending_attendance_correction_approvals(), [{"name": "HR-ACR-API"}])
+
+		get_all.assert_called_once()
+		self.assertEqual(
+			get_all.call_args.kwargs["filters"],
+			{"approver": "test@example.com", "status": "Pending"},
+		)
+
+	def test_my_requests_api_returns_only_current_employee_requests(self):
+		from hrms.api.attendance_correction import get_my_attendance_correction_requests
+
+		employee, _shift = self.make_request_employee("attendance-correction-api-mine@example.com")
+		my_request = self.make_pending_request(
+			employee,
+			"Forgot Check-in",
+			"IN",
+			"2026-05-20 09:05:00",
+		)
+		other_employee, _other_shift = self.make_request_employee("attendance-correction-api-not-mine@example.com")
+		other_request = self.make_pending_request(
+			other_employee,
+			"Forgot Check-out",
+			"OUT",
+			"2026-05-20 18:05:00",
+		)
+
+		frappe.set_user("attendance-correction-api-mine@example.com")
+		results = get_my_attendance_correction_requests()
+		frappe.set_user("Administrator")
+		result_names = {item["name"] for item in results}
+
+		self.assertIn(my_request.name, result_names)
+		self.assertNotIn(other_request.name, result_names)
+
+	def test_approval_count_api_counts_only_current_approver(self):
+		from hrms.api.attendance_correction import get_attendance_correction_approval_count
+
+		with patch.object(frappe.session, "user", "Administrator"):
+			self.assertEqual(get_attendance_correction_approval_count(), 0)
+
+		with (
+			patch.object(frappe.session, "user", "test@example.com"),
+			patch("frappe.db.count", return_value=3) as count,
+		):
+			self.assertEqual(get_attendance_correction_approval_count(), 3)
+
+		count.assert_called_once_with(
+			"Attendance Correction Request",
+			{"approver": "test@example.com", "status": "Pending"},
+		)
+
+	def test_approve_and_reject_api_delegate_to_doctype_methods(self):
+		from hrms.api.attendance_correction import (
+			approve_attendance_correction_request,
+			reject_attendance_correction_request,
+		)
+
+		class FakeAttendanceCorrectionRequest:
+			name = "HR-ACR-API"
+			status = "Pending"
+			result_attendance = "HR-ATT-API"
+			approver = "test@example.com"
+
+			def approve(self, user):
+				self.approved_user = user
+				self.status = "Applied"
+
+			def reject(self, reason, user):
+				self.rejection_reason = reason
+				self.rejected_user = user
+				self.status = "Rejected"
+
+		doc = FakeAttendanceCorrectionRequest()
+		with (
+			patch.object(frappe.session, "user", "test@example.com"),
+			patch("frappe.get_doc", return_value=doc) as get_doc,
+			patch("hrms.refetch_resource"),
+		):
+			approve_result = approve_attendance_correction_request("HR-ACR-API")
+			reject_result = reject_attendance_correction_request("HR-ACR-API", "Missing details")
+
+		get_doc.assert_has_calls(
+			[
+				call("Attendance Correction Request", "HR-ACR-API"),
+				call("Attendance Correction Request", "HR-ACR-API"),
+			]
+		)
+		self.assertEqual(doc.approved_user, "test@example.com")
+		self.assertEqual(approve_result["attendance"], "HR-ATT-API")
+		self.assertEqual(doc.rejection_reason, "Missing details")
+		self.assertEqual(doc.rejected_user, "test@example.com")
+		self.assertEqual(reject_result["status"], "Rejected")
+
+	def test_approve_and_reject_api_refetch_resources(self):
+		from hrms.api.attendance_correction import (
+			approve_attendance_correction_request,
+			reject_attendance_correction_request,
+		)
+
+		class FakeAttendanceCorrectionRequest:
+			name = "HR-ACR-API"
+			status = "Pending"
+			result_attendance = "HR-ATT-API"
+			owner = "employee@example.com"
+			approver = "assigned-approver@example.com"
+
+			def approve(self, user):
+				self.status = "Applied"
+
+			def reject(self, reason, user):
+				self.status = "Rejected"
+
+		doc = FakeAttendanceCorrectionRequest()
+		with (
+			patch.object(frappe.session, "user", "hr-manager@example.com"),
+			patch("frappe.get_doc", return_value=doc),
+			patch("hrms.refetch_resource") as refetch_resource,
+		):
+			approve_attendance_correction_request("HR-ACR-API")
+			reject_attendance_correction_request("HR-ACR-API", "Missing details")
+
+		refetch_resource.assert_has_calls(
+			[
+				call("hrms:my_attendance_correction_requests", "employee@example.com"),
+				call("hrms:pending_attendance_correction_approvals", "assigned-approver@example.com"),
+				call("hrms:my_attendance_correction_requests", "employee@example.com"),
+				call("hrms:pending_attendance_correction_approvals", "assigned-approver@example.com"),
+			]
+		)
+
+	def test_context_api_rejects_other_employee_for_regular_employee(self):
+		from hrms.api.attendance_correction import get_attendance_correction_context
+
+		self.make_request_employee("attendance-correction-api-context-owner@example.com")
+		other_employee, _shift = self.make_request_employee("attendance-correction-api-context-other@example.com")
+
+		frappe.set_user("attendance-correction-api-context-owner@example.com")
+		self.assertRaises(
+			frappe.PermissionError,
+			get_attendance_correction_context,
+			"2026-05-20",
+			other_employee,
+		)
+		frappe.set_user("Administrator")
+
+	def test_context_api_allows_admin_hr_manager_and_approver_for_other_employee(self):
+		from hrms.api.attendance_correction import get_attendance_correction_context
+
+		employee, _shift = self.make_request_employee("attendance-correction-api-allowed-context@example.com")
+
+		with patch.object(frappe.session, "user", "Administrator"):
+			self.assertEqual(get_attendance_correction_context("2026-05-20", employee)["employee"], employee)
+
+		with (
+			patch.object(frappe.session, "user", "hr-manager@example.com"),
+			patch("frappe.get_roles", return_value=["HR Manager"]),
+		):
+			self.assertEqual(get_attendance_correction_context("2026-05-20", employee)["employee"], employee)
+
+		with (
+			patch.object(frappe.session, "user", "test@example.com"),
+			patch("frappe.get_roles", return_value=[]),
+		):
+			self.assertEqual(get_attendance_correction_context("2026-05-20", employee)["employee"], employee)
+
+	def test_context_access_uses_direct_employee_approver_before_department(self):
+		from hrms.api.attendance_correction import is_attendance_correction_approver
+
+		with (
+			patch("frappe.db.get_value", return_value=("direct@example.com", "Sales - TC")),
+			patch("frappe.db.exists", return_value="Department Approver") as exists,
+		):
+			self.assertTrue(is_attendance_correction_approver("HR-EMP-00001", "direct@example.com"))
+			self.assertFalse(is_attendance_correction_approver("HR-EMP-00001", "dept@example.com"))
+
+		exists.assert_not_called()
+
+	def test_context_access_allows_only_first_department_approver(self):
+		from hrms.api.attendance_correction import is_attendance_correction_approver
+
+		with (
+			patch("frappe.db.get_value", return_value=(None, "Sales - TC")),
+			patch("frappe.db.exists", return_value=None) as exists,
+		):
+			self.assertFalse(is_attendance_correction_approver("HR-EMP-00001", "second@example.com"))
+
+		exists.assert_called_once_with(
+			"Department Approver",
+			{
+				"parent": "Sales - TC",
+				"parentfield": "attendance_correction_approver",
+				"approver": "second@example.com",
+				"idx": 1,
+			},
+		)
+
+	def test_context_api_returns_shift_name_and_single_attendance(self):
+		from hrms.api.attendance_correction import get_attendance_correction_context
+
+		employee, shift = self.make_request_employee("attendance-correction-api-context@example.com")
+		frappe.get_doc(
+			{
+				"doctype": "Employee Checkin",
+				"employee": employee,
+				"log_type": "IN",
+				"time": "2026-05-20 09:00:00",
+			}
+		).insert(ignore_permissions=True)
+		frappe.get_doc(
+			{
+				"doctype": "Attendance",
+				"employee": employee,
+				"attendance_date": "2026-05-20",
+				"status": "Present",
+				"working_hours": 8,
+				"shift": shift.name,
+			}
+		).insert(ignore_permissions=True).submit()
+
+		context = get_attendance_correction_context("2026-05-20", employee)
+
+		self.assertEqual(context["employee"], employee)
+		self.assertEqual(context["attendance_date"], "2026-05-20")
+		self.assertEqual(context["shift"], shift.name)
+		self.assertEqual(len(context["checkins"]), 1)
+		self.assertEqual(context["checkins"][0]["log_type"], "IN")
+		self.assertIsInstance(context["attendance"], dict)
+		self.assertEqual(context["attendance"]["status"], "Present")
+
+	def test_context_api_ignores_expired_shift_assignments(self):
+		from erpnext.setup.doctype.employee.test_employee import make_employee
+
+		from hrms.api.attendance_correction import get_attendance_correction_context
+		from hrms.hr.doctype.shift_type.test_shift_type import make_shift_assignment, setup_shift_type
+
+		employee = make_employee("attendance-correction-api-expired-shift@example.com", company="_Test Company")
+		frappe.db.set_value("Employee", employee, "attendance_correction_approver", "test@example.com")
+		expired_shift = setup_shift_type(shift_type="Attendance Correction Expired Shift")
+		make_shift_assignment(expired_shift.name, employee, "2026-05-01", "2026-05-10")
+
+		context = get_attendance_correction_context("2026-05-20", employee)
+
+		self.assertNotEqual(context["shift"], expired_shift.name)
+
+	def test_context_api_includes_next_day_checkins_for_overnight_shift(self):
+		from erpnext.setup.doctype.employee.test_employee import make_employee
+
+		from hrms.api.attendance_correction import get_attendance_correction_context
+		from hrms.hr.doctype.shift_type.test_shift_type import make_shift_assignment, setup_shift_type
+
+		employee = make_employee("attendance-correction-api-overnight@example.com", company="_Test Company")
+		frappe.db.set_value("Employee", employee, "attendance_correction_approver", "test@example.com")
+		shift = setup_shift_type(
+			shift_type="Attendance Correction Overnight Context Shift",
+			start_time="22:00:00",
+			end_time="06:00:00",
+		)
+		make_shift_assignment(shift.name, employee, "2026-05-20")
+		checkin = frappe.get_doc(
+			{
+				"doctype": "Employee Checkin",
+				"employee": employee,
+				"log_type": "OUT",
+				"time": "2026-05-21 06:00:00",
+			}
+		).insert(ignore_permissions=True)
+
+		context = get_attendance_correction_context("2026-05-20", employee)
+
+		self.assertIn(checkin.name, {item["name"] for item in context["checkins"]})
+
+	def test_attendance_correction_list_limit_is_bounded(self):
+		from hrms.api.attendance_correction import _normalize_limit
+
+		self.assertEqual(_normalize_limit(None), 20)
+		self.assertEqual(_normalize_limit("5"), 5)
+
+		for limit in (0, -1, 101, "invalid"):
+			self.assertRaises(frappe.ValidationError, _normalize_limit, limit)
+
+	def test_duplicate_pending_request_is_not_allowed_for_same_employee_date_and_log_type(self):
+		employee, _shift = self.make_request_employee("attendance-correction-duplicate@example.com")
+		self.make_pending_request(
+			employee,
+			"Forgot Check-in",
+			"IN",
+			"2026-05-20 09:05:00",
+		)
+
+		duplicate = frappe.get_doc(
+			{
+				"doctype": "Attendance Correction Request",
+				"employee": employee,
+				"attendance_date": "2026-05-20",
+				"request_type": "Forgot Check-in",
+				"requested_log_type": "IN",
+				"requested_time": "2026-05-20 09:10:00",
+				"reason": "Forgot to punch again",
+				"status": "Pending",
+			}
+		)
+
+		self.assertRaises(frappe.ValidationError, duplicate.insert, ignore_permissions=True)
+
+	def test_correct_checkin_pending_requests_are_distinct_by_original_checkin(self):
+		employee, _shift = self.make_request_employee("attendance-correction-original-checkin@example.com")
+		first_checkin = frappe.get_doc(
+			{
+				"doctype": "Employee Checkin",
+				"employee": employee,
+				"log_type": "IN",
+				"time": "2026-05-20 09:00:00",
+			}
+		).insert(ignore_permissions=True)
+		second_checkin = frappe.get_doc(
+			{
+				"doctype": "Employee Checkin",
+				"employee": employee,
+				"log_type": "IN",
+				"time": "2026-05-20 09:30:00",
+			}
+		).insert(ignore_permissions=True)
+		self.make_pending_request(
+			employee,
+			"Correct Checkin Time",
+			"IN",
+			"2026-05-20 09:05:00",
+			original_checkin=first_checkin.name,
+		)
+
+		second_request = self.make_pending_request(
+			employee,
+			"Correct Checkin Time",
+			"IN",
+			"2026-05-20 09:35:00",
+			original_checkin=second_checkin.name,
+		)
+
+		self.assertEqual(second_request.original_checkin, second_checkin.name)
+
+	def test_correct_checkin_pending_request_is_unique_by_original_checkin(self):
+		employee, _shift = self.make_request_employee("attendance-correction-same-original-checkin@example.com")
+		checkin = frappe.get_doc(
+			{
+				"doctype": "Employee Checkin",
+				"employee": employee,
+				"log_type": "IN",
+				"time": "2026-05-20 09:00:00",
+			}
+		).insert(ignore_permissions=True)
+		self.make_pending_request(
+			employee,
+			"Correct Checkin Time",
+			"IN",
+			"2026-05-20 09:05:00",
+			original_checkin=checkin.name,
+		)
+
+		duplicate = frappe.get_doc(
+			{
+				"doctype": "Attendance Correction Request",
+				"employee": employee,
+				"attendance_date": "2026-05-20",
+				"request_type": "Correct Checkin Time",
+				"requested_log_type": "OUT",
+				"requested_time": "2026-05-20 18:05:00",
+				"original_checkin": checkin.name,
+				"reason": "Correct same checkin again",
+				"status": "Pending",
+			}
+		)
+
+		self.assertRaises(frappe.ValidationError, duplicate.insert, ignore_permissions=True)
+
+	def test_correct_checkin_duplicate_is_unique_by_original_checkin_across_dates(self):
+		employee, _shift = self.make_request_employee("attendance-correction-same-original-cross-date@example.com")
+		checkin = frappe.get_doc(
+			{
+				"doctype": "Employee Checkin",
+				"employee": employee,
+				"log_type": "OUT",
+				"time": "2026-05-20 18:00:00",
+			}
+		).insert(ignore_permissions=True)
+		self.make_pending_request(
+			employee,
+			"Correct Checkin Time",
+			"OUT",
+			"2026-05-20 18:05:00",
+			original_checkin=checkin.name,
+		)
+		duplicate = frappe.get_doc(
+			{
+				"doctype": "Attendance Correction Request",
+				"employee": employee,
+				"attendance_date": "2026-05-21",
+				"request_type": "Correct Checkin Time",
+				"requested_log_type": "OUT",
+				"requested_time": "2026-05-21 18:05:00",
+				"original_checkin": checkin.name,
+				"reason": "Correct same checkin on another date",
+				"status": "Pending",
+			}
+		)
+
+		self.assertRaises(frappe.ValidationError, duplicate.insert, ignore_permissions=True)
+
+	def test_submit_api_rejects_invalid_json_payload(self):
+		from hrms.api.attendance_correction import submit_attendance_correction_request
+
+		self.assertRaises(frappe.ValidationError, submit_attendance_correction_request, "{invalid")
 
 	def test_approve_forgot_checkin_creates_employee_checkin(self):
 		employee, _shift = self.make_request_employee("attendance-correction-in@example.com")
