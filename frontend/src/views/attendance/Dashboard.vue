@@ -2,6 +2,7 @@
 	<BaseLayout :pageTitle="pageTitle">
 		<template #body>
 			<div class="attendance-page">
+				<AttendanceCorrectionEntryStrip />
 				<AttendanceCalendar class="flex-1 min-h-0" />
 			</div>
 		</template>
@@ -10,6 +11,7 @@
 
 <script setup>
 import { computed, inject } from "vue"
+import AttendanceCorrectionEntryStrip from "@/components/AttendanceCorrectionEntryStrip.vue"
 import BaseLayout from "@/components/BaseLayout.vue"
 import AttendanceCalendar from "@/components/AttendanceCalendar.vue"
 
@@ -28,6 +30,7 @@ const pageTitle = computed(() => {
 	display: flex;
 	flex: 1;
 	flex-direction: column;
+	gap: 10px;
 	min-height: 0;
 	padding: 10px 16px 16px;
 	background: #f1eee7;

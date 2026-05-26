@@ -159,6 +159,10 @@
 							{{ dialogCell.shift_start }}<span class="sep">—</span>{{ dialogCell.shift_end }}
 						</div>
 					</div>
+
+					<button class="dlg-correction-btn" @click="openCorrectionRequest(dialogCell)">
+						{{ t("detail.correction") }}
+					</button>
 				</div>
 			</div>
 		</teleport>
@@ -169,6 +173,7 @@
 import { computed, h, inject, ref, watch } from "vue"
 import { onIonViewWillEnter } from "@ionic/vue"
 import { createResource } from "frappe-ui"
+import { useRouter } from "vue-router"
 
 import {
 	getCalendarGridStyle,
@@ -178,6 +183,7 @@ import {
 
 const dayjs = inject("$dayjs")
 const employee = inject("$employee")
+const router = useRouter()
 
 const now = new Date()
 const currentYear = ref(now.getFullYear())
@@ -256,6 +262,7 @@ const messages = {
 			shift: "班次",
 			holiday: "节假日",
 			ongoing: "工作中",
+			correction: "申请补卡",
 		},
 		tip: "点击日期查看详情",
 	},
@@ -297,6 +304,7 @@ const messages = {
 			shift: "シフト",
 			holiday: "祝日",
 			ongoing: "勤務中",
+			correction: "打刻修正申請",
 		},
 		tip: "日付をタップで詳細",
 	},
@@ -339,6 +347,7 @@ const messages = {
 			shift: "Shift",
 			holiday: "Holiday",
 			ongoing: "Working",
+			correction: "Correction request",
 		},
 		tip: "Tap a day for details",
 	},
@@ -777,6 +786,15 @@ function openDay(cell) {
 	if (!cell?.day) return
 	selectedDay.value = cell.day
 	dialogDay.value = cell.day
+}
+
+function openCorrectionRequest(cell) {
+	if (!cell?.dateStr) return
+	closeDialog()
+	router.push({
+		name: "AttendanceCorrectionFormView",
+		query: { date: cell.dateStr },
+	})
 }
 
 function closeDialog() {
@@ -1249,5 +1267,16 @@ onIonViewWillEnter(() => {
 	color: #adaaa3;
 	margin: 0 4px;
 	font-weight: 400;
+}
+.dlg-correction-btn {
+	width: 100%;
+	min-height: 42px;
+	margin-top: 10px;
+	border: 1px solid #d8d5cd;
+	border-radius: 8px;
+	background: #ffffff;
+	color: #1f2937;
+	font-size: 14px;
+	font-weight: 700;
 }
 </style>

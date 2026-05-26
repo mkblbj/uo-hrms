@@ -40,6 +40,7 @@
 <script setup>
 import { computed, inject, ref, watch } from "vue"
 import { Button, FeatherIcon, LoadingIndicator } from "frappe-ui"
+import { useRoute } from "vue-router"
 
 import AttendanceCorrectionItem from "@/components/AttendanceCorrectionItem.vue"
 import BaseLayout from "@/components/BaseLayout.vue"
@@ -53,9 +54,11 @@ import {
 import { buildAttendanceCorrectionTabs } from "@/utils/attendanceCorrection"
 
 const __ = inject("$translate")
-const activeTab = ref("mine")
+const route = useRoute()
+const activeTab = ref(route.query.tab === "approvals" ? "approvals" : "mine")
 
 const hasApprovals = computed(() => Boolean(attendanceCorrectionApprovalCount.data))
+const approvalCountLoaded = computed(() => !attendanceCorrectionApprovalCount.loading)
 const tabs = computed(() =>
 	buildAttendanceCorrectionTabs(hasApprovals.value, attendanceCorrectionApprovalCount.data || 0)
 )
@@ -70,8 +73,16 @@ const loading = computed(() =>
 		: myAttendanceCorrectionRequests.loading
 )
 
-watch(hasApprovals, (value) => {
-	if (!value && activeTab.value === "approvals") activeTab.value = "mine"
+watch(
+	() => route.query.tab,
+	(tab) => {
+		if (tab === "approvals") activeTab.value = "approvals"
+		else if (tab === "mine") activeTab.value = "mine"
+	}
+)
+
+watch([approvalCountLoaded, hasApprovals], ([loaded, hasApprovalItems]) => {
+	if (loaded && !hasApprovalItems && activeTab.value === "approvals") activeTab.value = "mine"
 })
 </script>
 
