@@ -21,6 +21,15 @@ ATTENDANCE_CORRECTION_FIELDS = [
 	"approver",
 	"creation",
 ]
+ATTENDANCE_CORRECTION_DETAIL_FIELDS = [
+	*ATTENDANCE_CORRECTION_FIELDS,
+	"original_checkin",
+	"reason",
+	"rejection_reason",
+	"created_checkin",
+	"updated_checkin",
+	"result_attendance",
+]
 
 
 @frappe.whitelist()
@@ -40,6 +49,11 @@ def get_attendance_correction_context(date: str, employee: str | None = None) ->
 	employee = employee or get_current_employee()
 	validate_employee_context_access(employee)
 	attendance_date = getdate(date)
+	return build_attendance_correction_context(employee, attendance_date)
+
+
+def build_attendance_correction_context(employee: str, attendance_date) -> dict:
+	attendance_date = getdate(attendance_date)
 	shift = get_employee_shift_for_date(employee, attendance_date)
 	start_datetime, end_datetime = get_checkin_window(attendance_date, shift)
 
@@ -194,6 +208,36 @@ def get_pending_attendance_correction_approvals(limit: int | None = 20) -> list[
 		order_by="creation desc",
 		limit_page_length=_normalize_limit(limit),
 	)
+
+
+@frappe.whitelist()
+def get_attendance_correction_request(name: str) -> dict:
+	doc = frappe.get_doc("Attendance Correction Request", name)
+	validate_attendance_correction_request_access(doc)
+	detail = {field: doc.get(field) for field in ATTENDANCE_CORRECTION_DETAIL_FIELDS}
+	detail["context"] = build_attendance_correction_context(doc.employee, doc.attendance_date)
+	return detail
+
+
+def validate_attendance_correction_request_access(doc):
+	if frappe.session.user == "Administrator":
+		return
+
+	if "HR Manager" in frappe.get_roles() or "System Manager" in frappe.get_roles():
+		return
+
+	current_employee = frappe.db.get_value(
+		"Employee",
+		{"user_id": frappe.session.user, "status": "Active"},
+		"name",
+	)
+	if doc.employee == current_employee:
+		return
+
+	if doc.approver == frappe.session.user:
+		return
+
+	frappe.throw(_("You are not allowed to view this attendance correction request."), frappe.PermissionError)
 
 
 @frappe.whitelist()

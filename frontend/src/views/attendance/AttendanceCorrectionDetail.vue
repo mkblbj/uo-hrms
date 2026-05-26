@@ -1,8 +1,8 @@
 <template>
 	<BaseLayout :pageTitle="__('Correction Request')" backRoute="/attendance-corrections">
 		<template #body>
-			<div v-if="doc.doc" class="correction-detail">
-				<AttendanceCorrectionContextPanel :context="context.data" />
+			<div v-if="doc.data" class="correction-detail">
+				<AttendanceCorrectionContextPanel :context="doc.data.context" />
 				<div class="detail-surface">
 					<div v-for="row in rows" :key="row.label" class="detail-row">
 						<span>{{ __(row.label) }}</span>
@@ -36,8 +36,8 @@
 </template>
 
 <script setup>
-import { computed, inject, ref, watch } from "vue"
-import { Button, ErrorMessage, LoadingIndicator, createDocumentResource, createResource, toast } from "frappe-ui"
+import { computed, inject, ref } from "vue"
+import { Button, ErrorMessage, LoadingIndicator, createResource, toast } from "frappe-ui"
 
 import AttendanceCorrectionContextPanel from "@/components/AttendanceCorrectionContextPanel.vue"
 import BaseLayout from "@/components/BaseLayout.vue"
@@ -55,14 +55,10 @@ const props = defineProps({
 const rejectionReason = ref("")
 const approvalError = ref("")
 
-const doc = createDocumentResource({
-	doctype: "Attendance Correction Request",
-	name: props.id,
+const doc = createResource({
+	url: "hrms.api.attendance_correction.get_attendance_correction_request",
+	params: { name: props.id },
 	auto: true,
-})
-
-const context = createResource({
-	url: "hrms.api.attendance_correction.get_attendance_correction_context",
 })
 
 const approveResource = createResource({
@@ -74,10 +70,10 @@ const rejectResource = createResource({
 })
 
 const canApprove = computed(() => {
-	if (doc.doc?.status !== "Pending") return false
+	if (doc.data?.status !== "Pending") return false
 	const roles = user?.data?.roles || []
 	return (
-		doc.doc?.approver === user?.data?.name ||
+		doc.data?.approver === user?.data?.name ||
 		user?.data?.name === "Administrator" ||
 		roles.includes("HR Manager") ||
 		roles.includes("System Manager")
@@ -85,24 +81,15 @@ const canApprove = computed(() => {
 })
 
 const rows = computed(() => [
-	{ label: "Employee", value: doc.doc?.employee_name },
-	{ label: "Attendance Date", value: doc.doc?.attendance_date },
-	{ label: "Request Type", value: doc.doc?.request_type },
-	{ label: "Log Type", value: doc.doc?.requested_log_type },
-	{ label: "Requested Time", value: formatCorrectionDateTime(doc.doc?.requested_time) },
-	{ label: "Status", value: doc.doc?.status },
-	{ label: "Reason", value: doc.doc?.reason },
-	{ label: "Result Attendance", value: doc.doc?.result_attendance },
+	{ label: "Employee", value: doc.data?.employee_name },
+	{ label: "Attendance Date", value: doc.data?.attendance_date },
+	{ label: "Request Type", value: doc.data?.request_type },
+	{ label: "Log Type", value: doc.data?.requested_log_type },
+	{ label: "Requested Time", value: formatCorrectionDateTime(doc.data?.requested_time) },
+	{ label: "Status", value: doc.data?.status },
+	{ label: "Reason", value: doc.data?.reason },
+	{ label: "Result Attendance", value: doc.data?.result_attendance },
 ])
-
-watch(
-	() => doc.doc,
-	(value) => {
-		if (!value?.attendance_date || !value?.employee) return
-		context.fetch({ date: value.attendance_date, employee: value.employee })
-	},
-	{ immediate: true }
-)
 
 async function approve() {
 	approvalError.value = ""

@@ -355,6 +355,64 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 			{"approver": "test@example.com", "status": "Pending"},
 		)
 
+	def test_detail_api_returns_request_for_assigned_approver(self):
+		from hrms.api.attendance_correction import get_attendance_correction_request
+
+		doc = frappe._dict(
+			name="HR-ACR-DETAIL",
+			employee="HR-EMP-00001",
+			employee_name="Test Employee",
+			attendance_date="2026-05-20",
+			request_type="Forgot Check-out",
+			requested_log_type="OUT",
+			requested_time="2026-05-20 18:05:00",
+			original_checkin=None,
+			reason="Forgot to scan",
+			status="Pending",
+			approver="approver@example.com",
+			rejection_reason=None,
+			created_checkin=None,
+			updated_checkin=None,
+			result_attendance=None,
+			apply_error=None,
+			creation="2026-05-20 18:10:00",
+			owner="employee@example.com",
+		)
+
+		with (
+			patch.object(frappe.session, "user", "approver@example.com"),
+			patch("frappe.get_doc", return_value=doc),
+			patch("frappe.get_roles", return_value=[]),
+			patch("frappe.db.get_value", return_value=None),
+			patch(
+				"hrms.api.attendance_correction.build_attendance_correction_context",
+				return_value={"employee": "HR-EMP-00001", "attendance_date": "2026-05-20"},
+			) as build_context,
+		):
+			result = get_attendance_correction_request("HR-ACR-DETAIL")
+
+		self.assertEqual(result["name"], "HR-ACR-DETAIL")
+		self.assertEqual(result["reason"], "Forgot to scan")
+		self.assertEqual(result["context"]["employee"], "HR-EMP-00001")
+		build_context.assert_called_once_with("HR-EMP-00001", "2026-05-20")
+
+	def test_detail_api_rejects_unrelated_employee(self):
+		from hrms.api.attendance_correction import get_attendance_correction_request
+
+		doc = frappe._dict(
+			name="HR-ACR-DETAIL",
+			employee="HR-EMP-00001",
+			approver="approver@example.com",
+		)
+
+		with (
+			patch.object(frappe.session, "user", "other@example.com"),
+			patch("frappe.get_doc", return_value=doc),
+			patch("frappe.get_roles", return_value=[]),
+			patch("frappe.db.get_value", return_value="HR-EMP-OTHER"),
+		):
+			self.assertRaises(frappe.PermissionError, get_attendance_correction_request, "HR-ACR-DETAIL")
+
 	def test_approve_and_reject_api_delegate_to_doctype_methods(self):
 		from hrms.api.attendance_correction import (
 			approve_attendance_correction_request,

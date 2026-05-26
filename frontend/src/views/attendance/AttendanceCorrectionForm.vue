@@ -75,10 +75,12 @@ import FormField from "@/components/FormField.vue"
 import { buildCorrectionPayload } from "@/utils/attendanceCorrection"
 
 const __ = inject("$translate")
+const dayjs = inject("$dayjs")
 const route = useRoute()
 const router = useRouter()
-const today = new Date().toISOString().slice(0, 10)
-const initialDate = route.query.date || today
+const today = dayjs().format("YYYY-MM-DD")
+const routeDate = Array.isArray(route.query.date) ? route.query.date[0] : route.query.date
+const initialDate = routeDate || today
 const errorMessage = ref("")
 const form = reactive({
 	attendance_date: initialDate,
