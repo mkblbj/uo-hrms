@@ -247,6 +247,7 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 			[
 				call("hrms:my_attendance_correction_requests", "attendance-correction-api-json@example.com"),
 				call("hrms:pending_attendance_correction_approvals", "test@example.com"),
+				call("hrms:attendance_correction_approval_count", "test@example.com"),
 			]
 		)
 
@@ -428,8 +429,10 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 			[
 				call("hrms:my_attendance_correction_requests", "employee@example.com"),
 				call("hrms:pending_attendance_correction_approvals", "assigned-approver@example.com"),
+				call("hrms:attendance_correction_approval_count", "assigned-approver@example.com"),
 				call("hrms:my_attendance_correction_requests", "employee@example.com"),
 				call("hrms:pending_attendance_correction_approvals", "assigned-approver@example.com"),
+				call("hrms:attendance_correction_approval_count", "assigned-approver@example.com"),
 			]
 		)
 

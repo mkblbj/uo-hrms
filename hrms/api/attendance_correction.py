@@ -169,6 +169,7 @@ def _refetch_attendance_correction_resources(doc, approver: str | None = None):
 		hrms.refetch_resource("hrms:my_attendance_correction_requests", doc.owner)
 	if approver:
 		hrms.refetch_resource("hrms:pending_attendance_correction_approvals", approver)
+		hrms.refetch_resource("hrms:attendance_correction_approval_count", approver)
 
 
 @frappe.whitelist()
