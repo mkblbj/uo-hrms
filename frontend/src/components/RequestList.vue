@@ -44,6 +44,7 @@
 <script setup>
 import { ref, inject } from "vue"
 import { IonModal } from "@ionic/vue"
+import { useRouter } from "vue-router"
 import RequestActionSheet from "@/components/RequestActionSheet.vue"
 
 import {
@@ -56,6 +57,7 @@ import {
 } from "@/data/config/requestSummaryFields"
 
 const __ = inject("$translate")
+const router = useRouter()
 const props = defineProps({
 	component: {
 		type: Object,
@@ -94,6 +96,13 @@ const isRequestModalOpen = ref(false)
 const selectedRequest = ref(null)
 
 const openRequestModal = async (request) => {
+	if (request.doctype === "Attendance Correction Request") {
+		await router.push({
+			name: "AttendanceCorrectionDetailView",
+			params: { id: request.name },
+		})
+		return
+	}
 	selectedRequest.value = request
 	isRequestModalOpen.value = true
 }
