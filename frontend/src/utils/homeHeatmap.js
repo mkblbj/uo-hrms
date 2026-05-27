@@ -1,3 +1,5 @@
+import { ATTENDANCE_ANOMALY_COLOR, hasAttendanceAnomaly } from "./attendanceAnomaly.js"
+
 export const DEFAULT_STANDARD_DAY_HOURS = 8
 
 const NO_ATTENDANCE_COLOR = "#e2e8f0"
@@ -59,12 +61,22 @@ export function getAttendanceHeatmapCellMeta({
 	const status = event?.attendance || ""
 	const hours = Number(event?.working_hours ?? getFallbackHours(status, standardDayHours))
 
+	if (hasAttendanceAnomaly(event?.anomaly) && !isFuture && !isToday) {
+		return {
+			level: 0,
+			color: ATTENDANCE_ANOMALY_COLOR,
+			isFuture: false,
+			isToday,
+			hasIssue: true,
+		}
+	}
+
 	if (isFuture) {
-		return { level: 0, color: NO_ATTENDANCE_COLOR, isFuture: true, isToday }
+		return { level: 0, color: NO_ATTENDANCE_COLOR, isFuture: true, isToday, hasIssue: false }
 	}
 
 	if (!event || !hasAttendance(status, hours)) {
-		return { level: 0, color: NO_ATTENDANCE_COLOR, isFuture: false, isToday }
+		return { level: 0, color: NO_ATTENDANCE_COLOR, isFuture: false, isToday, hasIssue: false }
 	}
 
 	const level = getLevelForRatio(hours / standardDayHours)
@@ -73,6 +85,7 @@ export function getAttendanceHeatmapCellMeta({
 		color: level > 0 ? LEVEL_COLORS[level - 1] : NO_ATTENDANCE_COLOR,
 		isFuture: false,
 		isToday,
+		hasIssue: false,
 	}
 }
 

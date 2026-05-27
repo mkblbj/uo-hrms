@@ -71,6 +71,22 @@ test("maps non-attendance days to a single quiet gray color", () => {
 	)
 })
 
+test("maps attendance anomalies to red before normal heat levels", () => {
+	const meta = getAttendanceHeatmapCellMeta({
+		event: {
+			attendance: "Present",
+			working_hours: 8,
+			anomaly: { has_issue: true, codes: ["missing_checkout"] },
+		},
+		date: "2026-05-11",
+		today: "2026-05-14",
+	})
+
+	assert.equal(meta.color, "#dc2626")
+	assert.equal(meta.hasIssue, true)
+	assert.equal(meta.level, 0)
+})
+
 test("builds a 13 week by 7 day grid ending at the current week", () => {
 	const cells = buildRecentWeekdayHeatmap({
 		events: {
