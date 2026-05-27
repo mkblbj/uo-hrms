@@ -115,6 +115,66 @@ def get_attendance_day_weight(status: str | None) -> float:
 	return 0
 
 
+PWA_ATTENDANCE_ANOMALY_LABELS = {
+	"missing_checkout": "Missing check-out",
+	"missing_checkin": "Missing check-in",
+	"invalid_sequence": "Invalid check-in sequence",
+}
+
+
+def get_empty_pwa_attendance_anomaly() -> dict:
+	return {"has_issue": False, "severity": None, "codes": [], "label": ""}
+
+
+def get_pwa_attendance_anomaly_issue(code: str) -> dict:
+	return {
+		"has_issue": True,
+		"severity": "danger",
+		"codes": [code],
+		"label": PWA_ATTENDANCE_ANOMALY_LABELS.get(code, code),
+	}
+
+
+def get_pwa_checkin_log_type(log) -> str:
+	return (log.get("log_type") or "").strip().upper()
+
+
+def build_pwa_attendance_anomaly(attendance_date, checkins: list[dict], today=None) -> dict:
+	attendance_date = getdate(attendance_date)
+	today = getdate(today) if today else getdate()
+
+	if attendance_date >= today:
+		return get_empty_pwa_attendance_anomaly()
+
+	sorted_logs = sorted(checkins or [], key=lambda log: log.get("time"))
+	if not sorted_logs:
+		return get_empty_pwa_attendance_anomaly()
+
+	log_types = [get_pwa_checkin_log_type(log) for log in sorted_logs]
+	typed_log_types = [log_type for log_type in log_types if log_type in ("IN", "OUT")]
+
+	if not typed_log_types:
+		if len(sorted_logs) % 2 == 1:
+			return get_pwa_attendance_anomaly_issue("missing_checkout")
+		return get_empty_pwa_attendance_anomaly()
+
+	if len(typed_log_types) != len(sorted_logs):
+		return get_pwa_attendance_anomaly_issue("invalid_sequence")
+
+	expected = "IN"
+	for index, log_type in enumerate(typed_log_types):
+		if log_type != expected:
+			if index == 0 and log_type == "OUT" and len(typed_log_types) == 1:
+				return get_pwa_attendance_anomaly_issue("missing_checkin")
+			return get_pwa_attendance_anomaly_issue("invalid_sequence")
+		expected = "OUT" if expected == "IN" else "IN"
+
+	if expected == "OUT":
+		return get_pwa_attendance_anomaly_issue("missing_checkout")
+
+	return get_empty_pwa_attendance_anomaly()
+
+
 def calculate_pwa_attendance_totals(attendance_rows: list[dict]) -> dict:
 	total_hours = 0
 	total_present_days = 0
