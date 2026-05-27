@@ -1,18 +1,16 @@
 <template>
-	<div class="correction-entry">
-		<router-link :to="{ name: 'AttendanceCorrectionListView' }" class="entry-link">
-			<span>{{ copy("tabs.mine") }}</span>
-			<FeatherIcon name="chevron-right" class="h-4 w-4" />
-		</router-link>
-		<router-link
-			v-if="approvalCount.data"
-			:to="{ name: 'AttendanceCorrectionListView', query: { tab: 'approvals' } }"
-			class="approval-link"
-		>
-			<span>{{ copy("tabs.approvals") }}</span>
-			<strong>{{ approvalCount.data }}</strong>
-		</router-link>
-	</div>
+	<router-link :to="correctionRoute" class="correction-entry">
+		<div class="entry-left">
+			<div class="entry-icon">
+				<FeatherIcon name="edit-3" class="h-4 w-4" />
+			</div>
+			<span class="entry-label">{{ copy("tabs.mine") }}</span>
+		</div>
+		<div class="entry-right">
+			<span v-if="approvalCount.data" class="approval-badge">{{ approvalCount.data }}</span>
+			<FeatherIcon name="chevron-right" class="h-4 w-4 text-gray-400" />
+		</div>
+	</router-link>
 </template>
 
 <script setup>
@@ -24,44 +22,68 @@ import { getAttendanceCorrectionCopy, getCorrectionLang } from "@/utils/attendan
 
 const lang = computed(() => getCorrectionLang(globalThis.window?.frappe?.boot?.lang))
 const copy = (key) => getAttendanceCorrectionCopy(key, lang.value)
+
+const correctionRoute = computed(() =>
+	approvalCount.data
+		? { name: "AttendanceCorrectionListView", query: { tab: "approvals" } }
+		: { name: "AttendanceCorrectionListView" }
+)
 </script>
 
 <style scoped>
 .correction-entry {
-	display: grid;
-	grid-template-columns: minmax(0, 1fr) auto;
-	gap: 8px;
-	align-items: center;
-}
-
-.entry-link,
-.approval-link {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	min-height: 40px;
+	min-height: 44px;
 	border: 1px solid #e3dfd4;
-	border-radius: 8px;
+	border-radius: 10px;
 	background: #fff;
-	padding: 0 12px;
+	padding: 0 14px;
 	color: #1f2937;
 	font-size: 14px;
 	font-weight: 600;
+	transition: background 0.15s;
 }
 
-.approval-link {
+.correction-entry:active {
+	background: #f8f6ef;
+}
+
+.entry-left {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+}
+
+.entry-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 28px;
+	height: 28px;
+	border-radius: 7px;
+	background: #eef2ff;
+	color: #4f46e5;
+}
+
+.entry-right {
+	display: flex;
+	align-items: center;
 	gap: 8px;
-	color: #b45309;
 }
 
-.approval-link strong {
+.approval-badge {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	min-width: 22px;
-	height: 22px;
+	min-width: 20px;
+	height: 20px;
 	border-radius: 999px;
 	background: #fef3c7;
+	color: #b45309;
 	font-size: 12px;
+	font-weight: 700;
+	padding: 0 6px;
 }
 </style>

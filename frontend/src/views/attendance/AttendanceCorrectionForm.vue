@@ -19,6 +19,7 @@
 						:label="copy('field.requestType')"
 						:documentList="requestTypeOptions"
 						:options="'Forgot Check-in\nForgot Check-out\nCorrect Checkin Time\nOther'"
+						:hideSearch="true"
 						:reqd="true"
 					/>
 					<FormField
@@ -28,6 +29,7 @@
 						:label="copy('field.logType')"
 						:documentList="logTypeOptions"
 						:options="'IN\nOUT'"
+						:hideSearch="true"
 						:reqd="true"
 					/>
 					<FormField
@@ -49,6 +51,7 @@
 						:label="copy('field.originalCheckin')"
 						:documentList="originalCheckinOptions"
 						:placeholder="copy('field.originalCheckinPlaceholder')"
+						:hideSearch="true"
 						:reqd="true"
 					/>
 					<FormField

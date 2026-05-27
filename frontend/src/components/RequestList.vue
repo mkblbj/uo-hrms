@@ -100,6 +100,7 @@ const openRequestModal = async (request) => {
 		await router.push({
 			name: "AttendanceCorrectionDetailView",
 			params: { id: request.name },
+			query: props.teamRequests ? { mode: "approval" } : {},
 		})
 		return
 	}

@@ -19,6 +19,7 @@
 			:placeholder="__('Select {0}', [props.label])"
 			:options="selectionList"
 			:modelValue="modelValue"
+			:hideSearch="props.hideSearch"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
 			@update:modelValue="(v) => emit('update:modelValue', v?.value)"
@@ -193,6 +194,10 @@ const props = defineProps({
 	addSectionPadding: {
 		type: Boolean,
 		default: true,
+	},
+	hideSearch: {
+		type: Boolean,
+		default: false,
 	},
 })
 

@@ -112,6 +112,7 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 
 		from hrms.hr.doctype.attendance_correction_request.attendance_correction_request import (
 			get_attendance_correction_approver,
+			get_attendance_correction_approvers,
 		)
 
 		employee = make_employee(
@@ -151,9 +152,17 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 			"attendance_correction_approver",
 			{"approver": "test@example.com"},
 		)
+		department.append(
+			"attendance_correction_approver",
+			{"approver": "second@example.com"},
+		)
 		department.save()
 
 		self.assertEqual(get_attendance_correction_approver(employee), "test@example.com")
+		self.assertEqual(
+			get_attendance_correction_approvers(employee),
+			["test@example.com", "second@example.com"],
+		)
 
 	def make_request_employee(self, email="attendance-correction-worker@example.com"):
 		from erpnext.setup.doctype.employee.test_employee import make_employee
@@ -297,20 +306,22 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 		self.assertIn(current_request.name, result_names)
 		self.assertNotIn(other_request.name, result_names)
 
-	def test_pending_approvals_api_uses_explicit_approver_query(self):
+	def test_pending_approvals_api_uses_approval_scope_query(self):
 		from hrms.api.attendance_correction import get_pending_attendance_correction_approvals
 
 		with (
 			patch.object(frappe.session, "user", "test@example.com"),
-			patch("frappe.get_all", return_value=[{"name": "HR-ACR-API"}]) as get_all,
+			patch("frappe.get_roles", return_value=[]),
+			patch("frappe.db.get_value", return_value="HR-EMP-SELF"),
+			patch("frappe.db.sql", return_value=[frappe._dict(name="HR-ACR-API")]) as sql,
 		):
 			self.assertEqual(get_pending_attendance_correction_approvals(), [{"name": "HR-ACR-API"}])
 
-		get_all.assert_called_once()
-		self.assertEqual(
-			get_all.call_args.kwargs["filters"],
-			{"approver": "test@example.com", "status": "Pending"},
-		)
+		query, params = sql.call_args.args[:2]
+		self.assertIn("Department Approver", query)
+		self.assertIn("acr.employee != %(current_employee)s", query)
+		self.assertEqual(params["user"], "test@example.com")
+		self.assertEqual(params["current_employee"], "HR-EMP-SELF")
 
 	def test_my_requests_api_returns_only_current_employee_requests(self):
 		from hrms.api.attendance_correction import get_my_attendance_correction_requests
@@ -338,22 +349,24 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 		self.assertIn(my_request.name, result_names)
 		self.assertNotIn(other_request.name, result_names)
 
-	def test_approval_count_api_counts_only_current_approver(self):
+	def test_approval_count_api_counts_current_approval_scope(self):
 		from hrms.api.attendance_correction import get_attendance_correction_approval_count
 
-		with patch.object(frappe.session, "user", "Administrator"):
+		with patch.object(frappe.session, "user", "Guest"):
 			self.assertEqual(get_attendance_correction_approval_count(), 0)
 
 		with (
-			patch.object(frappe.session, "user", "test@example.com"),
-			patch("frappe.db.count", return_value=3) as count,
+			patch.object(frappe.session, "user", "manager@example.com"),
+			patch("frappe.get_roles", return_value=["Attendance Correction Manager"]),
+			patch("frappe.db.get_value", return_value="HR-EMP-SELF"),
+			patch("frappe.db.sql", return_value=[frappe._dict(pending_count=3)]) as sql,
 		):
 			self.assertEqual(get_attendance_correction_approval_count(), 3)
 
-		count.assert_called_once_with(
-			"Attendance Correction Request",
-			{"approver": "test@example.com", "status": "Pending"},
-		)
+		query, params = sql.call_args.args[:2]
+		self.assertIn("count(distinct acr.name)", query)
+		self.assertNotIn("acr.approver = %(user)s", query)
+		self.assertEqual(params["user"], "manager@example.com")
 
 	def test_detail_api_returns_request_for_assigned_approver(self):
 		from hrms.api.attendance_correction import get_attendance_correction_request
@@ -393,6 +406,8 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 
 		self.assertEqual(result["name"], "HR-ACR-DETAIL")
 		self.assertEqual(result["reason"], "Forgot to scan")
+		self.assertTrue(result["can_approve"])
+		self.assertFalse(result["is_own_request"])
 		self.assertEqual(result["context"]["employee"], "HR-EMP-00001")
 		build_context.assert_called_once_with("HR-EMP-00001", "2026-05-20")
 
@@ -405,11 +420,16 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 			approver="approver@example.com",
 		)
 
+		def get_value(doctype, filters, fieldname=None, *args, **kwargs):
+			if doctype == "Employee" and isinstance(fieldname, list):
+				return (None, None)
+			return "HR-EMP-OTHER"
+
 		with (
 			patch.object(frappe.session, "user", "other@example.com"),
 			patch("frappe.get_doc", return_value=doc),
 			patch("frappe.get_roles", return_value=[]),
-			patch("frappe.db.get_value", return_value="HR-EMP-OTHER"),
+			patch("frappe.db.get_value", side_effect=get_value),
 		):
 			self.assertRaises(frappe.PermissionError, get_attendance_correction_request, "HR-ACR-DETAIL")
 
@@ -509,7 +529,7 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 		)
 		frappe.set_user("Administrator")
 
-	def test_context_api_allows_admin_hr_manager_and_approver_for_other_employee(self):
+	def test_context_api_allows_admin_manager_role_and_approver_for_other_employee(self):
 		from hrms.api.attendance_correction import get_attendance_correction_context
 
 		employee, _shift = self.make_request_employee("attendance-correction-api-allowed-context@example.com")
@@ -518,8 +538,8 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 			self.assertEqual(get_attendance_correction_context("2026-05-20", employee)["employee"], employee)
 
 		with (
-			patch.object(frappe.session, "user", "hr-manager@example.com"),
-			patch("frappe.get_roles", return_value=["HR Manager"]),
+			patch.object(frappe.session, "user", "manager@example.com"),
+			patch("frappe.get_roles", return_value=["Attendance Correction Manager"]),
 		):
 			self.assertEqual(get_attendance_correction_context("2026-05-20", employee)["employee"], employee)
 
@@ -529,35 +549,59 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 		):
 			self.assertEqual(get_attendance_correction_context("2026-05-20", employee)["employee"], employee)
 
+	def test_context_api_rejects_hr_manager_without_correction_scope(self):
+		from hrms.api.attendance_correction import get_attendance_correction_context
+
+		employee, _shift = self.make_request_employee("attendance-correction-api-hr-manager-context@example.com")
+
+		with (
+			patch.object(frappe.session, "user", "hr-manager@example.com"),
+			patch("frappe.get_roles", return_value=["HR Manager"]),
+			patch("frappe.db.get_value", return_value="HR-EMP-OTHER"),
+		):
+			self.assertRaises(
+				frappe.PermissionError,
+				get_attendance_correction_context,
+				"2026-05-20",
+				employee,
+			)
+
 	def test_context_access_uses_direct_employee_approver_before_department(self):
 		from hrms.api.attendance_correction import is_attendance_correction_approver
 
 		with (
 			patch("frappe.db.get_value", return_value=("direct@example.com", "Sales - TC")),
-			patch("frappe.db.exists", return_value="Department Approver") as exists,
+			patch("frappe.get_all", return_value=[frappe._dict(approver="dept@example.com")]) as get_all,
 		):
 			self.assertTrue(is_attendance_correction_approver("HR-EMP-00001", "direct@example.com"))
 			self.assertFalse(is_attendance_correction_approver("HR-EMP-00001", "dept@example.com"))
 
-		exists.assert_not_called()
+		get_all.assert_not_called()
 
-	def test_context_access_allows_only_first_department_approver(self):
+	def test_context_access_allows_any_department_approver_row(self):
 		from hrms.api.attendance_correction import is_attendance_correction_approver
 
 		with (
 			patch("frappe.db.get_value", return_value=(None, "Sales - TC")),
-			patch("frappe.db.exists", return_value=None) as exists,
+			patch(
+				"frappe.get_all",
+				return_value=[
+					frappe._dict(approver="first@example.com"),
+					frappe._dict(approver="second@example.com"),
+				],
+			) as get_all,
 		):
-			self.assertFalse(is_attendance_correction_approver("HR-EMP-00001", "second@example.com"))
+			self.assertTrue(is_attendance_correction_approver("HR-EMP-00001", "second@example.com"))
+			self.assertFalse(is_attendance_correction_approver("HR-EMP-00001", "unrelated@example.com"))
 
-		exists.assert_called_once_with(
+		get_all.assert_called_with(
 			"Department Approver",
-			{
+			filters={
 				"parent": "Sales - TC",
 				"parentfield": "attendance_correction_approver",
-				"approver": "second@example.com",
-				"idx": 1,
 			},
+			fields=["approver"],
+			order_by="idx asc",
 		)
 
 	def test_context_api_returns_shift_name_and_single_attendance(self):
@@ -868,6 +912,33 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 			patch("frappe.get_roles", return_value=["Employee"]),
 		):
 			self.assertRaises(frappe.PermissionError, request.validate_can_approve)
+
+	def test_correction_manager_role_can_approve_any_pending_request(self):
+		request = frappe.get_doc(
+			{
+				"doctype": "Attendance Correction Request",
+				"employee": "HR-EMP-00001",
+				"approver": "test@example.com",
+			}
+		)
+
+		with patch("frappe.get_roles", return_value=["Attendance Correction Manager"]):
+			self.assertTrue(request.can_user_approve("manager@example.com"))
+
+	def test_hr_manager_role_does_not_approve_without_correction_scope(self):
+		request = frappe.get_doc(
+			{
+				"doctype": "Attendance Correction Request",
+				"employee": "HR-EMP-00001",
+				"approver": "test@example.com",
+			}
+		)
+
+		with (
+			patch("frappe.get_roles", return_value=["HR Manager"]),
+			patch("frappe.db.get_value", return_value=(None, None)),
+		):
+			self.assertFalse(request.can_user_approve("hr-manager@example.com"))
 
 	def test_approve_only_allows_pending_requests(self):
 		request = frappe.get_doc(

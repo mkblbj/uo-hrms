@@ -6,6 +6,12 @@ from frappe.utils import get_datetime, getdate
 
 import hrms
 from hrms.hr.doctype.employee_checkin.employee_checkin_utils import get_attendance_recalculation_window
+from hrms.hr.doctype.attendance_correction_request.attendance_correction_request import (
+	ATTENDANCE_CORRECTION_MANAGER_ROLE,
+	get_attendance_correction_approvers,
+	is_attendance_correction_approver,
+	user_can_manage_all_attendance_corrections,
+)
 
 DEFAULT_LIMIT = 20
 MAX_LIMIT = 100
@@ -80,17 +86,10 @@ def build_attendance_correction_context(employee: str, attendance_date) -> dict:
 
 
 def validate_employee_context_access(employee: str):
-	if frappe.session.user == "Administrator":
+	if user_can_manage_all_attendance_corrections(frappe.session.user):
 		return
 
-	if "HR Manager" in frappe.get_roles() or "System Manager" in frappe.get_roles():
-		return
-
-	current_employee = frappe.db.get_value(
-		"Employee",
-		{"user_id": frappe.session.user, "status": "Active"},
-		"name",
-	)
+	current_employee = _get_current_employee_for_user(frappe.session.user)
 	if employee == current_employee:
 		return
 
@@ -98,33 +97,6 @@ def validate_employee_context_access(employee: str):
 		return
 
 	frappe.throw(_("You are not allowed to view this employee's attendance context."), frappe.PermissionError)
-
-
-def is_attendance_correction_approver(employee: str, user: str) -> bool:
-	employee_values = frappe.db.get_value(
-		"Employee",
-		employee,
-		["attendance_correction_approver", "department"],
-	)
-	if not employee_values:
-		return False
-
-	employee_approver, department = employee_values
-	if employee_approver:
-		return employee_approver == user
-
-	return bool(
-		department
-		and frappe.db.exists(
-			"Department Approver",
-			{
-				"parent": department,
-				"parentfield": "attendance_correction_approver",
-				"approver": user,
-				"idx": 1,
-			},
-		)
-	)
 
 
 def get_employee_shift_for_date(employee: str, attendance_date) -> str | None:
@@ -181,9 +153,41 @@ def submit_attendance_correction_request(payload: dict | str) -> dict:
 def _refetch_attendance_correction_resources(doc, approver: str | None = None):
 	if getattr(doc, "owner", None):
 		hrms.refetch_resource("hrms:my_attendance_correction_requests", doc.owner)
-	if approver:
-		hrms.refetch_resource("hrms:pending_attendance_correction_approvals", approver)
-		hrms.refetch_resource("hrms:attendance_correction_approval_count", approver)
+
+	for recipient in _get_attendance_correction_approval_resource_recipients(doc, approver):
+		hrms.refetch_resource("hrms:pending_attendance_correction_approvals", recipient)
+		hrms.refetch_resource("hrms:attendance_correction_approval_count", recipient)
+
+
+def _get_attendance_correction_approval_resource_recipients(doc, approver: str | None = None) -> list[str]:
+	recipients = []
+
+	def add_recipient(user: str | None):
+		if user and user not in recipients:
+			recipients.append(user)
+
+	add_recipient(approver)
+	if getattr(doc, "employee", None):
+		for user in get_attendance_correction_approvers(doc.employee):
+			add_recipient(user)
+	for user in _get_global_attendance_correction_manager_users():
+		add_recipient(user)
+	return recipients
+
+
+def _get_global_attendance_correction_manager_users() -> list[str]:
+	return [
+		row.parent
+		for row in frappe.get_all(
+			"Has Role",
+			filters={
+				"parenttype": "User",
+				"role": ["in", [ATTENDANCE_CORRECTION_MANAGER_ROLE, "System Manager"]],
+			},
+			fields=["parent"],
+		)
+		if row.parent
+	]
 
 
 @frappe.whitelist()
@@ -201,13 +205,7 @@ def get_my_attendance_correction_requests(limit: int | None = 20) -> list[dict]:
 def get_pending_attendance_correction_approvals(limit: int | None = 20) -> list[dict]:
 	fields = [*ATTENDANCE_CORRECTION_FIELDS, "reason"]
 	fields.remove("approver")
-	return frappe.get_all(
-		"Attendance Correction Request",
-		filters={"approver": frappe.session.user, "status": "Pending"},
-		fields=fields,
-		order_by="creation desc",
-		limit_page_length=_normalize_limit(limit),
-	)
+	return _get_pending_attendance_correction_approvals(fields, _normalize_limit(limit))
 
 
 @frappe.whitelist()
@@ -215,26 +213,21 @@ def get_attendance_correction_request(name: str) -> dict:
 	doc = frappe.get_doc("Attendance Correction Request", name)
 	validate_attendance_correction_request_access(doc)
 	detail = {field: doc.get(field) for field in ATTENDANCE_CORRECTION_DETAIL_FIELDS}
+	current_employee = _get_current_employee_for_user(frappe.session.user)
+	detail["is_own_request"] = doc.employee == current_employee
+	detail["can_approve"] = doc.status == "Pending" and can_user_approve_attendance_correction_request(
+		doc.employee, frappe.session.user, doc.approver
+	)
 	detail["context"] = build_attendance_correction_context(doc.employee, doc.attendance_date)
 	return detail
 
 
 def validate_attendance_correction_request_access(doc):
-	if frappe.session.user == "Administrator":
-		return
-
-	if "HR Manager" in frappe.get_roles() or "System Manager" in frappe.get_roles():
-		return
-
-	current_employee = frappe.db.get_value(
-		"Employee",
-		{"user_id": frappe.session.user, "status": "Active"},
-		"name",
-	)
+	current_employee = _get_current_employee_for_user(frappe.session.user)
 	if doc.employee == current_employee:
 		return
 
-	if doc.approver == frappe.session.user:
+	if can_user_approve_attendance_correction_request(doc.employee, frappe.session.user, doc.approver):
 		return
 
 	frappe.throw(_("You are not allowed to view this attendance correction request."), frappe.PermissionError)
@@ -242,13 +235,11 @@ def validate_attendance_correction_request_access(doc):
 
 @frappe.whitelist()
 def get_attendance_correction_approval_count() -> int:
-	if frappe.session.user in {"Guest", "Administrator"}:
+	if frappe.session.user == "Guest":
 		return 0
 
-	return frappe.db.count(
-		"Attendance Correction Request",
-		{"approver": frappe.session.user, "status": "Pending"},
-	)
+	rows = _get_pending_attendance_correction_approvals(["count(distinct acr.name) as pending_count"])
+	return rows[0].pending_count if rows else 0
 
 
 @frappe.whitelist()
@@ -267,6 +258,81 @@ def reject_attendance_correction_request(name: str, reason: str) -> dict:
 	doc.reject(reason, frappe.session.user)
 	_refetch_attendance_correction_resources(doc, approver)
 	return {"name": doc.name, "status": doc.status}
+
+
+def can_user_approve_attendance_correction_request(
+	employee: str, user: str, assigned_approver: str | None = None
+) -> bool:
+	if assigned_approver and user == assigned_approver:
+		return True
+	return user_can_manage_all_attendance_corrections(user) or is_attendance_correction_approver(employee, user)
+
+
+def _get_pending_attendance_correction_approvals(
+	fields: list[str], limit: int | None = None
+) -> list[dict]:
+	user = frappe.session.user
+	current_employee = _get_current_employee_for_user(user)
+	is_count_query = fields == ["count(distinct acr.name) as pending_count"]
+	conditions = ["acr.status = 'Pending'"]
+	params = {"user": user}
+
+	if not user_can_manage_all_attendance_corrections(user):
+		conditions.append(
+			"""
+			(
+				acr.approver = %(user)s
+				or employee.attendance_correction_approver = %(user)s
+				or (
+					coalesce(employee.attendance_correction_approver, '') = ''
+					and department_approver.name is not null
+				)
+			)
+			"""
+		)
+
+	if current_employee:
+		conditions.append("acr.employee != %(current_employee)s")
+		params["current_employee"] = current_employee
+
+	select_fields = ", ".join(_get_pending_approval_select_field(field) for field in fields)
+	distinct_clause = "" if is_count_query else "distinct "
+	order_clause = "" if is_count_query else "order by acr.creation desc"
+	limit_clause = "limit %(limit)s" if limit and not is_count_query else ""
+	if limit:
+		params["limit"] = limit
+
+	return frappe.db.sql(
+		f"""
+		select {distinct_clause}{select_fields}
+		from `tabAttendance Correction Request` acr
+		left join `tabEmployee` employee
+			on employee.name = acr.employee
+		left join `tabDepartment Approver` department_approver
+			on department_approver.parent = employee.department
+			and department_approver.parentfield = 'attendance_correction_approver'
+			and department_approver.approver = %(user)s
+		where {" and ".join(conditions)}
+		{order_clause}
+		{limit_clause}
+		""",
+		params,
+		as_dict=True,
+	)
+
+
+def _get_pending_approval_select_field(field: str) -> str:
+	if field == "count(distinct acr.name) as pending_count":
+		return field
+	return f"acr.`{field}`"
+
+
+def _get_current_employee_for_user(user: str) -> str | None:
+	return frappe.db.get_value(
+		"Employee",
+		{"user_id": user, "status": "Active"},
+		"name",
+	)
 
 
 def _parse_payload(payload: dict | str) -> dict:

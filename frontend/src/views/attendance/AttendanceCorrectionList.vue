@@ -2,14 +2,14 @@
 	<BaseLayout :pageTitle="copy('form.listTitle')" backRoute="/dashboard/attendance">
 		<template #body>
 			<div class="correction-list">
-				<TabButtons :buttons="tabs" v-model="activeTab" />
+				<TabButtons v-if="tabs.length > 1" :buttons="tabs" v-model="activeTab" />
 
 				<router-link
 					v-if="activeTab === 'mine'"
 					:to="{ name: 'AttendanceCorrectionFormView' }"
 					v-slot="{ navigate }"
 				>
-					<Button variant="solid" class="w-full py-5" @click="navigate">
+					<Button variant="outline" theme="gray" class="w-full py-5" @click="navigate">
 						<template #prefix>
 							<FeatherIcon name="plus" class="w-4" />
 						</template>
@@ -21,7 +21,7 @@
 					<router-link
 						v-for="item in visibleItems"
 						:key="item.name"
-						:to="{ name: 'AttendanceCorrectionDetailView', params: { id: item.name } }"
+						:to="getDetailRoute(item)"
 						class="block border-b p-3 last:border-b-0"
 					>
 						<AttendanceCorrectionItem :doc="item" :isTeamRequest="activeTab === 'approvals'" />
@@ -95,6 +95,14 @@ function reloadCorrectionResources() {
 	myAttendanceCorrectionRequests.reload()
 	pendingAttendanceCorrectionApprovals.reload()
 	attendanceCorrectionApprovalCount.reload()
+}
+
+function getDetailRoute(item) {
+	return {
+		name: "AttendanceCorrectionDetailView",
+		params: { id: item.name },
+		query: activeTab.value === "approvals" ? { mode: "approval" } : {},
+	}
 }
 
 onIonViewWillEnter(() => {

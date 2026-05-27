@@ -1,12 +1,24 @@
 <template>
-	<BaseLayout :pageTitle="copy('form.detailTitle')" backRoute="/attendance-corrections">
+	<BaseLayout :pageTitle="copy('form.detailTitle')" :backRoute="backRoute">
 		<template #body>
 			<div v-if="doc.data" class="correction-detail">
 				<AttendanceCorrectionContextPanel :context="doc.data.context" />
 				<div class="detail-surface">
 					<div v-for="row in rows" :key="row.label" class="detail-row">
 						<span>{{ row.label }}</span>
-						<strong>{{ row.value || "-" }}</strong>
+						<template v-if="row.badge">
+							<Badge
+								variant="outline"
+								:theme="row.badge.theme"
+								:label="row.badge.label"
+								size="md"
+							/>
+						</template>
+						<strong v-else>{{ row.value || "-" }}</strong>
+					</div>
+					<div v-if="doc.data?.rejection_reason" class="detail-row">
+						<span>{{ copy("field.rejectionReason") }}</span>
+						<strong class="!text-red-600">{{ doc.data.rejection_reason }}</strong>
 					</div>
 				</div>
 
@@ -37,7 +49,8 @@
 
 <script setup>
 import { computed, inject, ref } from "vue"
-import { Button, ErrorMessage, LoadingIndicator, createResource, toast } from "frappe-ui"
+import { Badge, Button, ErrorMessage, LoadingIndicator, createResource, toast } from "frappe-ui"
+import { useRoute } from "vue-router"
 
 import AttendanceCorrectionContextPanel from "@/components/AttendanceCorrectionContextPanel.vue"
 import BaseLayout from "@/components/BaseLayout.vue"
@@ -51,20 +64,25 @@ import {
 	formatCorrectionDateTime,
 	getAttendanceCorrectionCopy,
 	getCorrectionLang,
+	getCorrectionStatusTheme,
 } from "@/utils/attendanceCorrection"
 
 const __ = inject("$translate")
-const user = inject("$user")
 const props = defineProps({
 	id: {
 		type: String,
 		required: true,
 	},
 })
+const route = useRoute()
 const rejectionReason = ref("")
 const approvalError = ref("")
 const lang = computed(() => getCorrectionLang(globalThis.window?.frappe?.boot?.lang))
 const copy = (key) => getAttendanceCorrectionCopy(key, lang.value)
+const isApprovalMode = computed(() => route.query.mode === "approval")
+const backRoute = computed(() =>
+	isApprovalMode.value ? "/attendance-corrections?tab=approvals" : "/attendance-corrections"
+)
 
 const doc = createResource({
 	url: "hrms.api.attendance_correction.get_attendance_correction_request",
@@ -82,13 +100,7 @@ const rejectResource = createResource({
 
 const canApprove = computed(() => {
 	if (doc.data?.status !== "Pending") return false
-	const roles = user?.data?.roles || []
-	return (
-		doc.data?.approver === user?.data?.name ||
-		user?.data?.name === "Administrator" ||
-		roles.includes("HR Manager") ||
-		roles.includes("System Manager")
-	)
+	return Boolean(doc.data?.can_approve)
 })
 
 const rows = computed(() => [
@@ -103,9 +115,15 @@ const rows = computed(() => [
 		value: doc.data?.requested_log_type ? copy(`logType.${doc.data.requested_log_type}`) : "",
 	},
 	{ label: copy("field.requestedTime"), value: formatCorrectionDateTime(doc.data?.requested_time, lang.value) },
-	{ label: copy("field.status"), value: doc.data?.status ? copy(`status.${doc.data.status}`) : "" },
+	{
+		label: copy("field.status"),
+		badge: doc.data?.status
+			? { theme: getCorrectionStatusTheme(doc.data.status), label: copy(`status.${doc.data.status}`) }
+			: null,
+		value: doc.data?.status ? copy(`status.${doc.data.status}`) : "",
+	},
 	{ label: copy("field.reason"), value: doc.data?.reason },
-	{ label: copy("field.resultAttendance"), value: doc.data?.result_attendance },
+	...(doc.data?.result_attendance ? [{ label: copy("field.resultAttendance"), value: doc.data.result_attendance }] : []),
 ])
 
 async function approve() {

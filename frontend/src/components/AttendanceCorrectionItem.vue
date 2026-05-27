@@ -11,7 +11,7 @@
 					<span class="whitespace-pre"> &middot; </span>
 					<span>{{ doc.requested_log_type ? copy(`logType.${doc.requested_log_type}`) : "-" }}</span>
 					<span class="whitespace-pre"> &middot; </span>
-					<span>{{ formatCorrectionDateTime(doc.requested_time, lang) }}</span>
+					<span>{{ formatCorrectionClockTime(doc.requested_time) }}</span>
 				</div>
 			</div>
 		</template>
@@ -34,7 +34,7 @@ import { Badge, FeatherIcon } from "frappe-ui"
 import AttendanceIcon from "@/components/icons/AttendanceIcon.vue"
 import ListItem from "@/components/ListItem.vue"
 import {
-	formatCorrectionDateTime,
+	formatCorrectionClockTime,
 	getAttendanceCorrectionCopy,
 	getCorrectionLang,
 	getCorrectionStatusTheme,

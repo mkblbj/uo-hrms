@@ -6,6 +6,7 @@ from frappe.utils import add_days, get_datetime, getdate
 from hrms.hr.utils import validate_active_employee
 
 APPLY_SAVEPOINT = "attendance_correction_apply"
+ATTENDANCE_CORRECTION_MANAGER_ROLE = "Attendance Correction Manager"
 
 
 class AttendanceCorrectionRequest(Document):
@@ -175,7 +176,9 @@ class AttendanceCorrectionRequest(Document):
 	def can_user_approve(self, user: str) -> bool:
 		if user == self.approver:
 			return True
-		return "HR Manager" in frappe.get_roles(user) or "System Manager" in frappe.get_roles(user)
+		return user_can_manage_all_attendance_corrections(user) or is_attendance_correction_approver(
+			self.employee, user
+		)
 
 	def record_apply_failure(self, approved_by: str):
 		apply_error = frappe.get_traceback()
@@ -235,25 +238,51 @@ class AttendanceCorrectionRequest(Document):
 
 
 def get_attendance_correction_approver(employee: str) -> str:
-	employee_approver, department = frappe.db.get_value(
+	approvers = get_attendance_correction_approvers(employee)
+	if approvers:
+		return approvers[0]
+
+	frappe.throw(_("Attendance Correction Approver is not configured for employee {0}.").format(employee))
+
+
+def get_attendance_correction_approvers(employee: str) -> list[str]:
+	employee_values = frappe.db.get_value(
 		"Employee",
 		employee,
 		["attendance_correction_approver", "department"],
 	)
+	if not employee_values or isinstance(employee_values, str):
+		return []
+
+	employee_approver, department = employee_values
 	if employee_approver:
-		return employee_approver
+		return [employee_approver]
 
 	if department:
-		department_approver = frappe.db.get_value(
-			"Department Approver",
-			{
-				"parent": department,
-				"parentfield": "attendance_correction_approver",
-				"idx": 1,
-			},
-			"approver",
-		)
-		if department_approver:
-			return department_approver
+		return [
+			row.approver
+			for row in frappe.get_all(
+				"Department Approver",
+				filters={
+					"parent": department,
+					"parentfield": "attendance_correction_approver",
+				},
+				fields=["approver"],
+				order_by="idx asc",
+			)
+			if row.approver
+		]
 
-	frappe.throw(_("Attendance Correction Approver is not configured for employee {0}.").format(employee))
+	return []
+
+
+def is_attendance_correction_approver(employee: str, user: str) -> bool:
+	return bool(user and user in get_attendance_correction_approvers(employee))
+
+
+def user_can_manage_all_attendance_corrections(user: str | None = None) -> bool:
+	user = user or frappe.session.user
+	if user == "Administrator":
+		return True
+	roles = frappe.get_roles(user)
+	return "System Manager" in roles or ATTENDANCE_CORRECTION_MANAGER_ROLE in roles
