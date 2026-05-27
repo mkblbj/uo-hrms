@@ -43,6 +43,8 @@
 					<i style="background: #16a34a"></i>
 					<i style="background: #166534"></i>
 					<span>{{ t("more") }}</span>
+					<i :style="{ background: ATTENDANCE_ANOMALY_COLOR }"></i>
+					<span>{{ t("anomalyLegend") }}</span>
 				</div>
 			</div>
 
@@ -61,7 +63,7 @@
 						v-for="(cell, idx) in heatmapCells"
 						:key="cell.date"
 						class="hero-heatmap-cell"
-						:class="{ 'is-today': cell.isToday, 'is-future': cell.isFuture }"
+						:class="{ 'is-today': cell.isToday, 'is-future': cell.isFuture, 'is-issue': cell.hasIssue }"
 						:style="{ backgroundColor: cell.color, '--cell-index': idx }"
 						:title="cellLabel(cell)"
 						:aria-label="cellLabel(cell)"
@@ -86,6 +88,11 @@ import { createResource } from "frappe-ui"
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import { buildHeatmapMonthMarkers, buildRecentWeekdayHeatmap } from "@/utils/homeHeatmap"
+import {
+	ATTENDANCE_ANOMALY_COLOR,
+	getAttendanceAnomalyLabel,
+	getAttendanceAnomalyTitle,
+} from "@/utils/attendanceAnomaly"
 import { buildShiftProgress } from "@/utils/homeShiftProgress"
 import { formatCountUp, runCountUp } from "@/utils/homeCountUp"
 
@@ -118,6 +125,7 @@ const copy = {
 	},
 	less: { zh: "少", ja: "少", en: "Less" },
 	more: { zh: "多", ja: "多", en: "More" },
+	anomalyLegend: { zh: "异常", ja: "異常", en: "Issue" },
 	hours: { zh: "小时", ja: "時間", en: "hours" },
 	noRecord: { zh: "无记录", ja: "記録なし", en: "No record" },
 	monthHours: { zh: "本月工时", ja: "今月時間", en: "Month Hours" },
@@ -318,6 +326,12 @@ function syncDisplayedWorkedHours({ animate = false } = {}) {
 }
 
 function cellLabel(cell) {
+	if (cell.hasIssue) {
+		return `${cell.date}: ${
+			getAttendanceAnomalyLabel(cell.event?.anomaly, props.lang) ||
+			getAttendanceAnomalyTitle(props.lang)
+		}`
+	}
 	const status = cell.event?.attendance || t("noRecord")
 	const hours = cell.event?.working_hours
 	const hoursText = hours ? `, ${hours} ${t("hours")}` : ""
@@ -638,6 +652,10 @@ defineExpose({ reloadAttendance, reloadSchedule })
 
 .hero-heatmap-cell.is-today {
 	box-shadow: 0 0 0 2px #16a34a, 0 0 8px rgba(22, 163, 74, 0.35);
+}
+
+.hero-heatmap-cell.is-issue {
+	outline: 1px solid rgba(127, 29, 29, 0.35);
 }
 
 @media (prefers-reduced-motion: no-preference) {

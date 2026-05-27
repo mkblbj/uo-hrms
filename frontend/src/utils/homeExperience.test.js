@@ -965,3 +965,12 @@ test("CheckInPanel removes legacy checkin-list sync and manual modal wiring whil
 	assert.doesNotMatch(source, /list_update/)
 	assert.doesNotMatch(source, /Employee Checkin/)
 })
+
+test("HomeHeroCard renders attendance anomaly cells and labels", () => {
+	const source = fs.readFileSync(homeHeroCardPath, "utf8")
+
+	assert.match(source, /getAttendanceAnomalyLabel/)
+	assert.match(source, /'is-issue': cell\.hasIssue/)
+	assert.match(source, /hero-heatmap-cell\.is-issue/)
+	assert.match(source, /anomalyLegend/)
+})
