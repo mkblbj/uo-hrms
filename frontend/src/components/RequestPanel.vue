@@ -27,6 +27,7 @@ import {
 	teamCorrectionRequests,
 	teamShiftRequests,
 } from "@/data/attendance"
+import { attendanceCorrectionApprovalCount } from "@/data/attendance_correction"
 import { myClaims, teamClaims } from "@/data/claims"
 import { myLeaves, teamLeaves } from "@/data/leaves"
 
@@ -85,5 +86,10 @@ onMounted(() => {
 	useListUpdate(socket, "Expense Claim", () => teamClaims.reload())
 	useListUpdate(socket, "Shift Request", () => teamShiftRequests.reload())
 	useListUpdate(socket, "Attendance Request", () => teamAttendanceRequests.reload())
+	useListUpdate(socket, "Attendance Correction Request", () => {
+		myCorrectionRequests.reload()
+		teamCorrectionRequests.reload()
+		attendanceCorrectionApprovalCount.reload()
+	})
 })
 </script>

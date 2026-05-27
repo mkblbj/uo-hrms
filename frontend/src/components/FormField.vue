@@ -138,8 +138,8 @@
 		<DateTimePicker
 			v-else-if="props.fieldtype === 'Datetime'"
 			:value="modelValue"
-			:placeholder="`Select ${props.label}`"
-			:formatter="(val) => dayjs(val).format('DD-MM-YYYY HH:mm:ss')"
+			:placeholder="__('Select {0}', [props.label])"
+			:formatter="props.dateTimeFormatter || ((val) => dayjs(val).format('DD-MM-YYYY HH:mm:ss'))"
 			@update:modelValue="(v) => emit('update:modelValue', v)"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
@@ -166,6 +166,7 @@ const props = defineProps({
 	options: [String, Array],
 	linkFilters: Object,
 	documentList: Array,
+	dateTimeFormatter: Function,
 	readOnly: [Boolean, Number],
 	reqd: [Boolean, Number],
 	hidden: {
@@ -203,7 +204,7 @@ const isReadOnly = computed(() => {
 })
 
 const selectionList = computed(() => {
-	if (props.fieldtype === "Link" && props.documentList) {
+	if (props.documentList) {
 		return props.documentList
 	} else if (props.fieldtype == "Select" && props.options) {
 		const options = props.options.split("\n")

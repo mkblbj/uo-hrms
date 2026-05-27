@@ -1,7 +1,7 @@
 <template>
 	<div class="correction-entry">
 		<router-link :to="{ name: 'AttendanceCorrectionListView' }" class="entry-link">
-			<span>{{ __("Correction Requests") }}</span>
+			<span>{{ copy("tabs.mine") }}</span>
 			<FeatherIcon name="chevron-right" class="h-4 w-4" />
 		</router-link>
 		<router-link
@@ -9,19 +9,21 @@
 			:to="{ name: 'AttendanceCorrectionListView', query: { tab: 'approvals' } }"
 			class="approval-link"
 		>
-			<span>{{ __("Pending Approvals") }}</span>
+			<span>{{ copy("tabs.approvals") }}</span>
 			<strong>{{ approvalCount.data }}</strong>
 		</router-link>
 	</div>
 </template>
 
 <script setup>
-import { inject } from "vue"
+import { computed } from "vue"
 import { FeatherIcon } from "frappe-ui"
 
 import { attendanceCorrectionApprovalCount as approvalCount } from "@/data/attendance_correction"
+import { getAttendanceCorrectionCopy, getCorrectionLang } from "@/utils/attendanceCorrection"
 
-const __ = inject("$translate")
+const lang = computed(() => getCorrectionLang(globalThis.window?.frappe?.boot?.lang))
+const copy = (key) => getAttendanceCorrectionCopy(key, lang.value)
 </script>
 
 <style scoped>

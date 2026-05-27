@@ -1,11 +1,11 @@
 <template>
-	<BaseLayout :pageTitle="__('Correction Request')" backRoute="/attendance-corrections">
+	<BaseLayout :pageTitle="copy('form.detailTitle')" backRoute="/attendance-corrections">
 		<template #body>
 			<div v-if="doc.data" class="correction-detail">
 				<AttendanceCorrectionContextPanel :context="doc.data.context" />
 				<div class="detail-surface">
 					<div v-for="row in rows" :key="row.label" class="detail-row">
-						<span>{{ __(row.label) }}</span>
+						<span>{{ row.label }}</span>
 						<strong>{{ row.value || "-" }}</strong>
 					</div>
 				</div>
@@ -15,15 +15,15 @@
 						fieldtype="Small Text"
 						fieldname="rejection_reason"
 						v-model="rejectionReason"
-						:label="__('Rejection Reason')"
+						:label="copy('field.rejectionReason')"
 					/>
 					<ErrorMessage :message="approvalError || approveResource.error || rejectResource.error" />
 					<div class="grid grid-cols-2 gap-3">
 						<Button variant="subtle" theme="red" class="py-5" :loading="rejectResource.loading" @click="reject">
-							{{ __("Reject") }}
+							{{ copy("action.reject") }}
 						</Button>
 						<Button variant="solid" theme="green" class="py-5" :loading="approveResource.loading" @click="approve">
-							{{ __("Approve") }}
+							{{ copy("action.approve") }}
 						</Button>
 					</div>
 				</div>
@@ -42,7 +42,16 @@ import { Button, ErrorMessage, LoadingIndicator, createResource, toast } from "f
 import AttendanceCorrectionContextPanel from "@/components/AttendanceCorrectionContextPanel.vue"
 import BaseLayout from "@/components/BaseLayout.vue"
 import FormField from "@/components/FormField.vue"
-import { formatCorrectionDateTime } from "@/utils/attendanceCorrection"
+import {
+	attendanceCorrectionApprovalCount,
+	myAttendanceCorrectionRequests,
+	pendingAttendanceCorrectionApprovals,
+} from "@/data/attendance_correction"
+import {
+	formatCorrectionDateTime,
+	getAttendanceCorrectionCopy,
+	getCorrectionLang,
+} from "@/utils/attendanceCorrection"
 
 const __ = inject("$translate")
 const user = inject("$user")
@@ -54,6 +63,8 @@ const props = defineProps({
 })
 const rejectionReason = ref("")
 const approvalError = ref("")
+const lang = computed(() => getCorrectionLang(globalThis.window?.frappe?.boot?.lang))
+const copy = (key) => getAttendanceCorrectionCopy(key, lang.value)
 
 const doc = createResource({
 	url: "hrms.api.attendance_correction.get_attendance_correction_request",
@@ -81,23 +92,30 @@ const canApprove = computed(() => {
 })
 
 const rows = computed(() => [
-	{ label: "Employee", value: doc.data?.employee_name },
-	{ label: "Attendance Date", value: doc.data?.attendance_date },
-	{ label: "Request Type", value: doc.data?.request_type },
-	{ label: "Log Type", value: doc.data?.requested_log_type },
-	{ label: "Requested Time", value: formatCorrectionDateTime(doc.data?.requested_time) },
-	{ label: "Status", value: doc.data?.status },
-	{ label: "Reason", value: doc.data?.reason },
-	{ label: "Result Attendance", value: doc.data?.result_attendance },
+	{ label: copy("field.employee"), value: doc.data?.employee_name },
+	{ label: copy("field.attendanceDate"), value: doc.data?.attendance_date },
+	{
+		label: copy("field.requestType"),
+		value: doc.data?.request_type ? copy(`requestType.${doc.data.request_type}`) : "",
+	},
+	{
+		label: copy("field.logType"),
+		value: doc.data?.requested_log_type ? copy(`logType.${doc.data.requested_log_type}`) : "",
+	},
+	{ label: copy("field.requestedTime"), value: formatCorrectionDateTime(doc.data?.requested_time, lang.value) },
+	{ label: copy("field.status"), value: doc.data?.status ? copy(`status.${doc.data.status}`) : "" },
+	{ label: copy("field.reason"), value: doc.data?.reason },
+	{ label: copy("field.resultAttendance"), value: doc.data?.result_attendance },
 ])
 
 async function approve() {
 	approvalError.value = ""
 	await approveResource.submit({ name: props.id })
 	await doc.reload()
+	await reloadCorrectionResources()
 	toast({
 		title: __("Success"),
-		text: __("Attendance correction request approved"),
+		text: copy("form.approved"),
 		icon: "check-circle",
 		position: "bottom-center",
 		iconClasses: "text-green-500",
@@ -107,18 +125,27 @@ async function approve() {
 async function reject() {
 	approvalError.value = ""
 	if (!rejectionReason.value.trim()) {
-		approvalError.value = __("Please enter a rejection reason")
+		approvalError.value = copy("form.rejectionRequired")
 		return
 	}
 	await rejectResource.submit({ name: props.id, reason: rejectionReason.value.trim() })
 	await doc.reload()
+	await reloadCorrectionResources()
 	toast({
 		title: __("Success"),
-		text: __("Attendance correction request rejected"),
+		text: copy("form.rejected"),
 		icon: "check-circle",
 		position: "bottom-center",
 		iconClasses: "text-green-500",
 	})
+}
+
+async function reloadCorrectionResources() {
+	await Promise.allSettled([
+		myAttendanceCorrectionRequests.reload(),
+		pendingAttendanceCorrectionApprovals.reload(),
+		attendanceCorrectionApprovalCount.reload(),
+	])
 }
 </script>
 

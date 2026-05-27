@@ -1,5 +1,5 @@
 <template>
-	<BaseLayout :pageTitle="__('Attendance Corrections')" backRoute="/dashboard/attendance">
+	<BaseLayout :pageTitle="copy('form.listTitle')" backRoute="/dashboard/attendance">
 		<template #body>
 			<div class="correction-list">
 				<TabButtons :buttons="tabs" v-model="activeTab" />
@@ -13,7 +13,7 @@
 						<template #prefix>
 							<FeatherIcon name="plus" class="w-4" />
 						</template>
-						{{ __("New Correction Request") }}
+						{{ copy("form.newRequest") }}
 					</Button>
 				</router-link>
 
@@ -28,7 +28,7 @@
 					</router-link>
 				</div>
 
-				<EmptyState v-else-if="!loading" :message="__('No attendance correction requests found')" />
+				<EmptyState v-else-if="!loading" :message="copy('form.empty')" />
 				<div v-else class="flex items-center justify-center p-6">
 					<LoadingIndicator class="h-6 w-6 text-gray-800" />
 				</div>
@@ -38,7 +38,8 @@
 </template>
 
 <script setup>
-import { computed, inject, ref, watch } from "vue"
+import { computed, ref, watch } from "vue"
+import { onIonViewWillEnter } from "@ionic/vue"
 import { Button, FeatherIcon, LoadingIndicator } from "frappe-ui"
 import { useRoute } from "vue-router"
 
@@ -51,16 +52,21 @@ import {
 	myAttendanceCorrectionRequests,
 	pendingAttendanceCorrectionApprovals,
 } from "@/data/attendance_correction"
-import { buildAttendanceCorrectionTabs } from "@/utils/attendanceCorrection"
+import {
+	buildAttendanceCorrectionTabs,
+	getAttendanceCorrectionCopy,
+	getCorrectionLang,
+} from "@/utils/attendanceCorrection"
 
-const __ = inject("$translate")
 const route = useRoute()
+const lang = computed(() => getCorrectionLang(globalThis.window?.frappe?.boot?.lang))
+const copy = (key) => getAttendanceCorrectionCopy(key, lang.value)
 const activeTab = ref(route.query.tab === "approvals" ? "approvals" : "mine")
 
 const hasApprovals = computed(() => Boolean(attendanceCorrectionApprovalCount.data))
 const approvalCountLoaded = computed(() => !attendanceCorrectionApprovalCount.loading)
 const tabs = computed(() =>
-	buildAttendanceCorrectionTabs(hasApprovals.value, attendanceCorrectionApprovalCount.data || 0)
+	buildAttendanceCorrectionTabs(hasApprovals.value, attendanceCorrectionApprovalCount.data || 0, lang.value)
 )
 const visibleItems = computed(() =>
 	activeTab.value === "approvals"
@@ -83,6 +89,16 @@ watch(
 
 watch([approvalCountLoaded, hasApprovals], ([loaded, hasApprovalItems]) => {
 	if (loaded && !hasApprovalItems && activeTab.value === "approvals") activeTab.value = "mine"
+})
+
+function reloadCorrectionResources() {
+	myAttendanceCorrectionRequests.reload()
+	pendingAttendanceCorrectionApprovals.reload()
+	attendanceCorrectionApprovalCount.reload()
+}
+
+onIonViewWillEnter(() => {
+	reloadCorrectionResources()
 })
 </script>
 

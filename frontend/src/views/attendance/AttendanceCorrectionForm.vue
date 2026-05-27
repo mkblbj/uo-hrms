@@ -1,5 +1,5 @@
 <template>
-	<BaseLayout :pageTitle="__('New Correction Request')" backRoute="/attendance-corrections">
+	<BaseLayout :pageTitle="copy('form.newRequest')" backRoute="/attendance-corrections">
 		<template #body>
 			<div class="correction-form">
 				<AttendanceCorrectionContextPanel :context="context.data" />
@@ -9,14 +9,15 @@
 						fieldtype="Date"
 						fieldname="attendance_date"
 						v-model="form.attendance_date"
-						:label="__('Attendance Date')"
+						:label="copy('field.attendanceDate')"
 						:reqd="true"
 					/>
 					<FormField
 						fieldtype="Select"
 						fieldname="request_type"
 						v-model="form.request_type"
-						:label="__('Request Type')"
+						:label="copy('field.requestType')"
+						:documentList="requestTypeOptions"
 						:options="'Forgot Check-in\nForgot Check-out\nCorrect Checkin Time\nOther'"
 						:reqd="true"
 					/>
@@ -24,7 +25,8 @@
 						fieldtype="Select"
 						fieldname="requested_log_type"
 						v-model="form.requested_log_type"
-						:label="__('Log Type')"
+						:label="copy('field.logType')"
+						:documentList="logTypeOptions"
 						:options="'IN\nOUT'"
 						:reqd="true"
 					/>
@@ -32,7 +34,8 @@
 						fieldtype="Datetime"
 						fieldname="requested_time"
 						v-model="form.requested_time"
-						:label="__('Requested Time')"
+						:label="copy('field.requestedTime')"
+						:dateTimeFormatter="dateTimeFormatter"
 						:reqd="true"
 					/>
 					<FormField
@@ -40,15 +43,17 @@
 						fieldtype="Link"
 						fieldname="original_checkin"
 						v-model="form.original_checkin"
-						:label="__('Original Checkin')"
-						options="Employee Checkin"
+						:label="copy('field.originalCheckin')"
+						:documentList="originalCheckinOptions"
+						:placeholder="copy('field.originalCheckinPlaceholder')"
 						:reqd="true"
 					/>
 					<FormField
 						fieldtype="Small Text"
 						fieldname="reason"
 						v-model="form.reason"
-						:label="__('Reason')"
+						:label="copy('field.reason')"
+						:placeholder="copy('field.reasonPlaceholder')"
 						:reqd="true"
 					/>
 				</div>
@@ -56,7 +61,7 @@
 				<div class="sticky-action">
 					<ErrorMessage :message="errorMessage || submitResource.error" />
 					<Button variant="solid" class="w-full py-5" :loading="submitResource.loading" @click="submit">
-						{{ __("Submit") }}
+						{{ copy("form.submit") }}
 					</Button>
 				</div>
 			</div>
@@ -65,14 +70,25 @@
 </template>
 
 <script setup>
-import { inject, reactive, ref, watch } from "vue"
+import { computed, inject, reactive, ref, watch } from "vue"
 import { Button, ErrorMessage, createResource, toast } from "frappe-ui"
 import { useRoute, useRouter } from "vue-router"
 
 import AttendanceCorrectionContextPanel from "@/components/AttendanceCorrectionContextPanel.vue"
 import BaseLayout from "@/components/BaseLayout.vue"
 import FormField from "@/components/FormField.vue"
-import { buildCorrectionPayload } from "@/utils/attendanceCorrection"
+import {
+	attendanceCorrectionApprovalCount,
+	myAttendanceCorrectionRequests,
+	pendingAttendanceCorrectionApprovals,
+} from "@/data/attendance_correction"
+import {
+	buildCorrectionPayload,
+	buildOriginalCheckinOptions,
+	formatCorrectionDateTime,
+	getAttendanceCorrectionCopy,
+	getCorrectionLang,
+} from "@/utils/attendanceCorrection"
 
 const __ = inject("$translate")
 const dayjs = inject("$dayjs")
@@ -82,6 +98,8 @@ const today = dayjs().format("YYYY-MM-DD")
 const routeDate = Array.isArray(route.query.date) ? route.query.date[0] : route.query.date
 const initialDate = routeDate || today
 const errorMessage = ref("")
+const lang = computed(() => getCorrectionLang(globalThis.window?.frappe?.boot?.lang))
+const copy = (key) => getAttendanceCorrectionCopy(key, lang.value)
 const form = reactive({
 	attendance_date: initialDate,
 	request_type: "Forgot Check-in",
@@ -101,11 +119,42 @@ const submitResource = createResource({
 	url: "hrms.api.attendance_correction.submit_attendance_correction_request",
 })
 
+const requestTypeOptions = computed(() =>
+	["Forgot Check-in", "Forgot Check-out", "Correct Checkin Time", "Other"].map((value) => ({
+		label: getAttendanceCorrectionCopy(`requestType.${value}`, lang.value),
+		value,
+	}))
+)
+
+const logTypeOptions = computed(() =>
+	["IN", "OUT"].map((value) => ({
+		label: getAttendanceCorrectionCopy(`logType.${value}`, lang.value),
+		value,
+	}))
+)
+
+const originalCheckinOptions = computed(() =>
+	buildOriginalCheckinOptions(context.data?.checkins || [], lang.value)
+)
+
+const dateTimeFormatter = (value) => formatCorrectionDateTime(value, lang.value)
+
 watch(
 	() => form.attendance_date,
-	(date) => {
+	(date, oldDate) => {
+		form.original_checkin = null
+		if (!date) return
+
 		context.fetch({ date })
-		if (!form.requested_time) form.requested_time = `${date} 09:00:00`
+		const currentTime = String(form.requested_time || "")
+		if (!currentTime) {
+			form.requested_time = `${date} 09:00:00`
+		} else if (
+			oldDate &&
+			(currentTime.startsWith(`${oldDate} `) || currentTime.startsWith(`${oldDate}T`))
+		) {
+			form.requested_time = `${date}${currentTime.slice(String(oldDate).length)}`
+		}
 	}
 )
 
@@ -119,18 +168,23 @@ async function submit() {
 		!payload.requested_time ||
 		!payload.reason
 	) {
-		errorMessage.value = __("Please complete all required fields")
+		errorMessage.value = copy("form.completeRequired")
 		return
 	}
 	if (payload.request_type === "Correct Checkin Time" && !payload.original_checkin) {
-		errorMessage.value = __("Please select the original check-in")
+		errorMessage.value = copy("form.selectOriginal")
 		return
 	}
 
 	await submitResource.submit({ payload })
+	await Promise.allSettled([
+		myAttendanceCorrectionRequests.reload(),
+		pendingAttendanceCorrectionApprovals.reload(),
+		attendanceCorrectionApprovalCount.reload(),
+	])
 	toast({
 		title: __("Success"),
-		text: __("Attendance correction request submitted"),
+		text: copy("form.submitted"),
 		icon: "check-circle",
 		position: "bottom-center",
 		iconClasses: "text-green-500",
