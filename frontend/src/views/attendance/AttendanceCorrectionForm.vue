@@ -36,6 +36,9 @@
 						v-model="form.requested_time"
 						:label="copy('field.requestedTime')"
 						:dateTimeFormatter="dateTimeFormatter"
+						:nativeDateTime="true"
+						:toNativeDateTimeValue="toNativeDateTimeInputValue"
+						:fromNativeDateTimeValue="fromNativeDateTimeInputValue"
 						:reqd="true"
 					/>
 					<FormField
@@ -86,8 +89,10 @@ import {
 	buildCorrectionPayload,
 	buildOriginalCheckinOptions,
 	formatCorrectionDateTime,
+	fromNativeDateTimeInputValue,
 	getAttendanceCorrectionCopy,
 	getCorrectionLang,
+	toNativeDateTimeInputValue,
 } from "@/utils/attendanceCorrection"
 
 const __ = inject("$translate")

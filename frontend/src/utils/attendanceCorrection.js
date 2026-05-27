@@ -260,6 +260,18 @@ export function formatCorrectionClockTime(value) {
 	return match ? `${match[1]}:${match[2]}` : ""
 }
 
+export function toNativeDateTimeInputValue(value) {
+	if (!value) return ""
+	const match = String(value).match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/)
+	return match ? `${match[1]}T${match[2]}:${match[3]}` : ""
+}
+
+export function fromNativeDateTimeInputValue(value) {
+	if (!value) return ""
+	const match = String(value).match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/)
+	return match ? `${match[1]} ${match[2]}:${match[3]}:00` : String(value)
+}
+
 export function buildOriginalCheckinOptions(checkins = [], lang) {
 	return checkins.map((checkin) => ({
 		label: `${formatCorrectionClockTime(checkin.time)} ${getAttendanceCorrectionCopy(
