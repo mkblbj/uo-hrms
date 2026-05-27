@@ -962,27 +962,6 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 			commit=False,
 		)
 
-	def test_recalculate_attendance_runs_as_administrator_and_restores_user(self):
-		request = frappe.get_doc(
-			{
-				"doctype": "Attendance Correction Request",
-				"employee": "HR-EMP-00001",
-				"attendance_date": "2026-05-20",
-			}
-		)
-
-		with (
-			patch.object(frappe.session, "user", "approver@example.com"),
-			patch("frappe.set_user") as set_user,
-			patch(
-				"hrms.hr.doctype.employee_checkin.employee_checkin_utils.recalculate_attendance",
-				return_value={"status": "success", "attendance": "HR-ATT-00001"},
-			),
-		):
-			self.assertEqual(request.recalculate_attendance_for_request(), "HR-ATT-00001")
-
-		set_user.assert_has_calls([call("Administrator"), call("approver@example.com")])
-
 	def test_recalculate_window_includes_next_day_for_overnight_shift(self):
 		from hrms.hr.doctype.employee_checkin.employee_checkin_utils import (
 			get_attendance_recalculation_window,

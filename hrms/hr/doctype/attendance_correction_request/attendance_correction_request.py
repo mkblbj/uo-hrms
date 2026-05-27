@@ -226,13 +226,7 @@ class AttendanceCorrectionRequest(Document):
 		from hrms.hr.doctype.employee_checkin.employee_checkin_utils import recalculate_attendance
 
 		attendance_date = str(getdate(self.attendance_date))
-		current_user = frappe.session.user
-		try:
-			frappe.set_user("Administrator")
-			result = recalculate_attendance(self.employee, attendance_date, commit=False)
-		finally:
-			frappe.set_user(current_user)
-
+		result = recalculate_attendance(self.employee, attendance_date, commit=False)
 		if result.get("status") == "success":
 			return result.get("attendance")
 		if result.get("status") in {"warning", "error"}:
