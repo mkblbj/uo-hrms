@@ -3,7 +3,7 @@ import unittest
 
 import frappe
 
-from hrms.api import build_pwa_attendance_anomaly
+from hrms.api import build_pwa_attendance_anomaly, group_pwa_checkins_by_attendance_date
 
 
 def checkin(day, hour, minute, log_type, attendance=None):
@@ -99,6 +99,33 @@ class TestPwaAttendanceAnomalies(unittest.TestCase):
 			today=self.today,
 		)
 		self.assertEqual(result["codes"], ["missing_checkout"])
+
+	def test_groups_linked_overnight_checkout_to_attendance_date(self):
+		attendance_day = date(2026, 5, 25)
+		next_day = date(2026, 5, 26)
+		grouped = group_pwa_checkins_by_attendance_date(
+			[
+				checkin(attendance_day, 21, 0, "IN", attendance="ATT-001"),
+				checkin(next_day, 0, 30, "OUT", attendance="ATT-001"),
+			],
+			{"ATT-001": attendance_day},
+			attendance_day,
+			next_day,
+		)
+
+		self.assertEqual([log.log_type for log in grouped[attendance_day]], ["IN", "OUT"])
+		self.assertNotIn(next_day, grouped)
+
+	def test_groups_unlinked_checkins_by_their_own_date(self):
+		attendance_day = date(2026, 5, 25)
+		grouped = group_pwa_checkins_by_attendance_date(
+			[checkin(attendance_day, 9, 0, "IN")],
+			{},
+			attendance_day,
+			attendance_day,
+		)
+
+		self.assertEqual([log.log_type for log in grouped[attendance_day]], ["IN"])
 
 
 if __name__ == "__main__":

@@ -175,6 +175,66 @@ def build_pwa_attendance_anomaly(attendance_date, checkins: list[dict], today=No
 	return get_empty_pwa_attendance_anomaly()
 
 
+def group_pwa_checkins_by_attendance_date(
+	checkins: list[dict],
+	attendance_date_by_name: dict,
+	from_date,
+	to_date,
+) -> dict:
+	from_date = getdate(from_date)
+	to_date = getdate(to_date)
+	grouped = {}
+
+	for checkin in sorted(checkins or [], key=lambda row: row.get("time")):
+		attendance_name = checkin.get("attendance")
+		if attendance_name and attendance_name in attendance_date_by_name:
+			checkin_date = getdate(attendance_date_by_name[attendance_name])
+		else:
+			checkin_date = getdate(checkin.get("time"))
+
+		if from_date <= checkin_date <= to_date:
+			grouped.setdefault(checkin_date, []).append(checkin)
+
+	return grouped
+
+
+def get_checkins_for_attendance_calendar(
+	employee: str,
+	from_date: str,
+	to_date: str,
+	attendance_date_by_name: dict,
+) -> dict:
+	checkins_by_name = {}
+	attendance_names = list(attendance_date_by_name.keys())
+
+	if attendance_names:
+		for row in frappe.get_all(
+			"Employee Checkin",
+			filters={"employee": employee, "attendance": ["in", attendance_names]},
+			fields=["name", "attendance", "log_type", "time"],
+			order_by="time asc",
+		):
+			checkins_by_name[row.name] = row
+
+	for row in frappe.get_all(
+		"Employee Checkin",
+		filters={
+			"employee": employee,
+			"time": ["between", [f"{from_date} 00:00:00", f"{to_date} 23:59:59"]],
+		},
+		fields=["name", "attendance", "log_type", "time"],
+		order_by="time asc",
+	):
+		checkins_by_name[row.name] = row
+
+	return group_pwa_checkins_by_attendance_date(
+		list(checkins_by_name.values()),
+		attendance_date_by_name,
+		from_date,
+		to_date,
+	)
+
+
 def calculate_pwa_attendance_totals(attendance_rows: list[dict]) -> dict:
 	total_hours = 0
 	total_present_days = 0
@@ -479,6 +539,12 @@ def get_attendance_calendar_events(from_date: str, to_date: str, employee: str |
 	employee = employee or get_current_employee()
 	holidays = get_holidays_for_calendar(employee, from_date, to_date)
 	attendance = get_attendance_for_calendar(employee, from_date, to_date)
+	attendance_date_by_name = {
+		att["name"]: attendance_date for attendance_date, att in attendance.items() if att.get("name")
+	}
+	checkins_by_date = get_checkins_for_attendance_calendar(
+		employee, from_date, to_date, attendance_date_by_name
+	)
 	shifts = get_shifts_for_calendar(employee, from_date, to_date)
 	events = {}
 
@@ -501,6 +567,10 @@ def get_attendance_calendar_events(from_date: str, to_date: str, employee: str |
 		if date_str in shifts:
 			event["shift"] = shifts[date_str]
 
+		anomaly = build_pwa_attendance_anomaly(date, checkins_by_date.get(date, []))
+		if anomaly["has_issue"] or event:
+			event["anomaly"] = anomaly
+
 		if event:
 			events[date_str] = event
 		date = add_days(date, 1)
@@ -512,7 +582,7 @@ def get_attendance_for_calendar(employee: str, from_date: str, to_date: str) -> 
 	attendance = frappe.get_all(
 		"Attendance",
 		{"employee": employee, "attendance_date": ["between", [from_date, to_date]], "docstatus": 1},
-		["attendance_date", "status", "in_time", "out_time", "working_hours"],
+		["name", "attendance_date", "status", "in_time", "out_time", "working_hours"],
 	)
 	result = {}
 	for d in attendance:
@@ -525,6 +595,7 @@ def get_attendance_for_calendar(employee: str, from_date: str, to_date: str) -> 
 			out_time = str(d["out_time"])[11:16] if len(str(d["out_time"])) > 11 else str(d["out_time"])[:5]
 
 		result[d["attendance_date"]] = {
+			"name": d["name"],
 			"status": d["status"],
 			"in_time": in_time,
 			"out_time": out_time,
