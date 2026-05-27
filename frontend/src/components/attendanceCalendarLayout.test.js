@@ -58,3 +58,13 @@ test("uses the bottom strip for monthly hours, attendance days, and average", ()
 	assert.doesNotMatch(source, /class="detail-strip"\s+v-if="selectedCell"/)
 	assert.doesNotMatch(source, /<component\s+:is="DetailMain"\s+:cell="selectedCell"/)
 })
+
+test("renders attendance anomaly state in the monthly calendar", () => {
+	const source = fs.readFileSync(attendanceCalendarPath, "utf8")
+
+	assert.match(source, /getAttendanceAnomalyLabel/)
+	assert.match(source, /getAttendanceAnomalyTitle/)
+	assert.match(source, /state === "anomaly"/)
+	assert.match(source, /state-anomaly/)
+	assert.match(source, /dlg-anomaly-reason/)
+})

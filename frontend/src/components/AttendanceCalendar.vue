@@ -125,6 +125,12 @@
 									v-if="dialogCell.is_today && !dialogCell.out_time && isWorkLike(dialogCell)"
 									class="ongoing-chip"
 								>● {{ t("detail.ongoing") }}</span>
+								<span
+									v-if="dialogCell.state === 'anomaly' && dialogCell.anomaly_label"
+									class="dlg-anomaly-reason"
+								>
+									{{ dialogCell.anomaly_label }}
+								</span>
 							</div>
 						</div>
 						<div class="dlg-status-icon" :style="detailPillStyle(dialogCell)">
@@ -132,7 +138,7 @@
 						</div>
 					</div>
 
-					<div class="dlg-grid" v-if="isWorkLike(dialogCell)">
+					<div class="dlg-grid" v-if="isAttendanceDetailVisible(dialogCell)">
 						<div class="data-cell">
 							<div class="dlg-eyebrow">{{ t("detail.in") }}</div>
 							<div class="data-value" :style="{ color: colors.green_dk }">{{ dialogCell.in_time || "—:—" }}</div>
@@ -180,6 +186,12 @@ import {
 	getCalendarWeekCount,
 	padCalendarDaysToFullWeeks,
 } from "@/components/attendanceCalendarLayout"
+import {
+	ATTENDANCE_ANOMALY_COLOR,
+	getAttendanceAnomalyLabel,
+	getAttendanceAnomalyTitle,
+	hasAttendanceAnomaly,
+} from "@/utils/attendanceAnomaly"
 
 const dayjs = inject("$dayjs")
 const employee = inject("$employee")
@@ -221,6 +233,8 @@ const colors = {
 	absent: "#fecaca",
 	holiday: "#fee2e2",
 	rest: "#fde68a",
+	anomaly: ATTENDANCE_ANOMALY_COLOR,
+	anomaly_bg: "#fee2e2",
 }
 
 const messages = {
@@ -239,6 +253,7 @@ const messages = {
 			holiday: "节假日",
 			rest: "休",
 			today: "今日",
+			anomaly: "异常",
 		},
 		badge: {
 			work: "出勤",
@@ -281,6 +296,7 @@ const messages = {
 			holiday: "祝日",
 			rest: "休",
 			today: "本日",
+			anomaly: "異常",
 		},
 		badge: {
 			work: "出勤",
@@ -323,6 +339,7 @@ const messages = {
 			holiday: "Holiday",
 			rest: "Off",
 			today: "Today",
+			anomaly: "Issue",
 		},
 		badge: {
 			work: "IN",
@@ -433,6 +450,7 @@ const monthCells = computed(() => {
 				: rawAttendance || {}
 		const roster = rosterMap.value[dateStr] || null
 		const holiday = holidayMap.value[dateStr] || null
+		const anomaly = attendanceEntry.anomaly || null
 
 		const state = deriveState(attendanceEntry, roster, holiday)
 		const hours = toNumber(attendanceEntry.working_hours)
@@ -450,6 +468,8 @@ const monthCells = computed(() => {
 			scheduled_time: roster?.scheduled_time || "",
 			holiday: holiday && !holiday.weekly_off ? holiday.description : "",
 			is_today: dateStr === todayStr,
+			anomaly,
+			anomaly_label: getAttendanceAnomalyLabel(anomaly, getLang()),
 		})
 	}
 	return cells
@@ -495,6 +515,7 @@ const dialogCell = computed(() => {
 const legendItems = computed(() => {
 	return [
 		{ key: "work", style: { background: colors.heat_125 } },
+		{ key: "anomaly", style: { background: colors.anomaly_bg, border: `1.5px solid rgba(220,38,38,0.45)` } },
 		// 数据齐了再放开 ↓
 		// { key: "wfh", style: { background: colors.wfh } },
 		// { key: "half", style: { background: colors.half } },
@@ -508,6 +529,7 @@ const legendItems = computed(() => {
 })
 
 function deriveState(attendanceEntry, roster, holiday) {
+	if (hasAttendanceAnomaly(attendanceEntry?.anomaly)) return "anomaly"
 	const status = attendanceEntry?.attendance
 	if (status) {
 		const m = {
@@ -562,7 +584,12 @@ function isWorkLike(c) {
 	return c.state === "work" || c.state === "wfh" || c.state === "half"
 }
 
+function isAttendanceDetailVisible(c) {
+	return isWorkLike(c) || c.state === "anomaly"
+}
+
 function cellBackground(c) {
+	if (c.state === "anomaly") return colors.anomaly_bg
 	switch (c.state) {
 		case "work": {
 			const r = (c.hours || 0) / 8
@@ -597,6 +624,7 @@ function cellStyleFor(c) {
 	let boxShadow = "none"
 
 	if (c.state === "roster") border = `1.5px solid ${colors.roster_border}`
+	else if (c.state === "anomaly") border = `1.5px solid rgba(220,38,38,0.45)`
 	else if (c.state === "empty") border = `1px solid ${colors.hairline2}`
 	else if (c.state === "rest") border = `1px solid ${colors.hairline2}`
 	else if (c.state === "holiday") border = `1px solid rgba(220,38,38,0.18)`
@@ -622,6 +650,7 @@ function cellClasses(c) {
 }
 
 function dateColor(c) {
+	if (c.state === "anomaly") return colors.anomaly
 	if (isDarkHeatCell(c)) return "#ffffff"
 	if (showWeekendTint(c)) {
 		return c.weekday === 0 ? colors.red : colors.blue
@@ -640,11 +669,15 @@ function showWeekendDot(c) {
 
 function cellBadge(c) {
 	const M = messages[getLang()] || messages.zh
+	if (c.state === "anomaly") return getAttendanceAnomalyTitle(getLang())
 	if (c.state === "roster") return c.shift_label || M.legend.roster
 	return M.badge[c.state] || ""
 }
 
 function badgeStyle(c) {
+	if (c.state === "anomaly") {
+		return { color: colors.anomaly, background: "rgba(220,38,38,0.14)" }
+	}
 	const dark = isDarkHeatCell(c)
 	const color = dark
 		? "#ffffff"
@@ -675,6 +708,7 @@ function badgeStyle(c) {
 
 function statusColor(c) {
 	return {
+		anomaly: colors.anomaly,
 		work: colors.green_dk,
 		wfh: colors.blue_dk,
 		half: colors.amber_dk,
@@ -704,7 +738,9 @@ const StateIcon = {
 		return () => {
 			const s = props.cell.state
 			const stroke =
-				s === "work"
+				s === "anomaly"
+					? colors.anomaly
+					: s === "work"
 					? colors.green_dk
 					: s === "wfh"
 					? colors.blue_dk
@@ -749,6 +785,14 @@ const StateIcon = {
 					return svg([h("path", { d: "M4 4v16M4 4l10 3v8L4 12" })])
 				case "absent":
 					return svg([h("path", { d: "M6 6l12 12M18 6L6 18" })], { "stroke-width": "2.2" })
+				case "anomaly":
+					return svg([
+						h("path", { d: "M12 9v4" }),
+						h("path", { d: "M12 17h.01" }),
+						h("path", {
+							d: "M10.3 3.9 2.5 18a2 2 0 0 0 1.7 3h15.6a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z",
+						}),
+					])
 				case "holiday":
 					return h(
 						"svg",
@@ -977,6 +1021,9 @@ onIonViewWillEnter(() => {
 .cell:active {
 	transform: scale(0.97);
 }
+.cell.state-anomaly {
+	color: #7f1d1d;
+}
 .cell-top {
 	display: flex;
 	align-items: flex-start;
@@ -1197,6 +1244,14 @@ onIonViewWillEnter(() => {
 	border-radius: 999px;
 	letter-spacing: 0.08em;
 	font-weight: 700;
+}
+.dlg-anomaly-reason {
+	display: block;
+	margin-top: 4px;
+	font-size: 12px;
+	line-height: 1.35;
+	font-weight: 800;
+	color: #dc2626;
 }
 .dlg-status-icon {
 	width: 48px;
