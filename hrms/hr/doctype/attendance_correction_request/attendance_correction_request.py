@@ -225,7 +225,8 @@ class AttendanceCorrectionRequest(Document):
 	def recalculate_attendance_for_request(self) -> str | None:
 		from hrms.hr.doctype.employee_checkin.employee_checkin_utils import recalculate_attendance
 
-		result = recalculate_attendance(self.employee, self.attendance_date, commit=False)
+		attendance_date = str(getdate(self.attendance_date))
+		result = recalculate_attendance(self.employee, attendance_date, commit=False)
 		if result.get("status") == "success":
 			return result.get("attendance")
 		if result.get("status") in {"warning", "error"}:

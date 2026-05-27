@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from unittest.mock import call, patch
 
 import frappe
@@ -937,7 +937,28 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 
 		recalculate_attendance.assert_called_once_with(
 			request.employee,
-			request.attendance_date,
+			"2026-05-20",
+			commit=False,
+		)
+
+	def test_recalculate_attendance_converts_date_object_to_string(self):
+		request = frappe.get_doc(
+			{
+				"doctype": "Attendance Correction Request",
+				"employee": "HR-EMP-00001",
+				"attendance_date": date(2026, 5, 20),
+			}
+		)
+
+		with patch(
+			"hrms.hr.doctype.employee_checkin.employee_checkin_utils.recalculate_attendance",
+			return_value={"status": "success", "attendance": "HR-ATT-00001"},
+		) as recalculate_attendance:
+			self.assertEqual(request.recalculate_attendance_for_request(), "HR-ATT-00001")
+
+		recalculate_attendance.assert_called_once_with(
+			request.employee,
+			"2026-05-20",
 			commit=False,
 		)
 
