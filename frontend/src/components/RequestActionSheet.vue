@@ -326,10 +326,16 @@ const updateDocumentStatus = ({ status = "", docstatus = 0 }) => {
 	)
 }
 
+const detailRouteMap = {
+	"Attendance Correction Request": "AttendanceCorrectionDetailView",
+}
+
 const openFormView = () => {
 	modalController.dismiss()
 	router.push({
-		name: `${props.modelValue.doctype.replace(/\s+/g, "")}DetailView`,
+		name:
+			detailRouteMap[props.modelValue.doctype] ||
+			`${props.modelValue.doctype.replace(/\s+/g, "")}DetailView`,
 		params: { id: props.modelValue.name },
 	})
 }

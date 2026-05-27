@@ -31,6 +31,7 @@ class EmployeeCheckin(Document):
 		from frappe.types import DF
 
 		attendance: DF.Link | None
+		attendance_correction_request: DF.Link | None
 		device_id: DF.Data | None
 		employee: DF.Link
 		employee_name: DF.Data | None

@@ -16,6 +16,7 @@
   "device_id",
   "skip_auto_attendance",
   "attendance",
+  "attendance_correction_request",
   "location_section",
   "latitude",
   "column_break_yqpi",
@@ -92,6 +93,14 @@
    "fieldtype": "Link",
    "label": "Attendance Marked",
    "options": "Attendance",
+   "read_only": 1
+  },
+  {
+   "fieldname": "attendance_correction_request",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Attendance Correction Request",
+   "options": "Attendance Correction Request",
    "read_only": 1
   },
   {

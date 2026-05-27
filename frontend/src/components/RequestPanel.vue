@@ -19,10 +19,19 @@ import { ref, inject, onMounted, computed, markRaw } from "vue"
 import TabButtons from "@/components/TabButtons.vue"
 import RequestList from "@/components/RequestList.vue"
 
-import { myAttendanceRequests, myShiftRequests, teamShiftRequests, teamAttendanceRequests } from "@/data/attendance"
+import {
+	myAttendanceRequests,
+	myCorrectionRequests,
+	myShiftRequests,
+	teamAttendanceRequests,
+	teamCorrectionRequests,
+	teamShiftRequests,
+} from "@/data/attendance"
+import { attendanceCorrectionApprovalCount } from "@/data/attendance_correction"
 import { myClaims, teamClaims } from "@/data/claims"
 import { myLeaves, teamLeaves } from "@/data/leaves"
 
+import AttendanceCorrectionItem from "@/components/AttendanceCorrectionItem.vue"
 import AttendanceRequestItem from "@/components/AttendanceRequestItem.vue"
 import ExpenseClaimItem from "@/components/ExpenseClaimItem.vue"
 import LeaveRequestItem from "@/components/LeaveRequestItem.vue"
@@ -36,15 +45,15 @@ const socket = inject("$socket")
 const TAB_BUTTONS = ["My Requests", "Team Requests"] // __("My Requests"), __("Team Requests")
 
 const myRequests = computed(() =>
-	updateRequestDetails(myLeaves, myClaims, myShiftRequests, myAttendanceRequests)
+	updateRequestDetails(myLeaves, myClaims, myShiftRequests, myAttendanceRequests, myCorrectionRequests)
 )
 
 const teamRequests = computed(() =>
-	updateRequestDetails(teamLeaves, teamClaims, teamShiftRequests, teamAttendanceRequests)
+	updateRequestDetails(teamLeaves, teamClaims, teamShiftRequests, teamAttendanceRequests, teamCorrectionRequests)
 )
 
-function updateRequestDetails(leaves, claims, shiftRequests, attendanceRequests) {
-	const requests = [leaves, claims, shiftRequests, attendanceRequests].reduce(
+function updateRequestDetails(leaves, claims, shiftRequests, attendanceRequests, correctionRequests) {
+	const requests = [leaves, claims, shiftRequests, attendanceRequests, correctionRequests].reduce(
 		(acc, resource) => acc.concat(resource?.data || []),
 		[]
 	)
@@ -54,6 +63,7 @@ function updateRequestDetails(leaves, claims, shiftRequests, attendanceRequests)
 		"Expense Claim": ExpenseClaimItem,
 		"Shift Request": ShiftRequestItem,
 		"Attendance Request": AttendanceRequestItem,
+		"Attendance Correction Request": AttendanceCorrectionItem,
 	}
 	requests.forEach((request) => {
 		request.component = markRaw(componentMap[request.doctype])
@@ -76,5 +86,10 @@ onMounted(() => {
 	useListUpdate(socket, "Expense Claim", () => teamClaims.reload())
 	useListUpdate(socket, "Shift Request", () => teamShiftRequests.reload())
 	useListUpdate(socket, "Attendance Request", () => teamAttendanceRequests.reload())
+	useListUpdate(socket, "Attendance Correction Request", () => {
+		myCorrectionRequests.reload()
+		teamCorrectionRequests.reload()
+		attendanceCorrectionApprovalCount.reload()
+	})
 })
 </script>

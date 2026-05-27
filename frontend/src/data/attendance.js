@@ -1,5 +1,9 @@
 import { createResource } from "frappe-ui"
 import { employeeResource } from "./employee"
+import {
+	myAttendanceCorrectionRequests,
+	pendingAttendanceCorrectionApprovals,
+} from "@/data/attendance_correction"
 
 import dayjs from "@/utils/dayjs"
 
@@ -106,3 +110,6 @@ export const teamAttendanceRequests = createResource({
 		return transformAttendanceRequests(data)
 	},
 })
+
+export const myCorrectionRequests = myAttendanceCorrectionRequests
+export const teamCorrectionRequests = pendingAttendanceCorrectionApprovals

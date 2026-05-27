@@ -44,17 +44,20 @@
 <script setup>
 import { ref, inject } from "vue"
 import { IonModal } from "@ionic/vue"
+import { useRouter } from "vue-router"
 import RequestActionSheet from "@/components/RequestActionSheet.vue"
 
 import {
 	LEAVE_FIELDS,
 	EXPENSE_CLAIM_FIELDS,
 	ATTENDANCE_REQUEST_FIELDS,
+	ATTENDANCE_CORRECTION_FIELDS,
 	SHIFT_REQUEST_FIELDS,
 	SHIFT_FIELDS,
 } from "@/data/config/requestSummaryFields"
 
 const __ = inject("$translate")
+const router = useRouter()
 const props = defineProps({
 	component: {
 		type: Object,
@@ -84,6 +87,7 @@ const fieldsMap = {
 	"Leave Application": LEAVE_FIELDS,
 	"Expense Claim": EXPENSE_CLAIM_FIELDS,
 	"Attendance Request": ATTENDANCE_REQUEST_FIELDS,
+	"Attendance Correction Request": ATTENDANCE_CORRECTION_FIELDS,
 	"Shift Request": SHIFT_REQUEST_FIELDS,
 	"Shift Assignment": SHIFT_FIELDS,
 }
@@ -92,6 +96,14 @@ const isRequestModalOpen = ref(false)
 const selectedRequest = ref(null)
 
 const openRequestModal = async (request) => {
+	if (request.doctype === "Attendance Correction Request") {
+		await router.push({
+			name: "AttendanceCorrectionDetailView",
+			params: { id: request.name },
+			query: props.teamRequests ? { mode: "approval" } : {},
+		})
+		return
+	}
 	selectedRequest.value = request
 	isRequestModalOpen.value = true
 }

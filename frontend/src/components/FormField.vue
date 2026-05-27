@@ -19,6 +19,7 @@
 			:placeholder="__('Select {0}', [props.label])"
 			:options="selectionList"
 			:modelValue="modelValue"
+			:hideSearch="props.hideSearch"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
 			@update:modelValue="(v) => emit('update:modelValue', v?.value)"
@@ -135,11 +136,22 @@
 
 		<!-- Time -->
 		<!-- Datetime -->
+		<input
+			v-else-if="props.fieldtype === 'Datetime' && props.nativeDateTime"
+			type="datetime-local"
+			:value="nativeDateTimeValue"
+			:placeholder="__('Select {0}', [props.label])"
+			@input="updateNativeDateTime"
+			@change="changeNativeDateTime"
+			v-bind="$attrs"
+			:disabled="isReadOnly"
+			class="form-input block w-full rounded border-gray-400 placeholder-gray-500"
+		/>
 		<DateTimePicker
 			v-else-if="props.fieldtype === 'Datetime'"
 			:value="modelValue"
-			:placeholder="`Select ${props.label}`"
-			:formatter="(val) => dayjs(val).format('DD-MM-YYYY HH:mm:ss')"
+			:placeholder="__('Select {0}', [props.label])"
+			:formatter="props.dateTimeFormatter || ((val) => dayjs(val).format('DD-MM-YYYY HH:mm:ss'))"
 			@update:modelValue="(v) => emit('update:modelValue', v)"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
@@ -166,6 +178,10 @@ const props = defineProps({
 	options: [String, Array],
 	linkFilters: Object,
 	documentList: Array,
+	dateTimeFormatter: Function,
+	nativeDateTime: Boolean,
+	toNativeDateTimeValue: Function,
+	fromNativeDateTimeValue: Function,
 	readOnly: [Boolean, Number],
 	reqd: [Boolean, Number],
 	hidden: {
@@ -178,6 +194,10 @@ const props = defineProps({
 	addSectionPadding: {
 		type: Boolean,
 		default: true,
+	},
+	hideSearch: {
+		type: Boolean,
+		default: false,
 	},
 })
 
@@ -202,8 +222,31 @@ const isReadOnly = computed(() => {
 	return Boolean(props.readOnly)
 })
 
+const nativeDateTimeValue = computed(() => {
+	if (props.toNativeDateTimeValue) return props.toNativeDateTimeValue(props.modelValue)
+	const match = String(props.modelValue || "").match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}):(\d{2})/)
+	return match ? `${match[1]}T${match[2]}:${match[3]}` : ""
+})
+
+function normalizeNativeDateTimeValue(value) {
+	if (props.fromNativeDateTimeValue) return props.fromNativeDateTimeValue(value)
+	if (!value) return ""
+	const match = String(value).match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/)
+	return match ? `${match[1]} ${match[2]}:${match[3]}:00` : String(value)
+}
+
+function updateNativeDateTime(event) {
+	emit("update:modelValue", normalizeNativeDateTimeValue(event.target.value))
+}
+
+function changeNativeDateTime(event) {
+	const value = normalizeNativeDateTimeValue(event.target.value)
+	emit("update:modelValue", value)
+	emit("change", value)
+}
+
 const selectionList = computed(() => {
-	if (props.fieldtype === "Link" && props.documentList) {
+	if (props.documentList) {
 		return props.documentList
 	} else if (props.fieldtype == "Select" && props.options) {
 		const options = props.options.split("\n")
