@@ -209,6 +209,7 @@ class AttendanceCorrectionRequest(Document):
 				"employee": self.employee,
 				"time": self.requested_time,
 				"log_type": self.requested_log_type,
+				"device_id": "Attendance Correction",
 				"skip_auto_attendance": 0,
 				"attendance_correction_request": self.name,
 			}
@@ -229,7 +230,18 @@ class AttendanceCorrectionRequest(Document):
 		from hrms.hr.doctype.employee_checkin.employee_checkin_utils import recalculate_attendance
 
 		attendance_date = str(getdate(self.attendance_date))
-		result = recalculate_attendance(self.employee, attendance_date, commit=False)
+		previous_mute_messages = frappe.flags.mute_messages
+		frappe.flags.mute_messages = True
+		try:
+			result = recalculate_attendance(
+				self.employee,
+				attendance_date,
+				commit=False,
+				ignore_permissions=True,
+			)
+		finally:
+			frappe.flags.mute_messages = previous_mute_messages
+
 		if result.get("status") == "success":
 			return result.get("attendance")
 		if result.get("status") in {"warning", "error"}:

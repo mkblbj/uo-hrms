@@ -3,6 +3,7 @@
 
 from datetime import datetime, timedelta
 from inspect import signature
+from unittest.mock import patch
 
 import frappe
 from frappe.utils import (
@@ -23,6 +24,7 @@ from hrms.hr.doctype.employee_checkin.employee_checkin import (
 	add_log_based_on_employee_field,
 	bulk_fetch_shift,
 	calculate_working_hours,
+	create_or_update_attendance,
 	mark_attendance_and_link_log,
 )
 from hrms.hr.doctype.employee_checkin.employee_checkin_utils import recalculate_attendance
@@ -548,6 +550,29 @@ class TestEmployeeCheckin(HRMSTestSuite):
 		# not allowed as distance (15004m) is not within checkin radius
 		self.assertRaises(CheckinRadiusExceededError, log.insert)
 
+	@HRMSTestSuite.change_settings("HR Settings", {"allow_geolocation_tracking": 1})
+	def test_attendance_correction_checkin_does_not_require_live_coordinates(self):
+		regular_log = frappe.get_doc(
+			{
+				"doctype": "Employee Checkin",
+				"employee": "HR-EMP-00001",
+				"time": now_datetime(),
+				"log_type": "IN",
+			}
+		)
+		correction_log = frappe.get_doc(
+			{
+				"doctype": "Employee Checkin",
+				"employee": "HR-EMP-00001",
+				"time": now_datetime(),
+				"log_type": "IN",
+				"attendance_correction_request": "HR-ACR-TEST",
+			}
+		)
+
+		self.assertRaises(frappe.ValidationError, regular_log.validate_distance_from_shift_location)
+		correction_log.validate_distance_from_shift_location()
+
 	def test_bulk_fetch_shift(self):
 		emp1 = make_employee("emp1@example.com", company="_Test Company")
 		emp2 = make_employee("emp2@example.com", company="_Test Company")
@@ -645,6 +670,42 @@ class TestEmployeeCheckin(HRMSTestSuite):
 		out_log.reload()
 		self.assertEqual(in_log.attendance, attendance.name)
 		self.assertEqual(out_log.attendance, attendance.name)
+
+	def test_create_or_update_attendance_can_ignore_permissions(self):
+		class FakeAttendance:
+			def __init__(self):
+				self.flags = frappe._dict()
+				self.submit_ignore_permissions = None
+
+			def update(self, values):
+				self.__dict__.update(values)
+
+			def save(self, ignore_permissions=None):
+				if ignore_permissions is not None:
+					self.flags.ignore_permissions = ignore_permissions
+
+			def submit(self):
+				self.submit_ignore_permissions = self.flags.ignore_permissions
+
+		attendance = FakeAttendance()
+
+		with (
+			patch(
+				"hrms.hr.doctype.employee_checkin.employee_checkin.get_existing_half_day_attendance",
+				return_value=None,
+			),
+			patch("frappe.new_doc", return_value=attendance),
+		):
+			result = create_or_update_attendance(
+				employee="HR-EMP-00001",
+				attendance_date=getdate("2026-05-20"),
+				attendance_status="Present",
+				ignore_permissions=True,
+			)
+
+		self.assertIs(result, attendance)
+		self.assertTrue(attendance.flags.ignore_permissions)
+		self.assertTrue(attendance.submit_ignore_permissions)
 
 	def test_if_logs_are_marked_invalid(self):
 		# time window is 7 to 13

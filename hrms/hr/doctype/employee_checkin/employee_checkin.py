@@ -171,6 +171,9 @@ class EmployeeCheckin(Document):
 		if not frappe.db.get_single_value("HR Settings", "allow_geolocation_tracking"):
 			return
 
+		if self.attendance_correction_request:
+			return
+
 		if not (self.latitude or self.longitude):
 			frappe.throw(_("Latitude and longitude values are required for checking in."))
 
@@ -282,6 +285,7 @@ def mark_attendance_and_link_log(
 	out_time: datetime | None = None,
 	shift: str | None = None,
 	overtime_type: str | None = None,
+	ignore_permissions: bool = False,
 ) -> Document | None:
 	"""Creates an attendance and links the attendance to the Employee Checkin.
 	Note: If attendance is already present for the given date, the logs are marked as skipped and no exception is thrown.
@@ -315,6 +319,7 @@ def mark_attendance_and_link_log(
 			in_time=in_time,
 			out_time=out_time,
 			overtime_type=overtime_type,
+			ignore_permissions=ignore_permissions,
 		)
 
 		if attendance_status == "Absent":
@@ -341,6 +346,7 @@ def create_or_update_attendance(
 	in_time=None,
 	out_time=None,
 	overtime_type=None,
+	ignore_permissions=False,
 ):
 	"""Creates a new attendance or updates an existing half-day attendance."""
 	if attendance := get_existing_half_day_attendance(employee, attendance_date):
@@ -387,7 +393,7 @@ def create_or_update_attendance(
 						"actual_overtime_duration": overtime_data.get("actual_overtime_duration"),
 					}
 				)
-		attendance.save()
+		attendance.save(ignore_permissions=ignore_permissions)
 		attendance.submit()
 
 	return attendance

@@ -9,7 +9,9 @@ from frappe.utils import get_timedelta, getdate
 
 
 @frappe.whitelist()
-def recalculate_attendance(employee: str, date: str, commit: bool = True) -> dict:
+def recalculate_attendance(
+	employee: str, date: str, commit: bool = True, ignore_permissions: bool = False
+) -> dict:
 	"""
 	Recalculate attendance for a specific employee and date.
 
@@ -22,6 +24,7 @@ def recalculate_attendance(employee: str, date: str, commit: bool = True) -> dic
 	    employee: Employee ID
 	    date: Date string (YYYY-MM-DD)
 	    commit: Commit attendance recalculation changes before returning.
+	    ignore_permissions: Create recalculated Attendance as a system action.
 
 	Returns:
 	    dict with status and message
@@ -160,6 +163,7 @@ def recalculate_attendance(employee: str, date: str, commit: bool = True) -> dic
 		out_time,
 		shift_name,
 		None,  # overtime_type
+		ignore_permissions=ignore_permissions,
 	)
 
 	if commit:

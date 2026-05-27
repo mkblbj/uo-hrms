@@ -1010,7 +1010,39 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 			request.employee,
 			"2026-05-20",
 			commit=False,
+			ignore_permissions=True,
 		)
+
+	def test_recalculate_attendance_mutes_intermediate_server_messages(self):
+		request = frappe.get_doc(
+			{
+				"doctype": "Attendance Correction Request",
+				"employee": "HR-EMP-00001",
+				"attendance_date": "2026-05-20",
+			}
+		)
+		previous_mute_messages = frappe.flags.mute_messages
+		previous_message_log = frappe.local.message_log
+		frappe.flags.mute_messages = False
+		frappe.local.message_log = []
+
+		def recalculate_attendance(*args, **kwargs):
+			self.assertTrue(frappe.flags.mute_messages)
+			frappe.msgprint("Unlinked Attendance record from Employee Checkins: EMP-CKIN-TEST")
+			return {"status": "success", "attendance": "HR-ATT-00001"}
+
+		try:
+			with patch(
+				"hrms.hr.doctype.employee_checkin.employee_checkin_utils.recalculate_attendance",
+				side_effect=recalculate_attendance,
+			):
+				self.assertEqual(request.recalculate_attendance_for_request(), "HR-ATT-00001")
+
+			self.assertFalse(frappe.flags.mute_messages)
+			self.assertEqual(frappe.local.message_log, [])
+		finally:
+			frappe.flags.mute_messages = previous_mute_messages
+			frappe.local.message_log = previous_message_log
 
 	def test_recalculate_attendance_converts_date_object_to_string(self):
 		request = frappe.get_doc(
@@ -1031,6 +1063,7 @@ class TestAttendanceCorrectionRequest(HRMSTestSuite):
 			request.employee,
 			"2026-05-20",
 			commit=False,
+			ignore_permissions=True,
 		)
 
 	def test_recalculate_window_includes_next_day_for_overnight_shift(self):
