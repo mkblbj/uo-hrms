@@ -117,6 +117,6 @@ onIonViewWillEnter(() => {
 	gap: 12px;
 	min-height: 100%;
 	padding: 12px 16px 110px;
-	background: #f1eee7;
+	background: var(--h-bg-page, #f1eee7);
 }
 </style>

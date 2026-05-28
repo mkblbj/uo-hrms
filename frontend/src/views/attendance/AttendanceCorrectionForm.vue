@@ -208,16 +208,16 @@ async function submit() {
 	gap: 12px;
 	min-height: 100%;
 	padding: 12px 16px 110px;
-	background: #f1eee7;
+	background: var(--h-bg-page, #f1eee7);
 }
 
 .form-surface {
 	display: flex;
 	flex-direction: column;
 	gap: 14px;
-	border: 1px solid #e3dfd4;
+	border: 1px solid var(--h-bd-default, #e3dfd4);
 	border-radius: 8px;
-	background: #fff;
+	background: var(--h-bg-card, #fff);
 	padding: 14px;
 }
 
@@ -227,7 +227,7 @@ async function submit() {
 	display: flex;
 	flex-direction: column;
 	gap: 8px;
-	background: #f1eee7;
+	background: var(--h-bg-page, #f1eee7);
 	padding-top: 8px;
 }
 </style>

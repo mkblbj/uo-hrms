@@ -174,7 +174,7 @@ async function reloadCorrectionResources() {
 	gap: 12px;
 	min-height: 100%;
 	padding: 12px 16px 110px;
-	background: #f1eee7;
+	background: var(--h-bg-page, #f1eee7);
 }
 
 .detail-surface,
@@ -182,9 +182,9 @@ async function reloadCorrectionResources() {
 	display: flex;
 	flex-direction: column;
 	gap: 12px;
-	border: 1px solid #e3dfd4;
+	border: 1px solid var(--h-bd-default, #e3dfd4);
 	border-radius: 8px;
-	background: #fff;
+	background: var(--h-bg-card, #fff);
 	padding: 14px;
 }
 
@@ -196,12 +196,12 @@ async function reloadCorrectionResources() {
 }
 
 .detail-row span {
-	color: #6b7280;
+	color: var(--h-fg-secondary, #6b7280);
 }
 
 .detail-row strong {
 	text-align: right;
-	color: #111827;
+	color: var(--h-fg-primary, #111827);
 	font-weight: 600;
 }
 </style>
