@@ -1,6 +1,7 @@
 <template>
 	<BaseLayout>
 		<template #header-actions>
+			<ThemeToggle />
 			<HomeStatusChip :work-status="workStatus" />
 		</template>
 		<template #body>
@@ -18,7 +19,11 @@ import { onBeforeUnmount, onMounted } from "vue"
 import BaseLayout from "@/components/BaseLayout.vue"
 import CheckInPanel from "@/components/CheckInPanel.vue"
 import HomeStatusChip from "@/components/home/HomeStatusChip.vue"
+import ThemeToggle from "@/components/home/ThemeToggle.vue"
+import { useTheme } from "@/composables/useTheme"
 import { bindCheckinStatusRefresh } from "@/utils/homeExperience"
+
+useTheme()
 
 const workStatus = createResource({
 	url: "hrms.api.get_employee_work_status",
