@@ -2,7 +2,7 @@
 	<ion-page>
 		<ion-header class="ion-no-border">
 			<div class="w-full">
-				<div class="flex flex-col bg-[#f1eee7] px-4 pb-3 pt-3">
+				<div class="flex flex-col px-4 pb-3 pt-3" style="background: var(--h-bg-page, #f1eee7)">
 					<div class="flex flex-row justify-between items-center">
 						<div class="flex flex-row items-center gap-2 min-w-0">
 							<button
@@ -15,7 +15,7 @@
 								</svg>
 							</button>
 							<img src="/uo-hr-logo.png" class="h-7 w-7 object-contain" alt="Logo" />
-							<h2 class="text-xl font-bold text-gray-900 truncate">
+							<h2 class="text-xl font-bold truncate" style="color: var(--h-fg-primary, #0a0a0a)">
 								{{ props.pageTitle || __("UO HR") }}
 							</h2>
 						</div>
@@ -24,9 +24,9 @@
 							<router-link
 								:to="{ name: 'Notifications' }"
 								v-slot="{ navigate }"
-								class="flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 bg-white shadow-sm"
+								class="flex h-9 w-9 items-center justify-center rounded-full shadow-sm" style="background: var(--h-bg-elevated, #fff); border: 1px solid var(--h-bd-default, #e3dfd4)"
 							>
-								<span class="relative inline-block" @click="navigate">
+								<span class="relative inline-block" @click="navigate" style="color: var(--h-fg-primary, #0a0a0a)">
 									<FeatherIcon name="bell" class="h-6 w-6" />
 									<span v-if="unreadNotificationsCount.data" class="notification-badge">
 										{{ unreadNotificationsCount.data > 99 ? '99+' : unreadNotificationsCount.data }}
@@ -102,9 +102,9 @@ function goBack() {
 	line-height: 18px;
 	text-align: center;
 	color: white;
-	background: #ef4444;
+	background: var(--h-badge-bg, #ef4444);
 	border-radius: 9px;
-	border: 2px solid white;
+	border: 2px solid var(--h-badge-bd, white);
 	box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 </style>

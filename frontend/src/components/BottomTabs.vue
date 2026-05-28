@@ -1,7 +1,7 @@
 <template>
 	<ion-tab-bar
 		slot="bottom"
-		class="bg-[#f1eee7]/95 shadow-sm border-t border-[#e3dfd4] sm:w-96 py-1.5 pb-2 standalone:pb-safe-bottom"
+		class="shadow-sm sm:w-96 py-1.5 pb-2 standalone:pb-safe-bottom" style="background: var(--h-tab-bg); border-top: 1px solid var(--h-tab-bd)"
 	>
 		<ion-tab-button
 			v-for="item in tabItems"
@@ -11,9 +11,10 @@
 			:class="[
 				'bg-transparent text-xs space-y-1.5 border-t-2 transition active:scale-95',
 				isActive(item)
-					? 'border-blue-600 text-blue-700 font-semibold'
-					: 'border-transparent text-gray-500 font-normal hover:text-gray-700',
+					? 'font-semibold'
+					: 'border-transparent font-normal',
 			]"
+			:style="isActive(item) ? { borderColor: 'var(--h-tab-active)', color: 'var(--h-tab-active)' } : { color: 'var(--h-tab-inactive)' }"
 		>
 			<component :is="item.icon" class="h-5 w-5" />
 			<div>{{ item.title }}</div>
@@ -51,3 +52,11 @@ function isActive(item) {
 	return route.path === item.route
 }
 </script>
+
+<style scoped>
+ion-tab-button {
+	--color: var(--h-tab-inactive);
+	--color-selected: var(--h-tab-active);
+	background: transparent;
+}
+</style>
