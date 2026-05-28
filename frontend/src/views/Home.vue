@@ -57,6 +57,6 @@ onBeforeUnmount(() => {
 	flex-direction: column;
 	padding: 12px 16px 20px;
 	min-height: calc(100vh - 110px);
-	background: #f1eee7;
+	background: var(--h-bg-page, #f1eee7);
 }
 </style>
