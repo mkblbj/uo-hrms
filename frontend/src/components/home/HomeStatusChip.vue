@@ -49,18 +49,18 @@ const meta = computed(() =>
 }
 
 .status-chip.working {
-	background: rgba(16, 185, 129, 0.12);
-	color: #047857;
+	background: var(--h-chip-working-bg);
+	color: var(--h-chip-working-fg);
 }
 
 .status-chip.off {
-	background: rgba(148, 163, 184, 0.14);
-	color: #475569;
+	background: var(--h-chip-off-bg);
+	color: var(--h-chip-off-fg);
 }
 
 .status-chip.pending {
-	background: rgba(245, 158, 11, 0.14);
-	color: #b45309;
+	background: var(--h-chip-pending-bg);
+	color: var(--h-chip-pending-fg);
 }
 
 .status-chip:active {

@@ -95,7 +95,7 @@ function formatNumber(value) {
 	font-size: 10px;
 	line-height: 1.2;
 	font-weight: 800;
-	color: #64748b;
+	color: var(--h-fg-secondary);
 }
 
 .stats-capsule-item strong {
@@ -104,7 +104,7 @@ function formatNumber(value) {
 	font-size: 17px;
 	line-height: 1;
 	font-weight: 900;
-	color: #0a0a0a;
+	color: var(--h-fg-primary);
 	font-variant-numeric: tabular-nums;
 }
 
@@ -112,12 +112,12 @@ function formatNumber(value) {
 	margin-left: 2px;
 	font-size: 10px;
 	font-weight: 800;
-	color: #64748b;
+	color: var(--h-fg-secondary);
 }
 
 .stats-capsule-divider {
 	width: 1px;
 	height: 30px;
-	background: #ede9dd;
+	background: var(--h-bd-subtle);
 }
 </style>

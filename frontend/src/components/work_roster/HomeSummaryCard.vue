@@ -183,28 +183,28 @@ onIonViewWillEnter(() => {
 	font-size: 16px;
 	line-height: 1.2;
 	font-weight: 900;
-	color: #0a0a0a;
+	color: var(--h-fg-primary);
 }
 
 .roster-section-header p {
 	margin: 3px 0 0;
 	font-size: 12px;
 	font-weight: 700;
-	color: #64748b;
+	color: var(--h-fg-secondary);
 }
 
 .roster-view-button {
 	display: inline-flex;
 	align-items: center;
 	gap: 2px;
-	border: 1px solid #ede9dd;
+	border: 1px solid var(--h-bd-subtle);
 	border-radius: 999px;
-	background: #ffffff;
+	background: var(--h-bg-card);
 	padding: 7px 10px;
 	font-size: 12px;
 	line-height: 1;
 	font-weight: 800;
-	color: #0a0a0a;
+	color: var(--h-fg-primary);
 }
 
 .roster-card-grid {
@@ -217,9 +217,9 @@ onIonViewWillEnter(() => {
 	display: flex;
 	flex-direction: column;
 	min-height: 126px;
-	border: 1px solid #ede9dd;
+	border: 1px solid var(--h-bd-subtle);
 	border-radius: 18px;
-	background: #ffffff;
+	background: var(--h-bg-card);
 	padding: 14px;
 	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 18px rgba(15, 23, 42, 0.04);
 }
@@ -235,7 +235,7 @@ onIonViewWillEnter(() => {
 	font-size: 11px;
 	line-height: 1.2;
 	font-weight: 900;
-	color: #64748b;
+	color: var(--h-fg-secondary);
 }
 
 .roster-card-title {
@@ -244,7 +244,7 @@ onIonViewWillEnter(() => {
 	font-size: 19px;
 	line-height: 1.15;
 	font-weight: 900;
-	color: #0a0a0a;
+	color: var(--h-fg-primary);
 }
 
 .roster-card-time {
@@ -253,7 +253,7 @@ onIonViewWillEnter(() => {
 	font-size: 13px;
 	line-height: 1.2;
 	font-weight: 900;
-	color: #15803d;
+	color: var(--h-summary-shift-fg);
 }
 
 .roster-card-meta {
@@ -263,17 +263,17 @@ onIonViewWillEnter(() => {
 	font-size: 11px;
 	line-height: 1.25;
 	font-weight: 700;
-	color: #64748b;
+	color: var(--h-fg-secondary);
 }
 
 .roster-empty-warning {
-	border: 1px solid #fde68a;
+	border: 1px solid var(--h-summary-warn-bd);
 	border-radius: 18px;
-	background: #fffbeb;
+	background: var(--h-summary-warn-bg);
 	padding: 14px;
 	font-size: 13px;
 	font-weight: 700;
-	color: #92400e;
+	color: var(--h-summary-warn-fg);
 }
 
 @keyframes roster-loading {

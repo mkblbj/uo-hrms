@@ -120,8 +120,8 @@ const actionDescription = computed(() => {
 	margin: 0 auto;
 	border: 0;
 	border-radius: 20px;
-	background: rgba(10, 10, 10, 0.86);
-	color: #ffffff;
+	background: var(--h-scan-bg);
+	color: var(--h-scan-fg);
 	padding: 10px 14px 10px 12px;
 	box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
 	backdrop-filter: blur(18px);
@@ -135,7 +135,7 @@ const actionDescription = computed(() => {
 }
 
 .scan-action-button.is-disabled {
-	background: #94a3b8;
+	background: var(--h-scan-disabled-bg);
 	box-shadow: 0 10px 22px rgba(100, 116, 139, 0.2);
 }
 
@@ -147,7 +147,7 @@ const actionDescription = computed(() => {
 	width: 38px;
 	height: 38px;
 	border-radius: 14px;
-	background: rgba(255, 255, 255, 0.14);
+	background: var(--h-scan-icon-bg);
 }
 
 .scan-action-copy {
@@ -175,7 +175,7 @@ const actionDescription = computed(() => {
 	font-size: 12px;
 	line-height: 1.25;
 	font-weight: 700;
-	color: rgba(255, 255, 255, 0.72);
+	color: var(--h-scan-fg-sub);
 }
 
 .scan-action-arrow {
