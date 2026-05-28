@@ -225,7 +225,7 @@ onIonViewWillEnter(() => {
 }
 
 .roster-card.is-loading {
-	background: linear-gradient(90deg, #ffffff 0%, #f8fafc 50%, #ffffff 100%);
+	background: linear-gradient(90deg, var(--h-bg-card) 0%, var(--h-bg-card-inner) 50%, var(--h-bg-card) 100%);
 	background-size: 200% 100%;
 	animation: roster-loading 1.2s ease-in-out infinite;
 }

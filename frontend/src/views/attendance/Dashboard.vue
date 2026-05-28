@@ -33,6 +33,6 @@ const pageTitle = computed(() => {
 	gap: 10px;
 	min-height: 0;
 	padding: 10px 16px 16px;
-	background: #f1eee7;
+	background: var(--h-bg-page, #f1eee7);
 }
 </style>

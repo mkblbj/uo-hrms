@@ -176,7 +176,7 @@
 </template>
 
 <script setup>
-import { computed, h, inject, ref, watch } from "vue"
+import { computed, h, inject, onBeforeUnmount, reactive, ref, watch } from "vue"
 import { onIonViewWillEnter } from "@ionic/vue"
 import { createResource } from "frappe-ui"
 import { useRouter } from "vue-router"
@@ -203,17 +203,13 @@ const currentMonth = ref(now.getMonth() + 1)
 const dialogDay = ref(null)
 const selectedDay = ref(null)
 
-const colors = {
-	bg: "#f1eee7",
-	surface: "#ffffff",
-	surface2: "#faf8f2",
-	ink: "#0a0a0a",
-	ink2: "#3f3d38",
-	ink3: "#787570",
-	ink4: "#adaaa3",
-	ink5: "#d8d5cd",
-	hairline: "#e3dfd4",
-	hairline2: "#ede9dd",
+const THEME_SURFACE = {
+	light: { bg: "#f1eee7", surface: "#ffffff", surface2: "#faf8f2", ink: "#0a0a0a", ink2: "#3f3d38", ink3: "#787570", ink4: "#adaaa3", ink5: "#d8d5cd", hairline: "#e3dfd4", hairline2: "#ede9dd" },
+	dark: { bg: "#121212", surface: "#1e1e1e", surface2: "#252525", ink: "#e8e8e8", ink2: "#c0bdb6", ink3: "#8a8884", ink4: "#5c5955", ink5: "#3a3835", hairline: "#333333", hairline2: "#2a2a2a" },
+}
+
+const colors = reactive({
+	...THEME_SURFACE.light,
 	green: "#16a34a",
 	green_dk: "#15803d",
 	green_lt: "#86efac",
@@ -235,7 +231,18 @@ const colors = {
 	rest: "#fde68a",
 	anomaly: ATTENDANCE_ANOMALY_COLOR,
 	anomaly_bg: "#fee2e2",
+})
+
+function syncCalendarTheme() {
+	const isDark = document.documentElement.getAttribute("data-theme") === "dark"
+	Object.assign(colors, isDark ? THEME_SURFACE.dark : THEME_SURFACE.light)
 }
+syncCalendarTheme()
+
+const themeObserver = typeof MutationObserver !== "undefined"
+	? new MutationObserver(syncCalendarTheme)
+	: null
+themeObserver?.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] })
 
 const messages = {
 	zh: {
@@ -876,6 +883,10 @@ watch(monthCells, (cells) => {
 
 onIonViewWillEnter(() => {
 	loadData()
+})
+
+onBeforeUnmount(() => {
+	themeObserver?.disconnect()
 })
 </script>
 

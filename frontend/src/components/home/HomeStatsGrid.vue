@@ -55,9 +55,9 @@ function formatNumber(value) {
 	align-items: center;
 	justify-content: space-between;
 	gap: 14px;
-	border: 1px solid #ede9dd;
+	border: 1px solid var(--h-bd-subtle);
 	border-radius: 999px;
-	background: #ffffff;
+	background: var(--h-bg-card);
 	padding: 10px 14px;
 	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 18px rgba(15, 23, 42, 0.04);
 }
@@ -65,12 +65,12 @@ function formatNumber(value) {
 .stats-capsule-label {
 	flex: 0 0 auto;
 	border-radius: 999px;
-	background: #0a0a0a;
+	background: var(--h-fg-primary);
 	padding: 7px 10px;
 	font-size: 10px;
 	line-height: 1;
 	font-weight: 900;
-	color: #ffffff;
+	color: var(--h-bg-card);
 }
 
 .stats-capsule-items {

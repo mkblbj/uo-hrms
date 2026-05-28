@@ -17,6 +17,9 @@ import { Toasts } from "frappe-ui"
 import AppUpdatePrompt from "@/components/AppUpdatePrompt.vue"
 import InstallPrompt from "@/components/InstallPrompt.vue"
 import { showNotification } from "@/utils/pushNotifications"
+import { useTheme } from "@/composables/useTheme"
+
+useTheme()
 
 onMounted(() => {
 	window?.frappePushNotification?.onMessage((payload) => {

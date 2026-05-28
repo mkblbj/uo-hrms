@@ -766,9 +766,9 @@ defineExpose({ reloadAttendance, reloadSchedule })
 
 .hero-mini-stat {
 	min-width: 0;
-	border: 1px solid #ede9dd;
+	border: 1px solid var(--h-bd-subtle);
 	border-radius: 14px;
-	background: #faf8f2;
+	background: var(--h-bg-card-inner);
 	padding: 10px;
 }
 

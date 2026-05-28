@@ -36,18 +36,18 @@ const correctionRoute = computed(() =>
 	align-items: center;
 	justify-content: space-between;
 	min-height: 44px;
-	border: 1px solid #e3dfd4;
+	border: 1px solid var(--h-bd-default, #e3dfd4);
 	border-radius: 10px;
-	background: #fff;
+	background: var(--h-bg-card, #fff);
 	padding: 0 14px;
-	color: #1f2937;
+	color: var(--h-fg-primary, #1f2937);
 	font-size: 14px;
 	font-weight: 600;
 	transition: background 0.15s;
 }
 
 .correction-entry:active {
-	background: #f8f6ef;
+	background: var(--h-bg-card-inner, #f8f6ef);
 }
 
 .entry-left {
