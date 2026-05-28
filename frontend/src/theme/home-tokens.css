@@ -115,7 +115,7 @@
 	--h-heatmap-today-ring: #4ade80;
 
 	/* ── scan action bar ── */
-	--h-scan-bg: rgba(255, 255, 255, 0.12);
+	--h-scan-bg: rgba(40, 40, 40, 0.92);
 	--h-scan-fg: #e8e8e8;
 	--h-scan-fg-sub: rgba(255, 255, 255, 0.55);
 	--h-scan-icon-bg: rgba(255, 255, 255, 0.1);

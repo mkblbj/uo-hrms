@@ -64,7 +64,7 @@
 						v-for="(cell, idx) in heatmapCells"
 						:key="cell.date"
 						class="hero-heatmap-cell"
-						:class="{ 'is-today': cell.isToday, 'is-future': cell.isFuture, 'is-issue': cell.hasIssue }"
+						:class="{ 'is-today': cell.isToday, 'is-future': cell.isFuture, 'is-issue': cell.hasIssue, 'is-empty': cell.level === 0 && !cell.hasIssue }"
 						:style="{ backgroundColor: cell.color, '--cell-index': idx }"
 						:title="cellLabel(cell)"
 						:aria-label="cellLabel(cell)"
@@ -683,6 +683,14 @@ defineExpose({ reloadAttendance, reloadSchedule })
 	min-width: 0;
 	border-radius: 5px;
 	outline: 1px solid rgba(255, 255, 255, 0.66);
+}
+
+[data-theme="dark"] .hero-heatmap-cell:not(.is-issue) {
+	outline-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="dark"] .hero-heatmap-cell.is-empty {
+	background-color: var(--h-heatmap-empty) !important;
 }
 
 .hero-heatmap-cell.is-today {
