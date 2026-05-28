@@ -26,6 +26,7 @@
 			</div>
 			<div class="hero-progress-track" aria-hidden="true">
 				<span :style="{ width: `${displayedProgress}%` }"></span>
+				<i :style="{ left: `clamp(0px, calc(${displayedProgress}% - 10px), calc(100% - 20px))` }"></i>
 			</div>
 		</div>
 
@@ -436,7 +437,7 @@ defineExpose({ reloadAttendance, reloadSchedule })
 	flex-direction: column;
 	gap: 16px;
 	border-radius: 22px;
-	background: #ffffff;
+	background: var(--h-bg-card);
 	padding: 18px;
 	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 14px 28px rgba(15, 23, 42, 0.06);
 }
@@ -455,7 +456,7 @@ defineExpose({ reloadAttendance, reloadSchedule })
 	font-size: 12px;
 	line-height: 1.35;
 	font-weight: 700;
-	color: #64748b;
+	color: var(--h-fg-secondary);
 }
 
 .hero-title {
@@ -464,14 +465,14 @@ defineExpose({ reloadAttendance, reloadSchedule })
 	line-height: 1.18;
 	font-weight: 900;
 	letter-spacing: 0;
-	color: #0a0a0a;
+	color: var(--h-fg-primary);
 }
 
 .hero-progress {
 	display: grid;
 	gap: 8px;
 	border-radius: 14px;
-	background: #faf8f2;
+	background: var(--h-bg-card-inner);
 	padding: 12px;
 }
 
@@ -487,7 +488,7 @@ defineExpose({ reloadAttendance, reloadSchedule })
 	font-size: 11px;
 	line-height: 1.2;
 	font-weight: 800;
-	color: #64748b;
+	color: var(--h-fg-secondary);
 }
 
 .hero-progress-copy strong {
@@ -496,7 +497,7 @@ defineExpose({ reloadAttendance, reloadSchedule })
 	font-size: 13px;
 	line-height: 1.2;
 	font-weight: 900;
-	color: #0a0a0a;
+	color: var(--h-fg-primary);
 }
 
 .hero-progress-value {
@@ -505,34 +506,68 @@ defineExpose({ reloadAttendance, reloadSchedule })
 }
 
 .hero-progress-track {
-	height: 8px;
+	position: relative;
+	height: 20px;
 	overflow: hidden;
 	border-radius: 999px;
-	background: #e3dfd4;
+	background-color: var(--h-track-bg);
+	background-image: radial-gradient(circle 3px at 50% 50%, var(--h-track-dot) 2.5px, transparent 3px);
+	background-size: 20px 20px;
+	background-position: 10px 0;
 }
 
-.hero-progress-track span {
+.hero-progress-track > span {
+	position: absolute;
+	left: 0;
+	top: 0;
 	display: block;
 	height: 100%;
 	border-radius: inherit;
-	background: linear-gradient(90deg, #86efac 0%, #16a34a 100%);
+	background: linear-gradient(90deg, var(--h-track-fill-start) 0%, var(--h-track-fill-end) 100%);
 	transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+	z-index: 1;
+}
+
+.hero-progress-track > i {
+	position: absolute;
+	top: 0;
+	width: 20px;
+	height: 20px;
+	background: #facc15;
+	border-radius: 50%;
+	z-index: 2;
+	transition: left 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+	animation: pacman-chomp 0.6s ease-in-out infinite;
+}
+
+@keyframes pacman-chomp {
+	0%, 100% {
+		clip-path: polygon(100% 44%, 100% 0%, 0% 0%, 0% 100%, 100% 100%, 100% 56%, 50% 50%);
+	}
+	50% {
+		clip-path: polygon(100% 22%, 100% 0%, 0% 0%, 0% 100%, 100% 100%, 100% 78%, 50% 50%);
+	}
 }
 
 .hero-progress.is-overtime {
-	background: #fff7ed;
+	background: var(--h-ot-bg);
 }
 
 .hero-progress.is-overtime .hero-progress-copy strong {
-	color: #9a3412;
+	color: var(--h-ot-fg);
 }
 
 .hero-progress.is-overtime .hero-progress-track {
-	background: #fed7aa;
+	background-color: var(--h-ot-track-bg);
+	background-image: radial-gradient(circle 3px at 50% 50%, var(--h-ot-track-dot) 2.5px, transparent 3px);
 }
 
-.hero-progress.is-overtime .hero-progress-track span {
-	background: linear-gradient(90deg, #fbbf24 0%, #f97316 100%);
+.hero-progress.is-overtime .hero-progress-track > span {
+	background: linear-gradient(90deg, var(--h-ot-fill-start) 0%, var(--h-ot-fill-end) 100%);
+}
+
+.hero-progress.is-overtime .hero-progress-track > i {
+	background: #fb923c;
 }
 
 .hero-heatmap {
@@ -551,14 +586,14 @@ defineExpose({ reloadAttendance, reloadSchedule })
 	font-size: 15px;
 	line-height: 1.25;
 	font-weight: 900;
-	color: #0a0a0a;
+	color: var(--h-fg-primary);
 }
 
 .hero-heatmap-subtitle {
 	margin-top: 3px;
 	font-size: 11px;
 	font-weight: 700;
-	color: #64748b;
+	color: var(--h-fg-secondary);
 }
 
 .hero-heatmap-legend {
@@ -578,12 +613,12 @@ defineExpose({ reloadAttendance, reloadSchedule })
 
 .hero-heatmap-state {
 	border-radius: 12px;
-	background: #faf8f2;
+	background: var(--h-bg-card-inner);
 	padding: 18px 12px;
 	text-align: center;
 	font-size: 12px;
 	font-weight: 700;
-	color: #64748b;
+	color: var(--h-fg-muted);
 }
 
 .hero-heatmap-calendar {
@@ -736,7 +771,7 @@ defineExpose({ reloadAttendance, reloadSchedule })
 	white-space: nowrap;
 	font-size: 10px;
 	font-weight: 800;
-	color: #64748b;
+	color: var(--h-fg-secondary);
 }
 
 .hero-mini-stat strong {
@@ -745,7 +780,7 @@ defineExpose({ reloadAttendance, reloadSchedule })
 	font-size: 18px;
 	line-height: 1;
 	font-weight: 900;
-	color: #0a0a0a;
+	color: var(--h-fg-primary);
 	font-variant-numeric: tabular-nums;
 }
 
@@ -753,7 +788,7 @@ defineExpose({ reloadAttendance, reloadSchedule })
 	margin-left: 2px;
 	font-size: 10px;
 	font-weight: 800;
-	color: #64748b;
+	color: var(--h-fg-secondary);
 }
 
 @media (max-width: 359px) {
@@ -771,8 +806,13 @@ defineExpose({ reloadAttendance, reloadSchedule })
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.hero-progress-track span {
+	.hero-progress-track > span,
+	.hero-progress-track > i {
 		transition: none !important;
+	}
+	.hero-progress-track > i {
+		animation: none !important;
+		clip-path: polygon(100% 22%, 100% 0%, 0% 0%, 0% 100%, 100% 100%, 100% 78%, 50% 50%);
 	}
 }
 
