@@ -468,8 +468,7 @@ test("HomeHeroCard owns the v3 13-by-7 attendance hero surface", () => {
 	assert.match(source, /repeat\(7/)
 	assert.match(source, /grid-template-columns:\s*18px minmax\(0,\s*1fr\)/)
 	assert.match(source, /repeat\(13,\s*minmax\(0,\s*1fr\)\)/)
-	assert.doesNotMatch(source, /58%/)
-	assert.doesNotMatch(source, /8%/)
+	assert.match(source, /pacman-chomp/)
 	assert.doesNotMatch(source, /hero-status/)
 	assert.doesNotMatch(source, /<button\s+v-if="cta"/)
 })
@@ -564,7 +563,7 @@ test("HomeScanActionBar owns the fixed scan action without QR submission logic",
 
 	assert.match(source, /position:\s*fixed/)
 	assert.match(source, /bottom:\s*10px/)
-	assert.match(source, /background:\s*rgba\(10,\s*10,\s*10,\s*0\.86\)/)
+	assert.match(source, /--h-scan-bg/)
 	assert.match(source, /backdrop-filter:\s*blur\(18px\)/)
 	assert.match(source, /CHECK_IN/)
 	assert.match(source, /CHECK_OUT/)
@@ -617,7 +616,7 @@ test("home v3 keeps the existing BaseLayout logo and BottomTabs active indicator
 	const panelSource = fs.readFileSync(checkInPanelPath, "utf8")
 
 	assert.match(baseSource, /src="\/uo-hr-logo\.png"/)
-	assert.match(tabsSource, /border-blue-600 text-blue-700/)
+	assert.match(tabsSource, /--h-tab-active/)
 	assert.doesNotMatch(panelSource, /uo-hr-logo/)
 	assert.doesNotMatch(panelSource, /BottomTabs/)
 })
