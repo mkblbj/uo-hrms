@@ -145,3 +145,24 @@
 	--h-summary-warn-bd: #6b4f23;
 	--h-summary-warn-fg: #fbbf24;
 }
+
+/* Smooth transition when toggling theme manually */
+[data-theme] *,
+[data-theme] *::before,
+[data-theme] *::after {
+	transition: background-color 0.25s ease, color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+
+/* Disable theme transition for elements that have their own transition */
+[data-theme] .hero-progress-track > span,
+[data-theme] .hero-progress-track > i {
+	transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1), left 1.2s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.25s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	[data-theme] *,
+	[data-theme] *::before,
+	[data-theme] *::after {
+		transition: none !important;
+	}
+}
