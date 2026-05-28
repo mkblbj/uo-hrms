@@ -1,0 +1,147 @@
+/*
+ * Home-tab color tokens.
+ * Light values are the defaults (:root).
+ * Dark values live under [data-theme="dark"].
+ *
+ * Naming: --h-<category>-<role>
+ *   bg   = background
+ *   fg   = foreground / text
+ *   bd   = border / divider
+ *   acc  = accent
+ */
+
+:root {
+	/* ── surfaces ── */
+	--h-bg-page: #f1eee7;
+	--h-bg-card: #ffffff;
+	--h-bg-card-inner: #faf8f2;
+	--h-bg-elevated: #ffffff;
+	--h-bg-input: #ffffff;
+
+	/* ── text ── */
+	--h-fg-primary: #0a0a0a;
+	--h-fg-secondary: #64748b;
+	--h-fg-muted: #94a3b8;
+	--h-fg-on-dark: #ffffff;
+
+	/* ── borders / dividers ── */
+	--h-bd-default: #e3dfd4;
+	--h-bd-subtle: #ede9dd;
+
+	/* ── hero progress track ── */
+	--h-track-bg: #e8e5dc;
+	--h-track-dot: #ccc8bc;
+	--h-track-fill-start: #86efac;
+	--h-track-fill-end: #16a34a;
+
+	/* ── hero progress overtime ── */
+	--h-ot-bg: #fff7ed;
+	--h-ot-track-bg: #fde9d0;
+	--h-ot-track-dot: #f3bf8a;
+	--h-ot-fill-start: #fbbf24;
+	--h-ot-fill-end: #f97316;
+	--h-ot-fg: #9a3412;
+
+	/* ── heatmap ── */
+	--h-heatmap-empty: #f0f0f0;
+	--h-heatmap-today-ring: #16a34a;
+
+	/* ── scan action bar ── */
+	--h-scan-bg: rgba(10, 10, 10, 0.86);
+	--h-scan-fg: #ffffff;
+	--h-scan-fg-sub: rgba(255, 255, 255, 0.72);
+	--h-scan-icon-bg: rgba(255, 255, 255, 0.14);
+	--h-scan-disabled-bg: #94a3b8;
+
+	/* ── status chip ── */
+	--h-chip-working-bg: rgba(16, 185, 129, 0.12);
+	--h-chip-working-fg: #047857;
+	--h-chip-off-bg: rgba(148, 163, 184, 0.14);
+	--h-chip-off-fg: #475569;
+	--h-chip-pending-bg: rgba(245, 158, 11, 0.14);
+	--h-chip-pending-fg: #b45309;
+
+	/* ── bottom tabs ── */
+	--h-tab-bg: rgba(241, 238, 231, 0.95);
+	--h-tab-bd: #e3dfd4;
+	--h-tab-active: #2563eb;
+	--h-tab-inactive: #6b7280;
+
+	/* ── notification badge ── */
+	--h-badge-bg: #ef4444;
+	--h-badge-bd: #ffffff;
+
+	/* ── summary card ── */
+	--h-summary-shift-fg: #15803d;
+	--h-summary-warn-bg: #fffbeb;
+	--h-summary-warn-bd: #fde68a;
+	--h-summary-warn-fg: #92400e;
+}
+
+[data-theme="dark"] {
+	/* ── surfaces ── */
+	--h-bg-page: #121212;
+	--h-bg-card: #1e1e1e;
+	--h-bg-card-inner: #252525;
+	--h-bg-elevated: #2a2a2a;
+	--h-bg-input: #2a2a2a;
+
+	/* ── text ── */
+	--h-fg-primary: #e8e8e8;
+	--h-fg-secondary: #94a3b8;
+	--h-fg-muted: #64748b;
+	--h-fg-on-dark: #ffffff;
+
+	/* ── borders / dividers ── */
+	--h-bd-default: #333333;
+	--h-bd-subtle: #2a2a2a;
+
+	/* ── hero progress track ── */
+	--h-track-bg: #2a2a2a;
+	--h-track-dot: #404040;
+	--h-track-fill-start: #166534;
+	--h-track-fill-end: #16a34a;
+
+	/* ── hero progress overtime ── */
+	--h-ot-bg: #2a1f0e;
+	--h-ot-track-bg: #3d2e14;
+	--h-ot-track-dot: #6b4f23;
+	--h-ot-fill-start: #b45309;
+	--h-ot-fill-end: #f97316;
+	--h-ot-fg: #fbbf24;
+
+	/* ── heatmap ── */
+	--h-heatmap-empty: #1e1e1e;
+	--h-heatmap-today-ring: #4ade80;
+
+	/* ── scan action bar ── */
+	--h-scan-bg: rgba(255, 255, 255, 0.12);
+	--h-scan-fg: #e8e8e8;
+	--h-scan-fg-sub: rgba(255, 255, 255, 0.55);
+	--h-scan-icon-bg: rgba(255, 255, 255, 0.1);
+	--h-scan-disabled-bg: #404040;
+
+	/* ── status chip ── */
+	--h-chip-working-bg: rgba(16, 185, 129, 0.18);
+	--h-chip-working-fg: #34d399;
+	--h-chip-off-bg: rgba(148, 163, 184, 0.18);
+	--h-chip-off-fg: #94a3b8;
+	--h-chip-pending-bg: rgba(245, 158, 11, 0.18);
+	--h-chip-pending-fg: #fbbf24;
+
+	/* ── bottom tabs ── */
+	--h-tab-bg: rgba(18, 18, 18, 0.95);
+	--h-tab-bd: #333333;
+	--h-tab-active: #60a5fa;
+	--h-tab-inactive: #6b7280;
+
+	/* ── notification badge ── */
+	--h-badge-bg: #ef4444;
+	--h-badge-bd: #1e1e1e;
+
+	/* ── summary card ── */
+	--h-summary-shift-fg: #4ade80;
+	--h-summary-warn-bg: #2a1f0e;
+	--h-summary-warn-bd: #6b4f23;
+	--h-summary-warn-fg: #fbbf24;
+}
