@@ -118,12 +118,12 @@ const actionDescription = computed(() => {
 	width: min(100%, 520px);
 	min-height: 54px;
 	margin: 0 auto;
-	border: 0;
+	border: 1px solid var(--h-scan-bd);
 	border-radius: 20px;
 	background: var(--h-scan-bg);
 	color: var(--h-scan-fg);
 	padding: 10px 14px 10px 12px;
-	box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18);
+	box-shadow: 0 10px 24px rgba(15, 23, 42, 0.18), 0 0 0 0.5px var(--h-scan-bd);
 	backdrop-filter: blur(18px);
 	pointer-events: auto;
 	transition: transform 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;

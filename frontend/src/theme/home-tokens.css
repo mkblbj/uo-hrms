@@ -52,6 +52,7 @@
 	--h-scan-fg-sub: rgba(255, 255, 255, 0.72);
 	--h-scan-icon-bg: rgba(255, 255, 255, 0.14);
 	--h-scan-disabled-bg: #94a3b8;
+	--h-scan-bd: transparent;
 
 	/* ── status chip ── */
 	--h-chip-working-bg: rgba(16, 185, 129, 0.12);
@@ -115,11 +116,12 @@
 	--h-heatmap-today-ring: #4ade80;
 
 	/* ── scan action bar ── */
-	--h-scan-bg: rgba(40, 40, 40, 0.92);
-	--h-scan-fg: #e8e8e8;
-	--h-scan-fg-sub: rgba(255, 255, 255, 0.55);
-	--h-scan-icon-bg: rgba(255, 255, 255, 0.1);
+	--h-scan-bg: rgba(58, 58, 58, 0.95);
+	--h-scan-fg: #f0f0f0;
+	--h-scan-fg-sub: rgba(255, 255, 255, 0.6);
+	--h-scan-icon-bg: rgba(255, 255, 255, 0.12);
 	--h-scan-disabled-bg: #404040;
+	--h-scan-bd: rgba(255, 255, 255, 0.12);
 
 	/* ── status chip ── */
 	--h-chip-working-bg: rgba(16, 185, 129, 0.18);
