@@ -1,9 +1,13 @@
 export const PWA_LANGUAGE_STORAGE_KEY = "hrms:pwa_language"
+export const PWA_LANGUAGE_RESET_STORAGE_KEY = "hrms:pwa_language_reset"
+export const PWA_LANGUAGE_RESET_VERSION = "2026-06-06-ja"
 export const PWA_LANGUAGE_OPTIONS = Object.freeze([
 	{ value: "zh", shortLabel: "中", label: "中文" },
 	{ value: "ja", shortLabel: "日", label: "日本語" },
 	{ value: "en", shortLabel: "EN", label: "English" },
 ])
+
+const PWA_LANGUAGE_RESET_TARGET = "ja"
 
 const SUPPORTED_LANGUAGES = new Set(
 	PWA_LANGUAGE_OPTIONS.map((option) => option.value)
@@ -36,12 +40,29 @@ export function resolveEffectiveLanguage({
 	return getStoredLanguage(storage) || getServerLanguage(boot)
 }
 
+function resetPwaLanguageToJapaneseOnce(storage = globalThis?.localStorage) {
+	try {
+		if (storage?.getItem?.(PWA_LANGUAGE_RESET_STORAGE_KEY) === PWA_LANGUAGE_RESET_VERSION) {
+			return false
+		}
+
+		storage?.setItem?.(PWA_LANGUAGE_STORAGE_KEY, PWA_LANGUAGE_RESET_TARGET)
+		storage?.setItem?.(PWA_LANGUAGE_RESET_STORAGE_KEY, PWA_LANGUAGE_RESET_VERSION)
+	} catch {
+		return true
+	}
+	return true
+}
+
 export function initializeBootLanguage({
 	boot = globalThis.window?.frappe?.boot,
 	storage = globalThis?.localStorage,
 } = {}) {
 	const serverLang = normalizeLanguage(boot?.lang) || "en"
-	const effectiveLang = getStoredLanguage(storage) || serverLang
+	const didResetLanguage = resetPwaLanguageToJapaneseOnce(storage)
+	const effectiveLang = didResetLanguage
+		? PWA_LANGUAGE_RESET_TARGET
+		: getStoredLanguage(storage) || serverLang
 
 	if (boot) {
 		boot.server_lang = serverLang

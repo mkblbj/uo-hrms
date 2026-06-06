@@ -3,6 +3,8 @@ import assert from "node:assert/strict"
 
 import {
 	PWA_LANGUAGE_STORAGE_KEY,
+	PWA_LANGUAGE_RESET_STORAGE_KEY,
+	PWA_LANGUAGE_RESET_VERSION,
 	PWA_LANGUAGE_OPTIONS,
 	normalizeLanguage,
 	getStoredLanguage,
@@ -57,6 +59,55 @@ test("initializes server_lang and effective lang on boot", () => {
 		effectiveLang: "ja",
 	})
 	assert.equal(boot.server_lang, "zh")
+	assert.equal(boot.lang, "ja")
+})
+
+test("resets any stored PWA language to Japanese once during boot", () => {
+	const storage = createStorage({ [PWA_LANGUAGE_STORAGE_KEY]: "en" })
+	const boot = { lang: "zh-CN" }
+
+	assert.deepEqual(initializeBootLanguage({ boot, storage }), {
+		serverLang: "zh",
+		effectiveLang: "ja",
+	})
+	assert.equal(storage.getItem(PWA_LANGUAGE_STORAGE_KEY), "ja")
+	assert.equal(storage.getItem(PWA_LANGUAGE_RESET_STORAGE_KEY), PWA_LANGUAGE_RESET_VERSION)
+	assert.equal(boot.server_lang, "zh")
+	assert.equal(boot.lang, "ja")
+})
+
+test("keeps the user selected language after the Japanese reset has run", () => {
+	const storage = createStorage({
+		[PWA_LANGUAGE_STORAGE_KEY]: "en",
+		[PWA_LANGUAGE_RESET_STORAGE_KEY]: PWA_LANGUAGE_RESET_VERSION,
+	})
+	const boot = { lang: "zh-CN" }
+
+	assert.deepEqual(initializeBootLanguage({ boot, storage }), {
+		serverLang: "zh",
+		effectiveLang: "en",
+	})
+	assert.equal(storage.getItem(PWA_LANGUAGE_STORAGE_KEY), "en")
+	assert.equal(boot.server_lang, "zh")
+	assert.equal(boot.lang, "en")
+})
+
+test("uses Japanese during boot when storage cannot persist the reset", () => {
+	const storage = {
+		getItem() {
+			return null
+		},
+		setItem() {
+			throw new Error("storage blocked")
+		},
+	}
+	const boot = { lang: "en-US" }
+
+	assert.deepEqual(initializeBootLanguage({ boot, storage }), {
+		serverLang: "en",
+		effectiveLang: "ja",
+	})
+	assert.equal(boot.server_lang, "en")
 	assert.equal(boot.lang, "ja")
 })
 
