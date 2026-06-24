@@ -1,5 +1,17 @@
 <template>
 	<div class="checkin-panel" :class="{ 'intro-play': introPlay }">
+		<section
+			v-if="todaySaleEvent"
+			class="home-sale-banner intro-stagger intro-stagger-0"
+			:style="saleBannerStyle(todaySaleEvent)"
+		>
+			<span class="home-sale-dot"></span>
+			<div class="home-sale-copy">
+				<strong>{{ tSale("title") }}</strong>
+				<span>{{ todaySaleEvent.title }}・{{ tSale("hint") }}</span>
+			</div>
+		</section>
+
 		<HomeHeroCard
 			ref="heroCardRef"
 			class="intro-stagger intro-stagger-1"
@@ -140,6 +152,7 @@ export function createSuccessOverlayController({
 
 <script setup>
 import { createResource, toast } from "frappe-ui"
+import { onIonViewWillEnter } from "@ionic/vue"
 import { computed, inject, onBeforeUnmount, onMounted, reactive, ref } from "vue"
 import { useRoute, useRouter } from "vue-router"
 
@@ -200,6 +213,12 @@ const weather = createResource({
 	cache: ["weather_data", 10 * 60 * 1000],
 })
 
+const homeScheduleSummary = createResource({
+	url: "work_roster.api.schedule.get_home_schedule_summary",
+	auto: false,
+	cache: false,
+})
+
 const isMobileCheckinAllowed = computed(() =>
 	Boolean(settings.data?.allow_employee_checkin_from_mobile_app)
 )
@@ -219,10 +238,69 @@ const weatherSummary = computed(() => {
 	const temp = Math.round(weather.data.temp_c)
 	return `${icon} ${temp}°`.trim()
 })
+const todaySaleEvent = computed(() => homeScheduleSummary.data?.today_event || null)
 
 const openQRScanner = () => {
 	if (!settings.data?.allow_employee_checkin_from_mobile_app || !primaryScanMeta.value) return
 	showQRScanner.value = true
+}
+
+function loadHomeScheduleSummary() {
+	homeScheduleSummary.fetch()
+}
+
+function tSale(key) {
+	const labels = {
+		title: {
+			zh: "今日大促",
+			ja: "本日セール",
+			en: "Sale Today",
+		},
+		hint: {
+			zh: "订单量预计增加",
+			ja: "注文増加見込み",
+			en: "Higher order volume expected",
+		},
+	}
+	return labels[key]?.[currentLanguage] || labels[key]?.zh || key
+}
+
+function saleBannerStyle(event) {
+	const color = event.color || "#F59E0B"
+	const background = tintColor(color, 0.84)
+	return {
+		backgroundColor: background,
+		borderColor: color,
+		color: readableTextColor(background),
+	}
+}
+
+function readableTextColor(color) {
+	const rgb = hexToRgb(color)
+	if (!rgb) return "#111827"
+	const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000
+	return brightness < 150 ? "#ffffff" : "#111827"
+}
+
+function tintColor(color, whiteMix) {
+	const rgb = hexToRgb(color)
+	if (!rgb) return color
+	const mix = Math.max(0, Math.min(1, whiteMix))
+	const r = Math.round(rgb.r + (255 - rgb.r) * mix)
+	const g = Math.round(rgb.g + (255 - rgb.g) * mix)
+	const b = Math.round(rgb.b + (255 - rgb.b) * mix)
+	return `rgb(${r}, ${g}, ${b})`
+}
+
+function hexToRgb(color) {
+	const match = String(color || "").trim().match(/^#?([0-9a-f]{6})$/i)
+	if (!match) return null
+	const intValue = parseInt(match[1], 16)
+	return {
+		r: (intValue >> 16) & 255,
+		g: (intValue >> 8) & 255,
+		b: intValue & 255,
+	}
 }
 
 function openSuccessOverlay(model) {
@@ -404,6 +482,7 @@ function onVisibilityChange() {
 }
 
 onMounted(() => {
+	loadHomeScheduleSummary()
 	const storage = typeof window !== "undefined" ? window.sessionStorage : null
 	const matchMedia = typeof window !== "undefined" ? window.matchMedia.bind(window) : null
 	if (shouldPlayIntro({ storage, matchMedia })) {
@@ -413,6 +492,10 @@ onMounted(() => {
 	if (typeof document !== "undefined") {
 		document.addEventListener("visibilitychange", onVisibilityChange)
 	}
+})
+
+onIonViewWillEnter(() => {
+	loadHomeScheduleSummary()
 })
 
 onBeforeUnmount(() => {
@@ -480,12 +563,53 @@ function formatDate() {
 	padding-bottom: 110px;
 }
 
+.home-sale-banner {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+	width: 100%;
+	border: 2px solid;
+	border-radius: 20px;
+	padding: 14px 18px;
+	box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 24px rgba(15, 23, 42, 0.06);
+}
+
+.home-sale-dot {
+	width: 14px;
+	height: 14px;
+	border-radius: 999px;
+	background: currentColor;
+	box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.78);
+	flex: 0 0 auto;
+}
+
+.home-sale-copy {
+	display: grid;
+	gap: 3px;
+	min-width: 0;
+}
+
+.home-sale-copy strong {
+	font-size: 17px;
+	line-height: 1.12;
+	font-weight: 900;
+}
+
+.home-sale-copy span {
+	font-size: 16px;
+	line-height: 1.18;
+	font-weight: 800;
+	opacity: 0.82;
+	overflow-wrap: anywhere;
+}
+
 @media (prefers-reduced-motion: no-preference) {
 	.checkin-panel.intro-play .intro-stagger {
 		opacity: 0;
 		transform: translateY(12px);
 		animation: ckp-stagger-in 640ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 	}
+	.checkin-panel.intro-play .intro-stagger-0 { animation-delay: 0ms; }
 	.checkin-panel.intro-play .intro-stagger-1 { animation-delay: 0ms; }
 	.checkin-panel.intro-play .intro-stagger-2 { animation-delay: 150ms; }
 	.checkin-panel.intro-play .intro-stagger-3 { animation-delay: 300ms; }

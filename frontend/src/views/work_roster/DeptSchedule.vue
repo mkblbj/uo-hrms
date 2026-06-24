@@ -14,6 +14,7 @@
 
 					<div class="flex flex-wrap items-center gap-3 rounded-xl bg-white border border-gray-100 px-4 py-3 text-xs text-gray-500">
 						<span class="flex items-center gap-1"><span class="h-3 w-3 rounded bg-red-100 border border-red-200"></span> {{ t("holiday") }}</span>
+						<span class="flex items-center gap-1"><span class="h-3 w-3 rounded bg-amber-300 border border-amber-400"></span> {{ t("saleEvent") }}</span>
 						<span class="flex items-center gap-1"><span class="h-3 w-3 rounded bg-blue-50 border border-blue-200"></span> {{ t("saturday") }}</span>
 						<span class="flex items-center gap-1"><span class="h-3 w-3 rounded bg-red-50 border border-red-200"></span> {{ t("sunday") }}</span>
 						<span class="flex items-center gap-1"><span class="h-3 w-3 rounded bg-blue-500"></span> {{ t("scheduledCount") }}</span>
@@ -43,6 +44,8 @@
 									day.isSaturday ? 'bg-blue-50/50' : '',
 									!day.isHoliday && !day.isSunday && !day.isSaturday ? 'bg-white' : '',
 								]"
+								:style="dayCellStyle(day)"
+								:title="day.calendarEvent?.title || day.holidayName || ''"
 							>
 								<div class="flex items-start justify-between gap-1">
 									<span :class="[
@@ -53,12 +56,19 @@
 									]">
 										{{ day.date }}
 									</span>
-									<span
-										v-if="day.entryCount"
-										class="shrink-0 rounded-full bg-blue-500 px-1.5 py-0.5 text-[9px] font-semibold text-white"
-									>
-										{{ t("countSuffix", { count: day.entryCount }) }}
-									</span>
+									<div class="flex shrink-0 items-center gap-1">
+										<span
+											v-if="day.calendarEvent"
+											class="h-2 w-2 rounded-full border border-white/80"
+											:style="{ backgroundColor: day.calendarEvent.color || defaultSaleColor }"
+										></span>
+										<span
+											v-if="day.entryCount"
+											class="rounded-full bg-blue-500 px-1.5 py-0.5 text-[9px] font-semibold text-white"
+										>
+											{{ t("countSuffix", { count: day.entryCount }) }}
+										</span>
+									</div>
 								</div>
 
 								<div
@@ -66,6 +76,13 @@
 									class="mt-0.5 truncate text-[7px] leading-tight text-red-400"
 								>
 									{{ day.holidayName }}
+								</div>
+								<div
+									v-if="day.calendarEvent"
+									class="mt-0.5 truncate text-[7px] font-semibold leading-tight"
+									:style="{ color: day.calendarEvent.color || defaultSaleColor }"
+								>
+									{{ day.calendarEvent.title }}
 								</div>
 
 								<div v-if="day.previewEntries.length" class="mt-1 space-y-1">
@@ -92,6 +109,14 @@
 						<div class="px-4 py-3 border-b border-gray-100 bg-gray-50">
 							<div class="text-base font-semibold text-gray-800">{{ selectedDayTitle }}</div>
 							<div class="text-xs text-gray-500 mt-1">{{ t("selectedSummary", { count: selectedEntries.length }) }}</div>
+							<div
+								v-if="selectedDayEvent"
+								class="mt-2 inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold"
+								:style="saleEventPillStyle(selectedDayEvent)"
+							>
+								<span class="h-2 w-2 rounded-full bg-current"></span>
+								{{ selectedDayEvent.title }}
+							</div>
 						</div>
 
 						<div v-if="selectedEntries.length" class="divide-y divide-gray-50">
@@ -151,6 +176,7 @@ const labels = {
 	pageTitle: { zh: "部门排班", ja: "部門シフト", en: "Department Roster" },
 	loading: { zh: "加载中...", ja: "読み込み中...", en: "Loading..." },
 	holiday: { zh: "祝日", ja: "祝日", en: "Holiday" },
+	saleEvent: { zh: "大促日", ja: "セール日", en: "Sale" },
 	saturday: { zh: "周六", ja: "土曜", en: "Saturday" },
 	sunday: { zh: "周日", ja: "日曜", en: "Sunday" },
 	scheduledCount: { zh: "已排班人数", ja: "配置人数", en: "Scheduled" },
@@ -162,6 +188,7 @@ const labels = {
 	selectedSummary: { zh: "已排班 {count} 人", ja: "{count} 人を配置済み", en: "{count} people scheduled" },
 	customTime: { zh: "自定义", ja: "カスタム", en: "Custom" },
 }
+const defaultSaleColor = "#F59E0B"
 
 const weekdayHeaders = computed(() => weekdayHeaderMap[getLang()] || weekdayHeaderMap.zh)
 
@@ -180,9 +207,14 @@ const holidaysResource = createResource({
 	auto: false,
 })
 
+const calendarEventsResource = createResource({
+	url: "work_roster.api.schedule.get_calendar_events",
+	auto: false,
+})
+
 const period = computed(() => periodResource.data || null)
 const scheduleEntries = computed(() => scheduleResource.data || [])
-const isLoading = computed(() => scheduleResource.loading || periodResource.loading || holidaysResource.loading)
+const isLoading = computed(() => scheduleResource.loading || periodResource.loading || holidaysResource.loading || calendarEventsResource.loading)
 
 const holidayMap = computed(() => {
 	const map = {}
@@ -193,6 +225,19 @@ const holidayMap = computed(() => {
 		map[dateStr] = {
 			description: holiday.description,
 			weekly_off: holiday.weekly_off,
+		}
+	}
+	return map
+})
+
+const calendarEventMap = computed(() => {
+	const map = {}
+	for (const event of calendarEventsResource.data || []) {
+		const dateStr = typeof event.event_date === "string"
+			? event.event_date
+			: dayjs(event.event_date).format("YYYY-MM-DD")
+		if (!map[dateStr] || event.event_type === "Major Sale") {
+			map[dateStr] = event
 		}
 	}
 	return map
@@ -232,6 +277,7 @@ const calendarDays = computed(() => {
 		const weekday = dateObj.getDay()
 		const dateStr = `${year}-${String(month).padStart(2, "0")}-${String(d).padStart(2, "0")}`
 		const holiday = holidayMap.value[dateStr]
+		const calendarEvent = calendarEventMap.value[dateStr] || null
 		const entries = dayScheduleMap.value[dateStr] || []
 
 		days.push({
@@ -243,6 +289,7 @@ const calendarDays = computed(() => {
 			isHoliday: !!holiday && !holiday.weekly_off,
 			isWeeklyOff: !!holiday?.weekly_off,
 			holidayName: holiday?.description || "",
+			calendarEvent,
 			entryCount: entries.length,
 			previewEntries: entries.slice(0, 2),
 			isSelected: selectedDate.value === dateStr,
@@ -254,6 +301,10 @@ const calendarDays = computed(() => {
 
 const selectedEntries = computed(() => {
 	return dayScheduleMap.value[selectedDate.value] || []
+})
+
+const selectedDayEvent = computed(() => {
+	return calendarEventMap.value[selectedDate.value] || null
 })
 
 const selectedDayTitle = computed(() => {
@@ -317,12 +368,62 @@ function formatTimeRange(start, end) {
 	return `${start.substring(0, 5)}-${end.substring(0, 5)}`
 }
 
+function dayCellStyle(day) {
+	if (!day.calendarEvent) return {}
+	const color = day.calendarEvent.color || defaultSaleColor
+	return {
+		backgroundColor: tintColor(color, day.isSelected ? 0.72 : 0.84),
+		borderColor: color,
+	}
+}
+
+function saleEventPillStyle(event) {
+	const color = event.color || defaultSaleColor
+	return {
+		backgroundColor: tintColor(color, 0.78),
+		color: readableTextColor(tintColor(color, 0.78)),
+	}
+}
+
+function readableTextColor(color) {
+	const rgb = hexToRgb(color)
+	if (!rgb) return "#111827"
+	const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000
+	return brightness < 150 ? "#ffffff" : "#111827"
+}
+
+function tintColor(color, whiteMix) {
+	const rgb = hexToRgb(color)
+	if (!rgb) return color
+	const mix = Math.max(0, Math.min(1, whiteMix))
+	const r = Math.round(rgb.r + (255 - rgb.r) * mix)
+	const g = Math.round(rgb.g + (255 - rgb.g) * mix)
+	const b = Math.round(rgb.b + (255 - rgb.b) * mix)
+	return `rgb(${r}, ${g}, ${b})`
+}
+
+function hexToRgb(color) {
+	const match = String(color || "").trim().match(/^#?([0-9a-f]{6})$/i)
+	if (!match) return null
+	const intValue = parseInt(match[1], 16)
+	return {
+		r: (intValue >> 16) & 255,
+		g: (intValue >> 8) & 255,
+		b: intValue & 255,
+	}
+}
+
 watch(period, (value) => {
 	if (!value) return
 	holidaysResource.fetch({
 		holiday_list: value.holiday_list,
 		month: value.month,
 		year: value.year,
+	})
+	calendarEventsResource.fetch({
+		month: value.month,
+		year: value.year,
+		department_category: value.department_category,
 	})
 })
 

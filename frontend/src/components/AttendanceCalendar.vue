@@ -54,11 +54,18 @@
 				>
 					<div class="cell-top">
 						<span class="cell-date" :style="{ color: dateColor(cell) }">{{ cell.day }}</span>
-						<span
-							v-if="showWeekendDot(cell)"
-							class="weekend-dot"
-							:style="{ background: cell.weekday === 0 ? colors.red : colors.blue }"
-						/>
+						<span class="cell-markers">
+							<span
+								v-if="cell.calendar_event"
+								class="sale-event-dot"
+								:style="{ background: cell.calendar_event.color || colors.sale }"
+							/>
+							<span
+								v-if="showWeekendDot(cell)"
+								class="weekend-dot"
+								:style="{ background: cell.weekday === 0 ? colors.red : colors.blue }"
+							/>
+						</span>
 					</div>
 					<div class="cell-bottom">
 						<span
@@ -108,6 +115,13 @@
 								>{{ weekdayHeaders[dialogCell.weekday] }}</span>
 							</div>
 							<div v-if="dialogCell.holiday" class="dlg-holiday-name">{{ dialogCell.holiday }}</div>
+							<div
+								v-if="dialogCell.calendar_event"
+								class="dlg-sale-event"
+								:style="{ color: dialogCell.calendar_event.color || colors.sale }"
+							>
+								<span>{{ t("detail.saleEvent") }}</span>{{ dialogCell.calendar_event.title }}
+							</div>
 						</div>
 						<button class="dlg-close" @click="closeDialog" :aria-label="t('close')">
 							<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
@@ -229,6 +243,7 @@ const colors = reactive({
 	absent: "#fecaca",
 	holiday: "#fee2e2",
 	rest: "#fde68a",
+	sale: "#F59E0B",
 	anomaly: ATTENDANCE_ANOMALY_COLOR,
 	anomaly_bg: "#fee2e2",
 })
@@ -261,6 +276,7 @@ const messages = {
 			rest: "休",
 			today: "今日",
 			anomaly: "异常",
+			saleEvent: "大促日",
 		},
 		badge: {
 			work: "出勤",
@@ -270,6 +286,7 @@ const messages = {
 			absent: "缺勤",
 			holiday: "节",
 			rest: "休",
+			saleEvent: "大促",
 		},
 		monthLabel: (y, m) => `${y}年${m}月`,
 		meta: { hours: "h", days: "天", avg: "日均" },
@@ -283,6 +300,7 @@ const messages = {
 			dur: "工作时长",
 			shift: "班次",
 			holiday: "节假日",
+			saleEvent: "大促日",
 			ongoing: "工作中",
 			correction: "申请补卡",
 		},
@@ -304,6 +322,7 @@ const messages = {
 			rest: "休",
 			today: "本日",
 			anomaly: "異常",
+			saleEvent: "セール日",
 		},
 		badge: {
 			work: "出勤",
@@ -313,6 +332,7 @@ const messages = {
 			absent: "欠勤",
 			holiday: "祝",
 			rest: "休",
+			saleEvent: "SALE",
 		},
 		monthLabel: (y, m) => `${y}年${m}月`,
 		meta: { hours: "h", days: "日", avg: "平均" },
@@ -326,6 +346,7 @@ const messages = {
 			dur: "勤務時間",
 			shift: "シフト",
 			holiday: "祝日",
+			saleEvent: "セール日",
 			ongoing: "勤務中",
 			correction: "打刻修正申請",
 		},
@@ -347,6 +368,7 @@ const messages = {
 			rest: "Off",
 			today: "Today",
 			anomaly: "Issue",
+			saleEvent: "Sale",
 		},
 		badge: {
 			work: "IN",
@@ -356,6 +378,7 @@ const messages = {
 			absent: "ABS",
 			holiday: "HOL",
 			rest: "OFF",
+			saleEvent: "SALE",
 		},
 		monthLabel: (y, m) =>
 			`${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][m - 1]} ${y}`,
@@ -370,6 +393,7 @@ const messages = {
 			dur: "Worked",
 			shift: "Shift",
 			holiday: "Holiday",
+			saleEvent: "Sale day",
 			ongoing: "Working",
 			correction: "Correction request",
 		},
@@ -427,6 +451,19 @@ const holidayMap = computed(() => {
 	return map
 })
 
+const calendarEventMap = computed(() => {
+	const map = {}
+	for (const event of rosterCalendarResource.data?.events || []) {
+		const dateStr = typeof event.event_date === "string"
+			? event.event_date
+			: dayjs(event.event_date).format("YYYY-MM-DD")
+		if (!map[dateStr] || event.event_type === "Major Sale") {
+			map[dateStr] = event
+		}
+	}
+	return map
+})
+
 const attendanceMap = computed(() => attendanceResource.data || {})
 
 const todayStr = dayjs().format("YYYY-MM-DD")
@@ -457,6 +494,7 @@ const monthCells = computed(() => {
 				: rawAttendance || {}
 		const roster = rosterMap.value[dateStr] || null
 		const holiday = holidayMap.value[dateStr] || null
+		const calendarEvent = calendarEventMap.value[dateStr] || null
 		const anomaly = attendanceEntry.anomaly || null
 
 		const state = deriveState(attendanceEntry, roster, holiday)
@@ -474,6 +512,7 @@ const monthCells = computed(() => {
 			shift_end: extractTime(roster?.custom_end_time || roster?.scheduled_time?.split?.("-")?.[1]),
 			scheduled_time: roster?.scheduled_time || "",
 			holiday: holiday && !holiday.weekly_off ? holiday.description : "",
+			calendar_event: calendarEvent,
 			is_today: dateStr === todayStr,
 			anomaly,
 			anomaly_label: getAttendanceAnomalyLabel(anomaly, getLang()),
@@ -531,6 +570,7 @@ const legendItems = computed(() => {
 		{ key: "today", style: { background: "#fff", boxShadow: `0 0 0 1.5px ${colors.green}, 0 0 4px rgba(22,163,74,0.4)` } },
 		{ key: "rest", style: { background: colors.rest } },
 		{ key: "holiday", style: { background: colors.holiday } },
+		{ key: "saleEvent", style: { background: colors.sale } },
 		{ key: "roster", style: { background: "#fff", border: `1.5px solid ${colors.roster_border}` } },
 	]
 })
@@ -626,7 +666,11 @@ function cellBackground(c) {
 }
 
 function cellStyleFor(c) {
-	const bg = cellBackground(c)
+	const eventColor = c.calendar_event?.color || colors.sale
+	const eventBg = c.calendar_event && (c.state === "empty" || c.state === "rest" || c.state === "roster")
+		? tintColor(eventColor, 0.82)
+		: null
+	const bg = eventBg || cellBackground(c)
 	let border = "1px solid transparent"
 	let boxShadow = "none"
 
@@ -678,12 +722,17 @@ function cellBadge(c) {
 	const M = messages[getLang()] || messages.zh
 	if (c.state === "anomaly") return getAttendanceAnomalyTitle(getLang())
 	if (c.state === "roster") return c.shift_label || M.legend.roster
+	if (c.calendar_event && (c.state === "empty" || c.state === "rest")) return M.badge.saleEvent
 	return M.badge[c.state] || ""
 }
 
 function badgeStyle(c) {
 	if (c.state === "anomaly") {
 		return { color: colors.anomaly, background: "rgba(220,38,38,0.14)" }
+	}
+	if (c.calendar_event && (c.state === "empty" || c.state === "rest")) {
+		const color = c.calendar_event.color || colors.sale
+		return { color: readableTextColor(color), background: tintColor(color, 0.6) }
 	}
 	const dark = isDarkHeatCell(c)
 	const color = dark
@@ -711,6 +760,34 @@ function badgeStyle(c) {
 				roster: "rgba(22,163,74,0.10)",
 		  }[c.state] || "transparent"
 	return { color, background: bg }
+}
+
+function readableTextColor(color) {
+	const rgb = hexToRgb(color)
+	if (!rgb) return colors.ink
+	const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000
+	return brightness < 150 ? "#ffffff" : colors.ink
+}
+
+function tintColor(color, whiteMix) {
+	const rgb = hexToRgb(color)
+	if (!rgb) return color
+	const mix = Math.max(0, Math.min(1, whiteMix))
+	const r = Math.round(rgb.r + (255 - rgb.r) * mix)
+	const g = Math.round(rgb.g + (255 - rgb.g) * mix)
+	const b = Math.round(rgb.b + (255 - rgb.b) * mix)
+	return `rgb(${r}, ${g}, ${b})`
+}
+
+function hexToRgb(color) {
+	const match = String(color || "").trim().match(/^#?([0-9a-f]{6})$/i)
+	if (!match) return null
+	const intValue = parseInt(match[1], 16)
+	return {
+		r: (intValue >> 16) & 255,
+		g: (intValue >> 8) & 255,
+		b: intValue & 255,
+	}
 }
 
 function statusColor(c) {
@@ -1041,19 +1118,32 @@ onBeforeUnmount(() => {
 	justify-content: space-between;
 	line-height: 1;
 }
+.cell-markers {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	margin-top: 2px;
+	margin-right: 1px;
+	min-width: 0;
+}
 .cell-date {
 	font-variant-numeric: tabular-nums;
 	font-size: 14px;
 	font-weight: 700;
-	letter-spacing: -0.02em;
+	letter-spacing: 0;
+}
+.sale-event-dot {
+	width: 6px;
+	height: 6px;
+	border-radius: 999px;
+	display: inline-block;
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.75);
 }
 .weekend-dot {
 	width: 3px;
 	height: 3px;
 	border-radius: 999px;
 	opacity: 0.5;
-	margin-top: 4px;
-	margin-right: 1px;
 	display: inline-block;
 }
 .cell-bottom {
@@ -1211,6 +1301,20 @@ onBeforeUnmount(() => {
 	font-size: 13px;
 	color: #dc2626;
 	font-weight: 600;
+}
+.dlg-sale-event {
+	margin-top: 6px;
+	font-size: 13px;
+	font-weight: 700;
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.dlg-sale-event span {
+	font-size: 10px;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
 }
 .dlg-close {
 	width: 32px;
