@@ -19,6 +19,11 @@ from hrms.api.checkin_cooldown import is_checkin_cooldown_exempt
 from hrms.hr.utils import get_distance_between_coordinates
 
 TIME_SLOT_SECONDS = 30  # 二维码时间片,与前端保持一致
+ATTENDANCE_STATUS_LABELS = {
+	"working": "出勤中",
+	"off_work": "退勤済",
+	"not_checked_in": "未打刻",
+}
 
 
 def validate_ip_whitelist():
@@ -457,9 +462,10 @@ def get_location_info(location_name: str):
 @frappe.whitelist(allow_guest=True, methods=["GET"])
 def get_employees_at_work(location: str | None = None):
 	"""
-	获取当前在上班的员工列表（已签到但未签退）
+	获取今天有打卡记录的员工列表，并标注当前状态
 
-	可用于其他应用调用，如门禁系统、会议室预约等
+	最后一次打卡为 IN 时表示出勤中，最后一次打卡为 OUT 时表示退勤済。
+	可用于其他应用调用，如当天出勤展示、门禁系统、会议室预约等。
 
 	Args:
 		location: 可选，筛选特定打卡地点的员工
@@ -475,6 +481,11 @@ def get_employees_at_work(location: str | None = None):
 					"designation": "エンジニア",
 					"image": "/files/employee.jpg",
 					"checkin_time": "2025-12-01 09:00:00",
+					"attendance_status": "working",
+					"attendance_status_label": "出勤中",
+					"last_log_type": "IN",
+					"last_checkin_time": "09:00",
+					"last_checkin_location": "office-10F",
 					"location": "office-10F"
 				},
 				...
@@ -508,7 +519,6 @@ def get_employees_at_work(location: str | None = None):
 			AND DATE(ec2.time) = %s
 		)
 		AND DATE(ec.time) = %s
-		AND ec.log_type = 'IN'
 		AND e.status = 'Active'
 	"""
 
@@ -525,8 +535,9 @@ def get_employees_at_work(location: str | None = None):
 	# 格式化返回数据
 	employees = []
 	for row in results:
-		# 只保留时间部分 (HH:MM:SS)
-		checkin_time = str(row.time).split(" ")[1] if " " in str(row.time) else str(row.time)
+		attendance_status = _get_attendance_status_from_log_type(row.log_type)
+		checkin_time = _format_checkin_time(row.time, include_seconds=True)
+		last_checkin_time = _format_checkin_time(row.time)
 		employees.append(
 			{
 				"employee": row.employee,
@@ -535,8 +546,32 @@ def get_employees_at_work(location: str | None = None):
 				"designation": row.designation,
 				"image": row.image,
 				"checkin_time": checkin_time,
+				"attendance_status": attendance_status,
+				"attendance_status_label": ATTENDANCE_STATUS_LABELS[attendance_status],
+				"last_log_type": row.log_type,
+				"last_checkin_time": last_checkin_time,
+				"last_checkin_location": row.location,
 				"location": row.location,
 			}
 		)
 
 	return {"count": len(employees), "employees": employees}
+
+
+def _get_attendance_status_from_log_type(log_type):
+	if log_type == "IN":
+		return "working"
+	if log_type == "OUT":
+		return "off_work"
+	return "not_checked_in"
+
+
+def _format_checkin_time(value, include_seconds=False):
+	text = str(value)
+	time_part = text.split(" ")[-1]
+	parts = time_part.split(":")
+	if include_seconds and len(parts) >= 3:
+		return f"{parts[0].zfill(2)}:{parts[1].zfill(2)}:{parts[2]}"
+	if len(parts) >= 2:
+		return f"{parts[0].zfill(2)}:{parts[1].zfill(2)}"
+	return text
