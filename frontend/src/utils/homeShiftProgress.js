@@ -38,6 +38,8 @@ const OVERTIME_COPY = {
 }
 
 const DISPLAY_OVERTIME_THRESHOLD_HOURS = 0.5
+const COMPANY_LUNCH_START_HOUR = 12
+const COMPANY_LUNCH_END_HOUR = 13
 
 function pickLabel(lang, key) {
 	return LABELS[lang]?.[key] || LABELS.zh[key]
@@ -100,6 +102,39 @@ function addDays(date, days) {
 
 function diffHours(end, start) {
 	return Math.max(0, (end.getTime() - start.getTime()) / 36e5)
+}
+
+function netWorkHours(end, start) {
+	if (end <= start) return 0
+
+	let lunchOverlapHours = 0
+	const day = new Date(start)
+	day.setHours(0, 0, 0, 0)
+	const lastDay = new Date(end)
+	lastDay.setHours(0, 0, 0, 0)
+
+	while (day <= lastDay) {
+		const lunchStart = new Date(day)
+		lunchStart.setHours(COMPANY_LUNCH_START_HOUR, 0, 0, 0)
+		const lunchEnd = new Date(day)
+		lunchEnd.setHours(COMPANY_LUNCH_END_HOUR, 0, 0, 0)
+		const overlapStart = start > lunchStart ? start : lunchStart
+		const overlapEnd = end < lunchEnd ? end : lunchEnd
+
+		lunchOverlapHours += diffHours(overlapEnd, overlapStart)
+		day.setDate(day.getDate() + 1)
+	}
+
+	return Math.max(0, diffHours(end, start) - lunchOverlapHours)
+}
+
+function resolveShiftHours(schedule, scheduledEnd, scheduledStart) {
+	const plannedHours = schedule?.hours
+	if (plannedHours !== null && plannedHours !== undefined && plannedHours !== "") {
+		const numericHours = Number(plannedHours)
+		if (Number.isFinite(numericHours) && numericHours >= 0) return numericHours
+	}
+	return netWorkHours(scheduledEnd, scheduledStart)
 }
 
 function clamp(value, min, max) {
@@ -175,12 +210,12 @@ export function buildShiftProgress({
 	let scheduledEnd = buildScheduleDateTime(dateText, endText)
 	if (!scheduledStart || !scheduledEnd) return null
 
-	if (scheduledEnd <= scheduledStart) {
+	if (scheduledEnd < scheduledStart) {
 		scheduledEnd = addDays(scheduledEnd, 1)
 	}
 
 	const nowValue = parseDateTime(now) || new Date()
-	const shiftHours = diffHours(scheduledEnd, scheduledStart)
+	const shiftHours = resolveShiftHours(schedule, scheduledEnd, scheduledStart)
 	if (shiftHours <= 0) return null
 
 	const status = resolveStatus(workStatus)
@@ -192,8 +227,8 @@ export function buildShiftProgress({
 	if (actualStart && actualEnd && actualEnd > actualStart) {
 		const boundedStart = actualStart < scheduledStart ? scheduledStart : actualStart
 		const boundedEnd = actualEnd > scheduledEnd ? scheduledEnd : actualEnd
-		workedHours = diffHours(boundedEnd, boundedStart)
-		totalWorkedHours = diffHours(actualEnd, boundedStart)
+		workedHours = netWorkHours(boundedEnd, boundedStart)
+		totalWorkedHours = netWorkHours(actualEnd, boundedStart)
 	}
 
 	const overtimeHours = roundHours(Math.max(0, totalWorkedHours - workedHours))
