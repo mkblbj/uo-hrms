@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url"
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url))
 const componentDir = path.resolve(currentDir, "../../components/work_roster")
+const dashboardPath = path.resolve(currentDir, "Dashboard.vue")
 
 function readComponent(name) {
 	return fs.readFileSync(path.join(componentDir, name), "utf8")
@@ -55,4 +56,29 @@ test("day sheet is modal, safe-area aware, and excludes attendance", () => {
 	assert.match(source, /safe-area-inset-bottom/)
 	assert.match(source, /employees/)
 	assert.doesNotMatch(source, /in_time|out_time|working_hours|attendanceResource/)
+})
+
+test("dashboard uses the mobile roster api and shared components", () => {
+	const source = fs.readFileSync(dashboardPath, "utf8")
+	assert.match(source, /get_mobile_roster_calendar/)
+	assert.match(source, /RosterViewTabs/)
+	assert.match(source, /RosterPreferenceBanner/)
+	assert.match(source, /RosterMonthHeader/)
+	assert.match(source, /RosterMonthCalendar/)
+	assert.match(source, /RosterDaySheet/)
+})
+
+test("dashboard does not request attendance or render period cards", () => {
+	const source = fs.readFileSync(dashboardPath, "utf8")
+	assert.doesNotMatch(source, /get_attendance_calendar_events|attendanceResource/)
+	assert.doesNotMatch(source, /v-for="period in dashboardData/)
+	assert.doesNotMatch(source, /upcoming_entries/)
+})
+
+test("dashboard has no-employee unpublished failure and retry states", () => {
+	const source = fs.readFileSync(dashboardPath, "utf8")
+	assert.match(source, /no_employee/)
+	assert.match(source, /periodMissing/)
+	assert.match(source, /loadError/)
+	assert.match(source, /retry/)
 })

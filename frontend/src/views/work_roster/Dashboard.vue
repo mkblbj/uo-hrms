@@ -1,159 +1,384 @@
 <template>
-	<BaseLayout :pageTitle="t('pageTitle')">
+	<BaseLayout :pageTitle="labels.pageTitle">
 		<template #body>
-			<div class="flex flex-col items-center mt-4 mb-7 py-4 px-4 space-y-5">
-				<div v-if="dashboardData.loading" class="w-full text-center py-10">
-					<div class="text-gray-400">{{ t("loading") }}</div>
-				</div>
+			<main class="roster-page">
+				<RosterPreferenceBanner :notice="currentData?.preference_notice" :labels="labels" />
+				<RosterViewTabs v-model="activeScope" :labels="labels" />
+				<RosterMonthHeader
+					:year="currentYear"
+					:month="currentMonth"
+					:month-title="monthTitle"
+					:department-category="departmentCategory"
+					:published="Boolean(currentData?.period)"
+					:labels="labels"
+					@previous="moveMonth(-1)"
+					@next="moveMonth(1)"
+				/>
 
-				<div v-else-if="dashboardData.data?.error === 'no_employee'" class="w-full text-center py-10">
-					<div class="text-gray-500">{{ t("noEmployee") }}</div>
-				</div>
+				<section v-if="isInitialLoading" class="roster-state roster-skeleton" aria-live="polite">
+					<span>{{ labels.loading }}</span>
+					<div v-for="index in 35" :key="index" aria-hidden="true"></div>
+				</section>
 
-				<template v-else-if="dashboardData.data">
-					<div
-						v-for="period in dashboardData.data.periods"
-						:key="period.name"
-						class="w-full bg-white rounded-xl shadow-sm p-4 border border-gray-100"
-					>
-						<div class="flex items-center justify-between mb-3">
-							<div>
-								<div class="text-base font-semibold text-gray-800">{{ period.title }}</div>
-								<StatusBadge :status="period.status" />
-							</div>
-						</div>
+				<section
+					v-else-if="currentData?.error === 'no_employee'"
+					class="roster-state"
+					role="status"
+				>
+					<strong>{{ labels.noEmployee }}</strong>
+				</section>
 
-						<div v-if="period.status === 'Collecting'" class="space-y-3">
-							<div class="text-sm text-gray-600">
-								{{ t("deadline") }}：{{ formatDate(period.preference_deadline) }}
-							</div>
-							<div class="flex items-center gap-2">
-								<span
-									:class="period.has_preference ? 'text-green-600' : 'text-orange-500'"
-									class="text-sm font-medium"
-								>
-									{{ period.has_preference ? t("submitted") : t("pendingSubmit") }}
-								</span>
-							</div>
-							<router-link
-								:to="`/work-roster/preference/${period.name}`"
-								v-slot="{ navigate }"
-							>
-								<Button
-									@click="navigate"
-									:variant="period.has_preference ? 'subtle' : 'solid'"
-									class="py-3 text-sm w-full"
-								>
-									{{ period.has_preference ? t("editPreference") : t("submitPreference") }}
-								</Button>
-							</router-link>
-						</div>
+				<section v-else-if="currentError" class="roster-state error" role="alert">
+					<strong>{{ labels.loadError }}</strong>
+					<button type="button" @click="retry">
+						{{ labels.retry }}
+					</button>
+				</section>
 
-						<div v-else-if="period.status === 'Published'" class="space-y-3">
-							<div v-if="period.upcoming_entries?.length" class="space-y-1.5">
-								<div class="text-sm font-medium text-gray-700">{{ t("upcomingShifts") }}</div>
-								<div
-									v-for="entry in period.upcoming_entries"
-									:key="entry.date"
-									class="flex items-center justify-between text-sm bg-gray-50 rounded-lg px-3 py-2"
-								>
-									<span class="text-gray-600">{{ formatDate(entry.date) }}</span>
-									<span class="font-medium text-gray-800">{{ entry.wr_shift_slot || t("customTime") }}</span>
-								</div>
-							</div>
-							<div class="flex gap-2">
-								<router-link
-									to="/work-roster/my-schedule"
-									v-slot="{ navigate }"
-									class="flex-1"
-								>
-									<Button @click="navigate" variant="subtle" class="py-3 text-sm w-full">
-										{{ t("myRoster") }}
-									</Button>
-								</router-link>
-								<router-link
-									:to="`/work-roster/department-schedule/${period.name}`"
-									v-slot="{ navigate }"
-									class="flex-1"
-								>
-									<Button @click="navigate" variant="outline" class="py-3 text-sm w-full">
-										{{ t("departmentRoster") }}
-									</Button>
-								</router-link>
-							</div>
-						</div>
-
-						<div v-else-if="period.status === 'Scheduling'" class="text-sm text-gray-500 py-2">
-							{{ t("schedulingHint") }}
-						</div>
-					</div>
-
-					<div v-if="!dashboardData.data.periods?.length" class="w-full text-center py-10">
-						<div class="text-gray-400 text-sm">{{ t("emptyPeriods") }}</div>
-					</div>
+				<template v-else-if="currentData">
+					<p v-if="!currentData.period" class="period-missing" role="status">
+						{{ labels.periodMissing }}
+					</p>
+					<RosterMonthCalendar
+						v-if="calendarCells.length"
+						ref="calendarRef"
+						:cells="calendarCells"
+						:scope="activeScope"
+						:department-category="departmentCategory"
+						:weekday-labels="weekdayLabels"
+						:labels="labels"
+						@select-day="openDay"
+					/>
 				</template>
-			</div>
+
+				<RosterDaySheet
+					:day="selectedCell"
+					:scope="activeScope"
+					:department-category="departmentCategory"
+					:labels="labels"
+					@close="closeDay"
+				/>
+			</main>
 		</template>
 	</BaseLayout>
 </template>
 
 <script setup>
-import { inject } from "vue"
+import { computed, nextTick, reactive, ref, watch } from "vue"
 import { onIonViewWillEnter } from "@ionic/vue"
-import { createResource, Button } from "frappe-ui"
+import { createResource } from "frappe-ui"
+import { useRoute } from "vue-router"
+
 import BaseLayout from "@/components/BaseLayout.vue"
-import StatusBadge from "@/components/work_roster/StatusBadge.vue"
+import RosterDaySheet from "@/components/work_roster/RosterDaySheet.vue"
+import RosterMonthCalendar from "@/components/work_roster/RosterMonthCalendar.vue"
+import RosterMonthHeader from "@/components/work_roster/RosterMonthHeader.vue"
+import RosterPreferenceBanner from "@/components/work_roster/RosterPreferenceBanner.vue"
+import RosterViewTabs from "@/components/work_roster/RosterViewTabs.vue"
+import {
+	addRosterMonth,
+	buildRosterCalendarCells,
+	createRosterRequestGate,
+	getRosterCacheKey,
+	getRosterCopy,
+	normalizeRosterLanguage,
+	resolveRosterFallbackMonth,
+	resolveRosterInitialState,
+} from "@/utils/rosterCalendar"
 
-const dayjs = inject("$dayjs")
-const __ = inject("$translate")
-const labels = {
-	pageTitle: { zh: "排班", ja: "シフト", en: "Roster" },
-	loading: { zh: "加载中...", ja: "読み込み中...", en: "Loading..." },
-	noEmployee: { zh: "未找到当前账号对应的员工档案", ja: "現在のアカウントに対応する従業員情報がありません", en: "No employee record linked to this account" },
-	deadline: { zh: "截止时间", ja: "締切", en: "Deadline" },
-	submitted: { zh: "已提交", ja: "提出済み", en: "Submitted" },
-	pendingSubmit: { zh: "待提交", ja: "未提出", en: "Pending" },
-	editPreference: { zh: "修改意愿", ja: "希望を修正", en: "Edit Preference" },
-	submitPreference: { zh: "提交意愿", ja: "希望を提出", en: "Submit Preference" },
-	upcomingShifts: { zh: "即将到来的班次", ja: "今後のシフト", en: "Upcoming Shifts" },
-	customTime: { zh: "自定义时段", ja: "カスタム時間", en: "Custom Time" },
-	myRoster: { zh: "我的排班", ja: "私のシフト", en: "My Roster" },
-	departmentRoster: { zh: "部门排班", ja: "部門シフト", en: "Department Roster" },
-	schedulingHint: { zh: "排班正在编制中，请稍后查看", ja: "シフトを編成中です。しばらくしてからご確認ください", en: "Roster is being prepared. Please check again later." },
-	emptyPeriods: { zh: "当前没有可用的排班周期", ja: "利用可能なシフト期間はありません", en: "No available roster periods" },
-}
+const LABEL_KEYS = [
+	"pageTitle",
+	"viewSelector",
+	"myShift",
+	"departmentShift",
+	"submitPreference",
+	"editPreference",
+	"submitted",
+	"scheduling",
+	"deadline",
+	"previousMonth",
+	"nextMonth",
+	"published",
+	"periodMissing",
+	"departmentOffice",
+	"departmentProduction",
+	"holiday",
+	"sale",
+	"bigSale",
+	"saturday",
+	"sunday",
+	"actualShort",
+	"equivalentShort",
+	"scheduledPeople",
+	"equivalentPeople",
+	"rest",
+	"emptyShort",
+	"emptyDay",
+	"customTime",
+	"loading",
+	"loadError",
+	"retry",
+	"noEmployee",
+	"close",
+	"shiftLabel",
+	"scheduledTime",
+]
 
-const dashboardData = createResource({
-	url: "work_roster.api.schedule.get_dashboard_data",
+const route = useRoute()
+const initialState = resolveRosterInitialState({
+	now: new Date(),
+	query: route.query,
+})
+const activeScope = ref(initialState.scope)
+const currentYear = ref(initialState.year)
+const currentMonth = ref(initialState.month)
+const selectedCell = ref(null)
+const calendarRef = ref(null)
+const cache = reactive(new Map())
+const errors = reactive(new Map())
+const loadingKeys = reactive(new Set())
+const requestGate = createRosterRequestGate()
+let hasEntered = false
+
+const rosterResource = createResource({
+	url: "work_roster.api.schedule.get_mobile_roster_calendar",
 	auto: false,
 })
 
-function getLang() {
-	return frappe?.boot?.lang || "zh"
-}
-
-function t(key) {
-	return labels[key]?.[getLang()] || labels[key]?.zh || __(key)
-}
-
-function formatDate(dateStr) {
-	if (!dateStr) return ""
-	const weekdayMap = {
-		zh: ["日", "一", "二", "三", "四", "五", "六"],
-		ja: ["日", "月", "火", "水", "木", "金", "土"],
-		en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
-	}[getLang()] || ["日", "一", "二", "三", "四", "五", "六"]
-	const date = dayjs(dateStr)
-	if (getLang() === "en") {
-		return `${date.format("M/D")} (${weekdayMap[date.day()]})`
+const language = computed(() => normalizeRosterLanguage(globalThis.frappe?.boot?.lang))
+const labels = computed(() =>
+	Object.fromEntries(LABEL_KEYS.map((key) => [key, getRosterCopy(key, language.value)]))
+)
+const currentKey = computed(() =>
+	getRosterCacheKey(activeScope.value, currentYear.value, currentMonth.value)
+)
+const currentData = computed(() => cache.get(currentKey.value) || null)
+const currentError = computed(() => errors.get(currentKey.value) || null)
+const isInitialLoading = computed(() => !currentData.value && loadingKeys.has(currentKey.value))
+const departmentCategory = computed(() => currentData.value?.department_category || "")
+const today = localDateKey(new Date())
+const calendarCells = computed(() => {
+	if (!currentData.value || currentData.value.error) return []
+	return buildRosterCalendarCells({
+		year: currentYear.value,
+		month: currentMonth.value,
+		days: currentData.value.days || [],
+		holidays: currentData.value.holidays || [],
+		events: currentData.value.events || [],
+		today,
+	})
+})
+const weekdayLabels = computed(() => {
+	if (language.value === "ja") {
+		return ["日", "月", "火", "水", "木", "金", "土"]
 	}
-	if (getLang() === "ja") {
-		return `${date.format("M/D")}（${weekdayMap[date.day()]}）`
+	if (language.value === "en") {
+		return ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 	}
-	return `${date.format("M/D")}（周${weekdayMap[date.day()]}）`
+	return ["日", "一", "二", "三", "四", "五", "六"]
+})
+const monthTitle = computed(() => {
+	if (language.value === "en") {
+		return new Intl.DateTimeFormat("en", {
+			year: "numeric",
+			month: "long",
+		}).format(new Date(currentYear.value, currentMonth.value - 1, 1))
+	}
+	return `${currentYear.value}年${currentMonth.value}月`
+})
+
+function localDateKey(date) {
+	const year = date.getFullYear()
+	const month = String(date.getMonth() + 1).padStart(2, "0")
+	const day = String(date.getDate()).padStart(2, "0")
+	return `${year}-${month}-${day}`
 }
 
-onIonViewWillEnter(() => {
-	dashboardData.fetch()
+async function loadCurrentMonth({ initial = false, force = false } = {}) {
+	const scope = activeScope.value
+	const year = currentYear.value
+	const month = currentMonth.value
+	const key = getRosterCacheKey(scope, year, month)
+	if (!force && cache.has(key)) return cache.get(key)
+
+	const token = requestGate.begin()
+	errors.delete(key)
+	loadingKeys.add(key)
+	try {
+		const fetched = await rosterResource.fetch({
+			year,
+			month,
+			scope,
+		})
+		const response = fetched ?? rosterResource.data
+		if (!requestGate.isLatest(token)) return null
+		cache.set(key, response)
+		const fallback = resolveRosterFallbackMonth({
+			requested: { year, month },
+			response,
+			initial,
+		})
+		if (fallback) {
+			currentYear.value = fallback.year
+			currentMonth.value = fallback.month
+			return loadCurrentMonth({ initial: false })
+		}
+		return response
+	} catch (error) {
+		if (requestGate.isLatest(token)) {
+			errors.set(key, error)
+		}
+		return null
+	} finally {
+		loadingKeys.delete(key)
+	}
+}
+
+function moveMonth(delta) {
+	closeDay({ restoreFocus: false })
+	const target = addRosterMonth({ year: currentYear.value, month: currentMonth.value }, delta)
+	currentYear.value = target.year
+	currentMonth.value = target.month
+	loadCurrentMonth()
+}
+
+function openDay(cell) {
+	selectedCell.value = cell
+}
+
+async function closeDay({ restoreFocus = true } = {}) {
+	const previousDate = selectedCell.value?.dateStr
+	selectedCell.value = null
+	if (restoreFocus && previousDate) {
+		await nextTick()
+		calendarRef.value?.focusDate(previousDate)
+	}
+}
+
+function retry() {
+	loadCurrentMonth({ force: true })
+}
+
+watch(activeScope, () => {
+	closeDay({ restoreFocus: false })
+	loadCurrentMonth()
+})
+
+onIonViewWillEnter(async () => {
+	const requestedScope = route.query.view === "department" ? "department" : "mine"
+	if (!hasEntered) {
+		hasEntered = true
+		activeScope.value = requestedScope
+		await loadCurrentMonth({ initial: true })
+		return
+	}
+
+	if (activeScope.value !== requestedScope) {
+		activeScope.value = requestedScope
+		return
+	}
+
+	const hasCachedMonth = cache.has(currentKey.value)
+	await loadCurrentMonth()
+	if (hasCachedMonth) {
+		loadCurrentMonth({ force: true })
+	}
 })
 </script>
+
+<style scoped>
+.roster-page {
+	display: grid;
+	width: 100%;
+	max-width: 520px;
+	margin: 0 auto;
+	padding: 12px 12px calc(96px + env(safe-area-inset-bottom));
+	gap: 12px;
+	overflow-x: hidden;
+	color: var(--h-fg-primary, #0a0a0a);
+	background: var(--h-bg-page, #f1eee7);
+}
+
+.roster-state {
+	display: grid;
+	min-height: 200px;
+	place-items: center;
+	padding: 24px 16px;
+	color: var(--h-fg-secondary, #64748b);
+	text-align: center;
+	background: var(--h-bg-card, #ffffff);
+	border: 1px solid var(--h-bd-default, #e3dfd4);
+	border-radius: 16px;
+}
+
+.roster-state.error {
+	gap: 12px;
+	align-content: center;
+}
+
+.roster-state.error button {
+	min-width: 96px;
+	min-height: 40px;
+	padding: 8px 14px;
+	color: var(--h-fg-on-dark, #ffffff);
+	font-size: 13px;
+	font-weight: 700;
+	background: var(--h-tab-active, #2563eb);
+	border: 0;
+	border-radius: 10px;
+}
+
+.roster-skeleton {
+	grid-template-columns: repeat(7, minmax(0, 1fr));
+	gap: 3px;
+	padding: 8px;
+}
+
+.roster-skeleton span {
+	grid-column: 1 / -1;
+	padding: 12px;
+	font-size: 13px;
+}
+
+.roster-skeleton div {
+	width: 100%;
+	aspect-ratio: 0.78;
+	background: var(--h-bg-card-inner, #faf8f2);
+	border-radius: 8px;
+	animation: roster-pulse 1.25s ease-in-out infinite alternate;
+}
+
+.period-missing {
+	margin: 0;
+	padding: 9px 12px;
+	color: var(--h-fg-secondary, #64748b);
+	font-size: 12px;
+	text-align: center;
+	background: var(--h-bg-card, #ffffff);
+	border: 1px dashed var(--h-bd-default, #e3dfd4);
+	border-radius: 12px;
+}
+
+@keyframes roster-pulse {
+	from {
+		opacity: 0.55;
+	}
+	to {
+		opacity: 1;
+	}
+}
+
+@media (max-width: 340px) {
+	.roster-page {
+		padding-right: 8px;
+		padding-left: 8px;
+		gap: 10px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.roster-skeleton div {
+		animation: none;
+	}
+}
+</style>
