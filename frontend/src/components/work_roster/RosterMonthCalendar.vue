@@ -1,5 +1,5 @@
 <template>
-	<section class="roster-calendar" role="grid">
+	<section class="roster-calendar" role="grid" :style="{ '--roster-week-count': weekCount }">
 		<div class="roster-weekdays" role="row">
 			<div
 				v-for="(label, index) in weekdayLabels"
@@ -30,9 +30,11 @@
 </template>
 
 <script setup>
+import { computed } from "vue"
+
 import RosterDayCell from "@/components/work_roster/RosterDayCell.vue"
 
-defineProps({
+const props = defineProps({
 	cells: {
 		type: Array,
 		required: true,
@@ -57,6 +59,7 @@ defineProps({
 
 const emit = defineEmits(["select-day"])
 const dayRefs = new Map()
+const weekCount = computed(() => Math.max(5, Math.ceil(props.cells.length / 7)))
 
 function setDayRef(dateStr, element) {
 	if (element) {
@@ -75,7 +78,11 @@ defineExpose({ focusDate })
 
 <style scoped>
 .roster-calendar {
+	display: grid;
+	flex: 1;
+	grid-template-rows: auto minmax(0, 1fr);
 	width: 100%;
+	min-height: 0;
 	padding: 8px;
 	background: var(--h-bg-card-inner, #faf8f2);
 	border: 1px solid var(--h-bd-default, #e3dfd4);
@@ -94,6 +101,11 @@ defineExpose({ focusDate })
 	margin-bottom: 5px;
 }
 
+.roster-days {
+	min-height: 0;
+	grid-template-rows: repeat(var(--roster-week-count), minmax(44px, 1fr));
+}
+
 .roster-weekday {
 	padding: 2px 0 4px;
 	color: var(--h-fg-secondary, #64748b);
@@ -110,7 +122,7 @@ defineExpose({ focusDate })
 
 .roster-empty-cell {
 	min-width: 0;
-	aspect-ratio: 0.78;
+	min-height: 44px;
 }
 
 @media (max-width: 340px) {

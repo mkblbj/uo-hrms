@@ -93,9 +93,9 @@ defineExpose({ focus })
 	align-items: stretch;
 	justify-content: flex-start;
 	width: 100%;
+	height: 100%;
 	min-width: 0;
 	min-height: 44px;
-	aspect-ratio: 0.78;
 	padding: 5px 3px 4px;
 	overflow: hidden;
 	color: var(--h-fg-primary, #0a0a0a);

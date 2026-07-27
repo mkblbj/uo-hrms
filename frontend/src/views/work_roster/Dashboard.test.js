@@ -27,18 +27,26 @@ test("preference banner keeps existing preference route", () => {
 	assert.match(source, /notice\.has_preference/)
 })
 
-test("month header has named previous and next controls", () => {
+test("month header has navigation and a native department selector", () => {
 	const source = readComponent("RosterMonthHeader.vue")
 	assert.match(source, /aria-label/)
 	assert.match(source, /emit\(["']previous["']\)/)
 	assert.match(source, /emit\(["']next["']\)/)
+	assert.match(source, /<select/)
+	assert.match(source, /selectableDepartment/)
+	assert.match(source, /departmentSelector/)
+	assert.match(source, /update:departmentCategory/)
 })
 
-test("calendar is a seven-column non-scrolling grid", () => {
+test("calendar is a seven-column grid that fills the available height", () => {
 	const source = readComponent("RosterMonthCalendar.vue")
 	assert.match(source, /grid-template-columns:\s*repeat\(7/)
 	assert.doesNotMatch(source, /overflow-x:\s*(auto|scroll)/)
 	assert.match(source, /focusDate/)
+	assert.match(source, /--roster-week-count/)
+	assert.match(source, /grid-template-rows:\s*repeat\(var\(--roster-week-count\)/)
+	assert.match(source, /flex:\s*1/)
+	assert.doesNotMatch(source, /aspect-ratio:\s*0\.78/)
 })
 
 test("day cell separates mine and department summaries", () => {
@@ -66,6 +74,21 @@ test("dashboard uses the mobile roster api and shared components", () => {
 	assert.match(source, /RosterMonthHeader/)
 	assert.match(source, /RosterMonthCalendar/)
 	assert.match(source, /RosterDaySheet/)
+})
+
+test("dashboard requests and caches the selected department category", () => {
+	const source = fs.readFileSync(dashboardPath, "utf8")
+	assert.match(source, /selectedDepartmentCategory/)
+	assert.match(source, /department_category:\s*requestedDepartmentCategory/)
+	assert.match(source, /getRosterCacheKey\([\s\S]*selectedDepartmentCategory/)
+	assert.match(source, /@update:department-category/)
+})
+
+test("dashboard fills the content area without bottom spacer", () => {
+	const source = fs.readFileSync(dashboardPath, "utf8")
+	assert.match(source, /\.roster-page\s*\{[\s\S]*flex:\s*1/)
+	assert.match(source, /\.roster-page\s*\{[\s\S]*min-height:\s*100%/)
+	assert.doesNotMatch(source, /calc\(96px \+ env\(safe-area-inset-bottom\)\)/)
 })
 
 test("dashboard does not request attendance or render period cards", () => {

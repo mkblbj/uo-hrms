@@ -7,7 +7,18 @@
 		<div class="month-copy">
 			<h2>{{ monthTitle || `${year}年${month}月` }}</h2>
 			<p>
-				<span>{{ departmentLabel }}</span>
+				<span v-if="selectableDepartment" class="department-picker">
+					<select
+						:value="departmentCategory || 'Office'"
+						:aria-label="labels.departmentSelector"
+						@change="emit('update:departmentCategory', $event.target.value)"
+					>
+						<option value="Office">{{ labels.departmentOffice }}</option>
+						<option value="Production">{{ labels.departmentProduction }}</option>
+					</select>
+					<span aria-hidden="true">⌄</span>
+				</span>
+				<span v-else>{{ departmentLabel }}</span>
 				<span aria-hidden="true">·</span>
 				<span :class="{ published }">
 					{{ published ? labels.published : labels.periodMissing }}
@@ -41,6 +52,10 @@ const props = defineProps({
 		type: String,
 		default: "",
 	},
+	selectableDepartment: {
+		type: Boolean,
+		default: false,
+	},
 	published: {
 		type: Boolean,
 		default: false,
@@ -51,7 +66,7 @@ const props = defineProps({
 	},
 })
 
-const emit = defineEmits(["previous", "next"])
+const emit = defineEmits(["previous", "next", "update:departmentCategory"])
 const departmentLabel = computed(() =>
 	props.departmentCategory === "Production"
 		? props.labels.departmentProduction
@@ -113,5 +128,36 @@ button:focus-visible {
 .month-copy .published {
 	color: var(--h-summary-shift-fg, #15803d);
 	font-weight: 700;
+}
+
+.department-picker {
+	position: relative;
+	display: inline-flex;
+	align-items: center;
+}
+
+.department-picker select {
+	max-width: 92px;
+	padding: 0 14px 0 0;
+	overflow: hidden;
+	color: inherit;
+	font: inherit;
+	font-weight: 700;
+	text-overflow: ellipsis;
+	background: transparent;
+	border: 0;
+	border-radius: 4px;
+	appearance: none;
+}
+
+.department-picker span {
+	position: absolute;
+	right: 0;
+	pointer-events: none;
+}
+
+.department-picker select:focus-visible {
+	outline: 2px solid var(--h-tab-active, #2563eb);
+	outline-offset: 2px;
 }
 </style>

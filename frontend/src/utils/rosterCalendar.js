@@ -19,6 +19,11 @@ const ROSTER_COPY = {
 		ja: "部門シフト",
 		en: "Department Shift",
 	},
+	departmentSelector: {
+		zh: "选择部门",
+		ja: "部門を選択",
+		en: "Select department",
+	},
 	submitPreference: {
 		zh: "填写意愿",
 		ja: "希望を入力",
@@ -212,8 +217,12 @@ export function resolveRosterInitialState({ now = new Date(), query = {} }) {
 	}
 }
 
-export function getRosterCacheKey(scope, year, month) {
-	return `${scope}:${Number(year)}-${String(Number(month)).padStart(2, "0")}`
+export function getRosterCacheKey(scope, year, month, departmentCategory = "") {
+	const monthKey = `${Number(year)}-${String(Number(month)).padStart(2, "0")}`
+	if (scope === "department") {
+		return `department:${departmentCategory || "default"}:${monthKey}`
+	}
+	return `${scope}:${monthKey}`
 }
 
 export function buildRosterCalendarCells({

@@ -49,9 +49,13 @@ test("defaults bottom-tab entry to mine and honors safe legacy query", () => {
 	)
 })
 
-test("keys cache by scope and month", () => {
+test("keys department cache by selected category and month", () => {
 	assert.equal(getRosterCacheKey("mine", 2026, 8), "mine:2026-08")
-	assert.equal(getRosterCacheKey("department", 2026, 8), "department:2026-08")
+	assert.equal(getRosterCacheKey("department", 2026, 8, "Office"), "department:Office:2026-08")
+	assert.equal(
+		getRosterCacheKey("department", 2026, 8, "Production"),
+		"department:Production:2026-08"
+	)
 })
 
 test("builds a complete seven-column month with day data", () => {
@@ -134,4 +138,5 @@ test("provides complete key labels in zh ja and en", () => {
 	assert.equal(normalizeRosterLanguage("ja_JP"), "ja")
 	assert.equal(normalizeRosterLanguage("en-US"), "en")
 	assert.equal(getRosterCopy("scheduledPeople", "ja", { count: 6 }), "実 6人")
+	assert.equal(getRosterCopy("departmentSelector", "zh"), "选择部门")
 })

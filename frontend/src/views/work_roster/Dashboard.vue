@@ -9,10 +9,12 @@
 					:month="currentMonth"
 					:month-title="monthTitle"
 					:department-category="departmentCategory"
+					:selectable-department="activeScope === 'department'"
 					:published="Boolean(currentData?.period)"
 					:labels="labels"
 					@previous="moveMonth(-1)"
 					@next="moveMonth(1)"
+					@update:department-category="selectDepartment"
 				/>
 
 				<section v-if="isInitialLoading" class="roster-state roster-skeleton" aria-live="polite">
@@ -91,6 +93,7 @@ const LABEL_KEYS = [
 	"viewSelector",
 	"myShift",
 	"departmentShift",
+	"departmentSelector",
 	"submitPreference",
 	"editPreference",
 	"submitted",
@@ -132,6 +135,7 @@ const initialState = resolveRosterInitialState({
 const activeScope = ref(initialState.scope)
 const currentYear = ref(initialState.year)
 const currentMonth = ref(initialState.month)
+const selectedDepartmentCategory = ref("")
 const selectedCell = ref(null)
 const calendarRef = ref(null)
 const cache = reactive(new Map())
@@ -154,12 +158,19 @@ const labels = computed(() =>
 	Object.fromEntries(LABEL_KEYS.map((key) => [key, getRosterCopy(key, language.value)]))
 )
 const currentKey = computed(() =>
-	getRosterCacheKey(activeScope.value, currentYear.value, currentMonth.value)
+	getRosterCacheKey(
+		activeScope.value,
+		currentYear.value,
+		currentMonth.value,
+		selectedDepartmentCategory.value
+	)
 )
 const currentData = computed(() => cache.get(currentKey.value) || null)
 const currentError = computed(() => errors.get(currentKey.value) || null)
 const isInitialLoading = computed(() => !currentData.value && loadingKeys.has(currentKey.value))
-const departmentCategory = computed(() => currentData.value?.department_category || "")
+const departmentCategory = computed(
+	() => currentData.value?.department_category || selectedDepartmentCategory.value || ""
+)
 const today = localDateKey(new Date())
 const calendarCells = computed(() => {
 	if (!currentData.value || currentData.value.error) return []
@@ -202,21 +213,33 @@ async function loadCurrentMonth({ initial = false, force = false } = {}) {
 	const scope = activeScope.value
 	const year = currentYear.value
 	const month = currentMonth.value
-	const key = getRosterCacheKey(scope, year, month)
-	if (!force && cache.has(key)) return cache.get(key)
+	const requestedDepartmentCategory =
+		scope === "department" ? selectedDepartmentCategory.value : ""
+	const requestedKey = getRosterCacheKey(scope, year, month, requestedDepartmentCategory)
+	if (!force && cache.has(requestedKey)) return cache.get(requestedKey)
 
 	const token = requestGate.begin()
-	errors.delete(key)
-	loadingKeys.add(key)
+	errors.delete(requestedKey)
+	loadingKeys.add(requestedKey)
 	try {
 		const fetched = await rosterResource.fetch({
 			year,
 			month,
 			scope,
+			department_category: requestedDepartmentCategory,
 		})
 		const response = fetched ?? rosterResource.data
 		if (!requestGate.isLatest(token)) return null
-		cache.set(key, response)
+		if (!selectedDepartmentCategory.value && response?.department_category) {
+			selectedDepartmentCategory.value = response.department_category
+		}
+		const responseKey = getRosterCacheKey(
+			scope,
+			year,
+			month,
+			scope === "department" ? response?.department_category || requestedDepartmentCategory : ""
+		)
+		cache.set(responseKey, response)
 		const fallback = resolveRosterFallbackMonth({
 			requested: { year, month },
 			response,
@@ -230,11 +253,11 @@ async function loadCurrentMonth({ initial = false, force = false } = {}) {
 		return response
 	} catch (error) {
 		if (requestGate.isLatest(token)) {
-			errors.set(key, error)
+			errors.set(requestedKey, error)
 		}
 		return null
 	} finally {
-		loadingKeys.delete(key)
+		loadingKeys.delete(requestedKey)
 	}
 }
 
@@ -248,6 +271,18 @@ function moveMonth(delta) {
 
 function openDay(cell) {
 	selectedCell.value = cell
+}
+
+function selectDepartment(category) {
+	if (
+		!["Office", "Production"].includes(category) ||
+		category === selectedDepartmentCategory.value
+	) {
+		return
+	}
+	closeDay({ restoreFocus: false })
+	selectedDepartmentCategory.value = category
+	loadCurrentMonth()
 }
 
 async function closeDay({ restoreFocus = true } = {}) {
@@ -273,6 +308,9 @@ async function applyLegacyPeriod() {
 		if (target?.year && target?.month) {
 			currentYear.value = Number(target.year)
 			currentMonth.value = Number(target.month)
+			if (["Office", "Production"].includes(target.department_category)) {
+				selectedDepartmentCategory.value = target.department_category
+			}
 		}
 	} catch {
 		// An inaccessible or obsolete period safely falls back to the current month.
@@ -309,11 +347,15 @@ onIonViewWillEnter(async () => {
 
 <style scoped>
 .roster-page {
-	display: grid;
+	display: flex;
+	flex: 1;
+	flex-direction: column;
 	width: 100%;
+	min-height: 100%;
 	max-width: 520px;
+	box-sizing: border-box;
 	margin: 0 auto;
-	padding: 12px 12px calc(96px + env(safe-area-inset-bottom));
+	padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
 	gap: 12px;
 	overflow-x: hidden;
 	color: var(--h-fg-primary, #0a0a0a);
