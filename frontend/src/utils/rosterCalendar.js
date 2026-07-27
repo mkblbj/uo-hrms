@@ -241,6 +241,7 @@ export function buildRosterCalendarCells({
 	const required = firstWeekday + lastDay
 	const cellCount = Math.max(35, Math.ceil(required / 7) * 7)
 	const cells = Array.from({ length: firstWeekday }, () => ({
+		empty: true,
 		isPlaceholder: true,
 		dateStr: "",
 		data: null,
@@ -254,9 +255,12 @@ export function buildRosterCalendarCells({
 		const holiday = holidayByDate.get(dateStr) || null
 		const isWeeklyOff = Boolean(Number(holiday?.weekly_off || 0))
 		cells.push({
+			empty: false,
 			isPlaceholder: false,
 			dateStr,
+			day: dayNumber,
 			dayNumber,
+			ariaLabel: dateStr,
 			data: dayByDate.get(dateStr) || null,
 			holiday,
 			holidayName: holiday?.description || "",
@@ -271,6 +275,7 @@ export function buildRosterCalendarCells({
 
 	while (cells.length < cellCount) {
 		cells.push({
+			empty: true,
 			isPlaceholder: true,
 			dateStr: "",
 			data: null,

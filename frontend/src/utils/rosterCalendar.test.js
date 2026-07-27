@@ -83,6 +83,8 @@ test("builds a complete seven-column month with day data", () => {
 
 	assert.equal(cells.length % 7, 0)
 	assert.equal(cells.find((cell) => cell.dateStr === "2026-08-05").isToday, true)
+	assert.equal(cells.find((cell) => cell.dateStr === "2026-08-05").day, 5)
+	assert.equal(cells[0].empty, true)
 	assert.equal(cells.find((cell) => cell.dateStr === "2026-08-05").event.title, "セール")
 	assert.equal(cells.find((cell) => cell.dateStr === "2026-08-11").holidayName, "山の日")
 })

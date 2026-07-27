@@ -32,3 +32,27 @@ test("month header has named previous and next controls", () => {
 	assert.match(source, /emit\(["']previous["']\)/)
 	assert.match(source, /emit\(["']next["']\)/)
 })
+
+test("calendar is a seven-column non-scrolling grid", () => {
+	const source = readComponent("RosterMonthCalendar.vue")
+	assert.match(source, /grid-template-columns:\s*repeat\(7/)
+	assert.doesNotMatch(source, /overflow-x:\s*(auto|scroll)/)
+	assert.match(source, /focusDate/)
+})
+
+test("day cell separates mine and department summaries", () => {
+	const source = readComponent("RosterDayCell.vue")
+	assert.match(source, /scope === ["']mine["']/)
+	assert.match(source, /actual_count/)
+	assert.match(source, /equivalent_count/)
+	assert.match(source, /departmentCategory === ["']Production["']/)
+})
+
+test("day sheet is modal, safe-area aware, and excludes attendance", () => {
+	const source = readComponent("RosterDaySheet.vue")
+	assert.match(source, /role="dialog"/)
+	assert.match(source, /aria-modal="true"/)
+	assert.match(source, /safe-area-inset-bottom/)
+	assert.match(source, /employees/)
+	assert.doesNotMatch(source, /in_time|out_time|working_hours|attendanceResource/)
+})
