@@ -144,6 +144,10 @@ const rosterResource = createResource({
 	url: "work_roster.api.schedule.get_mobile_roster_calendar",
 	auto: false,
 })
+const legacyPeriodResource = createResource({
+	url: "work_roster.api.schedule.resolve_mobile_roster_period",
+	auto: false,
+})
 
 const language = computed(() => normalizeRosterLanguage(globalThis.frappe?.boot?.lang))
 const labels = computed(() =>
@@ -259,6 +263,22 @@ function retry() {
 	loadCurrentMonth({ force: true })
 }
 
+async function applyLegacyPeriod() {
+	if (!initialState.legacyPeriod) return
+	try {
+		const fetched = await legacyPeriodResource.fetch({
+			wr_period: initialState.legacyPeriod,
+		})
+		const target = fetched ?? legacyPeriodResource.data
+		if (target?.year && target?.month) {
+			currentYear.value = Number(target.year)
+			currentMonth.value = Number(target.month)
+		}
+	} catch {
+		// An inaccessible or obsolete period safely falls back to the current month.
+	}
+}
+
 watch(activeScope, () => {
 	closeDay({ restoreFocus: false })
 	loadCurrentMonth()
@@ -269,6 +289,7 @@ onIonViewWillEnter(async () => {
 	if (!hasEntered) {
 		hasEntered = true
 		activeScope.value = requestedScope
+		await applyLegacyPeriod()
 		await loadCurrentMonth({ initial: true })
 		return
 	}

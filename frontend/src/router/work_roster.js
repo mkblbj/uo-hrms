@@ -6,15 +6,21 @@ const routes = [
 		component: () => import("@/views/work_roster/PreferenceSubmit.vue"),
 	},
 	{
-		name: "MyScheduleView",
 		path: "/work-roster/my-schedule",
-		component: () => import("@/views/work_roster/MySchedule.vue"),
+		redirect: () => ({
+			name: "WorkRosterDashboard",
+			query: { view: "mine" },
+		}),
 	},
 	{
-		name: "DeptScheduleView",
 		path: "/work-roster/department-schedule/:periodId",
-		props: true,
-		component: () => import("@/views/work_roster/DeptSchedule.vue"),
+		redirect: (to) => ({
+			name: "WorkRosterDashboard",
+			query: {
+				view: "department",
+				period: String(to.params.periodId || ""),
+			},
+		}),
 	},
 ]
 

@@ -82,3 +82,10 @@ test("dashboard has no-employee unpublished failure and retry states", () => {
 	assert.match(source, /loadError/)
 	assert.match(source, /retry/)
 })
+
+test("dashboard resolves legacy period through the restricted api", () => {
+	const source = fs.readFileSync(dashboardPath, "utf8")
+	assert.match(source, /resolve_mobile_roster_period/)
+	assert.match(source, /initialState\.legacyPeriod/)
+	assert.doesNotMatch(source, /frappe\.client\.get/)
+})
