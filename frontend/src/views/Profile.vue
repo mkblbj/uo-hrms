@@ -7,11 +7,7 @@
 						class="flex flex-row bg-white shadow-sm py-4 px-3 items-center justify-between border-b sticky top-0 z-10"
 					>
 						<div class="flex flex-row items-center">
-							<Button
-								variant="ghost"
-								class="!pl-0 hover:bg-white"
-								@click="router.back()"
-							>
+							<Button variant="ghost" class="!pl-0 hover:bg-white" @click="router.back()">
 								<FeatherIcon name="chevron-left" class="h-5 w-5" />
 							</Button>
 							<h2 class="text-xl font-semibold text-gray-900">{{ __("Profile") }}</h2>
@@ -52,18 +48,12 @@
 									@click="openInfoModal(link)"
 								>
 									<div class="flex flex-row items-center gap-3 grow">
-										<FeatherIcon
-											:name="link.icon"
-											class="h-5 w-5 text-gray-500"
-										/>
+										<FeatherIcon :name="link.icon" class="h-5 w-5 text-gray-500" />
 										<div class="text-base font-normal text-gray-800">
 											{{ link.title }}
 										</div>
 									</div>
-									<FeatherIcon
-										name="chevron-right"
-										class="h-5 w-5 text-gray-500"
-									/>
+									<FeatherIcon name="chevron-right" class="h-5 w-5 text-gray-500" />
 								</div>
 							</div>
 						</div>
@@ -76,18 +66,12 @@
 									class="flex flex-row cursor-pointer flex-start p-4 items-center justify-between border-b"
 								>
 									<div class="flex flex-row items-center gap-3 grow">
-										<FeatherIcon
-											name="settings"
-											class="h-5 w-5 text-gray-500"
-										/>
+										<FeatherIcon name="settings" class="h-5 w-5 text-gray-500" />
 										<div class="text-base font-normal text-gray-800">
 											{{ __("Settings") }}
 										</div>
 									</div>
-									<FeatherIcon
-										name="chevron-right"
-										class="h-5 w-5 text-gray-500"
-									/>
+									<FeatherIcon name="chevron-right" class="h-5 w-5 text-gray-500" />
 								</router-link>
 							</div>
 						</div>
@@ -97,12 +81,7 @@
 							<PasskeyManager />
 						</div>
 
-						<Button
-							@click="logout"
-							variant="outline"
-							theme="red"
-							class="w-full shadow py-4 mt-5"
-						>
+						<Button @click="logout" variant="outline" theme="red" class="w-full shadow py-4 mt-5">
 							<template #prefix>
 								<FeatherIcon name="log-out" class="w-4" />
 							</template>
@@ -120,13 +99,14 @@
 				:breakpoints="[0, 1]"
 			>
 				<ProfileInfoModal
+					v-if="selectedItem"
 					:title="selectedItem.title"
 					:data="
 						selectedItem.fields.map((field) => {
 							const [label, fieldtype] = getFieldInfo(field)
 							return {
 								fieldname: field,
-								value: employeeDoc.doc[field],
+								value: getFieldValue(field),
 								label: label,
 								fieldtype: fieldtype,
 							}
@@ -139,9 +119,9 @@
 </template>
 
 <script setup>
-import { inject, ref, onMounted, onBeforeUnmount } from "vue"
+import { inject, ref, watch, onMounted, onBeforeUnmount } from "vue"
 import { useRouter } from "vue-router"
-import { IonModal, IonPage, IonContent } from "@ionic/vue"
+import { IonPage, IonContent } from "@ionic/vue"
 import { FeatherIcon, createDocumentResource, createResource } from "frappe-ui"
 
 import { showErrorAlert } from "@/utils/dialogs"
@@ -189,12 +169,7 @@ const profileLinks = [
 	{
 		icon: "book",
 		title: __("Contact Information"),
-		fields: [
-			"cell_number",
-			"personal_email",
-			"company_email",
-			"preferred_email",
-		],
+		fields: ["cell_number", "personal_email", "company_email", "preferred_email"],
 	},
 	{
 		icon: "dollar-sign",
@@ -238,6 +213,19 @@ const employeeDoc = createDocumentResource({
 	},
 })
 
+const reportsToName = createResource({
+	url: "hrms.api.get_reports_to_employee_name",
+})
+
+watch(
+	() => employeeDoc.doc?.reports_to,
+	(reports_to) => {
+		if (reports_to) {
+			reportsToName.submit({ employee: reports_to })
+		}
+	}
+)
+
 const employeeDocType = createResource({
 	url: "hrms.api.get_doctype_fields",
 	params: { doctype: DOCTYPE },
@@ -245,10 +233,18 @@ const employeeDocType = createResource({
 })
 
 const getFieldInfo = (fieldname) => {
-	const field = employeeDocType.data.find(
-		(field) => field.fieldname === fieldname
-	)
+	const field = employeeDocType.data.find((field) => field.fieldname === fieldname)
 	return [__(field?.label, null, "Employee"), field?.fieldtype]
+}
+
+const getFieldValue = (fieldname) => {
+	if (fieldname === "employee_number" && !employeeDoc.doc[fieldname]) {
+		return employeeDoc.doc["name"]
+	}
+	if (fieldname === "reports_to") {
+		return reportsToName.data || employeeDoc.doc[fieldname]
+	}
+	return employeeDoc.doc[fieldname]
 }
 
 const logout = async () => {

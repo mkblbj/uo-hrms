@@ -4,6 +4,8 @@
 # For license information, please see license.txt
 
 
+import json
+
 import frappe
 from frappe import _
 from frappe.model.document import Document
@@ -42,7 +44,7 @@ class JobApplicant(Document):
 		resume_link: DF.Data | None
 		source: DF.Link | None
 		source_name: DF.Link | None
-		status: DF.Literal["Open", "Replied", "Rejected", "Hold", "Accepted"]
+		status: DF.Literal["Open", "Replied", "Shortlisted", "Rejected", "Hold", "Accepted"]
 		upper_range: DF.Currency
 	# end: auto-generated types
 
@@ -77,6 +79,9 @@ class JobApplicant(Document):
 					_("Cannot create a Job Applicant against a closed Job Opening"), title=_("Not Allowed")
 				)
 
+		if frappe.flags.in_web_form and not self.source:
+			self.source = "Website Listing"
+
 	def set_status_for_employee_referral(self):
 		emp_ref = frappe.get_doc("Employee Referral", self.employee_referral)
 		if self.status in ["Open", "Replied", "Hold"]:
@@ -85,27 +90,52 @@ class JobApplicant(Document):
 			emp_ref.db_set("status", self.status)
 
 
+KANBAN_COLUMNS = ["Open", "Replied", "Shortlisted", "Accepted"]
+
+
 @frappe.whitelist()
-def create_interview(job_applicant: str, interview_round: str) -> Document:
+def create_kanban_board(board_name: str) -> dict:
+	frappe.has_permission("Job Applicant", throw=True)
+
+	if frappe.db.exists("Kanban Board", board_name):
+		return frappe.get_doc("Kanban Board", board_name).as_dict()
+
+	board = frappe.new_doc("Kanban Board")
+	board.kanban_board_name = board_name
+	board.reference_doctype = "Job Applicant"
+	board.field_name = "status"
+	board.private = 0
+	board.fields = json.dumps(["designation", "applicant_rating"])
+	board.show_labels = 1
+
+	for column_name in KANBAN_COLUMNS:
+		board.append("columns", {"column_name": column_name, "status": "Active"})
+
+	board.insert(ignore_permissions=True)
+	return board.as_dict()
+
+
+@frappe.whitelist()
+def create_interview(job_applicant: str, interview_type: str) -> Document:
 	doc = frappe.get_doc("Job Applicant", job_applicant)
 
-	round_designation = frappe.db.get_value("Interview Round", interview_round, "designation")
+	round_designation = frappe.db.get_value("Interview Type", interview_type, "designation")
 
 	if round_designation and doc.designation and round_designation != doc.designation:
 		frappe.throw(
-			_("Interview Round {0} is only applicable for the Designation {1}").format(
-				interview_round, round_designation
+			_("Interview Type {0} is only applicable for the Designation {1}").format(
+				interview_type, round_designation
 			)
 		)
 
 	interview = frappe.new_doc("Interview")
-	interview.interview_round = interview_round
+	interview.interview_type = interview_type
 	interview.job_applicant = doc.name
 	interview.designation = doc.designation
 	interview.resume_link = doc.resume_link
 	interview.job_opening = doc.job_title
 
-	interviewers = get_interviewers(interview_round)
+	interviewers = get_interviewers(interview_type)
 	for d in interviewers:
 		interview.append("interview_details", {"interviewer": d.interviewer})
 
@@ -113,12 +143,60 @@ def create_interview(job_applicant: str, interview_round: str) -> Document:
 
 
 @frappe.whitelist()
+def schedule_interview(
+	job_applicant: str,
+	interview_type: str,
+	scheduled_on: str,
+	from_time: str | None = None,
+	to_time: str | None = None,
+	interviewers: str | list | None = None,
+) -> str:
+	frappe.has_permission("Interview", ptype="create", throw=True)
+	frappe.has_permission("Job Applicant", ptype="read", doc=job_applicant, throw=True)
+
+	applicant = frappe.get_doc("Job Applicant", job_applicant)
+
+	round_designation = frappe.db.get_value("Interview Type", interview_type, "designation")
+	if round_designation and applicant.designation and round_designation != applicant.designation:
+		frappe.throw(
+			_("Interview Type {0} is only applicable for Designation {1}").format(
+				frappe.bold(interview_type), frappe.bold(round_designation)
+			)
+		)
+
+	interview = frappe.new_doc("Interview")
+	interview.interview_type = interview_type
+	interview.job_applicant = applicant.name
+	interview.designation = applicant.designation
+	interview.resume_link = applicant.resume_link
+	interview.job_opening = applicant.job_title
+	interview.scheduled_on = scheduled_on
+	interview.from_time = from_time
+	interview.to_time = to_time
+
+	if isinstance(interviewers, str):
+		interviewers = json.loads(interviewers)
+
+	for entry in interviewers or []:
+		if entry.get("interviewer"):
+			interview.append("interview_details", {"interviewer": entry["interviewer"]})
+
+	interview.insert(ignore_permissions=True)
+
+	return interview.name
+
+
+@frappe.whitelist()
 def get_interview_details(job_applicant: str) -> dict:
+	frappe.has_permission("Job Applicant", "read", job_applicant, throw=True)
 	interview_details = frappe.db.get_all(
 		"Interview",
 		filters={"job_applicant": job_applicant, "docstatus": ["!=", 2]},
-		fields=["name", "interview_round", "scheduled_on", "average_rating", "status"],
+		fields=["name", "interview_type", "scheduled_on", "average_rating", "status"],
 	)
+	if not interview_details:
+		return None
+
 	interview_detail_map = {}
 	meta = frappe.get_meta("Interview")
 	number_of_stars = meta.get_options("average_rating") or 5
