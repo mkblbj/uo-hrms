@@ -7,19 +7,34 @@
 						class="flex flex-row bg-white shadow-sm py-4 px-3 items-center justify-between border-b sticky top-0 z-10"
 					>
 						<div class="flex flex-row items-center">
-							<Button
-								variant="ghost"
-								class="!pl-0 hover:bg-white"
-								@click="router.back()"
-							>
+							<Button variant="ghost" class="!pl-0 hover:bg-white" @click="router.back()">
 								<FeatherIcon name="chevron-left" class="h-5 w-5" />
 							</Button>
-							<h2 class="text-xl font-semibold text-gray-900">{{ __("Settings") }} </h2>
+							<h2 class="text-xl font-semibold text-gray-900">{{ __("Settings") }}</h2>
 						</div>
 					</header>
 
 					<div class="flex flex-col gap-5 my-4 w-full p-4">
 						<LanguagePreferenceCard />
+						<div class="flex flex-col bg-white rounded">
+							<div
+								class="flex flex-row cursor-pointer flex-start p-4 items-center justify-between border-b"
+							>
+								<router-link
+									:to="{ name: 'ChangePassword' }"
+									class="flex flex-row items-center justify-between w-full"
+								>
+									<div class="flex flex-row items-center gap-3 grow">
+										<FeatherIcon name="lock" class="h-5 w-5 text-gray-500" />
+										<div class="text-base font-normal text-gray-800">
+											{{ __("Change Password") }}
+										</div>
+									</div>
+									<FeatherIcon name="chevron-right" class="h-5 w-5 text-gray-500" />
+								</router-link>
+							</div>
+						</div>
+
 						<div class="flex flex-col bg-white rounded">
 							<Switch
 								size="md"
@@ -34,7 +49,11 @@
 						<div v-if="isLoading" class="flex -mt-2 items-center justify-center gap-2">
 							<LoadingIndicator class="w-3 h-3 text-gray-800" />
 							<span class="text-gray-900 text-sm">
-								{{ pushNotificationState ? __("Disabling Push Notifications...") : __("Enabling Push Notifications...") }}
+								{{
+									pushNotificationState
+										? __("Disabling Push Notifications...")
+										: __("Enabling Push Notifications...")
+								}}
 							</span>
 						</div>
 						<PasskeyManager />
@@ -49,7 +68,7 @@
 import { computed, inject, ref } from "vue"
 import { IonPage, IonContent } from "@ionic/vue"
 import { useRouter } from "vue-router"
-import { FeatherIcon, Switch, toast, LoadingIndicator } from "frappe-ui"
+import { FeatherIcon, Switch, toast, LoadingIndicator, Button } from "frappe-ui"
 
 import LanguagePreferenceCard from "@/components/settings/LanguagePreferenceCard.vue"
 import PasskeyManager from "@/components/PasskeyManager.vue"
@@ -57,25 +76,19 @@ import { arePushNotificationsEnabled } from "@/data/notifications"
 
 const __ = inject("$translate")
 const router = useRouter()
-const pushNotificationState = ref(
-	window.frappePushNotification?.isNotificationEnabled(),
-)
+
+const pushNotificationState = ref(window.frappePushNotification?.isNotificationEnabled())
 const isLoading = ref(false)
 
 const disablePushSetting = computed(() => {
 	return (
-		!(
-			window.frappe?.boot.push_relay_server_url &&
-			arePushNotificationsEnabled.data
-		) || isLoading.value
+		!(window.frappe?.boot.push_relay_server_url && arePushNotificationsEnabled.data) ||
+		isLoading.value
 	)
 })
 
 const description = computed(() => {
-	return !(
-		window.frappe?.boot.push_relay_server_url &&
-		arePushNotificationsEnabled.data
-	)
+	return !(window.frappe?.boot.push_relay_server_url && arePushNotificationsEnabled.data)
 		? __("Push notifications have been disabled on your site")
 		: ""
 })
@@ -111,7 +124,6 @@ const togglePushNotifications = (newValue) => {
 			})
 	}
 }
-
 const enablePushNotifications = () => {
 	isLoading.value = true
 

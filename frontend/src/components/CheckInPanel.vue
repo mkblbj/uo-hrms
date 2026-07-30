@@ -27,14 +27,18 @@
 		/>
 
 		<HomeSummaryCard class="intro-stagger intro-stagger-2" :lang="currentLanguage" />
-		<HomeStatsGrid class="intro-stagger intro-stagger-3" :stats="dashboardStats.data" :lang="currentLanguage" />
+		<HomeStatsGrid
+			class="intro-stagger intro-stagger-3"
+			:stats="dashboardStats.data"
+			:lang="currentLanguage"
+		/>
 	</div>
 
 	<HomeScanActionBar
 		:cta="primaryScanMeta"
 		:work-status="props.workStatus?.data"
 		:lang="currentLanguage"
-		:disabled="!isMobileCheckinAllowed"
+		:disabled="!isMobileCheckinAllowed || props.workStatus?.loading"
 		@scan="openQRScanner"
 	/>
 
@@ -162,6 +166,7 @@ import HomeScanActionBar from "@/components/home/HomeScanActionBar.vue"
 import HomeStatsGrid from "@/components/home/HomeStatsGrid.vue"
 import QRScannerModal from "@/components/QRScannerModal.vue"
 import HomeSummaryCard from "@/components/work_roster/HomeSummaryCard.vue"
+import { settings } from "@/data/settings"
 import { formatTimestamp } from "@/utils/formatters"
 import {
 	buildSuccessOverlayModel,
@@ -196,10 +201,6 @@ const successOverlayState = reactive({
 })
 const successOverlayController = createSuccessOverlayController({
 	state: successOverlayState,
-})
-const settings = createResource({
-	url: "hrms.api.get_hr_settings",
-	auto: true,
 })
 
 const dashboardStats = createResource({
@@ -241,7 +242,13 @@ const weatherSummary = computed(() => {
 const todaySaleEvent = computed(() => homeScheduleSummary.data?.today_event || null)
 
 const openQRScanner = () => {
-	if (!settings.data?.allow_employee_checkin_from_mobile_app || !primaryScanMeta.value) return
+	if (
+		props.workStatus?.loading ||
+		!settings.data?.allow_employee_checkin_from_mobile_app ||
+		!primaryScanMeta.value
+	) {
+		return
+	}
 	showQRScanner.value = true
 }
 
@@ -293,7 +300,9 @@ function tintColor(color, whiteMix) {
 }
 
 function hexToRgb(color) {
-	const match = String(color || "").trim().match(/^#?([0-9a-f]{6})$/i)
+	const match = String(color || "")
+		.trim()
+		.match(/^#?([0-9a-f]{6})$/i)
 	if (!match) return null
 	const intValue = parseInt(match[1], 16)
 	return {
@@ -609,13 +618,24 @@ function formatDate() {
 		transform: translateY(12px);
 		animation: ckp-stagger-in 640ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 	}
-	.checkin-panel.intro-play .intro-stagger-0 { animation-delay: 0ms; }
-	.checkin-panel.intro-play .intro-stagger-1 { animation-delay: 0ms; }
-	.checkin-panel.intro-play .intro-stagger-2 { animation-delay: 150ms; }
-	.checkin-panel.intro-play .intro-stagger-3 { animation-delay: 300ms; }
+	.checkin-panel.intro-play .intro-stagger-0 {
+		animation-delay: 0ms;
+	}
+	.checkin-panel.intro-play .intro-stagger-1 {
+		animation-delay: 0ms;
+	}
+	.checkin-panel.intro-play .intro-stagger-2 {
+		animation-delay: 150ms;
+	}
+	.checkin-panel.intro-play .intro-stagger-3 {
+		animation-delay: 300ms;
+	}
 }
 
 @keyframes ckp-stagger-in {
-	to { opacity: 1; transform: translateY(0); }
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
 }
 </style>

@@ -88,7 +88,7 @@ class PayrollEntry(Document):
 			return
 
 		# check if salary slips were manually submitted
-		entries = frappe.db.count("Salary Slip", {"payroll_entry": self.name, "docstatus": 1}, ["name"])
+		entries = frappe.db.count("Salary Slip", {"payroll_entry": self.name, "docstatus": 1})
 		if cint(entries) == len(self.employees):
 			self.set_onload("submitted_ss", True)
 
@@ -218,9 +218,13 @@ class PayrollEntry(Document):
 			)
 			# cancel linked payment ledger entry
 			for pl in journal_entry_payment_ledgers:
-				frappe.get_doc("Payment Ledger Entry", pl).cancel()
+				payment_ledger_entry = frappe.get_doc("Payment Ledger Entry", pl)
+				payment_ledger_entry.flags.ignore_permissions = True
+				payment_ledger_entry.cancel()
 
-			frappe.get_doc("Journal Entry", je).cancel()
+			journal_entry = frappe.get_doc("Journal Entry", je)
+			journal_entry.flags.ignore_permissions = True
+			journal_entry.cancel()
 
 	def cancel_linked_payment_ledger_entries(self):
 		payment_ledgers = frappe.get_all(
@@ -231,7 +235,9 @@ class PayrollEntry(Document):
 
 		# cancel payment ledger entry
 		for pl in payment_ledgers:
-			frappe.get_doc("Payment Ledger Entry", pl).cancel()
+			payment_ledger_entry = frappe.get_doc("Payment Ledger Entry", pl)
+			payment_ledger_entry.flags.ignore_permissions = True
+			payment_ledger_entry.cancel()
 
 	def get_linked_salary_slips(self):
 		return frappe.get_all("Salary Slip", {"payroll_entry": self.name}, ["name", "docstatus"])
@@ -1259,6 +1265,8 @@ class PayrollEntry(Document):
 
 	@frappe.whitelist()
 	def create_overtime_slips(self) -> None:
+		self.check_permission("write")
+
 		from hrms.hr.doctype.overtime_slip.overtime_slip import (
 			create_overtime_slips_for_employees,
 			filter_employees_for_overtime_slip_creation,
@@ -1296,6 +1304,8 @@ class PayrollEntry(Document):
 
 	@frappe.whitelist()
 	def submit_overtime_slips(self) -> None:
+		self.check_permission("write")
+
 		from hrms.hr.doctype.overtime_slip.overtime_slip import (
 			submit_overtime_slips_for_employees,
 		)
@@ -1595,8 +1605,23 @@ def create_salary_slips_for_employees(employees, args, publish_progress=True):
 
 		employees = list(set(employees) - set(salary_slips_exist_for))
 		for emp in employees:
-			args.update({"doctype": "Salary Slip", "employee": emp})
-			frappe.get_doc(args).insert()
+			slip_args = {
+				"doctype": "Salary Slip",
+				"employee": emp,
+				"salary_slip_based_on_timesheet": args.get("salary_slip_based_on_timesheet"),
+				"payroll_frequency": args.get("payroll_frequency"),
+				"start_date": args.get("start_date"),
+				"end_date": args.get("end_date"),
+				"company": args.get("company"),
+				"posting_date": args.get("posting_date"),
+				"deduct_tax_for_unsubmitted_tax_exemption_proof": args.get(
+					"deduct_tax_for_unsubmitted_tax_exemption_proof"
+				),
+				"payroll_entry": args.get("payroll_entry"),
+				"exchange_rate": args.get("exchange_rate"),
+				"currency": args.get("currency"),
+			}
+			frappe.get_doc(slip_args).insert()
 
 			count += 1
 			if publish_progress:
@@ -1719,17 +1744,24 @@ def submit_salary_slips_for_employees(payroll_entry, salary_slips, publish_progr
 def get_payroll_entries_for_jv(
 	doctype: str, txt: str, searchfield: str, start: int, page_len: int, filters: dict
 ) -> list:
-	# nosemgrep: frappe-semgrep-rules.rules.frappe-using-db-sql
-	return frappe.db.sql(
-		f"""
-		select name from `tabPayroll Entry`
-		where `{searchfield}` LIKE %(txt)s
-		and name not in
-			(select reference_name from `tabJournal Entry Account`
-				where reference_type="Payroll Entry")
-		order by name limit %(start)s, %(page_len)s""",
-		{"txt": "%%%s%%" % txt, "start": start, "page_len": page_len},
+	PayrollEntry = frappe.qb.DocType("Payroll Entry")
+	JournalEntryAccount = frappe.qb.DocType("Journal Entry Account")
+
+	linked_entries = (
+		frappe.qb.from_(JournalEntryAccount)
+		.select(JournalEntryAccount.reference_name)
+		.where(JournalEntryAccount.reference_type == "Payroll Entry")
 	)
+
+	return (
+		frappe.qb.from_(PayrollEntry)
+		.select(PayrollEntry.name)
+		.where(PayrollEntry[searchfield].like("%%%s%%" % txt))
+		.where(PayrollEntry.name.notin(linked_entries))
+		.orderby(PayrollEntry.name)
+		.limit(page_len)
+		.offset(start)
+	).run()
 
 
 def get_employee_list(
