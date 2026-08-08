@@ -14,6 +14,13 @@
 						</div>
 					</div>
 
+					<div
+						v-if="shouldShowAutoScheduleNotice(period)"
+						class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800"
+					>
+						{{ t("autoScheduleNotice") }}
+					</div>
+
 					<!-- Month Navigation -->
 					<div class="flex items-center justify-between px-2">
 						<div class="text-base font-semibold text-gray-800">
@@ -192,6 +199,7 @@ import { useRoute, useRouter } from "vue-router"
 import { createResource, Button, toast } from "frappe-ui"
 import { IonModal, onIonViewWillEnter } from "@ionic/vue"
 import BaseLayout from "@/components/BaseLayout.vue"
+import { buildPreferenceDetails, shouldShowAutoScheduleNotice } from "./preferenceSubmission.js"
 
 const dayjs = inject("$dayjs")
 const __ = inject("$translate")
@@ -229,6 +237,12 @@ const labels = {
 	timeOrderError: { zh: "结束时间必须晚于开始时间", ja: "終了時間は開始時間より後である必要があります", en: "End time must be later than start time" },
 	submitSuccess: { zh: "排班意愿提交成功", ja: "シフト希望を提出しました", en: "Roster preference submitted" },
 	submitFailed: { zh: "提交失败，请稍后重试", ja: "提出に失敗しました。しばらくしてから再試行してください", en: "Submission failed. Please try again later." },
+	autoScheduleNotice: {
+		zh: "自动排班只会使用你选中的日期和班次；未选择日期不会被自动安排。",
+		ja: "自動シフトは選択した日付とシフトのみを使用します。未選択の日付には割り当てられません。",
+		en: "Auto-scheduling only uses the dates and shifts you select. Unselected dates will not be scheduled.",
+	},
+	preferenceCollectionClosed: { zh: "意愿征集已结束，当前选择已保留。", ja: "希望収集は終了しました。現在の選択は保持されています。", en: "Preference collection has ended. Your current selections have been kept." },
 }
 const weekdayHeaderMap = {
 	zh: ["日", "一", "二", "三", "四", "五", "六"],
@@ -480,13 +494,7 @@ async function submitPreference() {
 	if (!period.value || selectedDates.value.length === 0) return
 	submitting.value = true
 
-	const details = selectedDates.value.map((sel) => ({
-		date: sel.date,
-		wr_shift_slot: sel.wr_shift_slot,
-		custom_start_time: sel.custom_start_time,
-		custom_end_time: sel.custom_end_time,
-		is_custom: sel.is_custom || 0,
-	}))
+	const details = buildPreferenceDetails(selectedDates.value)
 
 	try {
 		const submitResource = createResource({
@@ -507,8 +515,11 @@ async function submitPreference() {
 		router.push("/dashboard/work-roster")
 	} catch (e) {
 		console.error("Failed to submit preference:", e)
+		const serverMessage = e?.messages?.[0] || e?.message
 		toast({
-			text: e?.messages?.[0] || e?.message || t("submitFailed"),
+			text: serverMessage?.includes("not currently accepting preferences")
+				? t("preferenceCollectionClosed")
+				: serverMessage || t("submitFailed"),
 			position: "bottom",
 			icon: "x-circle",
 			iconClasses: "text-red-500",
