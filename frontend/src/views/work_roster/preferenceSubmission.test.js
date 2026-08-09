@@ -2,6 +2,7 @@ import test from "node:test"
 import assert from "node:assert/strict"
 import {
 	buildPreferenceDetails,
+	canEditPreference,
 	shouldShowAutoScheduleNotice,
 } from "./preferenceSubmission.js"
 
@@ -16,4 +17,18 @@ test("only selected dates are serialized once", () => {
 test("auto scheduling notice is production only", () => {
 	assert.equal(shouldShowAutoScheduleNotice({ department_category: "Production" }), true)
 	assert.equal(shouldShowAutoScheduleNotice({ department_category: "Office" }), false)
+})
+
+test("only Collecting periods allow preference edits for both department categories", () => {
+	const cases = [
+		[{ status: "Collecting", department_category: "Production" }, true],
+		[{ status: "Collecting", department_category: "Office" }, true],
+		[{ status: "Scheduling", department_category: "Production" }, false],
+		[{ status: "Published", department_category: "Office" }, false],
+		[null, false],
+	]
+
+	for (const [period, expected] of cases) {
+		assert.equal(canEditPreference(period), expected)
+	}
 })

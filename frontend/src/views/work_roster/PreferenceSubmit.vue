@@ -20,6 +20,12 @@
 					>
 						{{ t("autoScheduleNotice") }}
 					</div>
+					<div
+						v-if="!isEditable"
+						class="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700"
+					>
+						{{ t("preferenceCollectionClosed") }}
+					</div>
 
 					<!-- Month Navigation -->
 					<div class="flex items-center justify-between px-2">
@@ -49,8 +55,9 @@
 							<button
 								v-else
 								@click="toggleDate(day)"
+								:disabled="!isEditable"
 								:class="[
-									'aspect-square rounded-lg flex flex-col items-center justify-center text-sm relative transition-all',
+									'aspect-square rounded-lg flex flex-col items-center justify-center text-sm relative transition-all disabled:cursor-not-allowed',
 									getDayClasses(day),
 								]"
 							>
@@ -85,8 +92,9 @@
 							</div>
 							<div class="space-y-2">
 								<button
-									@click="showCustomTime = !showCustomTime"
-									class="w-full flex items-center justify-center p-3 rounded-lg border border-dashed border-blue-300 text-blue-600 hover:bg-blue-50 transition"
+									@click="toggleCustomTime"
+									:disabled="!isEditable"
+									class="w-full flex items-center justify-center p-3 rounded-lg border border-dashed border-blue-300 text-blue-600 hover:bg-blue-50 transition disabled:cursor-not-allowed disabled:opacity-60"
 								>
 									{{ showCustomTime ? t("hideCustomTime") : t("useCustomTime") }}
 								</button>
@@ -98,6 +106,7 @@
 											<input
 												v-model="customStart"
 												type="time"
+												:disabled="!isEditable"
 												class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
 											/>
 										</div>
@@ -106,6 +115,7 @@
 											<input
 												v-model="customEnd"
 												type="time"
+												:disabled="!isEditable"
 												class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
 											/>
 										</div>
@@ -114,7 +124,7 @@
 										@click="selectCustomTime"
 										variant="solid"
 										class="w-full py-2"
-										:disabled="!customStart || !customEnd"
+										:disabled="!isEditable || !customStart || !customEnd"
 									>
 										{{ t("saveCustomTime") }}
 									</Button>
@@ -124,7 +134,8 @@
 									v-for="slot in shiftSlots.data || []"
 									:key="slot.name"
 									@click="selectSlot(slot)"
-									class="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition"
+									:disabled="!isEditable"
+									class="w-full flex items-center justify-between p-3 rounded-lg border border-gray-200 hover:bg-gray-50 transition disabled:cursor-not-allowed disabled:opacity-60"
 								>
 									<div class="flex items-center gap-2">
 										<span
@@ -141,7 +152,8 @@
 								<button
 									v-if="isDateSelected(selectedDay)"
 									@click="removeDate(selectedDay)"
-									class="w-full flex items-center justify-center p-3 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition"
+									:disabled="!isEditable"
+									class="w-full flex items-center justify-center p-3 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition disabled:cursor-not-allowed disabled:opacity-60"
 								>
 									{{ t("removeSelection") }}
 								</button>
@@ -155,6 +167,7 @@
 						<textarea
 							v-model="notes"
 							:placeholder="t('notesPlaceholder')"
+							:readonly="!isEditable"
 							class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none"
 							rows="2"
 						/>
@@ -183,7 +196,7 @@
 						variant="solid"
 						class="py-4 text-base w-full"
 						:loading="submitting"
-						:disabled="selectedDates.length === 0"
+						:disabled="!isEditable || selectedDates.length === 0"
 					>
 						{{ existingPref ? t("updatePreference") : t("submitPreference") }}
 					</Button>
@@ -199,7 +212,7 @@ import { useRoute, useRouter } from "vue-router"
 import { createResource, Button, toast } from "frappe-ui"
 import { IonModal, onIonViewWillEnter } from "@ionic/vue"
 import BaseLayout from "@/components/BaseLayout.vue"
-import { buildPreferenceDetails, shouldShowAutoScheduleNotice } from "./preferenceSubmission.js"
+import { buildPreferenceDetails, canEditPreference, shouldShowAutoScheduleNotice } from "./preferenceSubmission.js"
 
 const dayjs = inject("$dayjs")
 const __ = inject("$translate")
@@ -270,6 +283,7 @@ const period = computed(() => {
 	if (!periodResource.data) return null
 	return periodResource.data.find((p) => p.name === periodId.value) || periodResource.data[0]
 })
+const isEditable = computed(() => canEditPreference(period.value))
 
 const shiftSlots = createResource({
 	url: "work_roster.api.preference.get_shift_slots",
@@ -404,6 +418,7 @@ function isDateSelected(day) {
 }
 
 function toggleDate(day) {
+	if (!isEditable.value) return
 	selectedDay.value = day
 	const existingSelection = selections.value[day.dateStr]
 	showCustomTime.value = !!existingSelection?.is_custom
@@ -412,8 +427,13 @@ function toggleDate(day) {
 	showSlotSelector.value = true
 }
 
+function toggleCustomTime() {
+	if (!isEditable.value) return
+	showCustomTime.value = !showCustomTime.value
+}
+
 function selectSlot(slot) {
-	if (!selectedDay.value) return
+	if (!isEditable.value || !selectedDay.value) return
 	selections.value = {
 		...selections.value,
 		[selectedDay.value.dateStr]: {
@@ -428,7 +448,7 @@ function selectSlot(slot) {
 }
 
 function selectCustomTime() {
-	if (!selectedDay.value || !customStart.value || !customEnd.value) return
+	if (!isEditable.value || !selectedDay.value || !customStart.value || !customEnd.value) return
 	if (customEnd.value <= customStart.value) {
 		toast({
 			text: t("timeOrderError"),
@@ -453,7 +473,7 @@ function selectCustomTime() {
 }
 
 function removeDate(day) {
-	if (!day) return
+	if (!isEditable.value || !day) return
 	const newSelections = { ...selections.value }
 	delete newSelections[day.dateStr]
 	selections.value = newSelections
@@ -491,7 +511,7 @@ function formatTime(time) {
 }
 
 async function submitPreference() {
-	if (!period.value || selectedDates.value.length === 0) return
+	if (!isEditable.value || selectedDates.value.length === 0) return
 	submitting.value = true
 
 	const details = buildPreferenceDetails(selectedDates.value)

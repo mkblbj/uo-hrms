@@ -11,3 +11,7 @@ export function buildPreferenceDetails(selectedDates) {
 export function shouldShowAutoScheduleNotice(period) {
 	return period?.department_category === "Production"
 }
+
+export function canEditPreference(period) {
+	return period?.status === "Collecting"
+}
