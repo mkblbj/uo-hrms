@@ -2,7 +2,6 @@
 	<BaseLayout :pageTitle="labels.pageTitle">
 		<template #body>
 			<main class="roster-page">
-				<RosterPreferenceBanner :notice="currentData?.preference_notice" :labels="labels" />
 				<RosterViewTabs v-model="activeScope" :labels="labels" />
 				<RosterMonthHeader
 					:year="currentYear"
@@ -75,7 +74,6 @@ import BaseLayout from "@/components/BaseLayout.vue"
 import RosterDaySheet from "@/components/work_roster/RosterDaySheet.vue"
 import RosterMonthCalendar from "@/components/work_roster/RosterMonthCalendar.vue"
 import RosterMonthHeader from "@/components/work_roster/RosterMonthHeader.vue"
-import RosterPreferenceBanner from "@/components/work_roster/RosterPreferenceBanner.vue"
 import RosterViewTabs from "@/components/work_roster/RosterViewTabs.vue"
 import {
 	addRosterMonth,
@@ -94,11 +92,6 @@ const LABEL_KEYS = [
 	"myShift",
 	"departmentShift",
 	"departmentSelector",
-	"submitPreference",
-	"editPreference",
-	"submitted",
-	"scheduling",
-	"deadline",
 	"previousMonth",
 	"nextMonth",
 	"published",

@@ -70,7 +70,6 @@ test("dashboard uses the mobile roster api and shared components", () => {
 	const source = fs.readFileSync(dashboardPath, "utf8")
 	assert.match(source, /get_mobile_roster_calendar/)
 	assert.match(source, /RosterViewTabs/)
-	assert.match(source, /RosterPreferenceBanner/)
 	assert.match(source, /RosterMonthHeader/)
 	assert.match(source, /RosterMonthCalendar/)
 	assert.match(source, /RosterDaySheet/)

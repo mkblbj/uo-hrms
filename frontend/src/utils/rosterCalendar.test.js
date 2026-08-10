@@ -9,6 +9,7 @@ import {
 	getRosterCopy,
 	normalizeRosterLanguage,
 	resolveRosterFallbackMonth,
+	resolveHomePreferenceNotice,
 	resolveRosterInitialState,
 	shouldCloseRosterSheet,
 } from "./rosterCalendar.js"
@@ -22,6 +23,23 @@ test("moves roster month across year boundaries", () => {
 		year: 2027,
 		month: 1,
 	})
+})
+
+test("home preference reminder is visible only while collecting", () => {
+	const unsubmitted = {
+		period: "Office-2044-10",
+		status: "Collecting",
+		has_preference: false,
+	}
+	const submitted = { ...unsubmitted, has_preference: true }
+
+	assert.equal(resolveHomePreferenceNotice(null), null)
+	assert.equal(
+		resolveHomePreferenceNotice({ ...unsubmitted, status: "Scheduling" }),
+		null
+	)
+	assert.equal(resolveHomePreferenceNotice(unsubmitted), unsubmitted)
+	assert.equal(resolveHomePreferenceNotice(submitted), submitted)
 })
 
 test("defaults bottom-tab entry to mine and honors safe legacy query", () => {

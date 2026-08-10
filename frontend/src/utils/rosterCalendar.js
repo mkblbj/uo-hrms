@@ -217,6 +217,10 @@ export function resolveRosterInitialState({ now = new Date(), query = {} }) {
 	}
 }
 
+export function resolveHomePreferenceNotice(notice) {
+	return notice?.status === "Collecting" ? notice : null
+}
+
 export function getRosterCacheKey(scope, year, month, departmentCategory = "") {
 	const monthKey = `${Number(year)}-${String(Number(month)).padStart(2, "0")}`
 	if (scope === "department") {
