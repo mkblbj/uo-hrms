@@ -38,6 +38,29 @@ test("home preference reminder is visible only while collecting", () => {
 		resolveHomePreferenceNotice({ ...unsubmitted, status: "Scheduling" }),
 		null
 	)
+	assert.equal(
+		resolveHomePreferenceNotice({
+			status: "Collecting",
+			has_preference: false,
+		}),
+		null
+	)
+	assert.equal(
+		resolveHomePreferenceNotice({
+			period: "",
+			status: "Collecting",
+			has_preference: false,
+		}),
+		null
+	)
+	assert.equal(
+		resolveHomePreferenceNotice({
+			period: "Office-2044-10",
+			status: "Published",
+			has_preference: false,
+		}),
+		null
+	)
 	assert.equal(resolveHomePreferenceNotice(unsubmitted), unsubmitted)
 	assert.equal(resolveHomePreferenceNotice(submitted), submitted)
 })
