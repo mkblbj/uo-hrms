@@ -149,3 +149,19 @@ test("department cell shows the head count above a smaller unit line", () => {
 	assert.match(source, /labels\.actualShort/)
 	assert.match(source, /\.roster-primary small\s*\{[\s\S]*?font-size:\s*clamp\(10px, 2\.7vw, 12px\)/)
 })
+
+test("calendar rows and gaps match the taller day cells", () => {
+	const source = readComponent("RosterMonthCalendar.vue")
+	assert.match(
+		source,
+		/grid-template-rows:\s*repeat\(var\(--roster-week-count\),\s*minmax\(56px,\s*1fr\)\)/
+	)
+	assert.match(source, /\.roster-weekdays,\s*\.roster-days\s*\{[\s\S]*?gap:\s*4px/)
+	assert.match(source, /\.roster-empty-cell\s*\{[\s\S]*?min-height:\s*56px/)
+})
+
+test("dashboard trims the gap below the calendar", () => {
+	const source = fs.readFileSync(dashboardPath, "utf8")
+	assert.match(source, /padding:\s*12px 12px calc\(8px \+ env\(safe-area-inset-bottom\)\)/)
+	assert.match(source, /\.roster-skeleton\s*\{[\s\S]*?gap:\s*4px/)
+})

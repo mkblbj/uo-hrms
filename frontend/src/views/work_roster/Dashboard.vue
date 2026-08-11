@@ -348,7 +348,7 @@ onIonViewWillEnter(async () => {
 	max-width: 520px;
 	box-sizing: border-box;
 	margin: 0 auto;
-	padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
+	padding: 12px 12px calc(8px + env(safe-area-inset-bottom));
 	gap: 12px;
 	overflow-x: hidden;
 	color: var(--h-fg-primary, #0a0a0a);
@@ -386,7 +386,7 @@ onIonViewWillEnter(async () => {
 
 .roster-skeleton {
 	grid-template-columns: repeat(7, minmax(0, 1fr));
-	gap: 3px;
+	gap: 4px;
 	padding: 8px;
 }
 

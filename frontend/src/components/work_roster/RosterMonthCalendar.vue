@@ -93,7 +93,7 @@ defineExpose({ focusDate })
 .roster-days {
 	display: grid;
 	grid-template-columns: repeat(7, minmax(0, 1fr));
-	gap: 3px;
+	gap: 4px;
 	width: 100%;
 }
 
@@ -103,7 +103,7 @@ defineExpose({ focusDate })
 
 .roster-days {
 	min-height: 0;
-	grid-template-rows: repeat(var(--roster-week-count), minmax(44px, 1fr));
+	grid-template-rows: repeat(var(--roster-week-count), minmax(56px, 1fr));
 }
 
 .roster-weekday {
@@ -122,7 +122,7 @@ defineExpose({ focusDate })
 
 .roster-empty-cell {
 	min-width: 0;
-	min-height: 44px;
+	min-height: 56px;
 }
 
 @media (max-width: 340px) {
@@ -132,7 +132,7 @@ defineExpose({ focusDate })
 
 	.roster-weekdays,
 	.roster-days {
-		gap: 2px;
+		gap: 3px;
 	}
 }
 </style>
