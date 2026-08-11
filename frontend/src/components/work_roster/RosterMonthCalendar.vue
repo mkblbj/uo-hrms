@@ -93,7 +93,7 @@ defineExpose({ focusDate })
 .roster-days {
 	display: grid;
 	grid-template-columns: repeat(7, minmax(0, 1fr));
-	gap: 4px;
+	gap: 3px;
 	width: 100%;
 }
 
@@ -132,7 +132,7 @@ defineExpose({ focusDate })
 
 	.roster-weekdays,
 	.roster-days {
-		gap: 3px;
+		gap: 2px;
 	}
 }
 </style>

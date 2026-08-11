@@ -77,6 +77,14 @@
 	--h-summary-warn-bg: #fffbeb;
 	--h-summary-warn-bd: #fde68a;
 	--h-summary-warn-fg: #92400e;
+
+	/* ── roster calendar cell blocks ── */
+	--h-roster-shift-bg: #dcfce7;
+	--h-roster-shift-fg: #14532d;
+	--h-roster-rest-bg: #e9edf2;
+	--h-roster-rest-fg: #52627a;
+	--h-roster-event-bg: #fde68a;
+	--h-roster-event-fg: #7c3a0c;
 }
 
 [data-theme="dark"] {
@@ -146,6 +154,14 @@
 	--h-summary-warn-bg: #2a1f0e;
 	--h-summary-warn-bd: #6b4f23;
 	--h-summary-warn-fg: #fbbf24;
+
+	/* ── roster calendar cell blocks ── */
+	--h-roster-shift-bg: #14532d;
+	--h-roster-shift-fg: #86efac;
+	--h-roster-rest-bg: #2f2f2f;
+	--h-roster-rest-fg: #b0b0b0;
+	--h-roster-event-bg: #78350f;
+	--h-roster-event-fg: #fbbf24;
 }
 
 /* Smooth transition when toggling theme manually */

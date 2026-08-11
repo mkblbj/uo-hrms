@@ -12,6 +12,7 @@
 		<span v-if="cell.event" class="roster-day-event">
 			{{ cell.event.title }}
 		</span>
+		<span v-else class="roster-day-event is-spacer" aria-hidden="true">&nbsp;</span>
 		<span v-if="scope === 'mine' && cell.data?.my_shift" class="roster-primary">
 			<span class="roster-primary-value">
 				{{ compactTime(cell.data.my_shift.scheduled_time) }}
@@ -98,7 +99,7 @@ defineExpose({ focus })
 	height: 100%;
 	min-width: 0;
 	min-height: 44px;
-	padding: 5px 4px;
+	padding: 5px 3px;
 	overflow: hidden;
 	color: var(--h-fg-primary, #0a0a0a);
 	text-align: left;
@@ -132,16 +133,23 @@ defineExpose({ focus })
 
 .roster-day-event {
 	overflow: hidden;
-	padding: 1px 2px;
-	color: var(--h-summary-warn-fg, #92400e);
-	font-size: clamp(10px, 2.7vw, 12px);
+	padding: 1px 0;
+	color: var(--h-roster-event-fg, #7c3a0c);
+	font-size: clamp(7px, 2vw, 9px);
 	font-weight: 650;
 	line-height: 1.35;
 	text-align: center;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	background: var(--h-summary-warn-bg, #fffbeb);
+	background: var(--h-roster-event-bg, #fde68a);
 	border-radius: 4px;
+}
+
+/* Reserves the event row on every cell so the block below starts at the same
+   height whether or not the day has an event. Without it, event days push their
+   block down and shrink it, and a week reads as ragged. */
+.roster-day-event.is-spacer {
+	visibility: hidden;
 }
 
 .roster-primary {
@@ -152,17 +160,18 @@ defineExpose({ focus })
 	justify-content: center;
 	min-height: 0;
 	overflow: hidden;
-	color: var(--h-summary-shift-fg, #15803d);
+	color: var(--h-roster-shift-fg, #14532d);
 	font-size: clamp(13px, 4.1vw, 18px);
 	font-weight: 500;
 	line-height: 1;
+	background: var(--h-roster-shift-bg, #dcfce7);
+	border-radius: 6px;
 }
 
 .roster-primary.blank {
-	color: var(--h-fg-secondary, #64748b);
+	color: var(--h-roster-rest-fg, #52627a);
 	font-size: clamp(13px, 4vw, 16px);
-	background: var(--h-chip-off-bg, #f4f4f5);
-	border-radius: 6px;
+	background: var(--h-roster-rest-bg, #e9edf2);
 }
 
 .roster-primary-value {
@@ -184,13 +193,33 @@ defineExpose({ focus })
 	white-space: nowrap;
 }
 
+/* A 320px phone leaves each cell about 46px of height — too little for a date
+   row, an event row and a block with any body to it. Drop the spacer and tighten
+   everything so the block keeps a readable height on real event days. */
 @media (max-width: 340px) {
+	.roster-day {
+		gap: 1px;
+		padding: 4px 2px;
+	}
+
+	.roster-day-event.is-spacer {
+		display: none;
+	}
+
+	.roster-day-event {
+		line-height: 1.2;
+	}
+
+	.roster-day-number {
+		font-size: 11px;
+	}
+
 	.roster-primary {
-		font-size: 13px;
+		font-size: 12px;
 	}
 
 	.roster-primary.blank {
-		font-size: 12px;
+		font-size: 11px;
 	}
 }
 </style>

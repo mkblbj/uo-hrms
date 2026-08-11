@@ -120,11 +120,13 @@ test("day cell puts the shift time in a centered primary block", () => {
 	assert.match(source, /\.roster-primary\s*\{[\s\S]*?font-size:\s*clamp\(13px, 4\.1vw, 18px\)/)
 })
 
-// A 320px-wide phone gives each cell about 29px of inner width, where even 14px
-// digits clip. The narrow breakpoint drops the primary text to a fixed 13px.
+// A 320px-wide phone gives each cell about 29px of inner width and 46px of
+// height, where the clamp floors are still too big. The narrow breakpoint pins
+// the primary text to 12px and tightens the cell padding to match.
 test("day cell shrinks the primary text on the narrowest phones", () => {
 	const source = readComponent("RosterDayCell.vue")
-	assert.match(source, /@media \(max-width: 340px\)[\s\S]*?\.roster-primary\s*\{[\s\S]*?font-size:\s*13px/)
+	assert.match(source, /@media \(max-width: 340px\)[\s\S]*?\.roster-primary\s*\{[\s\S]*?font-size:\s*12px/)
+	assert.match(source, /@media \(max-width: 340px\)[\s\S]*?\.roster-day\s*\{[\s\S]*?padding:\s*4px 2px/)
 })
 
 // The primary block is a flex column, so ellipsis has to live on an inner span —
@@ -144,20 +146,45 @@ test("day cell keeps a 44px floor so six-week months fit short screens", () => {
 	assert.match(source, /\.roster-day\s*\{[\s\S]*?min-height:\s*44px/)
 })
 
-test("day cell fills rest and empty days with a tinted block", () => {
+// Every day gets a filled block — green for a shift or a head count, gray for
+// rest and empty days — so a week reads as a row of blocks, not floating text.
+test("day cell fills every day with a tinted block", () => {
 	const source = readComponent("RosterDayCell.vue")
 	assert.match(source, /roster-primary blank/)
-	assert.match(source, /\.roster-primary\.blank\s*\{[\s\S]*?background:\s*var\(--h-chip-off-bg/)
+	assert.match(source, /\.roster-primary\s*\{[\s\S]*?background:\s*var\(--h-roster-shift-bg/)
+	assert.match(source, /\.roster-primary\.blank\s*\{[\s\S]*?background:\s*var\(--h-roster-rest-bg/)
 	assert.match(source, /labels\.rest/)
 	assert.match(source, /labels\.emptyShort/)
 })
 
 test("day cell renders events as a chip without the top rule", () => {
 	const source = readComponent("RosterDayCell.vue")
-	assert.match(source, /\.roster-day-event\s*\{[\s\S]*?background:\s*var\(--h-summary-warn-bg/)
+	assert.match(source, /\.roster-day-event\s*\{[\s\S]*?background:\s*var\(--h-roster-event-bg/)
 	assert.match(source, /\.roster-day-event\s*\{[\s\S]*?border-radius:/)
 	assert.doesNotMatch(source, /border-top:\s*3px/)
 	assert.doesNotMatch(source, /roster-event-color/)
+})
+
+// Without a reserved event row, event days push their block down and shrink it,
+// so blocks in one week end up at different heights and offsets.
+test("day cell reserves the event row on days without an event", () => {
+	const source = readComponent("RosterDayCell.vue")
+	assert.match(source, /class="roster-day-event is-spacer"/)
+	assert.match(source, /\.roster-day-event\.is-spacer\s*\{[\s\S]*?visibility:\s*hidden/)
+	assert.match(
+		source,
+		/@media \(max-width: 340px\)[\s\S]*?\.roster-day-event\.is-spacer\s*\{[\s\S]*?display:\s*none/
+	)
+})
+
+// "Bigセール" is five characters in a cell about 35px wide on a 360px phone.
+// Anything above 2vw clips it to "Big…"; the chip also drops its side padding
+// to give those characters every pixel available.
+test("day cell sizes event text so five-character labels stay whole", () => {
+	const source = readComponent("RosterDayCell.vue")
+	assert.match(source, /\.roster-day-event\s*\{[\s\S]*?font-size:\s*clamp\(7px, 2vw, 9px\)/)
+	assert.match(source, /\.roster-day-event\s*\{[\s\S]*?padding:\s*1px 0/)
+	assert.match(source, /\.roster-day\s*\{[\s\S]*?padding:\s*5px 3px/)
 })
 
 test("day cell keeps the date number subordinate to the shift time", () => {
@@ -180,12 +207,12 @@ test("calendar rows and gaps match the day cells", () => {
 		source,
 		/grid-template-rows:\s*repeat\(var\(--roster-week-count\),\s*minmax\(44px,\s*1fr\)\)/
 	)
-	assert.match(source, /\.roster-weekdays,\s*\.roster-days\s*\{[\s\S]*?gap:\s*4px/)
+	assert.match(source, /\.roster-weekdays,\s*\.roster-days\s*\{[\s\S]*?gap:\s*3px/)
 	assert.match(source, /\.roster-empty-cell\s*\{[\s\S]*?min-height:\s*44px/)
 })
 
 test("dashboard trims the gap below the calendar", () => {
 	const source = fs.readFileSync(dashboardPath, "utf8")
 	assert.match(source, /padding:\s*12px 12px calc\(8px \+ env\(safe-area-inset-bottom\)\)/)
-	assert.match(source, /\.roster-skeleton\s*\{[\s\S]*?gap:\s*4px/)
+	assert.match(source, /\.roster-skeleton\s*\{[\s\S]*?gap:\s*3px/)
 })
