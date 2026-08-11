@@ -111,3 +111,41 @@ test("dashboard resolves legacy period through the restricted api", () => {
 	assert.match(source, /initialState\.legacyPeriod/)
 	assert.doesNotMatch(source, /frappe\.client\.get/)
 })
+
+test("day cell puts the shift time in a centered primary block", () => {
+	const source = readComponent("RosterDayCell.vue")
+	assert.match(source, /class="roster-primary"/)
+	assert.match(source, /\.roster-primary\s*\{[\s\S]*?flex:\s*1/)
+	assert.match(source, /\.roster-primary\s*\{[\s\S]*?justify-content:\s*center/)
+	assert.match(source, /\.roster-primary\s*\{[\s\S]*?font-size:\s*clamp\(16px, 4\.6vw, 19px\)/)
+})
+
+test("day cell fills rest and empty days with a tinted block", () => {
+	const source = readComponent("RosterDayCell.vue")
+	assert.match(source, /roster-primary blank/)
+	assert.match(source, /\.roster-primary\.blank\s*\{[\s\S]*?background:\s*var\(--h-chip-off-bg/)
+	assert.match(source, /labels\.rest/)
+	assert.match(source, /labels\.emptyShort/)
+})
+
+test("day cell renders events as a chip without the top rule", () => {
+	const source = readComponent("RosterDayCell.vue")
+	assert.match(source, /\.roster-day-event\s*\{[\s\S]*?background:\s*var\(--h-summary-warn-bg/)
+	assert.match(source, /\.roster-day-event\s*\{[\s\S]*?border-radius:/)
+	assert.doesNotMatch(source, /border-top:\s*3px/)
+	assert.doesNotMatch(source, /roster-event-color/)
+})
+
+test("day cell keeps the date number subordinate to the shift time", () => {
+	const source = readComponent("RosterDayCell.vue")
+	assert.match(source, /\.roster-day-number\s*\{[\s\S]*?font-size:\s*clamp\(12px, 3\.2vw, 14px\)/)
+	assert.doesNotMatch(source, /font-weight:\s*750/)
+})
+
+test("department cell shows the head count above a smaller unit line", () => {
+	const source = readComponent("RosterDayCell.vue")
+	assert.match(source, /<small/)
+	assert.match(source, /labels\.equivalentShort/)
+	assert.match(source, /labels\.actualShort/)
+	assert.match(source, /\.roster-primary small\s*\{[\s\S]*?font-size:\s*clamp\(10px, 2\.7vw, 12px\)/)
+})
