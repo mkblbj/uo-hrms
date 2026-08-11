@@ -2,6 +2,7 @@ import assert from "node:assert/strict"
 import { test } from "node:test"
 
 import {
+	getBoundaryDelay,
 	getNextBoundary,
 	LEGACY_THEME_KEY,
 	readOverride,
@@ -147,4 +148,17 @@ test("storage failures leave the caller with no override", () => {
 test("storage keys are stable strings", () => {
 	assert.equal(THEME_OVERRIDE_KEY, "hrms_theme_override")
 	assert.equal(LEGACY_THEME_KEY, "hrms_theme_preference")
+})
+
+test("getBoundaryDelay counts the milliseconds to the next boundary", () => {
+	assert.equal(getBoundaryDelay(at(2026, 8, 11, 15)), 60 * 60 * 1000)
+	assert.equal(getBoundaryDelay(at(2026, 8, 11, 7)), 60 * 60 * 1000)
+	assert.equal(getBoundaryDelay(at(2026, 8, 11, 16)), 16 * 60 * 60 * 1000)
+})
+
+// setTimeout with a zero or negative delay would fire immediately and re-arm in
+// a tight loop, so the delay is floored to a second.
+test("getBoundaryDelay never returns less than a second", () => {
+	assert.ok(getBoundaryDelay(at(2026, 8, 11, 15, 59)) >= 1000)
+	assert.equal(getBoundaryDelay(new Date(at(2026, 8, 11, 16).getTime() - 1)), 1000)
 })

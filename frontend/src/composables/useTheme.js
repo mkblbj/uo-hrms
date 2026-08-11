@@ -36,6 +36,12 @@ export function getNextBoundary(now) {
 	return startOfHour(now, LIGHT_HOUR, 1)
 }
 
+// setTimeout fires immediately on a zero or negative delay and would then
+// re-arm in a tight loop, so the delay is floored to one second.
+export function getBoundaryDelay(now) {
+	return Math.max(1000, getNextBoundary(now).getTime() - now.getTime())
+}
+
 export function resolveTheme({ now, override }) {
 	const fallback = windowTheme(now)
 	if (!override || typeof override !== "object") return fallback
@@ -79,6 +85,7 @@ export function useTheme() {
 
 	const isDark = ref(false)
 	const theme = ref("light")
+	let timer = null
 
 	function apply(now = new Date()) {
 		const resolved = resolveTheme({ now, override: readOverride() })
@@ -86,16 +93,41 @@ export function useTheme() {
 		isDark.value = resolved === "dark"
 	}
 
+	// One timeout aimed at the next boundary, re-armed each time it fires —
+	// cheaper and more accurate than polling every minute.
+	function schedule(now = new Date()) {
+		if (typeof window === "undefined") return
+		if (timer) clearTimeout(timer)
+		timer = setTimeout(() => {
+			const firedAt = new Date()
+			apply(firedAt)
+			schedule(firedAt)
+		}, getBoundaryDelay(now))
+	}
+
 	function toggle() {
 		const now = new Date()
 		const next = isDark.value ? "light" : "dark"
 		writeOverride(next, now.getTime())
 		apply(now)
+		schedule(now)
 	}
 
 	apply()
+	schedule()
 
 	watch(theme, (value) => applyAttribute(value), { immediate: true })
+
+	// Mobile browsers throttle or freeze timers in the background, so a boundary
+	// crossed while the page was hidden would otherwise be missed entirely.
+	if (typeof document !== "undefined") {
+		document.addEventListener("visibilitychange", () => {
+			if (document.visibilityState !== "visible") return
+			const now = new Date()
+			apply(now)
+			schedule(now)
+		})
+	}
 
 	singleton = { isDark, theme, toggle }
 	return singleton
