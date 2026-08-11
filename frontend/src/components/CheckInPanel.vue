@@ -12,10 +12,7 @@
 			</div>
 		</section>
 
-		<RosterPreferenceBanner
-			:notice="homePreferenceNotice"
-			:labels="preferenceLabels"
-		/>
+		<RosterPreferenceBanner :notice="homePreferenceNotice" :labels="preferenceLabels" />
 
 		<HomeHeroCard
 			ref="heroCardRef"
@@ -181,7 +178,11 @@ import {
 	resolveHomeLanguage,
 } from "@/utils/homeExperience"
 import { shouldPlayIntro, markIntroPlayed } from "@/utils/homeIntroAnimation"
-import { getRosterCopy, resolveHomePreferenceNotice } from "@/utils/rosterCalendar"
+import {
+	formatRosterPreferenceTitle,
+	getRosterCopy,
+	resolveHomePreferenceNotice,
+} from "@/utils/rosterCalendar"
 
 const props = defineProps({
 	workStatus: {
@@ -251,9 +252,14 @@ const weatherSummary = computed(() => {
 	return `${icon} ${temp}°`.trim()
 })
 const todaySaleEvent = computed(() => homeScheduleSummary.data?.today_event || null)
-const homePreferenceNotice = computed(() =>
-	resolveHomePreferenceNotice(homeScheduleSummary.data?.preference_notice)
-)
+const homePreferenceNotice = computed(() => {
+	const notice = resolveHomePreferenceNotice(homeScheduleSummary.data?.preference_notice)
+	if (!notice) return null
+	return {
+		...notice,
+		title: formatRosterPreferenceTitle(notice, currentLanguage),
+	}
+})
 
 const openQRScanner = () => {
 	if (

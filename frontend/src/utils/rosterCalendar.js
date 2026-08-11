@@ -344,3 +344,39 @@ export function getRosterCopy(key, lang, params = {}) {
 		Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : match
 	)
 }
+
+export function formatRosterPreferenceTitle(notice, lang) {
+	const rawYear = notice?.year
+	const rawMonth = notice?.month
+	const year = Number(rawYear)
+	const month = Number(rawMonth)
+	if (
+		rawYear == null ||
+		rawMonth == null ||
+		String(rawYear).trim() === "" ||
+		String(rawMonth).trim() === "" ||
+		!Number.isInteger(year) ||
+		year < 1 ||
+		!Number.isInteger(month) ||
+		month < 1 ||
+		month > 12
+	) {
+		return String(notice?.title || "").trim()
+	}
+
+	const language = normalizeRosterLanguage(lang)
+	const monthTitle =
+		language === "en"
+			? new Intl.DateTimeFormat("en", {
+					year: "numeric",
+					month: "long",
+					timeZone: "UTC",
+			  }).format(new Date(Date.UTC(year, month - 1, 1)))
+			: `${year}年${month}月`
+	const departmentKey = {
+		Office: "departmentOffice",
+		Production: "departmentProduction",
+	}[notice?.department_category]
+
+	return departmentKey ? `${monthTitle} - ${getRosterCopy(departmentKey, language)}` : monthTitle
+}
