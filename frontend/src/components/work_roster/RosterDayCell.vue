@@ -13,20 +13,24 @@
 			{{ cell.event.title }}
 		</span>
 		<span v-if="scope === 'mine' && cell.data?.my_shift" class="roster-primary">
-			{{ compactTime(cell.data.my_shift.scheduled_time) }}
+			<span class="roster-primary-value">
+				{{ compactTime(cell.data.my_shift.scheduled_time) }}
+			</span>
 		</span>
 		<span v-else-if="scope === 'mine'" class="roster-primary blank">
-			{{ labels.rest }}
+			<span class="roster-primary-value">{{ labels.rest }}</span>
 		</span>
 		<span v-else-if="cell.data?.actual_count > 0" class="roster-primary">
-			{{ cell.data.actual_count }}
+			<span class="roster-primary-value">{{ cell.data.actual_count }}</span>
 			<small v-if="departmentCategory === 'Production' && cell.data.equivalent_count != null">
 				{{ labels.equivalentShort }}
 				{{ Number(cell.data.equivalent_count).toFixed(1) }}
 			</small>
 			<small v-else>{{ labels.actualShort }}</small>
 		</span>
-		<span v-else class="roster-primary blank">{{ labels.emptyShort }}</span>
+		<span v-else class="roster-primary blank">
+			<span class="roster-primary-value">{{ labels.emptyShort }}</span>
+		</span>
 	</button>
 </template>
 
@@ -93,7 +97,7 @@ defineExpose({ focus })
 	width: 100%;
 	height: 100%;
 	min-width: 0;
-	min-height: 56px;
+	min-height: 44px;
 	padding: 5px 4px;
 	overflow: hidden;
 	color: var(--h-fg-primary, #0a0a0a);
@@ -149,24 +153,44 @@ defineExpose({ focus })
 	min-height: 0;
 	overflow: hidden;
 	color: var(--h-summary-shift-fg, #15803d);
-	font-size: clamp(16px, 4.6vw, 19px);
+	font-size: clamp(13px, 4.1vw, 18px);
 	font-weight: 500;
 	line-height: 1;
-	white-space: nowrap;
 }
 
 .roster-primary.blank {
 	color: var(--h-fg-secondary, #64748b);
-	font-size: clamp(14px, 4vw, 16px);
+	font-size: clamp(13px, 4vw, 16px);
 	background: var(--h-chip-off-bg, #f4f4f5);
 	border-radius: 6px;
 }
 
+.roster-primary-value {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
 .roster-primary small {
+	max-width: 100%;
 	margin-top: 2px;
+	overflow: hidden;
 	color: var(--h-fg-secondary, #64748b);
 	font-size: clamp(10px, 2.7vw, 12px);
 	font-weight: 650;
 	line-height: 1;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+@media (max-width: 340px) {
+	.roster-primary {
+		font-size: 13px;
+	}
+
+	.roster-primary.blank {
+		font-size: 12px;
+	}
 }
 </style>

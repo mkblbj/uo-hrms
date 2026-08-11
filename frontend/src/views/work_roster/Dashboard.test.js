@@ -117,7 +117,31 @@ test("day cell puts the shift time in a centered primary block", () => {
 	assert.match(source, /class="roster-primary"/)
 	assert.match(source, /\.roster-primary\s*\{[\s\S]*?flex:\s*1/)
 	assert.match(source, /\.roster-primary\s*\{[\s\S]*?justify-content:\s*center/)
-	assert.match(source, /\.roster-primary\s*\{[\s\S]*?font-size:\s*clamp\(16px, 4\.6vw, 19px\)/)
+	assert.match(source, /\.roster-primary\s*\{[\s\S]*?font-size:\s*clamp\(13px, 4\.1vw, 18px\)/)
+})
+
+// A 320px-wide phone gives each cell about 29px of inner width, where even 14px
+// digits clip. The narrow breakpoint drops the primary text to a fixed 13px.
+test("day cell shrinks the primary text on the narrowest phones", () => {
+	const source = readComponent("RosterDayCell.vue")
+	assert.match(source, /@media \(max-width: 340px\)[\s\S]*?\.roster-primary\s*\{[\s\S]*?font-size:\s*13px/)
+})
+
+// The primary block is a flex column, so ellipsis has to live on an inner span —
+// a bare text node would be clipped mid-glyph instead.
+test("day cell truncates long shift times with an ellipsis", () => {
+	const source = readComponent("RosterDayCell.vue")
+	assert.match(source, /class="roster-primary-value"/)
+	assert.match(source, /\.roster-primary-value\s*\{[\s\S]*?text-overflow:\s*ellipsis/)
+	assert.match(source, /\.roster-primary-value\s*\{[\s\S]*?white-space:\s*nowrap/)
+})
+
+// 56px row floors overflowed six-week months on 320x568 screens, hiding the last
+// row behind the tab bar. 44px keeps the WCAG target without breaking layout —
+// when space allows, 1fr already stretches rows well past either floor.
+test("day cell keeps a 44px floor so six-week months fit short screens", () => {
+	const source = readComponent("RosterDayCell.vue")
+	assert.match(source, /\.roster-day\s*\{[\s\S]*?min-height:\s*44px/)
 })
 
 test("day cell fills rest and empty days with a tinted block", () => {
@@ -150,14 +174,14 @@ test("department cell shows the head count above a smaller unit line", () => {
 	assert.match(source, /\.roster-primary small\s*\{[\s\S]*?font-size:\s*clamp\(10px, 2\.7vw, 12px\)/)
 })
 
-test("calendar rows and gaps match the taller day cells", () => {
+test("calendar rows and gaps match the day cells", () => {
 	const source = readComponent("RosterMonthCalendar.vue")
 	assert.match(
 		source,
-		/grid-template-rows:\s*repeat\(var\(--roster-week-count\),\s*minmax\(56px,\s*1fr\)\)/
+		/grid-template-rows:\s*repeat\(var\(--roster-week-count\),\s*minmax\(44px,\s*1fr\)\)/
 	)
 	assert.match(source, /\.roster-weekdays,\s*\.roster-days\s*\{[\s\S]*?gap:\s*4px/)
-	assert.match(source, /\.roster-empty-cell\s*\{[\s\S]*?min-height:\s*56px/)
+	assert.match(source, /\.roster-empty-cell\s*\{[\s\S]*?min-height:\s*44px/)
 })
 
 test("dashboard trims the gap below the calendar", () => {
