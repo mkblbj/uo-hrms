@@ -79,3 +79,35 @@ test("attendance tokens are defined for both themes", () => {
 		assert.equal(occurrences, 2, `${name} must be defined once for light and once for dark`)
 	}
 })
+
+test("summary computes from cells rather than trusting a prop", () => {
+	const source = read("AttendanceMonthSummary.vue")
+	assert.match(source, /summarizeMonth/)
+	assert.match(source, /computeProgress/)
+})
+
+// A month with no roster data has no denominator; showing "23 / 0" would be worse
+// than showing nothing.
+test("summary hides the progress bar when nothing is scheduled", () => {
+	const source = read("AttendanceMonthSummary.vue")
+	assert.match(source, /v-if="progress\.visible"/)
+})
+
+test("summary reuses the home progress track tokens", () => {
+	const source = read("AttendanceMonthSummary.vue")
+	assert.match(source, /--h-track-bg/)
+	assert.match(source, /--h-track-fill-end/)
+})
+
+test("anomaly notice renders nothing when there is nothing to fix", () => {
+	const source = read("AttendanceAnomalyNotice.vue")
+	assert.match(source, /v-if="count > 0"/)
+})
+
+test("anomaly notice is an actionable labelled control", () => {
+	const source = read("AttendanceAnomalyNotice.vue")
+	assert.match(source, /<button/)
+	assert.match(source, /aria-label/)
+	assert.match(source, /emit\(["']open["']\)/)
+	assert.match(source, /anomaly\.notice/)
+})
