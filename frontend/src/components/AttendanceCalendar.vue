@@ -21,14 +21,22 @@
 			</button>
 		</div>
 
-		<!-- 9-chip Legend -->
+		<AttendanceAnomalyNotice :count="anomalyCount" :lang="lang" @open="openCorrectionList" />
+
+		<AttendanceMonthSummary
+			:cells="monthCells"
+			:scheduled-days="scheduledDays"
+			:month-title="monthTitle"
+			:lang="lang"
+		/>
+
+		<!-- Legend -->
 		<div class="legend">
 			<div v-for="item in legendItems" :key="item.key" class="legend-chip">
-				<span class="swatch" :class="`sw-${item.key}`" :style="item.style" />
-				<span class="legend-text">{{ t(`legend.${item.key}`) }}</span>
+				<span class="swatch" :class="item.className" />
+				<span class="legend-text">{{ tCopy(`legend.${item.key}`) }}</span>
 			</div>
 		</div>
-
 		<!-- Weekday header -->
 		<div class="week-header">
 			<div
@@ -43,63 +51,17 @@
 
 		<!-- Calendar grid -->
 		<div class="calendar-grid" :style="calendarGridStyle">
-			<template v-for="(cell, idx) in calendarCells" :key="cell.key">
+			<template v-for="(cell, idx) in calendarCells" :key="cell.key || idx">
 				<div v-if="cell.empty" class="cell-blank" />
-				<button
+				<AttendanceDayCell
 					v-else
-					class="cell"
-					:class="cellClasses(cell)"
-					:style="cellStyleFor(cell)"
-					@click="openDay(cell)"
-				>
-					<div class="cell-top">
-						<span class="cell-date" :style="{ color: dateColor(cell) }">{{ cell.day }}</span>
-						<span class="cell-markers">
-							<span
-								v-if="cell.calendar_event"
-								class="sale-event-dot"
-								:style="{ background: cell.calendar_event.color || colors.sale }"
-							/>
-							<span
-								v-if="showWeekendDot(cell)"
-								class="weekend-dot"
-								:style="{ background: cell.weekday === 0 ? colors.red : colors.blue }"
-							/>
-						</span>
-					</div>
-					<div class="cell-bottom">
-						<span
-							v-if="cellBadge(cell)"
-							class="cell-badge"
-							:style="badgeStyle(cell)"
-						>{{ cellBadge(cell) }}</span>
-					</div>
-				</button>
+					:cell="cell"
+					:lang="lang"
+					:selected="selectedDay === cell.day"
+					@select="openDay"
+				/>
 			</template>
 		</div>
-
-		<!-- Month Summary Strip -->
-		<div class="detail-strip month-summary-strip">
-			<div class="month-summary-head">
-				<span class="month-summary-kicker">{{ monthTitle }}</span>
-				<strong>{{ t("summary.title") }}</strong>
-			</div>
-			<div class="month-summary-metrics">
-				<div class="month-summary-metric">
-					<span>{{ t("summary.totalHours") }}</span>
-					<strong>{{ monthSummary.hours }}<small>{{ metaLabels.hours }}</small></strong>
-				</div>
-				<div class="month-summary-metric">
-					<span>{{ t("summary.workDays") }}</span>
-					<strong>{{ monthSummary.workDays }}<small>{{ metaLabels.days }}</small></strong>
-				</div>
-				<div class="month-summary-metric">
-					<span>{{ t("summary.avgHours") }}</span>
-					<strong>{{ monthSummary.avg }}<small>{{ metaLabels.hours }}</small></strong>
-				</div>
-			</div>
-		</div>
-
 		<!-- Day Dialog -->
 		<teleport to="body">
 			<div v-if="dialogCell" class="dlg-mask" @click="closeDialog">
@@ -111,7 +73,7 @@
 								{{ currentMonth }}/{{ dialogCell.day }}
 								<span
 									class="dlg-weekday"
-									:style="{ color: dialogCell.weekday === 0 ? colors.red : dialogCell.weekday === 6 ? colors.blue : colors.ink3 }"
+									:style="{ color: dialogCell.weekday === 0 ? colors.red : dialogCell.weekday === 6 ? colors.blue : 'var(--h-fg-secondary, #64748b)' }"
 								>{{ weekdayHeaders[dialogCell.weekday] }}</span>
 							</div>
 							<div v-if="dialogCell.holiday" class="dlg-holiday-name">{{ dialogCell.holiday }}</div>
@@ -155,13 +117,13 @@
 					<div class="dlg-grid" v-if="isAttendanceDetailVisible(dialogCell)">
 						<div class="data-cell">
 							<div class="dlg-eyebrow">{{ t("detail.in") }}</div>
-							<div class="data-value" :style="{ color: colors.green_dk }">{{ dialogCell.in_time || "—:—" }}</div>
+							<div class="data-value" :style="{ color: 'var(--h-attn-work-fg, #14532d)' }">{{ dialogCell.in_time || "—:—" }}</div>
 						</div>
 						<div class="data-cell">
 							<div class="dlg-eyebrow">{{ t("detail.out") }}</div>
 							<div
 								class="data-value"
-								:style="{ color: dialogCell.is_today && !dialogCell.out_time ? colors.ink4 : colors.red }"
+								:style="{ color: dialogCell.is_today && !dialogCell.out_time ? 'var(--h-fg-muted, #94a3b8)' : colors.red }"
 							>{{ dialogCell.out_time || "—:—" }}</div>
 						</div>
 						<div class="data-cell span-2">
@@ -203,9 +165,12 @@ import {
 import {
 	ATTENDANCE_ANOMALY_COLOR,
 	getAttendanceAnomalyLabel,
-	getAttendanceAnomalyTitle,
-	hasAttendanceAnomaly,
 } from "@/utils/attendanceAnomaly"
+import AttendanceAnomalyNotice from "@/components/attendance/AttendanceAnomalyNotice.vue"
+import AttendanceDayCell from "@/components/attendance/AttendanceDayCell.vue"
+import AttendanceMonthSummary from "@/components/attendance/AttendanceMonthSummary.vue"
+import { getAttendanceCopy } from "@/utils/attendanceCalendarCopy"
+import { deriveAttendanceState } from "@/utils/attendanceCalendarState"
 
 const dayjs = inject("$dayjs")
 const employee = inject("$employee")
@@ -217,47 +182,14 @@ const currentMonth = ref(now.getMonth() + 1)
 const dialogDay = ref(null)
 const selectedDay = ref(null)
 
-const THEME_SURFACE = {
-	light: { bg: "#f1eee7", surface: "#ffffff", surface2: "#faf8f2", ink: "#0a0a0a", ink2: "#3f3d38", ink3: "#787570", ink4: "#adaaa3", ink5: "#d8d5cd", hairline: "#e3dfd4", hairline2: "#ede9dd" },
-	dark: { bg: "#121212", surface: "#1e1e1e", surface2: "#252525", ink: "#e8e8e8", ink2: "#c0bdb6", ink3: "#8a8884", ink4: "#5c5955", ink5: "#3a3835", hairline: "#333333", hairline2: "#2a2a2a" },
-}
-
+// Only the hues the day dialog and weekday header still need. Everything that
+// paints a cell now lives in --h-attn-* tokens.
 const colors = reactive({
-	...THEME_SURFACE.light,
-	green: "#16a34a",
-	green_dk: "#15803d",
-	green_lt: "#86efac",
-	roster_border: "#bbf7d0",
 	red: "#dc2626",
-	amber_dk: "#b45309",
 	blue: "#2563eb",
-	blue_dk: "#1d4ed8",
-	heat_05: "#bbf7d0",
-	heat_075: "#86efac",
-	heat_1: "#4ade80",
-	heat_125: "#16a34a",
-	heat_gte: "#166534",
-	wfh: "#dbeafe",
-	half: "#fef3c7",
-	leave: "#fde68a",
-	absent: "#fecaca",
-	holiday: "#fee2e2",
-	rest: "#fde68a",
 	sale: "#F59E0B",
 	anomaly: ATTENDANCE_ANOMALY_COLOR,
-	anomaly_bg: "#fee2e2",
 })
-
-function syncCalendarTheme() {
-	const isDark = document.documentElement.getAttribute("data-theme") === "dark"
-	Object.assign(colors, isDark ? THEME_SURFACE.dark : THEME_SURFACE.light)
-}
-syncCalendarTheme()
-
-const themeObserver = typeof MutationObserver !== "undefined"
-	? new MutationObserver(syncCalendarTheme)
-	: null
-themeObserver?.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] })
 
 const messages = {
 	zh: {
@@ -497,7 +429,7 @@ const monthCells = computed(() => {
 		const calendarEvent = calendarEventMap.value[dateStr] || null
 		const anomaly = attendanceEntry.anomaly || null
 
-		const state = deriveState(attendanceEntry, roster, holiday)
+		const state = deriveAttendanceState(attendanceEntry, holiday)
 		const hours = toNumber(attendanceEntry.working_hours)
 		cells.push({
 			day: d,
@@ -533,69 +465,35 @@ const calendarCells = computed(() => {
 const weekCount = computed(() => getCalendarWeekCount(calendarCells.value))
 const calendarGridStyle = computed(() => getCalendarGridStyle(weekCount.value))
 
-const monthSummary = computed(() => {
-	let workDays = 0
-	let hours = 0
-	for (const c of monthCells.value) {
-		if (c.state === "work" || c.state === "wfh") {
-			workDays += 1
-			hours += c.hours || 0
-		} else if (c.state === "half") {
-			workDays += 0.5
-			hours += c.hours || 0
-		}
-	}
-	const avg = workDays ? Math.round((hours / workDays) * 10) / 10 : 0
-	return {
-		workDays: trim(workDays),
-		hours: trim(Math.round(hours * 10) / 10),
-		avg,
-	}
-})
-
 const dialogCell = computed(() => {
 	if (dialogDay.value == null) return null
 	return monthCells.value.find((c) => c.day === dialogDay.value) || null
 })
 
-const legendItems = computed(() => {
-	return [
-		{ key: "work", style: { background: colors.heat_125 } },
-		{ key: "anomaly", style: { background: colors.anomaly_bg, border: `1.5px solid rgba(220,38,38,0.45)` } },
-		// 数据齐了再放开 ↓
-		// { key: "wfh", style: { background: colors.wfh } },
-		// { key: "half", style: { background: colors.half } },
-		// { key: "leave", style: { background: colors.leave } },
-		// { key: "absent", style: { background: colors.absent } },
-		{ key: "today", style: { background: "#fff", boxShadow: `0 0 0 1.5px ${colors.green}, 0 0 4px rgba(22,163,74,0.4)` } },
-		{ key: "rest", style: { background: colors.rest } },
-		{ key: "holiday", style: { background: colors.holiday } },
-		{ key: "saleEvent", style: { background: colors.sale } },
-		{ key: "roster", style: { background: "#fff", border: `1.5px solid ${colors.roster_border}` } },
-	]
+const lang = computed(() => getLang())
+
+const anomalyCount = computed(() => monthCells.value.filter((c) => c.state === "anomaly").length)
+
+// The roster is no longer drawn on the grid, but it still supplies the
+// denominator for the progress bar: a scheduled day is a day we owe work on.
+const scheduledDays = computed(() => {
+	const prefix = `${currentYear.value}-${String(currentMonth.value).padStart(2, "0")}-`
+	return Object.keys(rosterMap.value).filter((dateStr) => dateStr.startsWith(prefix)).length
 })
 
-function deriveState(attendanceEntry, roster, holiday) {
-	if (hasAttendanceAnomaly(attendanceEntry?.anomaly)) return "anomaly"
-	const status = attendanceEntry?.attendance
-	if (status) {
-		const m = {
-			Present: "work",
-			"Work From Home": "wfh",
-			"Half Day": "half",
-			"On Leave": "leave",
-			// 暂时按"休"展示，等业务区分缺勤/休时再恢复 ↓
-			Absent: "rest",
-			// Absent: "absent",
-			Holiday: "holiday",
-		}
-		if (m[status]) return m[status]
-	}
-	if (holiday && !holiday.weekly_off) return "holiday"
-	if (roster) return "roster"
-	if (holiday?.weekly_off) return "rest"
-	return "empty"
+function tCopy(key, params) {
+	return getAttendanceCopy(key, lang.value, params)
 }
+
+function openCorrectionList() {
+	router.push({ name: "AttendanceCorrectionListView" })
+}
+
+const legendItems = computed(() => [
+	{ key: "overtime", className: "lg-overtime" },
+	{ key: "anomaly", className: "lg-anomaly" },
+	{ key: "rest", className: "lg-rest" },
+])
 
 function toNumber(v) {
 	const n = Number(v)
@@ -623,10 +521,6 @@ function extractTime(v) {
 	return s
 }
 
-function isDarkHeatCell(c) {
-	return c.state === "work" && (c.hours || 0) / 8 >= 1.25
-}
-
 function isWorkLike(c) {
 	return c.state === "work" || c.state === "wfh" || c.state === "half"
 }
@@ -635,174 +529,25 @@ function isAttendanceDetailVisible(c) {
 	return isWorkLike(c) || c.state === "anomaly"
 }
 
-function cellBackground(c) {
-	if (c.state === "anomaly") return colors.anomaly_bg
-	switch (c.state) {
-		case "work": {
-			const r = (c.hours || 0) / 8
-			if (r < 0.5) return colors.heat_05
-			if (r < 0.75) return colors.heat_075
-			if (r < 1) return colors.heat_1
-			if (r < 1.25) return colors.heat_125
-			return colors.heat_gte
-		}
-		case "wfh":
-			return colors.wfh
-		case "half":
-			return colors.half
-		case "leave":
-			return colors.leave
-		case "absent":
-			return colors.absent
-		case "holiday":
-			return colors.holiday
-		case "rest":
-			return colors.rest
-		case "roster":
-			return "#ffffff"
-		default:
-			return "#ffffff"
-	}
+// The dialog paints the same states as the grid, so it reads the same tokens
+// rather than keeping a second palette that can drift.
+const STATE_TOKENS = {
+	anomaly: { fg: "var(--h-attn-anomaly-fg, #991b1b)", bg: "var(--h-attn-anomaly-bg, #fee2e2)" },
+	work: { fg: "var(--h-attn-work-fg, #14532d)", bg: "var(--h-attn-work-bg, #dcfce7)" },
+	wfh: { fg: "var(--h-attn-work-fg, #14532d)", bg: "var(--h-attn-work-bg, #dcfce7)" },
+	half: { fg: "var(--h-attn-work-fg, #14532d)", bg: "var(--h-attn-work-bg, #dcfce7)" },
+	leave: { fg: "var(--h-attn-rest-fg, #52627a)", bg: "var(--h-attn-rest-bg, #e9edf2)" },
+	holiday: { fg: "var(--h-attn-holiday-fg, #9b2c2c)", bg: "var(--h-attn-holiday-bg, #fde8e8)" },
+	rest: { fg: "var(--h-attn-rest-fg, #52627a)", bg: "var(--h-attn-rest-bg, #e9edf2)" },
+	empty: { fg: "var(--h-fg-secondary, #64748b)", bg: "var(--h-bg-card-inner, #faf8f2)" },
 }
 
-function cellStyleFor(c) {
-	const eventColor = c.calendar_event?.color || colors.sale
-	const eventBg = c.calendar_event && (c.state === "empty" || c.state === "rest" || c.state === "roster")
-		? tintColor(eventColor, 0.82)
-		: null
-	const bg = eventBg || cellBackground(c)
-	let border = "1px solid transparent"
-	let boxShadow = "none"
-
-	if (c.state === "roster") border = `1.5px solid ${colors.roster_border}`
-	else if (c.state === "anomaly") border = `1.5px solid rgba(220,38,38,0.45)`
-	else if (c.state === "empty") border = `1px solid ${colors.hairline2}`
-	else if (c.state === "rest") border = `1px solid ${colors.hairline2}`
-	else if (c.state === "holiday") border = `1px solid rgba(220,38,38,0.18)`
-
-	const isSelected = selectedDay.value === c.day
-	const isToday = c.is_today
-	if (isSelected) {
-		boxShadow = `0 0 0 2px ${colors.green}, 0 0 12px rgba(22,163,74,0.35)`
-	} else if (isToday) {
-		boxShadow = `0 0 0 2px ${colors.ink}, 0 0 0 4px ${colors.surface}`
-	}
-
-	return {
-		background: bg,
-		border,
-		boxShadow,
-		zIndex: isSelected || isToday ? 2 : 1,
-	}
-}
-
-function cellClasses(c) {
-	return [`state-${c.state}`, c.is_today ? "is-today" : "", selectedDay.value === c.day ? "is-selected" : ""]
-}
-
-function dateColor(c) {
-	if (c.state === "anomaly") return colors.anomaly
-	if (isDarkHeatCell(c)) return "#ffffff"
-	if (showWeekendTint(c)) {
-		return c.weekday === 0 ? colors.red : colors.blue
-	}
-	return colors.ink
-}
-
-function showWeekendTint(c) {
-	return (c.weekday === 0 || c.weekday === 6) && (c.state === "empty" || c.state === "rest")
-}
-
-function showWeekendDot(c) {
-	if (!(c.weekday === 0 || c.weekday === 6)) return false
-	return c.state !== "work" && c.state !== "wfh" && c.state !== "half"
-}
-
-function cellBadge(c) {
-	const M = messages[getLang()] || messages.zh
-	if (c.state === "anomaly") return getAttendanceAnomalyTitle(getLang())
-	if (c.state === "roster") return c.shift_label || M.legend.roster
-	if (c.calendar_event && (c.state === "empty" || c.state === "rest")) return M.badge.saleEvent
-	return M.badge[c.state] || ""
-}
-
-function badgeStyle(c) {
-	if (c.state === "anomaly") {
-		return { color: colors.anomaly, background: "rgba(220,38,38,0.14)" }
-	}
-	if (c.calendar_event && (c.state === "empty" || c.state === "rest")) {
-		const color = c.calendar_event.color || colors.sale
-		return { color: readableTextColor(color), background: tintColor(color, 0.6) }
-	}
-	const dark = isDarkHeatCell(c)
-	const color = dark
-		? "#ffffff"
-		: {
-				work: colors.green_dk,
-				wfh: colors.blue_dk,
-				half: colors.amber_dk,
-				leave: colors.amber_dk,
-				absent: colors.red,
-				holiday: colors.red,
-				rest: colors.ink3,
-				roster: colors.green_dk,
-		  }[c.state] || colors.ink3
-	const bg = dark
-		? "rgba(255,255,255,0.18)"
-		: {
-				work: "rgba(22,163,74,0.14)",
-				wfh: "rgba(37,99,235,0.14)",
-				half: "rgba(180,83,9,0.14)",
-				leave: "rgba(180,83,9,0.14)",
-				absent: "rgba(220,38,38,0.14)",
-				holiday: "rgba(220,38,38,0.14)",
-				rest: "transparent",
-				roster: "rgba(22,163,74,0.10)",
-		  }[c.state] || "transparent"
-	return { color, background: bg }
-}
-
-function readableTextColor(color) {
-	const rgb = hexToRgb(color)
-	if (!rgb) return colors.ink
-	const brightness = (rgb.r * 299 + rgb.g * 587 + rgb.b * 114) / 1000
-	return brightness < 150 ? "#ffffff" : colors.ink
-}
-
-function tintColor(color, whiteMix) {
-	const rgb = hexToRgb(color)
-	if (!rgb) return color
-	const mix = Math.max(0, Math.min(1, whiteMix))
-	const r = Math.round(rgb.r + (255 - rgb.r) * mix)
-	const g = Math.round(rgb.g + (255 - rgb.g) * mix)
-	const b = Math.round(rgb.b + (255 - rgb.b) * mix)
-	return `rgb(${r}, ${g}, ${b})`
-}
-
-function hexToRgb(color) {
-	const match = String(color || "").trim().match(/^#?([0-9a-f]{6})$/i)
-	if (!match) return null
-	const intValue = parseInt(match[1], 16)
-	return {
-		r: (intValue >> 16) & 255,
-		g: (intValue >> 8) & 255,
-		b: intValue & 255,
-	}
+function stateTokens(c) {
+	return STATE_TOKENS[c?.state] || STATE_TOKENS.empty
 }
 
 function statusColor(c) {
-	return {
-		anomaly: colors.anomaly,
-		work: colors.green_dk,
-		wfh: colors.blue_dk,
-		half: colors.amber_dk,
-		leave: colors.amber_dk,
-		absent: colors.red,
-		holiday: colors.red,
-		rest: colors.ink3,
-		roster: colors.green_dk,
-		empty: colors.ink3,
-	}[c.state] || colors.ink3
+	return stateTokens(c).fg
 }
 
 function statusLabel(c) {
@@ -810,33 +555,12 @@ function statusLabel(c) {
 	return M.legend[c.state] || "—"
 }
 
-function detailPillStyle(c) {
-	const bg = c.state === "roster" ? "#ffffff" : cellBackground(c)
-	const border = c.state === "roster" ? `1.5px solid ${colors.roster_border}` : `1px solid ${colors.hairline2}`
-	return { background: bg, border }
-}
-
 const StateIcon = {
 	props: ["cell"],
 	setup(props) {
 		return () => {
 			const s = props.cell.state
-			const stroke =
-				s === "anomaly"
-					? colors.anomaly
-					: s === "work"
-					? colors.green_dk
-					: s === "wfh"
-					? colors.blue_dk
-					: s === "half" || s === "leave"
-					? colors.amber_dk
-					: s === "absent"
-					? colors.red
-					: s === "holiday"
-					? colors.red
-					: s === "roster"
-					? colors.green_dk
-					: colors.ink3
+			const stroke = stateTokens(props.cell).fg
 			const svg = (children, attrs = {}) =>
 				h(
 					"svg",
@@ -968,6 +692,19 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.swatch.lg-overtime {
+	background: var(--h-attn-overtime-bg, #16a34a);
+}
+
+.swatch.lg-anomaly {
+	background: var(--h-attn-anomaly-bg, #fee2e2);
+	border: 1px solid var(--h-attn-anomaly-fg, #991b1b);
+}
+
+.swatch.lg-rest {
+	background: var(--h-attn-rest-bg, #e9edf2);
+}
+
 .attn-root {
 	display: flex;
 	flex-direction: column;
@@ -975,14 +712,14 @@ onBeforeUnmount(() => {
 	flex: 1;
 	gap: 8px;
 	font-family: "Inter", -apple-system, system-ui, "PingFang SC", "Hiragino Sans", sans-serif;
-	color: #0a0a0a;
+	color: var(--h-fg-primary, #0a0a0a);
 }
 
 .attn-skeleton {
 	flex: 1;
 	min-height: 240px;
 	border-radius: 14px;
-	background: #ede9dd;
+	background: var(--h-bd-subtle, #ede9dd);
 	animation: attn-pulse 1.4s ease-in-out infinite;
 }
 
@@ -1076,8 +813,8 @@ onBeforeUnmount(() => {
 	letter-spacing: 0.1em;
 	color: var(--h-fg-muted);
 }
-.wd-sun { color: #dc2626; }
-.wd-sat { color: #2563eb; }
+.wd-sun { color: var(--h-attn-anomaly-fg, #991b1b); }
+.wd-sat { color: var(--h-tab-active, #2563eb); }
 
 /* Calendar */
 .calendar-grid {
@@ -1087,9 +824,6 @@ onBeforeUnmount(() => {
 	grid-template-columns: repeat(7, 1fr);
 	column-gap: 4px;
 	row-gap: 4px;
-}
-.cell-blank {
-	border-radius: 9px;
 }
 .cell {
 	position: relative;
@@ -1106,127 +840,12 @@ onBeforeUnmount(() => {
 	transition: transform 100ms ease;
 	font-family: inherit;
 }
-.cell:active {
-	transform: scale(0.97);
-}
-.cell.state-anomaly {
-	color: #7f1d1d;
-}
-.cell-top {
-	display: flex;
-	align-items: flex-start;
-	justify-content: space-between;
-	line-height: 1;
-}
-.cell-markers {
-	display: inline-flex;
-	align-items: center;
-	gap: 3px;
-	margin-top: 2px;
-	margin-right: 1px;
-	min-width: 0;
-}
-.cell-date {
-	font-variant-numeric: tabular-nums;
-	font-size: 14px;
-	font-weight: 700;
-	letter-spacing: 0;
-}
-.sale-event-dot {
-	width: 6px;
-	height: 6px;
-	border-radius: 999px;
-	display: inline-block;
-	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.75);
-}
-.weekend-dot {
-	width: 3px;
-	height: 3px;
-	border-radius: 999px;
-	opacity: 0.5;
-	display: inline-block;
-}
-.cell-bottom {
-	display: flex;
-	align-items: center;
-	min-height: 14px;
-}
-.cell-badge {
-	font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
-	font-size: 9px;
-	font-weight: 700;
-	letter-spacing: 0.04em;
-	padding: 1.5px 4px;
-	border-radius: 4px;
-	white-space: nowrap;
-	max-width: 100%;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
 
 /* Detail strip */
-.detail-strip {
-	margin-top: 8px;
-	background: var(--h-bg-card);
-	border: 1px solid var(--h-bd-default);
-	border-radius: 14px;
-	padding: 12px 14px;
-	display: flex;
-	align-items: center;
-	gap: 12px;
-	min-height: 72px;
-	box-shadow: 0 1px 2px rgba(20, 18, 12, 0.03), 0 4px 16px -10px rgba(20, 18, 12, 0.06);
-}
-.month-summary-strip {
-	justify-content: space-between;
-}
-.month-summary-head {
-	display: flex;
-	flex-direction: column;
-	gap: 4px;
-	min-width: 0;
-}
-.month-summary-kicker {
-	font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
-	font-size: 9px;
-	font-weight: 700;
-	letter-spacing: 0.14em;
-	color: var(--h-fg-muted);
-	white-space: nowrap;
-}
-.month-summary-head strong {
-	font-size: 17px;
-	line-height: 1.15;
-	font-weight: 800;
-	color: var(--h-fg-primary);
-	letter-spacing: 0;
-}
-.month-summary-metrics {
-	display: grid;
-	grid-template-columns: repeat(3, minmax(52px, 1fr));
-	gap: 12px;
-	margin-left: auto;
-}
-.month-summary-metric {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-end;
-	gap: 4px;
-	min-width: 0;
-}
 .month-summary-metric span {
 	font-size: 10px;
 	font-weight: 700;
 	color: var(--h-fg-secondary);
-	white-space: nowrap;
-}
-.month-summary-metric strong {
-	font-size: 22px;
-	line-height: 1;
-	font-weight: 800;
-	color: var(--h-fg-primary);
-	letter-spacing: 0;
-	font-variant-numeric: tabular-nums;
 	white-space: nowrap;
 }
 .month-summary-metric small {
@@ -1299,7 +918,7 @@ onBeforeUnmount(() => {
 .dlg-holiday-name {
 	margin-top: 6px;
 	font-size: 13px;
-	color: #dc2626;
+	color: var(--h-attn-holiday-fg, #9b2c2c);
 	font-weight: 600;
 }
 .dlg-sale-event {
@@ -1354,8 +973,8 @@ onBeforeUnmount(() => {
 	font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 	font-size: 10px;
 	padding: 2px 7px;
-	background: rgba(22, 163, 74, 0.12);
-	color: #15803d;
+	background: var(--h-attn-work-bg, #dcfce7);
+	color: var(--h-attn-work-fg, #14532d);
 	border-radius: 999px;
 	letter-spacing: 0.08em;
 	font-weight: 700;
@@ -1366,7 +985,7 @@ onBeforeUnmount(() => {
 	font-size: 12px;
 	line-height: 1.35;
 	font-weight: 800;
-	color: #dc2626;
+	color: var(--h-attn-anomaly-fg, #991b1b);
 }
 .dlg-status-icon {
 	width: 48px;
@@ -1414,7 +1033,7 @@ onBeforeUnmount(() => {
 .dlg-shift-eyebrow {
 	font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
 	font-size: 9px;
-	color: #15803d;
+	color: var(--h-attn-work-fg, #14532d);
 	letter-spacing: 0.14em;
 	font-weight: 700;
 }

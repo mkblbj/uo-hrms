@@ -111,3 +111,57 @@ test("anomaly notice is an actionable labelled control", () => {
 	assert.match(source, /emit\(["']open["']\)/)
 	assert.match(source, /anomaly\.notice/)
 })
+
+function readCalendar() {
+	return fs.readFileSync(path.resolve(currentDir, "../AttendanceCalendar.vue"), "utf8")
+}
+
+test("calendar drops its private theme machinery", () => {
+	const source = readCalendar()
+	assert.doesNotMatch(source, /THEME_SURFACE/)
+	assert.doesNotMatch(source, /MutationObserver/)
+	assert.doesNotMatch(source, /syncCalendarTheme/)
+})
+
+test("calendar drops the roster state and the dots", () => {
+	const source = readCalendar()
+	assert.doesNotMatch(source, /sale-event-dot|weekend-dot/)
+	assert.doesNotMatch(source, /return "roster"/)
+	assert.doesNotMatch(source, /cellBackground|isDarkHeatCell|heat_075|heat_125/)
+})
+
+test("calendar renders the extracted components", () => {
+	const source = readCalendar()
+	assert.match(source, /AttendanceDayCell/)
+	assert.match(source, /AttendanceMonthSummary/)
+	assert.match(source, /AttendanceAnomalyNotice/)
+})
+
+test("calendar uses the shared state and copy modules", () => {
+	const source = readCalendar()
+	assert.match(source, /deriveAttendanceState/)
+	assert.match(source, /attendanceCalendarCopy/)
+})
+
+// The summary is the page's conclusion and belongs above the grid, not below it.
+test("calendar puts the summary above the grid", () => {
+	const source = readCalendar()
+	const summaryAt = source.indexOf("AttendanceMonthSummary")
+	const gridAt = source.indexOf("calendar-grid")
+	assert.ok(summaryAt > -1 && gridAt > -1)
+	assert.ok(summaryAt < gridAt, "summary must be rendered before the calendar grid")
+})
+
+test("legend is down to three entries", () => {
+	const source = readCalendar()
+	const match = source.match(/const legendItems = computed\(\(\) => \[([\s\S]*?)\]\)/)
+	assert.ok(match, "legendItems must be a flat computed array")
+	const keys = [...match[1].matchAll(/key:\s*"([a-z]+)"/g)].map((m) => m[1])
+	assert.deepEqual(keys, ["overtime", "anomaly", "rest"])
+})
+
+test("roster data is still fetched for the progress denominator", () => {
+	const source = readCalendar()
+	assert.match(source, /get_my_schedule_calendar_data/)
+	assert.match(source, /scheduledDays|scheduled-days/)
+})
