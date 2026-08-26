@@ -31,7 +31,6 @@ const pageTitle = computed(() => {
 	flex: 1;
 	flex-direction: column;
 	gap: 10px;
-	min-height: 0;
 	padding: 10px 16px 16px;
 	background: var(--h-bg-page, #f1eee7);
 }

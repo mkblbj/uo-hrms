@@ -47,6 +47,14 @@ test("day cell never labels an in-progress work day as rest", () => {
 	assert.doesNotMatch(source, /formatWorkHours\(props\.cell\.hours\)\s*\|\|\s*getAttendanceCopy\("badge\.rest"/)
 })
 
+// anomaly_label is a sentence like "退勤なし"; at the cell's 36px it clips to an
+// ellipsis. The dialog already shows the full reason via dlg-anomaly-reason.
+test("day cell shows the short anomaly label, not the full reason", () => {
+	const source = read("AttendanceDayCell.vue")
+	assert.match(source, /kind === "anomaly"\) return getAttendanceCopy\("legend\.anomaly"/)
+	assert.doesNotMatch(source, /anomaly_label/)
+})
+
 test("day cell drops the dots and the roster state", () => {
 	const source = read("AttendanceDayCell.vue")
 	assert.doesNotMatch(source, /sale-event-dot|weekend-dot/)
@@ -152,12 +160,15 @@ test("calendar puts the summary above the grid", () => {
 	assert.ok(summaryAt < gridAt, "summary must be rendered before the calendar grid")
 })
 
-test("legend is down to three entries", () => {
+// Every block already carries its own text — hours, 休, 祝, or the anomaly
+// reason — so a legend explained nothing and cost the grid 4px of row height,
+// which was the difference between a 16px number fitting its block or being
+// clipped. Measured at 390x844 with the summary card and notice in place.
+test("calendar has no legend row", () => {
 	const source = readCalendar()
-	const match = source.match(/const legendItems = computed\(\(\) => \[([\s\S]*?)\]\)/)
-	assert.ok(match, "legendItems must be a flat computed array")
-	const keys = [...match[1].matchAll(/key:\s*"([a-z]+)"/g)].map((m) => m[1])
-	assert.deepEqual(keys, ["overtime", "anomaly", "rest"])
+	assert.doesNotMatch(source, /class="legend"/)
+	assert.doesNotMatch(source, /legendItems/)
+	assert.doesNotMatch(source, /class="swatch"/)
 })
 
 test("roster data is still fetched for the progress denominator", () => {

@@ -47,9 +47,9 @@ const blockKind = computed(() => {
 const blockText = computed(() => {
 	const kind = blockKind.value
 	if (kind === "empty") return ""
-	if (kind === "anomaly") {
-		return props.cell.anomaly_label || getAttendanceCopy("legend.anomaly", props.lang)
-	}
+	// The per-day reason ("退勤なし") does not fit a 36px cell and would render as
+	// "退勤な…". The cell carries the short label; the dialog shows the reason.
+	if (kind === "anomaly") return getAttendanceCopy("legend.anomaly", props.lang)
 	if (kind === "holiday") return getAttendanceCopy("badge.holiday", props.lang)
 	if (kind === "rest") return getAttendanceCopy("badge.rest", props.lang)
 	// A work day with no hours yet is today still in progress — never "off".

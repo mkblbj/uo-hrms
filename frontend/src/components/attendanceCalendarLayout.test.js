@@ -40,10 +40,10 @@ test("returns the rendered week count for padded calendar days", () => {
 test("builds grid row styles that evenly divide the calendar by week count", () => {
 	assert.deepEqual(getCalendarGridStyle(0), {})
 	assert.deepEqual(getCalendarGridStyle(5), {
-		gridTemplateRows: "repeat(5, minmax(0, 1fr))",
+		gridTemplateRows: "repeat(5, minmax(56px, 1fr))",
 	})
 	assert.deepEqual(getCalendarGridStyle(6), {
-		gridTemplateRows: "repeat(6, minmax(0, 1fr))",
+		gridTemplateRows: "repeat(6, minmax(56px, 1fr))",
 	})
 })
 

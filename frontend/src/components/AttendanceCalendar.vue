@@ -30,13 +30,6 @@
 			:lang="lang"
 		/>
 
-		<!-- Legend -->
-		<div class="legend">
-			<div v-for="item in legendItems" :key="item.key" class="legend-chip">
-				<span class="swatch" :class="item.className" />
-				<span class="legend-text">{{ tCopy(`legend.${item.key}`) }}</span>
-			</div>
-		</div>
 		<!-- Weekday header -->
 		<div class="week-header">
 			<div
@@ -481,19 +474,9 @@ const scheduledDays = computed(() => {
 	return Object.keys(rosterMap.value).filter((dateStr) => dateStr.startsWith(prefix)).length
 })
 
-function tCopy(key, params) {
-	return getAttendanceCopy(key, lang.value, params)
-}
-
 function openCorrectionList() {
 	router.push({ name: "AttendanceCorrectionListView" })
 }
-
-const legendItems = computed(() => [
-	{ key: "overtime", className: "lg-overtime" },
-	{ key: "anomaly", className: "lg-anomaly" },
-	{ key: "rest", className: "lg-rest" },
-])
 
 function toNumber(v) {
 	const n = Number(v)
@@ -692,24 +675,11 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.swatch.lg-overtime {
-	background: var(--h-attn-overtime-bg, #16a34a);
-}
-
-.swatch.lg-anomaly {
-	background: var(--h-attn-anomaly-bg, #fee2e2);
-	border: 1px solid var(--h-attn-anomaly-fg, #991b1b);
-}
-
-.swatch.lg-rest {
-	background: var(--h-attn-rest-bg, #e9edf2);
-}
 
 .attn-root {
 	display: flex;
 	flex-direction: column;
-	min-height: 0;
-	flex: 1;
+	flex: 1 0 auto;
 	gap: 8px;
 	font-family: "Inter", -apple-system, system-ui, "PingFang SC", "Hiragino Sans", sans-serif;
 	color: var(--h-fg-primary, #0a0a0a);
@@ -765,38 +735,6 @@ onBeforeUnmount(() => {
 }
 
 /* Legend */
-.legend {
-	background: var(--h-bg-card);
-	border: 1px solid var(--h-bd-default);
-	border-radius: 12px;
-	padding: 8px 12px;
-	display: grid;
-	grid-template-columns: repeat(5, 1fr);
-	column-gap: 6px;
-	row-gap: 6px;
-	box-shadow: 0 1px 2px rgba(20, 18, 12, 0.03);
-}
-.legend-chip {
-	display: flex;
-	align-items: center;
-	gap: 5px;
-	font-size: 10px;
-	color: var(--h-fg-primary);
-	font-weight: 500;
-	white-space: nowrap;
-	min-width: 0;
-}
-.swatch {
-	flex-shrink: 0;
-	width: 11px;
-	height: 11px;
-	border-radius: 3px;
-	border: 1px solid rgba(0, 0, 0, 0.05);
-}
-.legend-text {
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
 
 /* Week header */
 .week-header {
@@ -818,8 +756,7 @@ onBeforeUnmount(() => {
 
 /* Calendar */
 .calendar-grid {
-	flex: 1;
-	min-height: 0;
+	flex: 1 0 auto;
 	display: grid;
 	grid-template-columns: repeat(7, 1fr);
 	column-gap: 4px;
