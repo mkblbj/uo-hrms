@@ -176,3 +176,29 @@ test("roster data is still fetched for the progress denominator", () => {
 	assert.match(source, /get_my_schedule_calendar_data/)
 	assert.match(source, /scheduledDays|scheduled-days/)
 })
+
+// A regex-driven refactor once deleted detailPillStyle while the dialog template
+// still called it, which threw on click and unmounted the whole calendar. Nothing
+// in the suite caught it, so this walks the template and demands a binding for
+// every helper it invokes.
+test("every function the calendar template calls is defined", () => {
+	const source = readCalendar()
+	const template = source.slice(0, source.indexOf("<script setup>"))
+	const script = source.slice(source.indexOf("<script setup>"))
+
+	const VUE_BUILTINS = new Set(["var", "t", "String", "Number", "Boolean", "Object", "Array"])
+	const called = new Set(
+		[...template.matchAll(/([a-zA-Z_$][a-zA-Z0-9_$]*)\s*\(/g)]
+			.map((m) => m[1])
+			.filter((name) => !VUE_BUILTINS.has(name))
+	)
+
+	const missing = [...called].filter((name) => {
+		const declared = new RegExp(
+			`(function\\s+${name}\\b|const\\s+${name}\\s*=|let\\s+${name}\\s*=|import\\s[^\\n]*\\b${name}\\b)`
+		)
+		return !declared.test(script)
+	})
+
+	assert.deepEqual(missing, [], `template calls undefined: ${missing.join(", ")}`)
+})

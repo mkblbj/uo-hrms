@@ -533,6 +533,13 @@ function statusColor(c) {
 	return stateTokens(c).fg
 }
 
+function detailPillStyle(c) {
+	return {
+		background: stateTokens(c).bg,
+		border: "1px solid var(--h-bd-subtle, #ede9dd)",
+	}
+}
+
 function statusLabel(c) {
 	const M = messages[getLang()] || messages.zh
 	return M.legend[c.state] || "—"
