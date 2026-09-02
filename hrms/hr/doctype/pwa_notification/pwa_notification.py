@@ -1,7 +1,7 @@
 # Copyright (c) 2023, Frappe Technologies Pvt. Ltd. and contributors
 # For license information, please see license.txt
 from posixpath import normpath
-from urllib.parse import unquote
+from urllib.parse import unquote, urlsplit
 
 import frappe
 from frappe.model.document import Document
@@ -161,7 +161,7 @@ class PWANotification(Document):
 		if not self.target_route:
 			return
 
-		normalized_path = normpath(f"/hrms/{unquote(self.target_route).lstrip('/')}")
+		normalized_path = normpath(f"/hrms/{unquote(urlsplit(self.target_route).path).lstrip('/')}")
 		if (
 			not self.target_route.startswith("/")
 			or self.target_route.startswith("//")

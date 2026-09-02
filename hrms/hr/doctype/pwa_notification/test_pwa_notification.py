@@ -79,6 +79,8 @@ class TestPWANotification(HRMSTestSuite):
 			"//example.com",
 			"/../logout",
 			"/%2e%2e/logout",
+			"/%2e%2e?next=/logout",
+			"/%2e%2e#logout",
 		):
 			with self.assertRaises(frappe.ValidationError):
 				frappe.get_doc(
