@@ -6,6 +6,29 @@ from frappe.model.document import Document
 import hrms
 
 
+MANAGER_ROLES = {"System Manager", "HR Manager"}
+
+
+def _is_notification_manager(user):
+	return user == "Administrator" or bool(MANAGER_ROLES.intersection(frappe.get_roles(user)))
+
+
+def get_permission_query_conditions(user=None):
+	user = user or frappe.session.user
+	if _is_notification_manager(user):
+		return None
+	return "`tabPWA Notification`.`to_user` = " f"{frappe.db.escape(user)}"
+
+
+def has_permission(doc, user=None, permission_type=None):
+	user = user or frappe.session.user
+	if _is_notification_manager(user):
+		return None
+	if permission_type != "read":
+		return None
+	return doc.to_user == user
+
+
 class PWANotification(Document):
 	# begin: auto-generated types
 	# This code is auto-generated. Do not modify anything in this block.
@@ -18,13 +41,17 @@ class PWANotification(Document):
 		from_user: DF.Link | None
 		message: DF.TextEditor | None
 		name: DF.Int | None
+		notification_title: DF.Data | None
 		read: DF.Check
 		reference_document_name: DF.Data | None
 		reference_document_type: DF.Link | None
+		target_route: DF.Data | None
 		to_user: DF.Link | None
 	# end: auto-generated types
 
 	def before_insert(self):
+		self.validate_target_route()
+
 		# 默认来源用户为当前登录用户
 		if not self.from_user:
 			self.from_user = frappe.session.user
@@ -87,6 +114,9 @@ class PWANotification(Document):
 			return self.html_source
 		return self.message
 
+	def get_display_title(self):
+		return self.notification_title or self.reference_document_type or frappe._("Notification")
+
 	def on_update(self):
 		hrms.refetch_resource("hrms:notifications", self.to_user)
 
@@ -101,7 +131,7 @@ class PWANotification(Document):
 			if push_notification.is_enabled():
 				push_notification.send_notification_to_user(
 					self.to_user,
-					self.reference_document_type,
+					self.get_display_title(),
 					self.message,
 					link=self.get_notification_link(),
 					icon=f"{frappe.utils.get_url()}/assets/hrms/manifest/favicon-196.png",
@@ -115,9 +145,20 @@ class PWANotification(Document):
 	def get_notification_link(self):
 		base_url = f"{frappe.utils.get_url()}/hrms"
 
+		if self.target_route:
+			return f"{base_url}/{self.target_route.lstrip('/')}"
 		if self.reference_document_type == "Leave Application":
 			return f"{base_url}/leave-applications/{self.reference_document_name}"
-		elif self.reference_document_type == "Expense Claim":
+		if self.reference_document_type == "Expense Claim":
 			return f"{base_url}/expense-claims/{self.reference_document_name}"
 
 		return base_url
+
+	def validate_target_route(self):
+		if self.target_route and (
+			not self.target_route.startswith("/") or self.target_route.startswith("//")
+		):
+			frappe.throw(
+				frappe._("Target Route must begin with a single slash."),
+				frappe.ValidationError,
+			)
