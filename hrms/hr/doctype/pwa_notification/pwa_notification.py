@@ -8,7 +8,6 @@ from frappe.model.document import Document
 
 import hrms
 
-
 MANAGER_ROLES = {"System Manager", "HR Manager"}
 
 
@@ -23,12 +22,10 @@ def get_permission_query_conditions(user=None):
 	return "`tabPWA Notification`.`to_user` = " f"{frappe.db.escape(user)}"
 
 
-def has_permission(doc, user=None, permission_type=None):
+def has_permission(doc, ptype=None, user=None, **kwargs):
 	user = user or frappe.session.user
 	if _is_notification_manager(user):
-		return None
-	if permission_type != "read":
-		return None
+		return True
 	return doc.to_user == user
 
 
@@ -52,9 +49,10 @@ class PWANotification(Document):
 		to_user: DF.Link | None
 	# end: auto-generated types
 
-	def before_insert(self):
+	def validate(self):
 		self.validate_target_route()
 
+	def before_insert(self):
 		# 默认来源用户为当前登录用户
 		if not self.from_user:
 			self.from_user = frappe.session.user
@@ -162,10 +160,17 @@ class PWANotification(Document):
 		if not self.target_route:
 			return
 
-		normalized_path = normpath(f"/hrms/{unquote(urlsplit(self.target_route).path).lstrip('/')}")
+		decoded_path = unquote(urlsplit(self.target_route).path)
+		has_control_character = any(
+			ord(character) < 32 or ord(character) == 127
+			for character in self.target_route + decoded_path
+		)
+		normalized_path = normpath(f"/hrms/{decoded_path.lstrip('/')}")
 		if (
 			not self.target_route.startswith("/")
 			or self.target_route.startswith("//")
+			or "\\" in decoded_path
+			or has_control_character
 			or (normalized_path != "/hrms" and not normalized_path.startswith("/hrms/"))
 		):
 			frappe.throw(
