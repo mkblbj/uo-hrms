@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 import frappe
 
 from hrms.hr.doctype.pwa_notification.pwa_notification import (
+	PWANotification,
 	get_permission_query_conditions,
 	has_permission,
 )
@@ -13,6 +14,31 @@ from hrms.tests.utils import HRMSTestSuite
 
 
 class TestPWANotification(HRMSTestSuite):
+	@patch.object(PWANotification, "send_push_notification")
+	def test_defer_push_flag_only_skips_deferred_insert(self, send_push):
+		deferred = frappe.get_doc(
+			{
+				"doctype": "PWA Notification",
+				"to_user": "Administrator",
+				"message": "Deferred push",
+			}
+		)
+		deferred.flags.defer_push_notification = True
+
+		deferred.insert(ignore_permissions=True)
+
+		send_push.assert_not_called()
+
+		frappe.get_doc(
+			{
+				"doctype": "PWA Notification",
+				"to_user": "Administrator",
+				"message": "Immediate push",
+			}
+		).insert(ignore_permissions=True)
+
+		send_push.assert_called_once_with()
+
 	def test_explicit_title_and_route_are_used_for_push(self):
 		doc = frappe.new_doc("PWA Notification")
 		doc.to_user = "employee@example.com"

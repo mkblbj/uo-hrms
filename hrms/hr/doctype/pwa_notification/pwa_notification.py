@@ -124,7 +124,8 @@ class PWANotification(Document):
 		hrms.refetch_resource("hrms:notifications", self.to_user)
 
 	def after_insert(self):
-		self.send_push_notification()
+		if not self.flags.defer_push_notification:
+			self.send_push_notification()
 
 	def send_push_notification(self):
 		try:
