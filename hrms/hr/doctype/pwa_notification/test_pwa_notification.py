@@ -73,8 +73,13 @@ class TestPWANotification(HRMSTestSuite):
 				)
 			)
 
-	def test_target_route_must_start_with_one_slash(self):
-		for target_route in ("dashboard/work-roster", "//example.com"):
+	def test_target_route_must_resolve_within_hrms(self):
+		for target_route in (
+			"dashboard/work-roster",
+			"//example.com",
+			"/../logout",
+			"/%2e%2e/logout",
+		):
 			with self.assertRaises(frappe.ValidationError):
 				frappe.get_doc(
 					{

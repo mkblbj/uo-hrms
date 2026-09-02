@@ -1,5 +1,8 @@
 # Copyright (c) 2023, Frappe Technologies Pvt. Ltd. and contributors
 # For license information, please see license.txt
+from posixpath import normpath
+from urllib.parse import unquote
+
 import frappe
 from frappe.model.document import Document
 
@@ -155,10 +158,16 @@ class PWANotification(Document):
 		return base_url
 
 	def validate_target_route(self):
-		if self.target_route and (
-			not self.target_route.startswith("/") or self.target_route.startswith("//")
+		if not self.target_route:
+			return
+
+		normalized_path = normpath(f"/hrms/{unquote(self.target_route).lstrip('/')}")
+		if (
+			not self.target_route.startswith("/")
+			or self.target_route.startswith("//")
+			or (normalized_path != "/hrms" and not normalized_path.startswith("/hrms/"))
 		):
 			frappe.throw(
-				frappe._("Target Route must begin with a single slash."),
+				frappe._("Target Route must stay within /hrms and begin with a single slash."),
 				frappe.ValidationError,
 			)
