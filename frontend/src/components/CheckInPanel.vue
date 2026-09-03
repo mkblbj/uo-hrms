@@ -1,5 +1,7 @@
 <template>
 	<div class="checkin-panel" :class="{ 'intro-play': introPlay }">
+		<PushNotificationPrompt />
+
 		<section
 			v-if="todaySaleEvent"
 			class="home-sale-banner intro-stagger intro-stagger-0"
@@ -26,7 +28,6 @@
 			:intro-play="introPlay"
 		/>
 
-		<PushNotificationPrompt />
 		<HomeSummaryCard class="intro-stagger intro-stagger-2" :lang="currentLanguage" />
 		<HomeStatsGrid
 			class="intro-stagger intro-stagger-3"

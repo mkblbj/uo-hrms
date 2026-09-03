@@ -116,13 +116,15 @@ test("home uses a persistent accessible push activation card", () => {
 	assert.doesNotMatch(source, /<Dialog|<ion-modal/)
 })
 
-test("push activation sits between the home hero and roster summary", () => {
+test("push activation is the first card in the home content", () => {
 	const source = fs.readFileSync(panelPath, "utf8")
+	const saleBannerIndex = source.indexOf('class="home-sale-banner')
 	const heroIndex = source.indexOf("<HomeHeroCard")
 	const promptIndex = source.indexOf("<PushNotificationPrompt")
 	const summaryIndex = source.indexOf("<HomeSummaryCard")
 	assert.notEqual(promptIndex, -1)
-	assert.ok(heroIndex < promptIndex)
+	assert.ok(promptIndex < saleBannerIndex)
+	assert.ok(promptIndex < heroIndex)
 	assert.ok(promptIndex < summaryIndex)
 })
 
