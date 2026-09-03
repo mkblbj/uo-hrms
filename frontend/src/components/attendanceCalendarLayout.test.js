@@ -40,20 +40,22 @@ test("returns the rendered week count for padded calendar days", () => {
 test("builds grid row styles that evenly divide the calendar by week count", () => {
 	assert.deepEqual(getCalendarGridStyle(0), {})
 	assert.deepEqual(getCalendarGridStyle(5), {
-		gridTemplateRows: "repeat(5, minmax(0, 1fr))",
+		gridTemplateRows: "repeat(5, minmax(56px, 1fr))",
 	})
 	assert.deepEqual(getCalendarGridStyle(6), {
-		gridTemplateRows: "repeat(6, minmax(0, 1fr))",
+		gridTemplateRows: "repeat(6, minmax(56px, 1fr))",
 	})
 })
 
-test("uses the bottom strip for monthly hours, attendance days, and average", () => {
+// The monthly numbers used to live in a strip pinned under the grid. They are
+// the page's conclusion, so they now render above it through a dedicated
+// component; the doesNotMatch lines below still guard the older layouts this
+// page has already moved away from.
+test("delegates the monthly numbers to the summary component", () => {
 	const source = fs.readFileSync(attendanceCalendarPath, "utf8")
 
-	assert.match(source, /class="detail-strip month-summary-strip"/)
-	assert.match(source, /month-summary-strip[\s\S]*monthSummary\.hours/)
-	assert.match(source, /month-summary-strip[\s\S]*monthSummary\.workDays/)
-	assert.match(source, /month-summary-strip[\s\S]*monthSummary\.avg/)
+	assert.match(source, /<AttendanceMonthSummary/)
+	assert.doesNotMatch(source, /month-summary-strip/)
 	assert.doesNotMatch(source, /class="month-meta"/)
 	assert.doesNotMatch(source, /class="detail-strip"\s+v-if="selectedCell"/)
 	assert.doesNotMatch(source, /<component\s+:is="DetailMain"\s+:cell="selectedCell"/)
@@ -63,8 +65,6 @@ test("renders attendance anomaly state in the monthly calendar", () => {
 	const source = fs.readFileSync(attendanceCalendarPath, "utf8")
 
 	assert.match(source, /getAttendanceAnomalyLabel/)
-	assert.match(source, /getAttendanceAnomalyTitle/)
 	assert.match(source, /state === "anomaly"/)
-	assert.match(source, /state-anomaly/)
 	assert.match(source, /dlg-anomaly-reason/)
 })

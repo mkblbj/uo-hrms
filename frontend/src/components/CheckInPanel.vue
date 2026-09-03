@@ -14,6 +14,8 @@
 			</div>
 		</section>
 
+		<RosterPreferenceBanner :notice="homePreferenceNotice" :labels="preferenceLabels" />
+
 		<HomeHeroCard
 			ref="heroCardRef"
 			class="intro-stagger intro-stagger-1"
@@ -169,6 +171,7 @@ import HomeScanActionBar from "@/components/home/HomeScanActionBar.vue"
 import HomeStatsGrid from "@/components/home/HomeStatsGrid.vue"
 import QRScannerModal from "@/components/QRScannerModal.vue"
 import HomeSummaryCard from "@/components/work_roster/HomeSummaryCard.vue"
+import RosterPreferenceBanner from "@/components/work_roster/RosterPreferenceBanner.vue"
 import { settings } from "@/data/settings"
 import { formatTimestamp } from "@/utils/formatters"
 import {
@@ -178,6 +181,11 @@ import {
 	resolveHomeLanguage,
 } from "@/utils/homeExperience"
 import { shouldPlayIntro, markIntroPlayed } from "@/utils/homeIntroAnimation"
+import {
+	formatRosterPreferenceTitle,
+	getRosterCopy,
+	resolveHomePreferenceNotice,
+} from "@/utils/rosterCalendar"
 
 const props = defineProps({
 	workStatus: {
@@ -196,6 +204,10 @@ const qrScannerRef = ref(null)
 const heroCardRef = ref(null)
 const introPlay = ref(false)
 const currentLanguage = resolveHomeLanguage(window.frappe?.boot)
+const PREFERENCE_LABEL_KEYS = ["submitPreference", "editPreference", "submitted", "deadline"]
+const preferenceLabels = Object.fromEntries(
+	PREFERENCE_LABEL_KEYS.map((key) => [key, getRosterCopy(key, currentLanguage)])
+)
 const successOverlayState = reactive({
 	isOpen: false,
 	actionsVisible: false,
@@ -243,6 +255,14 @@ const weatherSummary = computed(() => {
 	return `${icon} ${temp}°`.trim()
 })
 const todaySaleEvent = computed(() => homeScheduleSummary.data?.today_event || null)
+const homePreferenceNotice = computed(() => {
+	const notice = resolveHomePreferenceNotice(homeScheduleSummary.data?.preference_notice)
+	if (!notice) return null
+	return {
+		...notice,
+		title: formatRosterPreferenceTitle(notice, currentLanguage),
+	}
+})
 
 const openQRScanner = () => {
 	if (
