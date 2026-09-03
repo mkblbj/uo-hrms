@@ -26,6 +26,7 @@
 			:intro-play="introPlay"
 		/>
 
+		<PushNotificationPrompt />
 		<HomeSummaryCard class="intro-stagger intro-stagger-2" :lang="currentLanguage" />
 		<HomeStatsGrid
 			class="intro-stagger intro-stagger-3"
@@ -162,6 +163,7 @@ import { useRoute, useRouter } from "vue-router"
 
 import CheckinSuccessOverlay from "@/components/home/CheckinSuccessOverlay.vue"
 import HomeHeroCard from "@/components/home/HomeHeroCard.vue"
+import PushNotificationPrompt from "@/components/home/PushNotificationPrompt.vue"
 import HomeScanActionBar from "@/components/home/HomeScanActionBar.vue"
 import HomeStatsGrid from "@/components/home/HomeStatsGrid.vue"
 import QRScannerModal from "@/components/QRScannerModal.vue"

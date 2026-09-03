@@ -66,7 +66,7 @@
 
 <script setup>
 import { computed, inject, ref } from "vue"
-import { IonPage, IonContent } from "@ionic/vue"
+import { IonPage, IonContent, onIonViewWillEnter } from "@ionic/vue"
 import { useRouter } from "vue-router"
 import { FeatherIcon, Switch, toast, LoadingIndicator, Button } from "frappe-ui"
 
@@ -79,6 +79,10 @@ const router = useRouter()
 
 const pushNotificationState = ref(window.frappePushNotification?.isNotificationEnabled())
 const isLoading = ref(false)
+
+onIonViewWillEnter(() => {
+	pushNotificationState.value = window.frappePushNotification?.isNotificationEnabled()
+})
 
 const disablePushSetting = computed(() => {
 	return (

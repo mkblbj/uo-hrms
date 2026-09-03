@@ -148,7 +148,11 @@ class FrappePushNotification {
 	 * @returns {boolean}
 	 */
 	isNotificationEnabled() {
-		return localStorage.getItem(`firebase_token_${this.projectName}`) !== null
+		return (
+			typeof Notification !== "undefined" &&
+			Notification.permission === "granted" &&
+			localStorage.getItem(`firebase_token_${this.projectName}`) !== null
+		)
 	}
 
 	/**
