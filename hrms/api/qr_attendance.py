@@ -104,15 +104,26 @@ def generate_qr_token(location_name: str):
 	if not doc.enabled:
 		frappe.throw(_("Check-in location {0} is disabled").format(location_name))
 
-	time_slot = _get_time_slot()
+	server_time = int(time.time())
+	time_slot = _get_time_slot(server_time)
 	sig = _sign(doc.name, time_slot, doc.get_password("secret"))
 	token = f"{doc.name}|{time_slot}|{sig}"
+	frappe.local.response_headers.update(
+		{
+			"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+			"Pragma": "no-cache",
+			"Expires": "0",
+		}
+	)
 
 	return {
 		"token": token,
 		"expires_in": doc.qr_refresh_interval or TIME_SLOT_SECONDS,
 		"location": doc.name,
 		"description": doc.description,
+		"server_time": server_time,
+		"refresh_at": (time_slot + 1) * TIME_SLOT_SECONDS,
+		"expires_at": (time_slot + 2) * TIME_SLOT_SECONDS,
 	}
 
 
@@ -397,13 +408,14 @@ def get_checkin_locations():
 
 
 @frappe.whitelist(allow_guest=True)
-def get_recent_checkins(location: str | None = None, limit: int = 5):
+def get_recent_checkins(location: str | None = None, limit: int = 5, compact: int = 0):
 	"""
 	获取最近的打卡记录（允许访客访问，用于二维码展示页面）
 
 	Args:
 		location: 打卡地点名称（可选）
 		limit: 返回记录数（默认5条）
+		compact: 轻量返回模式（1为启用）
 
 	Returns:
 		[
@@ -416,6 +428,26 @@ def get_recent_checkins(location: str | None = None, limit: int = 5):
 			}
 		]
 	"""
+	if compact == 1:
+		if not location:
+			frappe.throw(_("Location is required for compact check-ins"))
+
+		limit = max(1, min(limit, 20))
+		frappe.local.response_headers.update(
+			{
+				"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+				"Pragma": "no-cache",
+				"Expires": "0",
+			}
+		)
+		return frappe.get_all(
+			"Employee Checkin",
+			filters={"device_id": location},
+			fields=["name", "log_type", "time", "device_id"],
+			order_by="time desc, name desc",
+			limit=limit,
+		)
+
 	filters = {}
 	if location:
 		filters["device_id"] = location
