@@ -15,9 +15,9 @@
 
 	<!-- iOS installation info message -->
 	<Teleport to="body">
-		<div v-if="iosInstallMessage">
+		<div v-if="iosInstallMessage" class="fixed inset-0 z-[1100] pointer-events-none">
 			<div
-				class="mt-[calc(100vh-15rem)] flex flex-col gap-3 mx-2 rounded py-5 bg-blue-100 drop-shadow-xl"
+				class="pointer-events-auto mt-[calc(100vh-15rem)] flex flex-col gap-3 mx-2 rounded py-5 bg-blue-100 drop-shadow-xl"
 			>
 				<div
 					class="flex flex-row text-center items-center justify-between mb-1 px-3"
