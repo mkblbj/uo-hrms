@@ -13,16 +13,16 @@
 		</span>
 
 		<!-- Select or Link field with predefined options -->
-		<Autocomplete
+		<Combobox
 			v-if="props.fieldtype === 'Select' || props.documentList"
-			:class="isReadOnly ? 'pointer-events-none' : ''"
+			trigger="button"
 			:placeholder="__('Select {0}', [props.label])"
 			:options="selectionList"
-			:modelValue="modelValue"
-			:hideSearch="props.hideSearch"
+			:model-value="modelValue || null"
+			:hide-search="props.hideSearch"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
-			@update:modelValue="(v) => emit('update:modelValue', v?.value)"
+			@update:model-value="(value) => emit('update:modelValue', value ?? '')"
 		/>
 
 		<!-- Link field -->
@@ -141,7 +141,7 @@
 		/>
 		<DateTimePicker
 			v-else-if="props.fieldtype === 'Datetime'"
-			:value="modelValue"
+			:model-value="modelValue"
 			:placeholder="__('Select {0}', [props.label])"
 			:formatter="props.dateTimeFormatter || ((val) => dayjs(val).format('DD-MM-YYYY HH:mm:ss'))"
 			@update:modelValue="(v) => emit('update:modelValue', v)"
@@ -155,7 +155,7 @@
 
 <script setup>
 import {
-	Autocomplete,
+	Combobox,
 	DateTimePicker,
 	ErrorMessage,
 	TextInput,

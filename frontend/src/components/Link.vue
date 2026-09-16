@@ -1,18 +1,20 @@
 <template>
-	<Autocomplete
-		ref="autocompleteRef"
+	<Combobox
+		ref="comboboxRef"
 		size="sm"
+		trigger="button"
 		v-model="value"
 		:placeholder="__('Select {0}', [__(doctype)])"
 		:options="options.data || []"
-		:class="disabled ? 'pointer-events-none' : ''"
+		:loading="options.loading"
+		:filterable="false"
 		:disabled="disabled"
 		@update:query="handleQueryUpdate"
 	/>
 </template>
 
 <script setup>
-import { createResource, Autocomplete, debounce } from "frappe-ui"
+import { createResource, Combobox, debounce } from "frappe-ui"
 import { ref, computed, watch } from "vue"
 
 const props = defineProps({
@@ -37,7 +39,7 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"])
 
-const autocompleteRef = ref(null)
+const comboboxRef = ref(null)
 const searchText = ref("")
 
 const value = computed({

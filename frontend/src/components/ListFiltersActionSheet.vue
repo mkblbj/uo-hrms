@@ -45,9 +45,11 @@
 							{{ __(filter.label) }}
 						</div>
 						<div class="flex flex-row items-center gap-3">
-							<Autocomplete
+							<Combobox
 								v-if="filterConditionMap[filter.fieldtype]"
 								class="mt-1 w-[75px]"
+								trigger="button"
+								hide-search
 								:options="filterConditionMap[filter.fieldtype]"
 								v-model="filters[filter.fieldname].condition"
 							/>
@@ -89,7 +91,7 @@
 <script setup>
 import { computed } from "vue"
 import FormField from "@/components/FormField.vue"
-import { Autocomplete } from "frappe-ui"
+import { Combobox } from "frappe-ui"
 
 const props = defineProps({
 	filterConfig: {
