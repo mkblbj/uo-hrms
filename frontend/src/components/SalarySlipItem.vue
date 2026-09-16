@@ -23,14 +23,14 @@
 			<span v-if="doc?.net_pay" class="text-gray-700 font-normal rounded text-base">
 				{{ formatCurrency(doc.net_pay, doc.currency) }}
 			</span>
-			<FeatherIcon name="chevron-right" class="h-5 w-5 text-gray-500" />
+			<Icon icon="lucide-chevron-right" class="h-5 w-5 text-gray-500" />
 		</template>
 	</ListItem>
 </template>
 
 <script setup>
 import { computed, inject } from "vue"
-import { FeatherIcon } from "frappe-ui"
+import { Icon } from "frappe-ui"
 
 import ListItem from "@/components/ListItem.vue"
 import SalaryIcon from "@/components/icons/SalaryIcon.vue"

@@ -2,20 +2,20 @@
 	<router-link :to="correctionRoute" class="correction-entry">
 		<div class="entry-left">
 			<div class="entry-icon">
-				<FeatherIcon name="edit-3" class="h-4 w-4" />
+				<Icon icon="lucide-edit-3" class="h-4 w-4" />
 			</div>
 			<span class="entry-label">{{ copy("tabs.mine") }}</span>
 		</div>
 		<div class="entry-right">
 			<span v-if="approvalCount.data" class="approval-badge">{{ approvalCount.data }}</span>
-			<FeatherIcon name="chevron-right" class="h-4 w-4 text-gray-400" />
+			<Icon icon="lucide-chevron-right" class="h-4 w-4 text-gray-400" />
 		</div>
 	</router-link>
 </template>
 
 <script setup>
 import { computed } from "vue"
-import { FeatherIcon } from "frappe-ui"
+import { Icon } from "frappe-ui"
 
 import { attendanceCorrectionApprovalCount as approvalCount } from "@/data/attendance_correction"
 import { getAttendanceCorrectionCopy, getCorrectionLang } from "@/utils/attendanceCorrection"

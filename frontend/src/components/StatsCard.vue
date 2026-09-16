@@ -1,7 +1,7 @@
 <template>
 	<div class="stats-card" :class="colorClass">
 		<div class="stats-header">
-			<FeatherIcon :name="icon" class="stats-icon" />
+			<Icon :icon="icon" class="stats-icon" />
 			<span class="stats-label">{{ label }}</span>
 		</div>
 		<div class="stats-value">{{ value }}</div>
@@ -10,7 +10,7 @@
 </template>
 
 <script setup>
-import { FeatherIcon } from "frappe-ui"
+import { Icon } from "frappe-ui"
 import { computed } from "vue"
 
 const props = defineProps({
@@ -113,4 +113,3 @@ const colorClass = computed(() => `color-${props.color}`)
 	color: #9ca3af;
 }
 </style>
-

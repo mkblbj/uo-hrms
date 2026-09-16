@@ -30,13 +30,13 @@
 		</template>
 		<template #right>
 			<Badge variant="outline" :theme="colorMap[status]" :label="__(status, null, 'Employee Advance')" size="md" />
-			<FeatherIcon name="chevron-right" class="h-5 w-5 text-gray-500" />
+			<Icon icon="lucide-chevron-right" class="h-5 w-5 text-gray-500" />
 		</template>
 	</ListItem>
 </template>
 
 <script setup>
-import { FeatherIcon, Badge } from "frappe-ui"
+import { Icon, Badge } from "frappe-ui"
 import { computed, inject } from "vue"
 
 import ListItem from "@/components/ListItem.vue"

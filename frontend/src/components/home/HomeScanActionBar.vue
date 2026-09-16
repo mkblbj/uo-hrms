@@ -8,20 +8,20 @@
 			@click="$emit('scan')"
 		>
 			<span class="scan-action-icon" aria-hidden="true">
-				<FeatherIcon :name="iconName" class="h-5 w-5" />
+				<Icon :icon="iconName" class="h-5 w-5" />
 			</span>
 			<span class="scan-action-copy">
 				<strong>{{ actionTitle }}</strong>
 				<small>{{ actionDescription }}</small>
 			</span>
-			<FeatherIcon name="chevron-right" class="scan-action-arrow" />
+			<Icon icon="lucide-chevron-right" class="scan-action-arrow" />
 		</button>
 	</div>
 </template>
 
 <script setup>
 import { computed } from "vue"
-import { FeatherIcon } from "frappe-ui"
+import { Icon } from "frappe-ui"
 
 const CHECK_IN = "CHECK_IN"
 const CHECK_OUT = "CHECK_OUT"
@@ -88,8 +88,8 @@ const actionMode = computed(() => {
 const isDone = computed(() => actionMode.value === DONE)
 const isDisabled = computed(() => props.disabled || !props.cta)
 const iconName = computed(() => {
-	if (isDone.value) return "check-circle"
-	return actionMode.value === CHECK_OUT ? "log-out" : "camera"
+	if (isDone.value) return "lucide-check-circle"
+	return actionMode.value === CHECK_OUT ? "lucide-log-out" : "lucide-camera"
 })
 const actionTitle = computed(() => {
 	if (!isDone.value && props.cta?.title) return props.cta.title

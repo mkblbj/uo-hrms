@@ -11,7 +11,7 @@
 				>
 					<Button variant="outline" theme="gray" class="w-full py-5" @click="navigate">
 						<template #prefix>
-							<FeatherIcon name="plus" class="w-4" />
+							<Icon icon="lucide-plus" class="w-4" />
 						</template>
 						{{ copy("form.newRequest") }}
 					</Button>
@@ -40,7 +40,7 @@
 <script setup>
 import { computed, ref, watch } from "vue"
 import { onIonViewWillEnter } from "@ionic/vue"
-import { Button, FeatherIcon, LoadingIndicator } from "frappe-ui"
+import { Button, Icon, LoadingIndicator } from "frappe-ui"
 import { useRoute } from "vue-router"
 
 import AttendanceCorrectionItem from "@/components/AttendanceCorrectionItem.vue"

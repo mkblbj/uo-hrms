@@ -12,7 +12,7 @@
 								class="!pl-0 hover:bg-transparent"
 								@click="router.back()"
 							>
-								<FeatherIcon name="chevron-left" class="h-5 w-5" />
+								<Icon icon="lucide-chevron-left" class="h-5 w-5" />
 							</Button>
 							<h2 class="text-xl font-semibold text-gray-900">{{ __("通知详情") }}</h2>
 						</div>
@@ -50,7 +50,7 @@
 									@click="goToReference"
 								>
 									<template #prefix>
-										<FeatherIcon name="external-link" class="w-4" />
+										<Icon icon="lucide-external-link" class="w-4" />
 									</template>
 									{{ __("查看关联文档") }}
 								</Button>
@@ -72,7 +72,7 @@
 <script setup>
 import { IonContent, IonPage } from "@ionic/vue"
 import { useRouter, useRoute } from "vue-router"
-import { createResource, FeatherIcon } from "frappe-ui"
+import { createResource, Icon } from "frappe-ui"
 import { inject, onMounted, watch } from "vue"
 import EmployeeAvatar from "@/components/EmployeeAvatar.vue"
 
@@ -169,4 +169,3 @@ watch(() => route.params.id, (newId) => {
 	text-decoration: underline;
 }
 </style>
-

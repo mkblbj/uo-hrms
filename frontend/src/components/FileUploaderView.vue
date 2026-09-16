@@ -6,7 +6,7 @@
 				<div
 					class="flex flex-col w-full border shadow-sm items-center rounded p-3 gap-2"
 				>
-					<FeatherIcon name="upload" class="h-6 w-6 text-gray-700" />
+					<Icon icon="lucide-upload" class="h-6 w-6 text-gray-700" />
 					<span class="block text-sm font-normal leading-5 text-gray-700">
 						{{ __("Upload images or documents") }}
 					</span>
@@ -35,8 +35,8 @@
 						<span class="grow" @click="showFilePreview(file)">
 							{{ file.file_name || file.name }}
 						</span>
-						<FeatherIcon
-							name="x"
+						<Icon
+							icon="lucide-x"
 							class="h-4 w-4 cursor-pointer text-gray-700"
 							@click="() => confirmDeleteAttachment(file)"
 						/>
@@ -89,7 +89,7 @@
 </template>
 
 <script setup>
-import { FeatherIcon, Dialog } from "frappe-ui"
+import { Icon, Dialog } from "frappe-ui"
 import { ref } from "vue"
 import { IonModal } from "@ionic/vue"
 

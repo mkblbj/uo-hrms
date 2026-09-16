@@ -12,7 +12,7 @@
 					{{ confirmStep ? getConfirmTitle() : __("Scan QR Code") }}
 				</h2>
 				<button @click="closeModal" class="text-gray-500">
-					<FeatherIcon name="x" class="w-6 h-6" />
+					<Icon icon="lucide-x" class="w-6 h-6" />
 				</button>
 			</div>
 
@@ -24,8 +24,8 @@
 						<div class="flex items-center gap-3 mb-3">
 							<div :class="['w-12 h-12 rounded-full flex items-center justify-center', 
 								props.logType === 'IN' ? 'bg-green-100' : 'bg-orange-100']">
-								<FeatherIcon 
-									:name="props.logType === 'IN' ? 'log-in' : 'log-out'" 
+								<Icon
+									:icon="logTypeIcon"
 									:class="['w-6 h-6', props.logType === 'IN' ? 'text-green-600' : 'text-orange-600']" 
 								/>
 							</div>
@@ -40,14 +40,14 @@
 						</div>
 						
 						<div class="flex items-center gap-2 text-gray-600">
-							<FeatherIcon name="clock" class="w-4 h-4" />
+							<Icon icon="lucide-clock" class="w-4 h-4" />
 							<span class="text-base font-medium">{{ currentTimeDisplay }}</span>
 						</div>
 					</div>
 
 					<!-- 智能时间提示（警告） -->
 					<div v-if="timeWarning" class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 flex items-start gap-2">
-						<FeatherIcon name="alert-triangle" class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+						<Icon icon="lucide-alert-triangle" class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
 						<span class="text-yellow-800 text-sm">{{ timeWarning }}</span>
 					</div>
 
@@ -144,7 +144,7 @@
 						class="mt-2 w-full max-w-md py-3"
 					>
 						<template #prefix>
-							<FeatherIcon :name="torchOn ? 'zap-off' : 'zap'" class="w-5 h-5" />
+							<Icon :icon="torchIcon" class="w-5 h-5" />
 						</template>
 						{{ torchOn ? __("Turn Off Flashlight") : __("Turn On Flashlight") }}
 					</Button>
@@ -157,7 +157,7 @@
 <script setup>
 import { ref, watch, onBeforeUnmount, inject, computed } from "vue"
 import { IonModal } from "@ionic/vue"
-import { FeatherIcon, Button, createResource } from "frappe-ui"
+import { Icon, Button, createResource } from "frappe-ui"
 import { Html5Qrcode } from "html5-qrcode"
 
 const __ = inject("$translate")
@@ -181,6 +181,12 @@ const longitude = ref(null)
 const locationStatus = ref("")
 const torchOn = ref(false)
 const torchAvailable = ref(false)
+const logTypeIcon = computed(() =>
+	props.logType === "IN" ? "lucide-log-in" : "lucide-log-out"
+)
+const torchIcon = computed(() =>
+	torchOn.value ? "lucide-zap-off" : "lucide-zap"
+)
 let html5QrCode = null
 
 // 确认步骤相关
@@ -552,4 +558,3 @@ defineExpose({
 	submitting
 })
 </script>
-

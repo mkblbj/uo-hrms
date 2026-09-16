@@ -8,7 +8,7 @@
 					>
 						<div class="flex flex-row items-center">
 							<Button variant="ghost" class="!pl-0 hover:bg-white" @click="router.back()">
-								<FeatherIcon name="chevron-left" class="h-5 w-5" />
+								<Icon icon="lucide-chevron-left" class="h-5 w-5" />
 							</Button>
 							<h2 class="text-xl font-semibold text-gray-900">{{ __("Profile") }}</h2>
 						</div>
@@ -48,12 +48,12 @@
 									@click="openInfoModal(link)"
 								>
 									<div class="flex flex-row items-center gap-3 grow">
-										<FeatherIcon :name="link.icon" class="h-5 w-5 text-gray-500" />
+										<Icon :icon="link.icon" class="h-5 w-5 text-gray-500" />
 										<div class="text-base font-normal text-gray-800">
 											{{ link.title }}
 										</div>
 									</div>
-									<FeatherIcon name="chevron-right" class="h-5 w-5 text-gray-500" />
+									<Icon icon="lucide-chevron-right" class="h-5 w-5 text-gray-500" />
 								</div>
 							</div>
 						</div>
@@ -66,12 +66,12 @@
 									class="flex flex-row cursor-pointer flex-start p-4 items-center justify-between border-b"
 								>
 									<div class="flex flex-row items-center gap-3 grow">
-										<FeatherIcon name="settings" class="h-5 w-5 text-gray-500" />
+										<Icon icon="lucide-settings" class="h-5 w-5 text-gray-500" />
 										<div class="text-base font-normal text-gray-800">
 											{{ __("Settings") }}
 										</div>
 									</div>
-									<FeatherIcon name="chevron-right" class="h-5 w-5 text-gray-500" />
+									<Icon icon="lucide-chevron-right" class="h-5 w-5 text-gray-500" />
 								</router-link>
 							</div>
 						</div>
@@ -83,7 +83,7 @@
 
 						<Button @click="logout" variant="outline" theme="red" class="w-full shadow py-4 mt-5">
 							<template #prefix>
-								<FeatherIcon name="log-out" class="w-4" />
+								<Icon icon="lucide-log-out" class="w-4" />
 							</template>
 							{{ __("Log Out") }}
 						</Button>
@@ -122,7 +122,7 @@
 import { inject, ref, watch, onMounted, onBeforeUnmount } from "vue"
 import { useRouter } from "vue-router"
 import { IonPage, IonContent } from "@ionic/vue"
-import { FeatherIcon, createDocumentResource, createResource } from "frappe-ui"
+import { Icon, createDocumentResource, createResource } from "frappe-ui"
 
 import { showErrorAlert } from "@/utils/dialogs"
 import { formatCurrency } from "@/utils/formatters"
@@ -142,7 +142,7 @@ const router = useRouter()
 
 const profileLinks = [
 	{
-		icon: "user",
+		icon: "lucide-user",
 		title: __("Employee Details"),
 		fields: [
 			"employee_name",
@@ -154,7 +154,7 @@ const profileLinks = [
 		],
 	},
 	{
-		icon: "file",
+		icon: "lucide-file",
 		title: __("Company Information"),
 		fields: [
 			"company",
@@ -167,12 +167,12 @@ const profileLinks = [
 		],
 	},
 	{
-		icon: "book",
+		icon: "lucide-book",
 		title: __("Contact Information"),
 		fields: ["cell_number", "personal_email", "company_email", "preferred_email"],
 	},
 	{
-		icon: "dollar-sign",
+		icon: "lucide-dollar-sign",
 		title: __("Salary Information"),
 		fields: [
 			"ctc",

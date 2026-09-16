@@ -6,7 +6,7 @@
 		aria-live="polite"
 	>
 		<div class="push-prompt-icon" aria-hidden="true">
-			<FeatherIcon name="bell" class="h-5 w-5" />
+			<Icon icon="lucide-bell" class="h-5 w-5" />
 		</div>
 		<div class="push-prompt-content">
 			<strong>{{ copy.title }}</strong>
@@ -32,7 +32,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from "vue"
 import { onIonViewWillEnter } from "@ionic/vue"
-import { Button, FeatherIcon, toast } from "frappe-ui"
+import { Button, Icon, toast } from "frappe-ui"
 
 import { resolvePushPromptState } from "@/utils/pushNotifications"
 

@@ -27,7 +27,7 @@
 								class="flex h-9 w-9 items-center justify-center rounded-full shadow-sm" style="background: var(--h-bg-elevated, #fff); border: 1px solid var(--h-bd-default, #e3dfd4)"
 							>
 								<span class="relative inline-block" @click="navigate" style="color: var(--h-fg-primary, #0a0a0a)">
-									<FeatherIcon name="bell" class="h-6 w-6" />
+									<Icon icon="lucide-bell" class="h-6 w-6" />
 									<span v-if="unreadNotificationsCount.data" class="notification-badge">
 										{{ unreadNotificationsCount.data > 99 ? '99+' : unreadNotificationsCount.data }}
 									</span>
@@ -53,7 +53,7 @@
 <script setup>
 import { inject } from "vue"
 import { IonHeader, IonContent, IonPage } from "@ionic/vue"
-import { FeatherIcon, Avatar } from "frappe-ui"
+import { Icon, Avatar } from "frappe-ui"
 import { useRouter } from "vue-router"
 
 import { unreadNotificationsCount } from "@/data/notifications"

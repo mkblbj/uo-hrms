@@ -8,7 +8,7 @@
 					>
 						<div class="flex flex-row items-center">
 							<Button variant="ghost" class="!pl-0 hover:bg-white" @click="router.back()">
-								<FeatherIcon name="chevron-left" class="h-5 w-5" />
+								<Icon icon="lucide-chevron-left" class="h-5 w-5" />
 							</Button>
 							<h2 class="text-xl font-semibold text-gray-900">{{ __("Settings") }}</h2>
 						</div>
@@ -25,12 +25,12 @@
 									class="flex flex-row items-center justify-between w-full"
 								>
 									<div class="flex flex-row items-center gap-3 grow">
-										<FeatherIcon name="lock" class="h-5 w-5 text-gray-500" />
+										<Icon icon="lucide-lock" class="h-5 w-5 text-gray-500" />
 										<div class="text-base font-normal text-gray-800">
 											{{ __("Change Password") }}
 										</div>
 									</div>
-									<FeatherIcon name="chevron-right" class="h-5 w-5 text-gray-500" />
+									<Icon icon="lucide-chevron-right" class="h-5 w-5 text-gray-500" />
 								</router-link>
 							</div>
 						</div>
@@ -68,7 +68,7 @@
 import { computed, inject, ref } from "vue"
 import { IonPage, IonContent, onIonViewWillEnter } from "@ionic/vue"
 import { useRouter } from "vue-router"
-import { FeatherIcon, Switch, toast, LoadingIndicator, Button } from "frappe-ui"
+import { Icon, Switch, toast, LoadingIndicator, Button } from "frappe-ui"
 
 import LanguagePreferenceCard from "@/components/settings/LanguagePreferenceCard.vue"
 import PasskeyManager from "@/components/PasskeyManager.vue"

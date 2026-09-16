@@ -9,7 +9,7 @@
 					class="!pl-0 hover:bg-white"
 					@click="router.back()"
 				>
-					<FeatherIcon name="chevron-left" class="h-5 w-5" />
+					<Icon icon="lucide-chevron-left" class="h-5 w-5" />
 				</Button>
 				<div
 					v-if="id"
@@ -49,7 +49,7 @@
 						]"
 						:button="{
 							label: __('Menu'),
-							icon: 'more-horizontal',
+							icon: 'lucide-more-horizontal',
 							variant: 'ghost',
 						}"
 					/>
@@ -320,7 +320,7 @@ import { useRouter } from "vue-router"
 import {
 	ErrorMessage,
 	Badge,
-	FeatherIcon,
+	Icon,
 	createListResource,
 	createDocumentResource,
 	toast,

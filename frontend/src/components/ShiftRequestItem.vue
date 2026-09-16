@@ -21,14 +21,14 @@
 		</template>
 		<template #right>
 			<Badge variant="outline" :theme="colorMap[status]" :label="status" size="md" />
-			<FeatherIcon name="chevron-right" class="h-5 w-5 text-gray-500" />
+			<Icon icon="lucide-chevron-right" class="h-5 w-5 text-gray-500" />
 		</template>
 	</ListItem>
 </template>
 
 <script setup>
 import { computed } from "vue"
-import { Badge, FeatherIcon } from "frappe-ui"
+import { Badge, Icon } from "frappe-ui"
 
 import ListItem from "@/components/ListItem.vue"
 import ShiftIcon from "@/components/icons/ShiftIcon.vue"

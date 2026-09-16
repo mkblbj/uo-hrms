@@ -10,7 +10,7 @@
 				v-if="!isReadOnly"
 				id="add-expense-modal"
 				class="text-sm"
-				icon="plus"
+				icon="lucide-plus"
 				variant="subtle"
 				@click="openModal()"
 			/>
@@ -55,7 +55,7 @@
 						<span class="text-gray-700 font-normal rounded text-base">
 							{{ formatCurrency(item.amount, expenseClaim.currency) }}
 						</span>
-						<FeatherIcon name="chevron-right" class="h-5 w-5 text-gray-500" />
+						<Icon icon="lucide-chevron-right" class="h-5 w-5 text-gray-500" />
 					</div>
 				</div>
 			</div>
@@ -104,7 +104,7 @@
 							@click="deleteExpenseItem()"
 						>
 							<template #prefix>
-								<FeatherIcon name="trash" class="w-4" />
+								<Icon icon="lucide-trash" class="w-4" />
 							</template>
 							{{ __("Delete") }}
 						</Button>
@@ -115,8 +115,8 @@
 							:disabled="addButtonDisabled"
 						>
 							<template #prefix>
-								<FeatherIcon
-									:name="editingIdx === null ? 'plus' : 'check'"
+								<Icon
+									:icon="actionIcon"
 									class="w-4"
 								/>
 							</template>
@@ -130,7 +130,7 @@
 </template>
 
 <script setup>
-import { FeatherIcon, createResource } from "frappe-ui"
+import { Icon, createResource } from "frappe-ui"
 import { computed, ref, watch, inject } from "vue"
 
 import FormField from "@/components/FormField.vue"
@@ -161,6 +161,9 @@ const dayjs = inject("$dayjs")
 const __ = inject("$translate")
 const expenseItem = ref({})
 const editingIdx = ref(null)
+const actionIcon = computed(() =>
+	editingIdx.value === null ? "lucide-plus" : "lucide-check"
+)
 
 const isModalOpen = ref(false)
 const isFirstRender = ref(false)
