@@ -381,14 +381,10 @@ const handleQRScanSuccess = async (token, latitude = null, longitude = null) => 
 				latitude = position.coords.latitude
 				longitude = position.coords.longitude
 			} catch (geoError) {
-				toast({
-					title: __("Location Error"),
-					text: __(
+				toast.error(__("Location Error"), {
+					description: __(
 						"Unable to retrieve your location. Please enable location access and try again."
 					),
-					icon: "alert-circle",
-					position: "bottom-center",
-					iconClasses: "text-red-500",
 				})
 				// 重置 scanner 的 submitting 状态
 				if (qrScannerRef.value) {
@@ -472,12 +468,8 @@ const handleQRScanSuccess = async (token, latitude = null, longitude = null) => 
 			throw new Error(errorMessage)
 		}
 	} catch (error) {
-		toast({
-			title: __("Error"),
-			text: error.message || __("Check-in failed"),
-			icon: "alert-circle",
-			position: "bottom-center",
-			iconClasses: "text-red-500",
+		toast.error(__("Error"), {
+			description: error.message || __("Check-in failed"),
 		})
 	} finally {
 		// 无论成功失败，都重置 scanner 的 submitting 状态

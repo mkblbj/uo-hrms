@@ -101,12 +101,8 @@ async function enablePushNotifications() {
 		const result = await client.enableNotification()
 		refreshPromptState()
 		if (result?.permission_granted && promptState.value === "enabled") {
-			toast({
-				title: "通知を有効にしました",
-				text: "シフト通知を受け取れます。",
-				icon: "check-circle",
-				position: "bottom-center",
-				iconClasses: "text-green-500",
+			toast.success("通知を有効にしました", {
+				description: "シフト通知を受け取れます。",
 			})
 		} else if (promptState.value !== "denied") {
 			errorMessage.value = "通知を有効にできませんでした。もう一度お試しください。"

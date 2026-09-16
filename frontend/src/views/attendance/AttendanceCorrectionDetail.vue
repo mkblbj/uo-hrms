@@ -131,12 +131,8 @@ async function approve() {
 	await approveResource.submit({ name: props.id })
 	await doc.reload()
 	await reloadCorrectionResources()
-	toast({
-		title: __("Success"),
-		text: copy("form.approved"),
-		icon: "check-circle",
-		position: "bottom-center",
-		iconClasses: "text-green-500",
+	toast.success(__("Success"), {
+		description: copy("form.approved"),
 	})
 }
 
@@ -149,12 +145,8 @@ async function reject() {
 	await rejectResource.submit({ name: props.id, reason: rejectionReason.value.trim() })
 	await doc.reload()
 	await reloadCorrectionResources()
-	toast({
-		title: __("Success"),
-		text: copy("form.rejected"),
-		icon: "check-circle",
-		position: "bottom-center",
-		iconClasses: "text-green-500",
+	toast.success(__("Success"), {
+		description: copy("form.rejected"),
 	})
 }
 

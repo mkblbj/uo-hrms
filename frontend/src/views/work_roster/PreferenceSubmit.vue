@@ -450,12 +450,7 @@ function selectSlot(slot) {
 function selectCustomTime() {
 	if (!isEditable.value || !selectedDay.value || !customStart.value || !customEnd.value) return
 	if (customEnd.value <= customStart.value) {
-		toast({
-			text: t("timeOrderError"),
-			position: "bottom",
-			icon: "x-circle",
-			iconClasses: "text-red-500",
-		})
+		toast.error(t("timeOrderError"))
 		return
 	}
 
@@ -526,24 +521,16 @@ async function submitPreference() {
 			notes: notes.value,
 		})
 		existingPref.value = result
-		toast({
-			text: t("submitSuccess"),
-			position: "bottom",
-			icon: "check-circle",
-			iconClasses: "text-green-600",
-		})
+		toast.success(t("submitSuccess"))
 		router.push("/dashboard/work-roster")
 	} catch (e) {
 		console.error("Failed to submit preference:", e)
 		const serverMessage = e?.messages?.[0] || e?.message
-		toast({
-			text: serverMessage?.includes("not currently accepting preferences")
+		toast.error(
+			serverMessage?.includes("not currently accepting preferences")
 				? t("preferenceCollectionClosed")
-				: serverMessage || t("submitFailed"),
-			position: "bottom",
-			icon: "x-circle",
-			iconClasses: "text-red-500",
-		})
+				: serverMessage || t("submitFailed")
+		)
 	} finally {
 		submitting.value = false
 	}
