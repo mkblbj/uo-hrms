@@ -56,6 +56,7 @@
 						/>
 						<ErrorMessage :message="errorMessage" />
 						<Button
+							type="submit"
 							:loading="session.login.loading"
 							variant="solid"
 							class="disabled:bg-gray-700 disabled:text-white !mt-6"
@@ -108,6 +109,7 @@
 					/>
 					<ErrorMessage :message="errorMessage" />
 					<Button
+						type="submit"
 						:loading="session.otp.loading"
 						variant="solid"
 						class="disabled:bg-gray-700 disabled:text-white !mt-6"

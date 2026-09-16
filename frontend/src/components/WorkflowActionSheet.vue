@@ -27,8 +27,8 @@
 				:theme="action.theme"
 				@click="applyWorkflow({ workflowAction: action.text })"
 			>
-				<template #prefix v-if="action.icon">
-					<Icon :icon="action.icon" class="w-4" />
+				<template #prefix v-if="action.lucideIcon">
+					<Icon :icon="action.lucideIcon" class="w-4" />
 				</template>
 				{{ __(action.text, null, props.doc?.doctype) }}
 			</Button>
@@ -77,18 +77,18 @@ const getTransitions = async () => {
 		let role = ""
 		let theme = "gray"
 		let variant = "subtle"
-		let icon = ""
+		let lucideIcon = ""
 		let actionLabel = transition.toLowerCase()
 
 		if (actionLabel.includes("reject") || actionLabel.includes("cancel")) {
 			role = "destructive"
 			theme = "red"
 			variant = "subtle"
-			icon = "lucide-x"
+			lucideIcon = "lucide-x"
 		} else if (actionLabel.includes("approve")) {
 			theme = "green"
 			variant = "solid"
-			icon = "lucide-check"
+			lucideIcon = "lucide-check"
 		}
 
 		return {
@@ -96,7 +96,7 @@ const getTransitions = async () => {
 			role: role,
 			theme: theme,
 			variant: variant,
-			icon: icon,
+			lucideIcon,
 			data: {
 				action: transition,
 			},

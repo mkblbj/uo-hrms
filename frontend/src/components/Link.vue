@@ -12,11 +12,33 @@
 		:disabled="disabled"
 		@update:query="handleQueryUpdate"
 		@update:open="handleOpenUpdate"
-	/>
+	>
+		<template #suffix="{ clear, disabled: isDisabled, open }">
+			<span
+				v-if="value && !isDisabled"
+				role="button"
+				tabindex="0"
+				:aria-label="__('Clear {0}', [__(doctype)])"
+				class="inline-flex rounded-2 p-1 text-gray-600 hover:text-gray-900 focus-visible:outline focus-visible:outline-2"
+				@click.stop.prevent="clear()"
+				@keydown.enter.stop.prevent="clear()"
+				@keydown.space.stop.prevent="clear()"
+				@keyup.enter.stop.prevent
+				@keyup.space.stop.prevent
+			>
+				<Icon icon="lucide-x" class="h-4 w-4" aria-hidden="true" />
+			</span>
+			<Icon
+				icon="lucide-chevron-down"
+				:class="['h-4 w-4 shrink-0 text-gray-600 transition-transform', open && 'rotate-180']"
+				aria-hidden="true"
+			/>
+		</template>
+	</Combobox>
 </template>
 
 <script setup>
-import { createResource, Combobox, debounce } from "frappe-ui"
+import { createResource, Combobox, debounce, Icon } from "frappe-ui"
 import { ref, computed, watch, onBeforeUnmount } from "vue"
 
 import {

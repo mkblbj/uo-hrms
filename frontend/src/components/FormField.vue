@@ -21,9 +21,31 @@
 			:model-value="modelValue ?? null"
 			:hide-search="props.hideSearch"
 			v-bind="$attrs"
-			:disabled="isReadOnly"
+			:disabled="isReadOnly || $attrs.disabled === '' || Boolean($attrs.disabled)"
 			@update:model-value="(value) => emit('update:modelValue', value ?? '')"
-		/>
+		>
+			<template #suffix="{ clear, disabled: isDisabled, open }">
+				<span
+					v-if="modelValue !== '' && modelValue != null && !isDisabled"
+					role="button"
+					tabindex="0"
+					:aria-label="__('Clear {0}', [props.label])"
+					class="inline-flex rounded-2 p-1 text-gray-600 hover:text-gray-900 focus-visible:outline focus-visible:outline-2"
+					@click.stop.prevent="clear()"
+					@keydown.enter.stop.prevent="clear()"
+					@keydown.space.stop.prevent="clear()"
+					@keyup.enter.stop.prevent
+					@keyup.space.stop.prevent
+				>
+					<Icon icon="lucide-x" class="h-4 w-4" aria-hidden="true" />
+				</span>
+				<Icon
+					icon="lucide-chevron-down"
+					:class="['h-4 w-4 shrink-0 text-gray-600 transition-transform', open && 'rotate-180']"
+					aria-hidden="true"
+				/>
+			</template>
+		</Combobox>
 
 		<!-- Link field -->
 		<Link
@@ -31,7 +53,7 @@
 			:doctype="props.options"
 			:modelValue="modelValue"
 			:filters="props.linkFilters"
-			:disabled="isReadOnly"
+			:disabled="isReadOnly || $attrs.disabled === '' || Boolean($attrs.disabled)"
 			@update:modelValue="(v) => emit('update:modelValue', v)"
 		/>
 
@@ -161,6 +183,7 @@ import {
 	TextInput,
 	Textarea,
 	Checkbox,
+	Icon,
 } from "frappe-ui"
 import { TextEditor } from "frappe-ui/experimental"
 import { computed, onMounted, inject } from "vue"
