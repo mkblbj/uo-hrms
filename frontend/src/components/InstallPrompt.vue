@@ -2,7 +2,7 @@
 	<!-- Install PWA dialog -->
 	<Dialog v-model:open="showDialog">
 		<template #title>
-			<h2 class="text-lg font-bold">{{ __("Install UO HR") }} </h2>
+			<h2 class="text-lg-bold">{{ __("Install UO HR") }} </h2>
 		</template>
 		<p>{{ __("Get the app on your device for easy access & a better experience!") }} </p>
 		<template #actions>
@@ -17,12 +17,12 @@
 	<Teleport to="body">
 		<div v-if="iosInstallMessage" class="fixed inset-0 z-[1100] pointer-events-none">
 			<div
-				class="pointer-events-auto mt-[calc(100vh-15rem)] flex flex-col gap-3 mx-2 rounded py-5 bg-blue-100 drop-shadow-xl"
+				class="pointer-events-auto mt-[calc(100vh-15rem)] flex flex-col gap-3 mx-2 rounded-4 py-5 bg-blue-100 drop-shadow-xl"
 			>
 				<div
 					class="flex flex-row text-center items-center justify-between mb-1 px-3"
 				>
-					<span class="text-base text-gray-900 font-bold">
+					<span class="text-base-bold text-gray-900">
 						{{ __("Install UO HR") }}
 					</span>
 					<span class="inline-flex items-baseline">

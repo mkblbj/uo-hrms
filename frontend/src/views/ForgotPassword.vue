@@ -13,7 +13,7 @@
 						>
 							<Icon icon="lucide-chevron-left" class="h-5 w-5" />
 						</Button>
-						<h2 class="text-xl font-semibold text-gray-900">{{ __("Reset Password") }}</h2>
+						<h2 class="text-2xl-semibold text-gray-900">{{ __("Reset Password") }}</h2>
 					</header>
 
 					<div class="bg-white grow overflow-y-auto">
@@ -33,11 +33,11 @@
 					</div>
 
 					<div
-						class="px-4 pt-4 pb-4 standalone:pb-safe-bottom sm:w-96 bg-white sticky bottom-0 w-full drop-shadow-xl z-40 border-t rounded-t-lg"
+						class="px-4 pt-4 pb-4 standalone:pb-safe-bottom sm:w-96 bg-white sticky bottom-0 w-full drop-shadow-xl z-40 border-t rounded-t-6"
 					>
 						<ErrorMessage class="mb-2" :message="errorMessage" />
 						<Button
-							class="w-full rounded py-5 text-base disabled:bg-gray-700 disabled:text-white"
+							class="w-full rounded-4 py-5 text-base disabled:bg-gray-700 disabled:text-white"
 							:loading="forgotPasswordResource.loading"
 							variant="solid"
 							@click="sendPasswordReset"

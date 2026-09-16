@@ -6,7 +6,7 @@
 				class="flex h-screen w-screen flex-col bg-white"
 			>
 				<header class="flex items-center justify-between px-6 py-4">
-					<div class="text-lg font-semibold text-gray-900">
+					<div class="text-lg-semibold text-gray-900">
 						{{ __("Reset Password") }}
 					</div>
 					<button
@@ -22,7 +22,7 @@
 						{{ __("Your password has expired. Please reset your password to continue") }}
 					</p>
 					<a
-						class="mt-6 inline-flex items-center justify-center gap-2 transition-colors focus:outline-none text-white bg-gray-900 hover:bg-gray-800 active:bg-gray-700 focus-visible:ring focus-visible:ring-gray-400 h-9 text-base px-4 rounded"
+						class="mt-6 inline-flex items-center justify-center gap-2 transition-colors focus:outline-none text-white bg-gray-900 hover:bg-gray-800 active:bg-gray-700 focus-visible:ring focus-visible:ring-gray-400 h-9 text-base px-4 rounded-4"
 						:href="resetPassword.link"
 						target="_blank"
 					>
@@ -34,7 +34,7 @@
 			<div v-else class="flex h-screen w-screen flex-col justify-center bg-white">
 				<div class="flex flex-col mx-auto gap-3 items-center">
 					<img src="/uo-hr-logo.png" class="h-20 w-20 object-contain" alt="UO HR Logo" />
-					<div class="text-3xl font-semibold text-gray-900 text-center">
+					<div class="text-4xl-semibold text-gray-900 text-center">
 						{{ __("Login to UO HR") }}
 					</div>
 				</div>
@@ -78,7 +78,7 @@
 							<a
 								v-for="provider in authProviders.data"
 								:key="provider.name"
-								class="flex items-center justify-center gap-2 transition-colors focus:outline-none text-gray-800 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 focus-visible:ring focus-visible:ring-gray-400 h-7 text-base p-2 rounded"
+								class="flex items-center justify-center gap-2 transition-colors focus:outline-none text-gray-800 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 focus-visible:ring focus-visible:ring-gray-400 h-7 text-base p-2 rounded-4"
 								:href="provider.auth_url"
 							>
 								<img class="h-4 w-4" :src="provider.icon" :alt="provider.provider_name" />
@@ -92,7 +92,7 @@
 			</div>
 			<Dialog v-model:open="otp.showDialog">
 				<template #title>
-					<h2 class="text-lg font-bold">{{ __("OTP Verification") }}</h2>
+					<h2 class="text-lg-bold">{{ __("OTP Verification") }}</h2>
 				</template>
 				<p class="mb-4" v-if="otp.verification.prompt">
 					{{ otp.verification.prompt }}

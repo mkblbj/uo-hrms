@@ -17,7 +17,7 @@
 					</Button>
 				</router-link>
 
-				<div v-if="visibleItems.length" class="rounded border border-[#e3dfd4] bg-white">
+				<div v-if="visibleItems.length" class="rounded-4 border border-[#e3dfd4] bg-white">
 					<router-link
 						v-for="item in visibleItems"
 						:key="item.name"

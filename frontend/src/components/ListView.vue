@@ -8,7 +8,7 @@
 					<Button variant="ghost" class="!px-1 mr-1 hover:bg-white" @click="router.back()">
 						<Icon icon="lucide-chevron-left" class="h-5 w-5" />
 					</Button>
-					<h2 class="text-xl font-semibold text-gray-900">{{ pageTitle }}</h2>
+					<h2 class="text-2xl-semibold text-gray-900">{{ pageTitle }}</h2>
 				</div>
 
 				<div class="flex flex-row gap-2">
@@ -58,7 +58,7 @@
 				/>
 
 				<div
-					class="flex flex-col bg-white rounded mt-5"
+					class="flex flex-col bg-white rounded-4 mt-5"
 					v-if="!documents.loading && documents.data?.length"
 				>
 					<div

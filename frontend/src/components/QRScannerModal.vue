@@ -8,7 +8,7 @@
 		<div class="h-full w-full flex flex-col bg-white">
 			<!-- 头部 -->
 			<div class="flex items-center justify-between p-4 border-b">
-				<h2 class="text-lg font-bold">
+				<h2 class="text-lg-bold">
 					{{ confirmStep ? getConfirmTitle() : __("Scan QR Code") }}
 				</h2>
 				<button @click="closeModal" class="text-gray-500">
@@ -20,7 +20,7 @@
 			<template v-if="confirmStep">
 				<div class="flex-1 flex flex-col p-4">
 					<!-- 操作类型和时间 -->
-					<div class="bg-gray-50 rounded-lg p-4 mb-4">
+					<div class="bg-gray-50 rounded-6 p-4 mb-4">
 						<div class="flex items-center gap-3 mb-3">
 							<div :class="['w-12 h-12 rounded-full flex items-center justify-center', 
 								props.logType === 'IN' ? 'bg-green-100' : 'bg-orange-100']">
@@ -30,7 +30,7 @@
 								/>
 							</div>
 							<div>
-								<div class="text-lg font-bold">
+								<div class="text-lg-bold">
 									{{ props.logType === 'IN' ? __("Check In") : __("Check Out") }}
 								</div>
 								<div class="text-sm text-gray-500">
@@ -41,12 +41,12 @@
 						
 						<div class="flex items-center gap-2 text-gray-600">
 							<Icon icon="lucide-clock" class="w-4 h-4" />
-							<span class="text-base font-medium">{{ currentTimeDisplay }}</span>
+							<span class="text-base-medium">{{ currentTimeDisplay }}</span>
 						</div>
 					</div>
 
 					<!-- 智能时间提示（警告） -->
-					<div v-if="timeWarning" class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4 flex items-start gap-2">
+					<div v-if="timeWarning" class="bg-yellow-50 border border-yellow-200 rounded-6 p-3 mb-4 flex items-start gap-2">
 						<Icon icon="lucide-alert-triangle" class="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
 						<span class="text-yellow-800 text-sm">{{ timeWarning }}</span>
 					</div>
@@ -56,7 +56,7 @@
 						<div class="text-sm text-gray-500 mb-2">
 							{{ locationStatus }}
 						</div>
-						<div class="rounded border-2 overflow-hidden w-full h-32 mb-4">
+						<div class="rounded-4 border-2 overflow-hidden w-full h-32 mb-4">
 							<iframe
 								width="100%"
 								height="128"
@@ -95,11 +95,11 @@
 				<!-- 地理位置显示区域 -->
 				<template v-if="allowGeolocationTracking">
 					<div class="px-4 pt-4 pb-2">
-						<span v-if="locationStatus" class="font-medium text-gray-500 text-sm block mb-2">
+						<span v-if="locationStatus" class=" text-gray-500 text-sm-medium block mb-2">
 							{{ locationStatus }}
 						</span>
 
-						<div v-if="latitude !== null && longitude !== null && latitude !== 0 && longitude !== 0" class="rounded border-4 translate-z-0 block overflow-hidden w-full h-170 mb-2">
+						<div v-if="latitude !== null && longitude !== null && latitude !== 0 && longitude !== 0" class="rounded-4 border-4 translate-z-0 block overflow-hidden w-full h-170 mb-2">
 							<iframe
 								width="100%"
 								height="170"
@@ -121,7 +121,7 @@
 						<p class="text-gray-600">{{ __("Position the QR code within the frame") }}</p>
 					</div>
 					
-					<div id="qr-reader" class="w-full max-w-md rounded-lg overflow-hidden"></div>
+					<div id="qr-reader" class="w-full max-w-md rounded-6 overflow-hidden"></div>
 					
 					<div v-if="resultMessage" class="mt-4 text-center">
 						<p :class="resultMessageClass">{{ resultMessage }}</p>

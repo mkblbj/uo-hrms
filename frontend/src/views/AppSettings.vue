@@ -10,13 +10,13 @@
 							<Button variant="ghost" class="!pl-0 hover:bg-white" @click="router.back()">
 								<Icon icon="lucide-chevron-left" class="h-5 w-5" />
 							</Button>
-							<h2 class="text-xl font-semibold text-gray-900">{{ __("Settings") }}</h2>
+							<h2 class="text-2xl-semibold text-gray-900">{{ __("Settings") }}</h2>
 						</div>
 					</header>
 
 					<div class="flex flex-col gap-5 my-4 w-full p-4">
 						<LanguagePreferenceCard />
-						<div class="flex flex-col bg-white rounded">
+						<div class="flex flex-col bg-white rounded-4">
 							<div
 								class="flex flex-row cursor-pointer flex-start p-4 items-center justify-between border-b"
 							>
@@ -26,7 +26,7 @@
 								>
 									<div class="flex flex-row items-center gap-3 grow">
 										<Icon icon="lucide-lock" class="h-5 w-5 text-gray-500" />
-										<div class="text-base font-normal text-gray-800">
+										<div class="text-base text-gray-800">
 											{{ __("Change Password") }}
 										</div>
 									</div>
@@ -35,7 +35,7 @@
 							</div>
 						</div>
 
-						<div class="flex flex-col bg-white rounded">
+						<div class="flex flex-col bg-white rounded-4">
 							<Switch
 								size="md"
 								:label="__('Enable Push Notifications')"

@@ -15,7 +15,7 @@
 								</svg>
 							</button>
 							<img src="/uo-hr-logo.png" class="h-7 w-7 object-contain" alt="Logo" />
-							<h2 class="text-xl font-bold truncate" style="color: var(--h-fg-primary, #0a0a0a)">
+							<h2 class="text-2xl-bold truncate" style="color: var(--h-fg-primary, #0a0a0a)">
 								{{ props.pageTitle || __("UO HR") }}
 							</h2>
 						</div>

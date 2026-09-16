@@ -1,8 +1,8 @@
 <template>
 	<!-- Header -->
 	<div class="flex flex-row justify-between items-center">
-		<h2 class="text-base font-semibold text-gray-800">{{ type }}</h2>
-		<span class="text-base font-semibold text-gray-800">
+		<h2 class="text-base-semibold text-gray-800">{{ type }}</h2>
+		<span class="text-base-semibold text-gray-800">
 			{{ total }}
 		</span>
 	</div>
@@ -10,7 +10,7 @@
 	<!-- Table -->
 	<div
 		v-if="items"
-		class="flex flex-col bg-white mt-5 rounded border overflow-auto"
+		class="flex flex-col bg-white mt-5 rounded-4 border overflow-auto"
 	>
 		<div
 			class="flex flex-row p-3.5 items-center justify-between border-b"
@@ -18,11 +18,11 @@
 			:key="idx"
 		>
 			<div
-				class="text-base font-normal whitespace-nowrap overflow-hidden text-ellipsis text-gray-800"
+				class="text-base whitespace-nowrap overflow-hidden text-ellipsis text-gray-800"
 			>
 				{{ item.salary_component }}
 			</div>
-			<span class="text-gray-700 font-normal rounded text-base">
+			<span class="text-gray-700 rounded-4 text-base">
 				{{ formatCurrency(item.amount, salarySlip.currency) }}
 			</span>
 		</div>

@@ -14,12 +14,12 @@
 							>
 								<Icon icon="lucide-chevron-left" class="h-5 w-5" />
 							</Button>
-							<h2 class="text-xl font-semibold text-gray-900">{{ __("通知详情") }}</h2>
+							<h2 class="text-2xl-semibold text-gray-900">{{ __("通知详情") }}</h2>
 						</div>
 					</header>
 
 					<div class="p-4" v-if="notification.data">
-						<div class="bg-white rounded-xl shadow-sm border p-5">
+						<div class="bg-white rounded-7 shadow-sm border p-5">
 							<!-- 发送者信息 -->
 							<div class="flex items-center gap-3 mb-4 pb-4 border-b">
 								<EmployeeAvatar :userID="notification.data.from_user" size="lg" />
@@ -59,7 +59,7 @@
 					</div>
 
 					<div v-else class="p-4">
-						<div class="bg-white rounded-xl p-8 text-center text-gray-500">
+						<div class="bg-white rounded-7 p-8 text-center text-gray-500">
 							{{ __("加载中...") }}
 						</div>
 					</div>

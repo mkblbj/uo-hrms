@@ -42,7 +42,7 @@
 			@change="(v) => emit('update:modelValue', v)"
 			:fixedMenu="true"
 			:editable="!isReadOnly"
-			editor-class="prose-sm border-b border-x border-gray-200 rounded-b-sm p-1 min-h-[4rem]"
+			editor-class="prose-sm border-b border-x border-gray-200 rounded-b-1 p-1 min-h-[4rem]"
 		/>
 
 		<!-- Text -->
@@ -64,7 +64,7 @@
 			@update:model-value="(v) => emit('update:modelValue', v)"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
-			class="rounded-sm text-gray-800"
+			class="rounded-1 text-gray-800"
 		/>
 
 		<!-- Data field -->
@@ -104,7 +104,7 @@
 		>
 			<h2
 				v-if="props.label"
-				class="text-base font-semibold text-gray-800"
+				class="text-base-semibold text-gray-800"
 				:class="props.addSectionPadding ? 'pt-4' : ''"
 			>
 				{{ props.label }}
@@ -137,7 +137,7 @@
 			@change="changeNativeDateTime"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
-			class="form-input block w-full rounded border-gray-400 placeholder-gray-500"
+			class="form-input block w-full rounded-4 border-gray-400 placeholder-gray-500"
 		/>
 		<DateTimePicker
 			v-else-if="props.fieldtype === 'Datetime'"

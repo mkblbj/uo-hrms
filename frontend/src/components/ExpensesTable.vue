@@ -1,9 +1,9 @@
 <template>
 	<!-- Header -->
 	<div class="flex flex-row justify-between items-center mt-2">
-		<h2 class="text-base font-semibold text-gray-800">{{ __("Expenses") }} </h2>
+		<h2 class="text-base-semibold text-gray-800">{{ __("Expenses") }} </h2>
 		<div class="flex flex-row gap-3 items-center">
-			<span class="text-base font-semibold text-gray-800">
+			<span class="text-base-semibold text-gray-800">
 				{{ formatCurrency(expenseClaim.total_claimed_amount, expenseClaim.currency) }}
 			</span>
 			<Button
@@ -20,7 +20,7 @@
 	<!-- Table -->
 	<div
 		v-if="expenseClaim.expenses"
-		class="flex flex-col bg-white mt-5 rounded border overflow-auto"
+		class="flex flex-col bg-white mt-5 rounded-4 border overflow-auto"
 	>
 		<div
 			class="flex flex-row p-3.5 items-center justify-between border-b cursor-pointer"
@@ -32,10 +32,10 @@
 				<div class="flex flex-row items-center justify-between">
 					<div class="flex flex-row items-start gap-3 grow">
 						<div class="flex flex-col items-start gap-1.5">
-							<div class="text-base font-normal text-gray-800">
+							<div class="text-base text-gray-800">
 								{{ __(item.expense_type) }}
 							</div>
-							<div class="text-xs font-normal text-gray-500">
+							<div class="text-xs text-gray-500">
 								<span>
 									{{
 										__("{0}: {1}", [
@@ -52,7 +52,7 @@
 						</div>
 					</div>
 					<div class="flex flex-row justify-end items-center gap-2">
-						<span class="text-gray-700 font-normal rounded text-base">
+						<span class="text-gray-700 rounded-4 text-base">
 							{{ formatCurrency(item.amount, expenseClaim.currency) }}
 						</span>
 						<Icon icon="lucide-chevron-right" class="h-5 w-5 text-gray-500" />
@@ -70,7 +70,7 @@
 				class="bg-white w-full flex flex-col items-center justify-center pb-5"
 			>
 				<div class="w-full pt-8 pb-5 border-b text-center">
-					<span class="text-gray-900 font-bold text-lg">
+					<span class="text-gray-900 text-lg-bold">
 						{{ modalTitle }}
 					</span>
 				</div>

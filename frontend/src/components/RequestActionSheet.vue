@@ -7,7 +7,7 @@
 		<div
 			class="w-full flex flex-row gap-2 pt-8 pb-5 border-b justify-center items-center sticky top-0 z-[100]"
 		>
-			<span class="text-gray-900 font-bold text-lg text-center">
+			<span class="text-gray-900 text-lg-bold text-center">
 				{{ __(document?.doctype) }}
 			</span>
 			<Icon
@@ -55,7 +55,7 @@
 					<div class="text-gray-600 text-base">{{ __('Attachments') }}</div>
 					<ul class="w-full flex flex-col items-center gap-2">
 						<li
-							class="bg-gray-100 rounded p-2 w-full"
+							class="bg-gray-100 rounded-4 p-2 w-full"
 							v-for="(file, index) in attachedFiles.data"
 							:key="index"
 						>

@@ -10,7 +10,7 @@
 							<Button variant="ghost" class="!pl-0 hover:bg-white" @click="router.back()">
 								<Icon icon="lucide-chevron-left" class="h-5 w-5" />
 							</Button>
-							<h2 class="text-xl font-semibold text-gray-900">{{ __("Profile") }}</h2>
+							<h2 class="text-2xl-semibold text-gray-900">{{ __("Profile") }}</h2>
 						</div>
 					</header>
 
@@ -30,17 +30,17 @@
 						</div>
 
 						<div class="flex flex-col gap-1.5 items-center mt-2 mb-5">
-							<span v-if="employee" class="text-lg font-bold text-gray-900">{{
+							<span v-if="employee" class="text-lg-bold text-gray-900">{{
 								employee?.data?.employee_name
 							}}</span>
-							<span v-if="employee" class="font-normal text-sm text-gray-500">{{
+							<span v-if="employee" class=" text-sm text-gray-500">{{
 								employee?.data?.designation
 							}}</span>
 						</div>
 
 						<!-- Profile Links -->
 						<div class="flex flex-col gap-5 my-4 w-full">
-							<div class="flex flex-col bg-white rounded">
+							<div class="flex flex-col bg-white rounded-4">
 								<div
 									class="flex flex-row cursor-pointer flex-start p-4 items-center justify-between border-b"
 									v-for="link in profileLinks"
@@ -49,7 +49,7 @@
 								>
 									<div class="flex flex-row items-center gap-3 grow">
 										<Icon :icon="link.icon" class="h-5 w-5 text-gray-500" />
-										<div class="text-base font-normal text-gray-800">
+										<div class="text-base text-gray-800">
 											{{ link.title }}
 										</div>
 									</div>
@@ -60,14 +60,14 @@
 
 						<!-- Settings -->
 						<div class="flex flex-col gap-5 my-4 w-full">
-							<div class="flex flex-col bg-white rounded">
+							<div class="flex flex-col bg-white rounded-4">
 								<router-link
 									:to="{ name: 'Settings' }"
 									class="flex flex-row cursor-pointer flex-start p-4 items-center justify-between border-b"
 								>
 									<div class="flex flex-row items-center gap-3 grow">
 										<Icon icon="lucide-settings" class="h-5 w-5 text-gray-500" />
-										<div class="text-base font-normal text-gray-800">
+										<div class="text-base text-gray-800">
 											{{ __("Settings") }}
 										</div>
 									</div>

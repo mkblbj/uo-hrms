@@ -1,7 +1,7 @@
 <template>
-	<div class="space-y-3 rounded border p-3" style="background: var(--h-bg-card); border-color: var(--h-bd-default)">
+	<div class="space-y-3 rounded-4 border p-3" style="background: var(--h-bg-card); border-color: var(--h-bd-default)">
 		<div class="flex items-center justify-between gap-3">
-			<div class="text-sm font-semibold" style="color: var(--h-fg-primary)">{{ copy("context.title") }}</div>
+			<div class="text-sm-semibold" style="color: var(--h-fg-primary)">{{ copy("context.title") }}</div>
 			<div class="text-xs" style="color: var(--h-fg-secondary)">{{ context?.attendance_date }}</div>
 		</div>
 
@@ -28,7 +28,7 @@
 				<div
 					v-for="checkin in context.checkins"
 					:key="checkin.name"
-					class="flex items-center justify-between gap-3 rounded px-2 py-1 text-sm"
+					class="flex items-center justify-between gap-3 rounded-4 px-2 py-1 text-sm"
 					style="background: var(--h-bg-card-inner)"
 				>
 					<span class="font-medium" style="color: var(--h-fg-primary)">
