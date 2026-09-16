@@ -26,6 +26,10 @@ export function syncSalaryDocuments(periodName, periodsByName, documents) {
 	reloadSalaryDocuments(documents)
 }
 
+export function handleSalaryDocumentsUpdate(periodName, periodsByName, documents) {
+	return syncSalaryDocuments(periodName, periodsByName, documents)
+}
+
 export function reloadSalaryDocuments(documents) {
 	const state = getSalaryDocumentsState(documents)
 	documents.list.abort()

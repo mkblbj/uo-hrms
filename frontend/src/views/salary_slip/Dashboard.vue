@@ -66,7 +66,7 @@ import SalarySlipItem from "@/components/SalarySlipItem.vue"
 import { formatCurrency } from "@/utils/formatters"
 import {
 	handlePayrollPeriodsSuccess,
-	reloadSalaryDocuments,
+	handleSalaryDocumentsUpdate,
 	syncSalaryDocuments,
 } from "@/utils/selectionControlState"
 
@@ -161,7 +161,11 @@ watch(
 onMounted(() => {
 	socket.on("hrms:update_salary_slips", (data) => {
 		if (data.employee === employee.data.name) {
-			reloadSalaryDocuments(salaryDocuments)
+			handleSalaryDocumentsUpdate(
+				selectedPeriod.value,
+				periodsByName.value,
+				salaryDocuments
+			)
 		}
 	})
 })

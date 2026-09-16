@@ -5,6 +5,7 @@ import { nextTick, ref, watch } from "vue"
 import {
 	handleLinkOpenUpdate,
 	handlePayrollPeriodsSuccess,
+	handleSalaryDocumentsUpdate,
 	resetLinkSearchState,
 	syncSalaryDocuments,
 } from "./selectionControlState.js"
@@ -178,6 +179,33 @@ test("empty payroll periods prevent an older salary request from restoring stale
 	await pendingRequest
 
 	assert.deepEqual(documents.data, [])
+})
+
+test("salary socket updates keep an empty payroll period empty without reloading history", () => {
+	const documents = createSalaryDocuments()
+	documents.visibleData = documents.data
+	documents.commitData = (data) => {
+		documents.visibleData = data
+	}
+
+	handleSalaryDocumentsUpdate("", {}, documents)
+
+	assert.equal(documents.reloadCount, 0)
+	assert.equal("start_date" in documents.filters, false)
+	assert.deepEqual(documents.data, [])
+	assert.deepEqual(documents.visibleData, [])
+})
+
+test("salary socket updates reload the currently valid payroll period", () => {
+	const documents = createSalaryDocuments()
+	const periodsByName = {
+		"FY-2026": { start_date: "2026-04-01", end_date: "2027-03-31" },
+	}
+
+	handleSalaryDocumentsUpdate("FY-2026", periodsByName, documents)
+
+	assert.equal(documents.reloadCount, 1)
+	assert.deepEqual(documents.filters.start_date, ["between", ["2026-04-01", "2027-03-31"]])
 })
 
 test("overlapping salary requests cannot restore data after an empty period or a later reload", async () => {
