@@ -18,7 +18,7 @@
 			trigger="button"
 			:placeholder="__('Select {0}', [props.label])"
 			:options="selectionList"
-			:model-value="modelValue || null"
+			:model-value="modelValue ?? null"
 			:hide-search="props.hideSearch"
 			v-bind="$attrs"
 			:disabled="isReadOnly"

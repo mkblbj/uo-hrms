@@ -4,18 +4,25 @@
 		size="sm"
 		trigger="button"
 		v-model="value"
+		v-model:query="query"
 		:placeholder="__('Select {0}', [__(doctype)])"
 		:options="options.data || []"
 		:loading="options.loading"
 		:filterable="false"
 		:disabled="disabled"
 		@update:query="handleQueryUpdate"
+		@update:open="handleOpenUpdate"
 	/>
 </template>
 
 <script setup>
 import { createResource, Combobox, debounce } from "frappe-ui"
-import { ref, computed, watch } from "vue"
+import { ref, computed, watch, onBeforeUnmount } from "vue"
+
+import {
+	handleLinkOpenUpdate,
+	resetLinkSearchState,
+} from "@/utils/selectionControlState"
 
 const props = defineProps({
 	doctype: {
@@ -40,6 +47,7 @@ const props = defineProps({
 const emit = defineEmits(["update:modelValue"])
 
 const comboboxRef = ref(null)
+const query = ref("")
 const searchText = ref("")
 
 const value = computed({
@@ -83,6 +91,7 @@ const options = createResource({
 })
 
 const reloadOptions = (searchTextVal) => {
+	options.abort()
 	options.update({
 		params: {
 			txt: searchTextVal,
@@ -100,18 +109,32 @@ const handleQueryUpdate = debounce((newQuery) => {
 	reloadOptions(val)
 }, 300)
 
+const resetSearch = () => {
+	resetLinkSearchState({
+		query,
+		searchText,
+		cancelPendingSearch: handleQueryUpdate.cancel,
+		reloadOptions,
+	})
+}
+
+const handleOpenUpdate = (isOpen) => {
+	handleLinkOpenUpdate(isOpen, resetSearch)
+}
+
 watch(
 	() => props.doctype,
 	() => {
-		if (!props.doctype || props.doctype === options.doctype) return
-		reloadOptions("")
+		if (!props.doctype) return
+		resetSearch()
 	},
 	{ immediate: true }
 )
 
 watch(
 	() => props.filters,
-	() => reloadOptions(''),
+	() => resetSearch(),
+	{ deep: true }
 )
 
 watch(
@@ -119,13 +142,17 @@ watch(
 	(newVal, oldVal) => {
 		if (!newVal && oldVal) {
 			// value cleared — reload so the dropdown shows the full default list
-			searchText.value = ""
-			reloadOptions("")
+			resetSearch()
 		} else if (newVal && newVal !== oldVal) {
 			// reload so transform can inject it if it's outside the default page
 			const inOptions = (options.data || []).find((o) => o.value === newVal)
-			if (options.data && !inOptions) reloadOptions("")
+			if (options.data && !inOptions) resetSearch()
 		}
 	}
 )
+
+onBeforeUnmount(() => {
+	handleQueryUpdate.cancel()
+	options.abort()
+})
 </script>

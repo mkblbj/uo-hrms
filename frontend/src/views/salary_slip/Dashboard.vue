@@ -64,9 +64,13 @@ import EmptyState from "@/components/EmptyState.vue"
 import SalarySlipItem from "@/components/SalarySlipItem.vue"
 
 import { formatCurrency } from "@/utils/formatters"
+import {
+	handlePayrollPeriodsSuccess,
+	syncSalaryDocuments,
+} from "@/utils/selectionControlState"
 
 const selectedPeriod = ref("")
-let periodsByName = ref({})
+const periodsByName = ref({})
 
 const employee = inject("$employee")
 const dayjs = inject("$dayjs")
@@ -82,6 +86,7 @@ const payrollPeriods = createListResource({
 	orderBy: "start_date desc",
 	auto: true,
 	transform(data) {
+		periodsByName.value = {}
 		return data.map((period) => {
 			periodsByName.value[period.name] = period
 			return {
@@ -91,7 +96,7 @@ const payrollPeriods = createListResource({
 		})
 	},
 	onSuccess: (data) => {
-		selectedPeriod.value = data[0]?.value ?? ""
+		handlePayrollPeriodsSuccess(data, selectedPeriod, syncSelectedPeriod)
 	},
 })
 
@@ -121,17 +126,13 @@ function getPeriodLabel(period) {
 	).format("MMM YYYY")}`
 }
 
+function syncSelectedPeriod(value) {
+	syncSalaryDocuments(value, periodsByName.value, documents)
+}
+
 watch(
 	() => selectedPeriod.value,
-	(value) => {
-		const period = periodsByName.value[value]
-		if (!period) return
-		documents.filters.start_date = [
-			"between",
-			[period.start_date, period.end_date],
-		]
-		documents.reload()
-	}
+	(value) => syncSelectedPeriod(value)
 )
 
 onMounted(() => {
