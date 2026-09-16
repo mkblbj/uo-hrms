@@ -1,7 +1,7 @@
 <template>
 	<ion-app>
 		<ion-router-outlet id="main-content" />
-		<Toasts />
+		<ToastProvider />
 
 		<InstallPrompt />
 		<AppUpdatePrompt />
@@ -12,7 +12,7 @@
 import { onMounted } from "vue"
 import { IonApp, IonRouterOutlet } from "@ionic/vue"
 
-import { Toasts } from "frappe-ui"
+import { ToastProvider } from "frappe-ui"
 
 import AppUpdatePrompt from "@/components/AppUpdatePrompt.vue"
 import InstallPrompt from "@/components/InstallPrompt.vue"

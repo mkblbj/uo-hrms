@@ -46,60 +46,53 @@
 		/>
 
 		<!-- Text -->
-		<Input
+		<Textarea
 			v-else-if="['Small Text', 'Text', 'Long Text'].includes(props.fieldtype)"
-			type="textarea"
-			:value="modelValue"
+			:model-value="modelValue"
 			:placeholder="__('Enter {0}', [props.label])"
-			@input="(v) => emit('update:modelValue', v)"
-			@change="(v) => emit('change', v)"
+			@update:model-value="(v) => emit('update:modelValue', v)"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
 			class="h-15"
 		/>
 
 		<!-- Check -->
-		<Input
+		<Checkbox
 			v-else-if="props.fieldtype === 'Check'"
-			type="checkbox"
 			:label="props.label"
-			:value="modelValue"
-			@input="(v) => emit('update:modelValue', v)"
-			@change="(v) => emit('change', v)"
+			:model-value="modelValue"
+			@update:model-value="(v) => emit('update:modelValue', v)"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
 			class="rounded-sm text-gray-800"
 		/>
 
 		<!-- Data field -->
-		<Input
+		<TextInput
 			v-else-if="props.fieldtype === 'Data'"
 			type="text"
-			:value="modelValue"
-			@input="(v) => emit('update:modelValue', v)"
-			@change="(v) => emit('change', v)"
+			:model-value="modelValue"
+			@update:model-value="(v) => emit('update:modelValue', v)"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
 		/>
 
 		<!-- Read only currency field -->
-		<Input
+		<TextInput
 			v-else-if="props.fieldtype === 'Currency' && isReadOnly"
 			type="text"
-			:value="modelValue"
-			@input="(v) => emit('update:modelValue', v)"
-			@change="(v) => emit('change', v)"
+			:model-value="modelValue"
+			@update:model-value="(v) => emit('update:modelValue', v)"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
 		/>
 
 		<!-- Float/Int field -->
-		<Input
+		<TextInput
 			v-else-if="isNumberType"
 			type="number"
-			:value="modelValue"
-			@input="(v) => emit('update:modelValue', v)"
-			@change="(v) => emit('change', v)"
+			:model-value="modelValue"
+			@update:model-value="(v) => emit('update:modelValue', v)"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
 		/>
@@ -120,14 +113,13 @@
 
 		<!-- Date -->
 		<!-- FIXME: default datepicker has poor UI -->
-		<Input
+		<TextInput
 			v-else-if="props.fieldtype === 'Date'"
 			type="date"
-			:value="modelValue"
+			:model-value="modelValue"
 			:placeholder="__('Select {0}', [props.label])"
 			:formatValue="(val) => dayjs(val).format('DD-MM-YYYY')"
-			@input="(v) => emit('update:modelValue', v)"
-			@change="(v) => emit('change', v)"
+			@update:model-value="(v) => emit('update:modelValue', v)"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
 			:min="props.minDate"
@@ -162,7 +154,15 @@
 </template>
 
 <script setup>
-import { Autocomplete, DateTimePicker, ErrorMessage, Input, TextEditor } from "frappe-ui"
+import {
+	Autocomplete,
+	DateTimePicker,
+	ErrorMessage,
+	TextInput,
+	Textarea,
+	Checkbox,
+} from "frappe-ui"
+import { TextEditor } from "frappe-ui/experimental"
 import { computed, onMounted, inject } from "vue"
 
 import Link from "@/components/Link.vue"
