@@ -55,6 +55,41 @@ function createAsyncSalaryDocuments() {
 	return documents
 }
 
+function createOverlappingSalaryDocuments() {
+	const documents = createSalaryDocuments()
+	const requests = []
+	let controller = new AbortController()
+	documents.visibleData = documents.data
+	documents.commitData = (data) => {
+		documents.visibleData = data
+	}
+
+	documents.list = {
+		abort() {
+			controller.abort()
+		},
+	}
+	documents.reload = function () {
+		this.reloadCount += 1
+		controller = new AbortController()
+		let resolveRequest
+		const response = new Promise((resolve) => {
+			resolveRequest = resolve
+		})
+		const request = response.then((data) => {
+			// createListResource writes every resolved response before callers can inspect it.
+			documents.setData(data)
+		})
+		requests.push({ resolveRequest, request })
+		return request
+	}
+	documents.completeRequest = async (index, data) => {
+		requests[index].resolveRequest(data)
+		await requests[index].request
+	}
+	return documents
+}
+
 test("resetLinkSearchState cancels pending search before clearing and reloading", () => {
 	const query = ref("ali")
 	const searchText = ref("ali")
@@ -143,4 +178,27 @@ test("empty payroll periods prevent an older salary request from restoring stale
 	await pendingRequest
 
 	assert.deepEqual(documents.data, [])
+})
+
+test("overlapping salary requests cannot restore data after an empty period or a later reload", async () => {
+	const documents = createOverlappingSalaryDocuments()
+	const periodsByName = {
+		P1: { start_date: "2025-01-01", end_date: "2025-01-31" },
+		P2: { start_date: "2025-02-01", end_date: "2025-02-28" },
+		P3: { start_date: "2025-03-01", end_date: "2025-03-31" },
+	}
+
+	syncSalaryDocuments("P1", periodsByName, documents)
+	syncSalaryDocuments("P2", periodsByName, documents)
+	syncSalaryDocuments("", periodsByName, documents)
+	await documents.completeRequest(0, [{ name: "SAL-P1" }])
+
+	assert.deepEqual(documents.visibleData, [])
+
+	syncSalaryDocuments("P3", periodsByName, documents)
+	await documents.completeRequest(2, [{ name: "SAL-P3" }])
+	await documents.completeRequest(1, [{ name: "SAL-P2" }])
+
+	assert.deepEqual(documents.visibleData, [{ name: "SAL-P3" }])
+	assert.equal(documents.reloadCount, 3)
 })

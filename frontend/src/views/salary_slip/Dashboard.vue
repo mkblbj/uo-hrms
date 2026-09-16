@@ -29,12 +29,12 @@
 
 				<div class="flex flex-col items-center mt-5 mb-7 w-full">
 					<div
-						v-if="documents.data?.length"
+						v-if="visibleSalaryDocuments?.length"
 						class="flex flex-col bg-white rounded mt-5 overflow-auto w-full"
 					>
 						<div
 							class="p-3.5 items-center justify-between border-b cursor-pointer"
-							v-for="link in documents.data"
+							v-for="link in visibleSalaryDocuments"
 							:key="link.name"
 						>
 							<router-link
@@ -66,6 +66,7 @@ import SalarySlipItem from "@/components/SalarySlipItem.vue"
 import { formatCurrency } from "@/utils/formatters"
 import {
 	handlePayrollPeriodsSuccess,
+	reloadSalaryDocuments,
 	syncSalaryDocuments,
 } from "@/utils/selectionControlState"
 
@@ -118,7 +119,29 @@ const documents = createListResource({
 	orderBy: "end_date desc",
 })
 
-const lastSalarySlip = computed(() => documents.data?.[0])
+const visibleSalaryDocuments = ref(documents.data)
+const salaryDocuments = {
+	get filters() {
+		return documents.filters
+	},
+	get list() {
+		return documents.list
+	},
+	get data() {
+		return documents.data
+	},
+	reload() {
+		return documents.reload()
+	},
+	setData(data) {
+		documents.setData(data)
+	},
+	commitData(data) {
+		visibleSalaryDocuments.value = data
+	},
+}
+
+const lastSalarySlip = computed(() => visibleSalaryDocuments.value?.[0])
 
 function getPeriodLabel(period) {
 	return `${dayjs(period?.start_date).format("MMM YYYY")} - ${dayjs(
@@ -127,7 +150,7 @@ function getPeriodLabel(period) {
 }
 
 function syncSelectedPeriod(value) {
-	syncSalaryDocuments(value, periodsByName.value, documents)
+	syncSalaryDocuments(value, periodsByName.value, salaryDocuments)
 }
 
 watch(
@@ -138,7 +161,7 @@ watch(
 onMounted(() => {
 	socket.on("hrms:update_salary_slips", (data) => {
 		if (data.employee === employee.data.name) {
-			documents.reload()
+			reloadSalaryDocuments(salaryDocuments)
 		}
 	})
 })
