@@ -1,4 +1,4 @@
-@import "frappe-ui/src/style.css";
+@import "frappe-ui/style.css";
 @import "./theme/home-tokens.css";
 
 ion-modal {

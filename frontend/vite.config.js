@@ -23,7 +23,11 @@ export default defineConfig({
 	},
 	plugins: [
 		vue(),
-		frappeui(),
+		frappeui({
+			frappeProxy: false,
+			jinjaBootData: false,
+			buildConfig: false,
+		}),
 		emitFrontendVersionPlugin({
 			version: frontendVersion,
 			buildTime: frontendBuildTime,
