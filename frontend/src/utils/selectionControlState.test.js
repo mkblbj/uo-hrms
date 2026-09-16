@@ -10,11 +10,17 @@ import {
 } from "./selectionControlState.js"
 
 function createSalaryDocuments() {
-	return {
+	const documents = {
 		data: [{ name: "SAL-OLD" }],
 		filters: {
 			employee: "EMP-1",
 			start_date: ["between", ["2025-01-01", "2025-12-31"]],
+		},
+		abortCount: 0,
+		list: {
+			abort() {
+				documents.abortCount += 1
+			},
 		},
 		reloadCount: 0,
 		reload() {
@@ -24,6 +30,29 @@ function createSalaryDocuments() {
 			this.data = data
 		},
 	}
+	return documents
+}
+
+function createAsyncSalaryDocuments() {
+	const documents = createSalaryDocuments()
+	const controller = new AbortController()
+	let resolveRequest
+	const response = new Promise((resolve) => {
+		resolveRequest = resolve
+	})
+	documents.list = {
+		abort() {
+			controller.abort()
+		},
+	}
+	documents.startRequest = async () => {
+		const data = await response
+		if (!controller.signal.aborted) documents.setData(data)
+	}
+	documents.completeRequest = (data) => {
+		resolveRequest(data)
+	}
+	return documents
 }
 
 test("resetLinkSearchState cancels pending search before clearing and reloading", () => {
@@ -103,4 +132,15 @@ test("empty payroll periods clear the stale filter and salary data without reloa
 	assert.equal("start_date" in documents.filters, false)
 	assert.deepEqual(documents.data, [])
 	assert.equal(documents.reloadCount, 0)
+})
+
+test("empty payroll periods prevent an older salary request from restoring stale data", async () => {
+	const documents = createAsyncSalaryDocuments()
+	const pendingRequest = documents.startRequest()
+
+	syncSalaryDocuments("", {}, documents)
+	documents.completeRequest([{ name: "SAL-LATE" }])
+	await pendingRequest
+
+	assert.deepEqual(documents.data, [])
 })

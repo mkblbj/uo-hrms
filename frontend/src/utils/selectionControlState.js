@@ -12,6 +12,7 @@ export function handleLinkOpenUpdate(isOpen, resetSearch) {
 export function syncSalaryDocuments(periodName, periodsByName, documents) {
 	const period = periodsByName[periodName]
 	if (!period) {
+		documents.list.abort()
 		delete documents.filters.start_date
 		documents.setData([])
 		return
