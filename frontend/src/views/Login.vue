@@ -90,33 +90,31 @@
 					<div v-else-if="user_pass_login_disabled.data" class="text-center text-gray-600 py-8">{{ __("No login methods are available. Please contact your administrator.") }}</div>
 				</div>
 			</div>
-			<Dialog v-model="otp.showDialog">
-				<template #body-title>
+			<Dialog v-model:open="otp.showDialog">
+				<template #title>
 					<h2 class="text-lg font-bold">{{ __("OTP Verification") }}</h2>
 				</template>
-				<template #body-content>
-					<p class="mb-4" v-if="otp.verification.prompt">
-						{{ otp.verification.prompt }}
-					</p>
+				<p class="mb-4" v-if="otp.verification.prompt">
+					{{ otp.verification.prompt }}
+				</p>
 
-					<form class="flex flex-col space-y-4" @submit.prevent="submit">
-						<TextInput
-							:label="__('OTP Code')"
-							type="text"
-							placeholder="000000"
-							v-model="otp.code"
-							autocomplete="one-time-code"
-						/>
-						<ErrorMessage :message="errorMessage" />
-						<Button
-							:loading="session.otp.loading"
-							variant="solid"
-							class="disabled:bg-gray-700 disabled:text-white !mt-6"
-						>
-							{{ __("Verify") }}
-						</Button>
-					</form>
-				</template>
+				<form class="flex flex-col space-y-4" @submit.prevent="submit">
+					<TextInput
+						:label="__('OTP Code')"
+						type="text"
+						placeholder="000000"
+						v-model="otp.code"
+						autocomplete="one-time-code"
+					/>
+					<ErrorMessage :message="errorMessage" />
+					<Button
+						:loading="session.otp.loading"
+						variant="solid"
+						class="disabled:bg-gray-700 disabled:text-white !mt-6"
+					>
+						{{ __("Verify") }}
+					</Button>
+				</form>
 			</Dialog>
 		</ion-content>
 	</ion-page>

@@ -3,25 +3,18 @@
 		<ion-content class="ion-padding">
 			<div class="flex h-screen w-screen flex-col justify-center bg-white">
 				<Dialog
-					:options="{
-						title: __('Login Failed'),
-						message: __('No active employee found associated with the email ID {0}. Try logging in with your employee email ID or contact your HR manager for access.', [session?.user]),
-						size: 'lg',
-						actions: [
-							{
-								label: __('Go to Login'),
-								variant: 'solid',
-								onClick: () => session.logout.submit(),
-							},
-						],
-					}"
-					v-model="showDialog"
-					@close="
-						() => {
-							session.logout.submit()
-							showDialog = false
-						}
-					"
+					v-model:open="showDialog"
+					:title="__('Login Failed')"
+					:message="__('No active employee found associated with the email ID {0}. Try logging in with your employee email ID or contact your HR manager for access.', [session?.user])"
+					size="lg"
+					:actions="[
+						{
+							label: __('Go to Login'),
+							variant: 'solid',
+							onClick: () => session.logout.submit(),
+						},
+					]"
+					@close="session.logout.submit()"
 				/>
 			</div>
 		</ion-content>

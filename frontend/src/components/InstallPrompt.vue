@@ -1,12 +1,10 @@
 <template>
 	<!-- Install PWA dialog -->
-	<Dialog v-model="showDialog">
-		<template #body-title>
+	<Dialog v-model:open="showDialog">
+		<template #title>
 			<h2 class="text-lg font-bold">{{ __("Install UO HR") }} </h2>
 		</template>
-		<template #body-content>
-			<p>{{ __("Get the app on your device for easy access & a better experience!") }} </p>
-		</template>
+		<p>{{ __("Get the app on your device for easy access & a better experience!") }} </p>
 		<template #actions>
 			<Button variant="solid" @click="() => install()" class="py-5 w-full">
 				<template #prefix><Icon icon="lucide-download" class="w-4" /></template>
@@ -16,8 +14,8 @@
 	</Dialog>
 
 	<!-- iOS installation info message -->
-	<Popover :show="iosInstallMessage" placement="bottom">
-		<template #body>
+	<Teleport to="body">
+		<div v-if="iosInstallMessage">
 			<div
 				class="mt-[calc(100vh-15rem)] flex flex-col gap-3 mx-2 rounded py-5 bg-blue-100 drop-shadow-xl"
 			>
@@ -48,14 +46,14 @@
 					</span>
 				</div>
 			</div>
-		</template>
-	</Popover>
+		</div>
+	</Teleport>
 </template>
 
 <script setup>
 import { ref } from "vue"
 
-import { Dialog, Popover, Icon } from "frappe-ui"
+import { Dialog, Icon } from "frappe-ui"
 
 // Initialize deferredPrompt for use later to show browser install prompt.
 const deferredPrompt = ref(null)
