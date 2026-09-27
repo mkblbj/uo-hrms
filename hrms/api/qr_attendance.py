@@ -9,13 +9,12 @@
 import hashlib
 import hmac
 import time
-from datetime import timedelta
 
 import frappe
 from frappe import _
-from frappe.utils import cint, get_datetime, now, now_datetime
+from frappe.utils import cint
 
-from hrms.api.checkin_cooldown import is_checkin_cooldown_exempt
+from hrms.api.checkin_service import CHECKIN_METHOD_QR, create_checkin, validate_checkin_timing
 from hrms.hr.utils import get_distance_between_coordinates
 from hrms.utils.client_network import get_client_ip, is_office_network, parse_network_list
 
@@ -195,50 +194,8 @@ def qr_checkin(
 	if not employee:
 		frappe.throw(_("Your account is not linked to an employee profile, please contact HR"))
 
-	if not is_checkin_cooldown_exempt(employee):
-		# 6. 获取上次打卡记录，用于间隔检查
-		last_checkin = frappe.db.get_value(
-			"Employee Checkin", {"employee": employee}, ["log_type", "time"], order_by="time desc"
-		)
-
-		if last_checkin:
-			last_type, last_time = last_checkin
-			minutes_since = (now_datetime() - get_datetime(last_time)).total_seconds() / 60
-
-			# 签到后 15 分钟内不能签退（防止误操作）
-			if last_type == "IN" and log_type == "OUT" and minutes_since < 15:
-				frappe.throw(
-					_(
-						"You just checked in {0} minutes ago. Please wait at least 15 minutes before checking out."
-					).format(int(minutes_since))
-				)
-
-			# 签退后 5 分钟内不能签到（防止误操作）
-			if last_type == "OUT" and log_type == "IN" and minutes_since < 5:
-				frappe.throw(
-					_(
-						"You just checked out {0} minutes ago. Please wait at least 5 minutes before checking in."
-					).format(int(minutes_since))
-				)
-
-		# 7. 防重复打卡检查(5分钟内不能重复相同类型的打卡)
-		recent_checkin = frappe.db.get_all(
-			"Employee Checkin",
-			filters={
-				"employee": employee,
-				"log_type": log_type,
-				"time": (">", now_datetime() - timedelta(minutes=5)),
-			},
-			limit=1,
-		)
-
-		if recent_checkin:
-			action = _("checked in") if log_type == "IN" else _("checked out")
-			frappe.throw(
-				_(
-					"You have already {0} within the last 5 minutes, please do not check in repeatedly"
-				).format(action)
-			)
+	# 6-7. 冷却规则（与 NFC、一键打卡共用）
+	validate_checkin_timing(employee, log_type)
 
 	# 8. 地理位置验证（如果启用了地理位置追踪）
 	allow_geolocation_tracking = frappe.db.get_single_value("HR Settings", "allow_geolocation_tracking")
@@ -272,89 +229,17 @@ def qr_checkin(
 						).format(shift_location.checkin_radius, distance)
 					)
 
-	# 9. 创建 Employee Checkin (复用标准流程)
-	# 注意: 这里直接调用标准 DocType,会自动触发:
-	#   - validate_active_employee
-	#   - validate_duplicate_log
-	#   - fetch_shift (自动关联班次)
-	#   - validate_distance_from_shift_location (如果启用了地理位置追踪)
-	#   - 后续的自动考勤逻辑
-
-	checkin_data = {
-		"doctype": "Employee Checkin",
-		"employee": employee,
-		"time": now(),
-		"log_type": log_type,
-		"device_id": location_name,  # 记录打卡地点
-		"skip_auto_attendance": 0,  # 不跳过自动考勤
-	}
-
-	# 如果提供了地理位置，设置经纬度
-	if latitude is not None and longitude is not None:
-		checkin_data["latitude"] = latitude
-		checkin_data["longitude"] = longitude
-
-	checkin = frappe.get_doc(checkin_data)
-
-	try:
-		checkin.insert(ignore_permissions=True)
-		frappe.db.commit()
-	except frappe.exceptions.ValidationError as e:
-		# 捕获验证错误(如重复打卡、员工不活跃、地理位置超出范围等)
-		frappe.throw(str(e))
-
-	# 10. 记录审计日志
-	try:
-		client_ip = frappe.local.request_ip or frappe.local.request.remote_addr or "Unknown"
-		geo_info = ""
-		if latitude is not None and longitude is not None:
-			geo_info = f" (Lat: {latitude:.5f}, Lng: {longitude:.5f})"
-
-		# 使用 frappe.logger 记录审计日志（信息级别，不是错误）
-		frappe.logger().info(
-			f"QR Checkin Audit: Employee {employee} ({checkin.employee_name}) {log_type} at {location_name} on {checkin.time}. IP: {client_ip}{geo_info}"
-		)
-
-		# 同时使用 frappe.log_error 记录到错误日志表（便于查询和审计）
-		# 使用特殊的title格式，便于区分审计日志和错误日志
-		frappe.log_error(
-			message=f"QR Checkin Audit: Employee {employee} ({checkin.employee_name}) {log_type} at {location_name} on {checkin.time}. IP: {client_ip}{geo_info}",
-			title=f"QR Checkin Audit - {log_type}",
-		)
-	except Exception as log_error:
-		# 日志记录失败不应影响打卡流程
-		frappe.log_error(
-			message=f"Failed to log QR checkin audit: {log_error!s}", title="QR Checkin Audit Log Error"
-		)
-
-	# 11. 发送实时通知到二维码展示页面（公共房间，无需登录）
-	try:
-		action_text_ja = "出勤" if log_type == "IN" else "退勤"
-
-		# 获取员工头像
-		employee_image = frappe.db.get_value("Employee", employee, "image")
-
-		# 发送到基于location的公共房间，所有访问该location二维码页面的人都能收到
-		frappe.publish_realtime(
-			event="qr_checkin_notification",
-			message={
-				"employee_name": checkin.employee_name,
-				"employee_image": employee_image,
-				"log_type": log_type,
-				"action_ja": action_text_ja,
-				"location": location_name,
-				"time": str(checkin.time),
-				"message_ja": f"{checkin.employee_name}さんが{action_text_ja}しました。お疲れ様です！",
-			},
-			room=f"qr_location_{location_name}",  # 基于location的房间
-			after_commit=True,  # 在事务提交后发送
-		)
-	except Exception as notify_error:
-		# 通知发送失败不应影响打卡流程
-		frappe.log_error(
-			message=f"Failed to send QR checkin notification: {notify_error!s}",
-			title="QR Checkin Notification Error",
-		)
+	# 9-11. 建记录、审计、推送墙上屏
+	checkin = create_checkin(
+		employee=employee,
+		log_type=log_type,
+		location=location_name,
+		method=CHECKIN_METHOD_QR,
+		latitude=latitude,
+		longitude=longitude,
+		evidence="qr",
+		client_ip=get_client_ip(),
+	)
 
 	action = _("Check-in") if log_type == "IN" else _("Check-out")
 	return {
