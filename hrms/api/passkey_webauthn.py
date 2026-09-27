@@ -1,29 +1,13 @@
-"""通行密钥（WebAuthn）核对：py_webauthn 封装、RP 配置、一次性 challenge。"""
+"""通行密钥（WebAuthn）核对：py_webauthn 封装、RP 配置、一次性 challenge。
 
+hrms.api 在导入时就会加载本模块，所以 webauthn 只在函数里导入：
+即使环境里缺了这个包，也只影响面容/指纹打卡，不会让整个 hrms.api 失败。
+"""
+
+import base64
 import hashlib
 import json
 import secrets
-
-from webauthn import (
-	generate_authentication_options,
-	generate_registration_options,
-	verify_authentication_response,
-	verify_registration_response,
-)
-from webauthn.helpers import (
-	base64url_to_bytes,
-	bytes_to_base64url,
-	options_to_json_dict,
-	parse_attestation_object,
-)
-from webauthn.helpers.exceptions import WebAuthnException
-from webauthn.helpers.structs import (
-	AuthenticatorAttachment,
-	AuthenticatorSelectionCriteria,
-	PublicKeyCredentialDescriptor,
-	ResidentKeyRequirement,
-	UserVerificationRequirement,
-)
 
 import frappe
 from frappe import _
@@ -38,11 +22,25 @@ PURPOSE_REGISTER = "register"
 PURPOSE_CHECKIN = "checkin"
 PURPOSE_NFC = "nfc"
 
-VERIFICATION_ERRORS = (WebAuthnException, ValueError, KeyError, TypeError)
+INPUT_ERRORS = (ValueError, KeyError, TypeError)
 
 
 class PasskeyVerificationError(frappe.ValidationError):
 	pass
+
+
+def b64url_encode(data: bytes) -> str:
+	return base64.urlsafe_b64encode(data).rstrip(b"=").decode()
+
+
+def b64url_decode(value: str) -> bytes:
+	return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+
+
+def _verification_errors() -> tuple:
+	from webauthn.helpers.exceptions import WebAuthnException
+
+	return (WebAuthnException, *INPUT_ERRORS)
 
 
 def get_rp_id() -> str:
@@ -65,7 +63,7 @@ def _challenge_key(purpose: str, challenge_b64: str) -> str:
 
 
 def store_challenge(purpose: str, challenge: bytes, data: dict, ttl: int) -> str:
-	challenge_b64 = bytes_to_base64url(challenge)
+	challenge_b64 = b64url_encode(challenge)
 	frappe.cache.set_value(_challenge_key(purpose, challenge_b64), json.dumps(data), expires_in_sec=ttl)
 	return challenge_b64
 
@@ -85,16 +83,18 @@ def pop_challenge(purpose: str, challenge_b64: str) -> dict | None:
 
 def extract_client_challenge(credential: dict) -> str:
 	try:
-		client_data = json.loads(base64url_to_bytes(credential["response"]["clientDataJSON"]))
-	except VERIFICATION_ERRORS:
+		client_data = json.loads(b64url_decode(credential["response"]["clientDataJSON"]))
+	except INPUT_ERRORS:
 		return ""
 	if not isinstance(client_data, dict):
 		return ""
 	return client_data.get("challenge") or ""
 
 
-def _descriptors(credential_ids: list[str]) -> list[PublicKeyCredentialDescriptor]:
-	return [PublicKeyCredentialDescriptor(id=base64url_to_bytes(cid)) for cid in credential_ids]
+def _descriptors(credential_ids: list[str]) -> list:
+	from webauthn.helpers.structs import PublicKeyCredentialDescriptor
+
+	return [PublicKeyCredentialDescriptor(id=b64url_decode(cid)) for cid in credential_ids]
 
 
 def _user_handle(user: str) -> bytes:
@@ -105,6 +105,15 @@ def _user_handle(user: str) -> bytes:
 def build_registration_options(
 	*, user: str, display_name: str, exclude_credential_ids: list[str], data: dict
 ) -> dict:
+	from webauthn import generate_registration_options
+	from webauthn.helpers import options_to_json_dict
+	from webauthn.helpers.structs import (
+		AuthenticatorAttachment,
+		AuthenticatorSelectionCriteria,
+		ResidentKeyRequirement,
+		UserVerificationRequirement,
+	)
+
 	challenge = secrets.token_bytes(32)
 	options = generate_registration_options(
 		rp_id=get_rp_id(),
@@ -126,15 +135,17 @@ def build_registration_options(
 
 
 def verify_registration(credential: dict, *, expected_challenge_b64: str):
+	from webauthn import verify_registration_response
+
 	try:
 		return verify_registration_response(
 			credential=credential,
-			expected_challenge=base64url_to_bytes(expected_challenge_b64),
+			expected_challenge=b64url_decode(expected_challenge_b64),
 			expected_rp_id=get_rp_id(),
 			expected_origin=get_expected_origins(),
 			require_user_verification=True,
 		)
-	except VERIFICATION_ERRORS as error:
+	except _verification_errors() as error:
 		raise PasskeyVerificationError(
 			_("Face ID / fingerprint setup could not be verified. Please try again.")
 		) from error
@@ -143,6 +154,10 @@ def verify_registration(credential: dict, *, expected_challenge_b64: str):
 def build_authentication_options(
 	*, allow_credential_ids: list[str], data: dict, purpose: str = PURPOSE_CHECKIN
 ) -> dict:
+	from webauthn import generate_authentication_options
+	from webauthn.helpers import options_to_json_dict
+	from webauthn.helpers.structs import UserVerificationRequirement
+
 	challenge = secrets.token_bytes(32)
 	options = generate_authentication_options(
 		rp_id=get_rp_id(),
@@ -167,24 +182,28 @@ def _without_user_handle(credential: dict) -> dict:
 def verify_assertion(
 	credential: dict, *, expected_challenge_b64: str, public_key_b64: str, current_sign_count: int
 ):
+	from webauthn import verify_authentication_response
+
 	try:
 		return verify_authentication_response(
 			credential=_without_user_handle(credential),
-			expected_challenge=base64url_to_bytes(expected_challenge_b64),
+			expected_challenge=b64url_decode(expected_challenge_b64),
 			expected_rp_id=get_rp_id(),
 			expected_origin=get_expected_origins(),
-			credential_public_key=base64url_to_bytes(public_key_b64),
+			credential_public_key=b64url_decode(public_key_b64),
 			credential_current_sign_count=int(current_sign_count or 0),
 			require_user_verification=True,
 		)
-	except VERIFICATION_ERRORS as error:
+	except _verification_errors() as error:
 		raise PasskeyVerificationError(
 			_("Face ID / fingerprint could not be verified. Please try again.")
 		) from error
 
 
 def extract_public_key_from_attestation(attestation_object_b64: str) -> bytes:
-	attestation = parse_attestation_object(base64url_to_bytes(attestation_object_b64))
+	from webauthn.helpers import parse_attestation_object
+
+	attestation = parse_attestation_object(b64url_decode(attestation_object_b64))
 	attested = attestation.auth_data.attested_credential_data
 	if not attested or not attested.credential_public_key:
 		raise ValueError("attestation object has no credential public key")

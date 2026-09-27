@@ -5,8 +5,6 @@
 
 import json
 
-from webauthn.helpers import bytes_to_base64url
-
 import frappe
 from frappe import _
 from frappe.utils import cint, now
@@ -24,6 +22,7 @@ from hrms.api.passkey_webauthn import (
 	PURPOSE_NFC,
 	PURPOSE_REGISTER,
 	PasskeyVerificationError,
+	b64url_encode,
 	build_authentication_options,
 	build_registration_options,
 	extract_client_challenge,
@@ -144,7 +143,7 @@ def register_complete(credential: str, device_name: str | None = None):
 	except PasskeyVerificationError as error:
 		frappe.throw(str(error))
 
-	credential_id = bytes_to_base64url(verified.credential_id)
+	credential_id = b64url_encode(verified.credential_id)
 	if frappe.db.exists("Passkey Credential", {"credential_id": credential_id}):
 		frappe.throw(_("This device is already set up."))
 	existing_count = len(_user_credential_ids(user))
@@ -158,7 +157,7 @@ def register_complete(credential: str, device_name: str | None = None):
 			"employee": employee.name,
 			"credential_id": credential_id,
 			"public_key": data["response"].get("attestationObject") or credential_id,
-			"credential_public_key": bytes_to_base64url(verified.credential_public_key),
+			"credential_public_key": b64url_encode(verified.credential_public_key),
 			"sign_count": verified.sign_count,
 			"device_name": (device_name or _get_device_name_from_request())[:140],
 		}
