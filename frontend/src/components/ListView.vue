@@ -2,7 +2,7 @@
 	<ion-header class="ion-no-border">
 		<div class="w-full sm:w-96">
 			<div
-				class="flex flex-row bg-white shadow-sm py-4 px-3 items-center justify-between border-b"
+				class="sticky top-0 flex flex-row bg-white shadow-sm py-4 px-3 items-center justify-between border-b"
 			>
 				<div class="flex flex-row items-center">
 					<Button variant="ghost" class="!px-1 mr-1 hover:bg-white" @click="router.back()">

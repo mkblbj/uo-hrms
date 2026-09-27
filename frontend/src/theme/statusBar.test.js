@@ -92,3 +92,29 @@ test("BaseLayout marks its page as theme-coloured at the top", () => {
 	const layout = read("src/components/BaseLayout.vue")
 	assert.match(layout, /<ion-page data-status-bar="page">/)
 })
+
+// iOS 26+ hit-tests 8px below the top edge, walks up to the first fixed or
+// sticky ancestor and extends that element's plain background-color into the
+// status bar. With no such ancestor it falls back to a Liquid Glass blur over
+// the top of the page — the frosted band under the clock. A header that isn't
+// in a scroll container behaves the same with sticky, so marking the element
+// that carries the header colour costs nothing and gives iOS a solid edge.
+test("BaseLayout's coloured header is the sticky edge iOS samples", () => {
+	const layout = read("src/components/BaseLayout.vue")
+	assert.match(
+		layout,
+		/<div class="[^"]*\bsticky\b[^"]*\btop-0\b[^"]*" style="background: var\(--h-bg-page/
+	)
+})
+
+test("ListView's white header is the sticky edge iOS samples", () => {
+	const list = read("src/components/ListView.vue")
+	const header = list.match(/<ion-header[\s\S]*?<\/ion-header>/)[0]
+	assert.match(header, /class="[^"]*\bsticky\b[^"]*\btop-0\b[^"]*\bbg-white\b[^"]*"/)
+})
+
+// FormView already had a sticky white header; keep it that way.
+test("FormView's header stays sticky", () => {
+	const form = read("src/components/FormView.vue")
+	assert.match(form, /<header\s+class="[^"]*\bbg-white\b[^"]*\bsticky\b[^"]*\btop-0\b/)
+})
