@@ -47,6 +47,10 @@
   "qr_checkin_enabled",
   "qr_checkin_ip_restriction",
   "qr_checkin_allowed_ips",
+  "passkey_checkin_section",
+  "passkey_checkin_location",
+  "passkey_checkin_enabled_for_all",
+  "passkey_checkin_pilot_employees",
   "tenure_tab",
   "employee_exit_settings_section",
   "exit_questionnaire_web_form",
@@ -316,6 +320,31 @@
    "description": "One IP address or network per line (IPv4 or IPv6, e.g. 203.0.113.10 or 2001:db8:1:2::/64). Used to recognise requests from the office network; the QR IP restriction also uses this list when it is enabled."
   },
   {
+   "fieldname": "passkey_checkin_section",
+   "fieldtype": "Section Break",
+   "label": "Face ID / Fingerprint Check-in"
+  },
+  {
+   "description": "One-tap check-ins are recorded at this location. Leave empty to turn the feature off.",
+   "fieldname": "passkey_checkin_location",
+   "fieldtype": "Link",
+   "label": "Check-in Location",
+   "options": "QR Checkin Location"
+  },
+  {
+   "default": "0",
+   "fieldname": "passkey_checkin_enabled_for_all",
+   "fieldtype": "Check",
+   "label": "Enable for All Employees"
+  },
+  {
+   "depends_on": "eval:!doc.passkey_checkin_enabled_for_all",
+   "fieldname": "passkey_checkin_pilot_employees",
+   "fieldtype": "Table MultiSelect",
+   "label": "Pilot Employees",
+   "options": "Passkey Checkin Pilot Employee"
+  },
+  {
    "fieldname": "attendance_settings_section",
    "fieldtype": "Section Break",
    "label": "Attendance Settings"
@@ -402,7 +431,7 @@
  "idx": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-27 21:00:00.000000",
+ "modified": "2026-09-27 21:05:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HR Settings",

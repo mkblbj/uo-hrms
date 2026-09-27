@@ -170,3 +170,106 @@ class TestNfcPasskeyCheckin(PasskeyApiTestCase):
 		stranger = SoftAuthenticator(self.rp_id, self.origin)
 		with self.assertRaisesRegex(frappe.ValidationError, "Passkey not found"):
 			self._nfc(stranger)
+
+
+class TestOneTapCheckin(PasskeyApiTestCase):
+	def setUp(self):
+		super().setUp()
+		self.location = ensure_location()
+		settings = frappe.get_doc("HR Settings")
+		settings.passkey_checkin_location = self.location
+		settings.passkey_checkin_enabled_for_all = 0
+		settings.set("passkey_checkin_pilot_employees", [{"employee": self.employee}])
+		settings.qr_checkin_allowed_ips = "203.0.113.0/24"
+		settings.save()
+
+	def _begin(self, ip="198.51.100.1", **kwargs):
+		with patch.object(passkey, "get_client_ip", return_value=ip):
+			return passkey.begin_checkin("IN", **kwargs)
+
+	def _complete(self, authenticator, options, **kwargs):
+		assertion = authenticator.authenticate(options["challenge"], **kwargs)
+		with patch("frappe.publish_realtime"):
+			return passkey.complete_checkin(json.dumps(assertion))
+
+	def test_context_for_pilot_and_non_pilot(self):
+		self.register_device()
+		frappe.set_user(API_USER)
+		with patch.object(passkey, "get_client_ip", return_value="203.0.113.5"):
+			context = passkey.get_checkin_context()
+		self.assertEqual(
+			(context["enabled"], context["has_passkey"], context["on_office_network"]), (True, True, True)
+		)
+		self.assertEqual(context["location"]["name"], self.location)
+		frappe.set_user(OTHER_USER)
+		self.assertFalse(passkey.get_checkin_context()["enabled"])
+
+	def test_office_network_one_tap_checkin(self):
+		authenticator = self.register_device()
+		frappe.set_user(API_USER)
+		begin = self._begin(ip="203.0.113.5")
+		self.assertEqual((begin["status"], begin["evidence"]), ("ok", "office_network"))
+		result = self._complete(authenticator, begin["options"])
+		frappe.set_user("Administrator")
+		self.assertEqual(result["log_type"], "IN")
+		self.assertEqual(
+			frappe.db.get_value("Employee Checkin", {"employee": self.employee}, "checkin_method"), "Passkey"
+		)
+
+	def test_mobile_data_needs_location_then_uses_gps(self):
+		authenticator = self.register_device()
+		frappe.set_user(API_USER)
+		self.assertEqual(self._begin()["status"], "need_location")
+		begin = self._begin(latitude=35.6813, longitude=139.7672, accuracy=30)
+		self.assertEqual(begin["evidence"], "gps")
+		self._complete(authenticator, begin["options"])
+		frappe.set_user("Administrator")
+		row = frappe.db.get_value("Employee Checkin", {"employee": self.employee}, ["latitude"], as_dict=True)
+		self.assertAlmostEqual(row.latitude, 35.6813, places=4)
+
+	def test_far_away_is_presence_unconfirmed(self):
+		self.register_device()
+		frappe.set_user(API_USER)
+		begin = self._begin(latitude=35.75, longitude=139.9, accuracy=10)
+		self.assertEqual((begin["status"], begin["reason"]), ("presence_unconfirmed", "too_far"))
+
+	def test_disabled_for_non_pilot_and_no_passkey_status(self):
+		frappe.set_user(OTHER_USER)
+		self.assertEqual(self._begin(ip="203.0.113.5")["status"], "disabled")
+		frappe.set_user(API_USER)
+		self.assertEqual(self._begin(ip="203.0.113.5")["status"], "no_passkey")
+
+	def test_complete_checkin_rejects_credential_of_another_user(self):
+		self.register_device()
+		other = self.register_device(user=OTHER_USER)
+		frappe.set_user(API_USER)
+		begin = self._begin(ip="203.0.113.5")
+		before = frappe.db.get_value("Passkey Credential", {"user": OTHER_USER}, "last_used")
+		with self.assertRaises(frappe.ValidationError):
+			self._complete(other, begin["options"])
+		frappe.set_user("Administrator")
+		self.assertEqual(frappe.db.get_value("Passkey Credential", {"user": OTHER_USER}, "last_used"), before)
+		self.assertFalse(frappe.db.exists("Employee Checkin", {"employee": self.employee}))
+
+	def test_challenge_cannot_be_replayed(self):
+		authenticator = self.register_device()
+		frappe.set_user(API_USER)
+		begin = self._begin(ip="203.0.113.5")
+		assertion = authenticator.authenticate(begin["options"]["challenge"])
+		with patch("frappe.publish_realtime"):
+			passkey.complete_checkin(json.dumps(assertion))
+			with self.assertRaises(frappe.ValidationError):
+				passkey.complete_checkin(json.dumps(assertion))
+
+	def test_cooldown_blocks_before_face_id(self):
+		authenticator = self.register_device()
+		frappe.set_user(API_USER)
+		self._complete(authenticator, self._begin(ip="203.0.113.5")["options"])
+		with self.assertRaises(frappe.ValidationError):
+			self._begin(ip="203.0.113.5")
+
+	def test_invalid_log_type(self):
+		frappe.set_user(API_USER)
+		with patch.object(passkey, "get_client_ip", return_value="203.0.113.5"):
+			with self.assertRaises(frappe.ValidationError):
+				passkey.begin_checkin("SIDEWAYS")

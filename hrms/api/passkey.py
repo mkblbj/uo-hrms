@@ -9,16 +9,18 @@ from webauthn.helpers import bytes_to_base64url
 
 import frappe
 from frappe import _
-from frappe.utils import now
+from frappe.utils import cint, now
 
 from hrms.api.checkin_presence import EVIDENCE_GPS, evaluate_presence
 from hrms.api.checkin_service import (
 	CHECKIN_METHOD_NFC_PASSKEY,
+	CHECKIN_METHOD_PASSKEY,
 	create_checkin,
 	resolve_auto_log_type,
 	validate_checkin_timing,
 )
 from hrms.api.passkey_webauthn import (
+	PURPOSE_CHECKIN,
 	PURPOSE_NFC,
 	PURPOSE_REGISTER,
 	PasskeyVerificationError,
@@ -29,7 +31,7 @@ from hrms.api.passkey_webauthn import (
 	verify_assertion,
 	verify_registration,
 )
-from hrms.utils.client_network import get_client_ip
+from hrms.utils.client_network import get_client_ip, is_office_network
 
 MAX_PASSKEYS_PER_EMPLOYEE = 3
 VALID_LOG_TYPES = ("IN", "OUT")
@@ -235,6 +237,120 @@ def passkey_checkin(
 		"employee_name": checkin.employee_name,
 		"time": str(checkin.time),
 		"location": location_name,
+	}
+
+
+def _passkey_checkin_location() -> str | None:
+	location = frappe.db.get_single_value("HR Settings", "passkey_checkin_location")
+	if location and frappe.db.get_value("QR Checkin Location", location, "enabled"):
+		return location
+	return None
+
+
+def _passkey_checkin_enabled_for(employee: str) -> bool:
+	if cint(frappe.db.get_single_value("HR Settings", "passkey_checkin_enabled_for_all")):
+		return True
+	return bool(
+		frappe.db.exists(
+			"Passkey Checkin Pilot Employee",
+			{"parent": "HR Settings", "parentfield": "passkey_checkin_pilot_employees", "employee": employee},
+		)
+	)
+
+
+@frappe.whitelist()
+def get_checkin_context():
+	user, employee = _require_employee_user()
+	location = _passkey_checkin_location()
+	enabled = bool(location) and _passkey_checkin_enabled_for(employee.name)
+	return {
+		"enabled": enabled,
+		"has_passkey": bool(_user_credential_ids(user)),
+		"on_office_network": is_office_network(get_client_ip()) if enabled else False,
+		"location": {
+			"name": location,
+			"description": frappe.db.get_value("QR Checkin Location", location, "description") or location,
+		}
+		if enabled
+		else None,
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def begin_checkin(
+	log_type: str,
+	latitude: float | None = None,
+	longitude: float | None = None,
+	accuracy: float | None = None,
+):
+	user, employee = _require_employee_user()
+	if log_type not in VALID_LOG_TYPES:
+		frappe.throw(_("Invalid log type"))
+	location = _passkey_checkin_location()
+	if not location or not _passkey_checkin_enabled_for(employee.name):
+		return {"status": "disabled"}
+
+	client_ip = get_client_ip()
+	presence = evaluate_presence(location, client_ip, latitude, longitude, accuracy)
+	if not presence.ok:
+		return {"status": presence.status, "reason": presence.reason}
+
+	credential_ids = _user_credential_ids(user)
+	if not credential_ids:
+		return {"status": "no_passkey"}
+
+	validate_checkin_timing(employee.name, log_type)
+	gps = presence.evidence == EVIDENCE_GPS
+	options = build_authentication_options(
+		allow_credential_ids=credential_ids,
+		data={
+			"user": user,
+			"employee": employee.name,
+			"log_type": log_type,
+			"location": location,
+			"evidence": presence.evidence,
+			"latitude": float(latitude) if gps else None,
+			"longitude": float(longitude) if gps else None,
+			"client_ip": client_ip,
+		},
+		purpose=PURPOSE_CHECKIN,
+	)
+	return {"status": "ok", "options": options, "evidence": presence.evidence}
+
+
+@frappe.whitelist(methods=["POST"])
+def complete_checkin(credential: str):
+	user, employee = _require_employee_user()
+	data = _parse_credential(credential)
+	cred_doc = _get_credential_doc(data["id"])
+	if not cred_doc or cred_doc.user != user:
+		frappe.throw(_("This device isn't set up for your account. Please set it up again."))
+
+	challenge_b64 = extract_client_challenge(data)
+	record = pop_challenge(PURPOSE_CHECKIN, challenge_b64)
+	if not record or record.get("user") != user:
+		frappe.throw(_("Check-in timed out. Please try again."))
+	_verify_or_throw(data, challenge_b64, cred_doc)
+
+	validate_checkin_timing(employee.name, record["log_type"])
+	checkin = create_checkin(
+		employee=employee.name,
+		log_type=record["log_type"],
+		location=record["location"],
+		method=CHECKIN_METHOD_PASSKEY,
+		latitude=record.get("latitude"),
+		longitude=record.get("longitude"),
+		evidence=record.get("evidence"),
+		client_ip=record.get("client_ip"),
+	)
+	return {
+		"status": "ok",
+		"log_type": checkin.log_type,
+		"time": str(checkin.time),
+		"employee": employee.name,
+		"employee_name": checkin.employee_name,
+		"location": record["location"],
+		"evidence": record.get("evidence"),
 	}
 
 
