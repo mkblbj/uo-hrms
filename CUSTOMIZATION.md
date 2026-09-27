@@ -117,6 +117,19 @@ bench --site hrms.localhost migrate
 - 路径: `/hrms/hr/workspace/`
 - JSON 格式配置文件
 
+## 打卡
+
+三种打卡方式共用同一套规则（`hrms/api/checkin_service.py`）：冷却规则、建记录、审计日志、推送墙上屏。记录上的 `checkin_method` 字段标明打卡方式。
+
+- **面容/指纹一键打卡**（PWA 首页，`hrms/api/passkey.py` 的 `get_checkin_context` / `begin_checkin` / `complete_checkin`）：通行密钥核对本人，公司网络或手机定位（打卡点关联的 Shift Location 半径内）证明在场，证据不足时转去扫码。HR 设置「面容/指纹打卡」里设打卡点、对全员开启或试用名单。
+- **门口 NFC 页**（`/nfc_checkin?loc=...`，接口 `auth_options` / `passkey_checkin`）：同样核对通行密钥与在场证据，自动判断出勤/退勤。
+- **扫码**（`hrms/api/qr_attendance.py`）：墙上屏动态二维码；打卡点可勾选「要求展示密钥」，勾选前先用表单上的「复制墙上屏网址」更新墙上设备。
+
+安全相关：
+- 通行密钥用 py_webauthn 核对（`hrms/api/passkey_webauthn.py`），锁定 `webauthn==2.8.0` 以兼容 Frappe 锁定的 cryptography / pyOpenSSL 版本；RP 默认 `erphr.toiroworld.com`，可用站点配置 `passkey_rp_id`、`passkey_origins` 覆盖（开发站点用 localhost）。
+- 真实客户端地址取 `CF-Connecting-IP`（`hrms/utils/client_network.py`），前提是源站只经 Cloudflare 隧道对外；HR 设置「公司网络」每行一个 IP 或网段，支持 IPv6 前缀。
+- 员工角色对 `Employee Checkin` 只有读权限；打卡记录的新建、改时间、删除只允许受信接口（`flags.trusted_checkin_source`）或 HR 角色（控制器守卫）。
+
 ## 备份与恢复
 
 ### 备份站点
