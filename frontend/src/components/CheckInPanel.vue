@@ -42,8 +42,20 @@
 		:cta="primaryScanMeta"
 		:work-status="props.workStatus?.data"
 		:lang="currentLanguage"
+		:mode="checkinMode"
+		:busy="passkeyBusy"
 		:disabled="!isMobileCheckinAllowed || props.workStatus?.loading"
-		@scan="openQRScanner"
+		@scan="onPrimaryAction"
+	/>
+
+	<PasskeyCheckinSheet
+		:is-open="passkeySheet.isOpen"
+		:variant="passkeySheet.variant"
+		:lang="currentLanguage"
+		:location-label="passkeyContext.data?.location?.description || ''"
+		:location-failed="passkeySheet.locationFailed"
+		@action="onPasskeySheetAction"
+		@dismiss="passkeySheet.isOpen = false"
 	/>
 
 	<!-- 扫码模态框 -->
@@ -169,6 +181,7 @@ import HomeHeroCard from "@/components/home/HomeHeroCard.vue"
 import PushNotificationPrompt from "@/components/home/PushNotificationPrompt.vue"
 import HomeScanActionBar from "@/components/home/HomeScanActionBar.vue"
 import HomeStatsGrid from "@/components/home/HomeStatsGrid.vue"
+import PasskeyCheckinSheet from "@/components/home/PasskeyCheckinSheet.vue"
 import QRScannerModal from "@/components/QRScannerModal.vue"
 import HomeSummaryCard from "@/components/work_roster/HomeSummaryCard.vue"
 import RosterPreferenceBanner from "@/components/work_roster/RosterPreferenceBanner.vue"
@@ -181,6 +194,14 @@ import {
 	resolveHomeLanguage,
 } from "@/utils/homeExperience"
 import { shouldPlayIntro, markIntroPlayed } from "@/utils/homeIntroAnimation"
+import {
+	PASSKEY_MODE,
+	createFrappeCaller,
+	pickPasskeyCopy,
+	resolveCheckinMode,
+	runPasskeyCheckin,
+	shouldShowWifiTip,
+} from "@/utils/passkeyCheckin"
 import {
 	formatRosterPreferenceTitle,
 	getRosterCopy,
@@ -279,6 +300,149 @@ function loadHomeScheduleSummary() {
 	homeScheduleSummary.fetch()
 }
 
+const passkeyContext = createResource({
+	url: "hrms.api.passkey.get_checkin_context",
+	auto: true,
+})
+const platformSupported = ref(false)
+const passkeyBusy = ref(false)
+const passkeySheet = reactive({ isOpen: false, variant: "first_time", locationFailed: false, pending: null })
+const checkinMode = computed(() =>
+	resolveCheckinMode({ context: passkeyContext.data, platformSupported: platformSupported.value })
+)
+const callFrappe = createFrappeCaller({
+	fetchImpl: (...args) => fetch(...args),
+	getCsrfToken: () => window.csrf_token || "",
+})
+
+async function detectPlatformSupport() {
+	try {
+		platformSupported.value = Boolean(
+			window.PublicKeyCredential &&
+				(await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())
+		)
+	} catch (_) {
+		platformSupported.value = false
+	}
+}
+
+function getCurrentPosition() {
+	return new Promise((resolve, reject) => {
+		if (!navigator.geolocation) {
+			reject(new Error("unsupported"))
+			return
+		}
+		navigator.geolocation.getCurrentPosition(
+			(position) =>
+				resolve({
+					latitude: position.coords.latitude,
+					longitude: position.coords.longitude,
+					accuracy: position.coords.accuracy,
+				}),
+			reject,
+			{ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+		)
+	})
+}
+
+function deviceName() {
+	const ua = navigator.userAgent || ""
+	if (/iPhone/.test(ua)) return "iPhone"
+	if (/iPad/.test(ua)) return "iPad"
+	if (/Android/.test(ua)) return "Android"
+	return "Browser"
+}
+
+function openPasskeySheet(variant, extra = {}) {
+	Object.assign(passkeySheet, { isOpen: true, variant, locationFailed: false, pending: null }, extra)
+}
+
+function onPrimaryAction() {
+	if (checkinMode.value !== PASSKEY_MODE) {
+		openQRScanner()
+		return
+	}
+	if (!passkeyContext.data?.has_passkey) {
+		openPasskeySheet("first_time")
+		return
+	}
+	startPasskeyCheckin()
+}
+
+async function onPasskeySheetAction(actionId) {
+	const pending = passkeySheet.pending
+	passkeySheet.isOpen = false
+	if (actionId === "scan") {
+		openQRScanner()
+		return
+	}
+	await startPasskeyCheckin({
+		setup: actionId === "start" || actionId === "resetup",
+		pending: actionId === "retry" ? pending : null,
+	})
+}
+
+async function startPasskeyCheckin({ setup = false, pending = null } = {}) {
+	const action = primaryScanMeta.value?.action
+	if (!action || passkeyBusy.value) return
+	passkeyBusy.value = true
+	try {
+		const { startAuthentication, startRegistration } = await import("@simplewebauthn/browser")
+		const result = await runPasskeyCheckin({
+			logType: action,
+			context: passkeyContext.data,
+			setup,
+			pending,
+			deps: {
+				call: callFrappe,
+				startRegistration,
+				startAuthentication,
+				getPosition: getCurrentPosition,
+				deviceName,
+				now: () => Date.now(),
+			},
+		})
+		await handlePasskeyOutcome(action, result)
+	} finally {
+		passkeyBusy.value = false
+	}
+}
+
+async function handlePasskeyOutcome(action, result) {
+	if (result.outcome === "success") {
+		passkeyContext.reload()
+		await handleCheckinSuccess(action, result.message)
+		if (shouldShowWifiTip(result.evidence, safeLocalStorage())) {
+			toast.info(pickPasskeyCopy("wifiTip", currentLanguage))
+		}
+		return
+	}
+	if (result.outcome === "presence_unconfirmed" || result.outcome === "location_failed") {
+		openPasskeySheet("presence", { locationFailed: result.outcome === "location_failed" })
+		return
+	}
+	if (result.outcome === "webauthn_failed" || result.outcome === "setup_failed") {
+		openPasskeySheet("fallback", { pending: result.pending || null })
+		return
+	}
+	if (result.outcome === "disabled") {
+		passkeyContext.reload()
+		openQRScanner()
+		return
+	}
+	toast.error(__("Error"), {
+		description: result.message || pickPasskeyCopy("checkinFailed", currentLanguage),
+	})
+}
+
+function safeLocalStorage() {
+	try {
+		return window.localStorage
+	} catch (_) {
+		return null
+	}
+}
+
 function tSale(key) {
 	const labels = {
 		title: {
@@ -357,6 +521,34 @@ function handleSuccessOverlayDismiss(event) {
 	})
 }
 
+async function handleCheckinSuccess(action, responseMessage) {
+	try {
+		await dashboardStats.reload()
+	} catch (reloadError) {
+		console.error("Failed to refresh dashboard stats", reloadError)
+	}
+	try {
+		await heroCardRef.value?.reloadAttendance?.()
+	} catch (reloadError) {
+		console.error("Failed to refresh attendance heatmap", reloadError)
+	}
+
+	// 发送全局事件通知工作状态徽章更新
+	emitCheckinStatusChanged(window, { log_type: action })
+	showQRScanner.value = false
+	// iOS PWA: 等上一个 ion-modal 开始 dismiss 后再开启 success overlay，
+	// 避免两个 ion-modal 的进出场动画重叠导致子 CSS 动画被 WebKit 合成器冻结。
+	await new Promise((resolve) => setTimeout(resolve, 320))
+	openSuccessOverlay(
+		buildSuccessOverlayModel({
+			action,
+			lang: currentLanguage,
+			responseMessage,
+			monthHours: dashboardStats.data?.month_hours,
+		})
+	)
+}
+
 const handleQRScanSuccess = async (token, latitude = null, longitude = null) => {
 	const action = primaryScanMeta.value?.action
 	if (!action) return
@@ -413,31 +605,7 @@ const handleQRScanSuccess = async (token, latitude = null, longitude = null) => 
 
 		// 检查是否成功
 		if (response.ok && data.message && data.message.status === "ok") {
-			try {
-				await dashboardStats.reload()
-			} catch (reloadError) {
-				console.error("Failed to refresh dashboard stats", reloadError)
-			}
-			try {
-				await heroCardRef.value?.reloadAttendance?.()
-			} catch (reloadError) {
-				console.error("Failed to refresh attendance heatmap", reloadError)
-			}
-
-			// 发送全局事件通知工作状态徽章更新
-			emitCheckinStatusChanged(window, { log_type: action })
-			showQRScanner.value = false
-			// iOS PWA: 等待 QR scanner 的 ion-modal 开始 dismiss 后再开启 success overlay，
-			// 避免两个 ion-modal 的进出场动画重叠导致子 CSS 动画被 WebKit 合成器冻结。
-			await new Promise((resolve) => setTimeout(resolve, 320))
-			openSuccessOverlay(
-				buildSuccessOverlayModel({
-					action,
-					lang: currentLanguage,
-					responseMessage: data.message,
-					monthHours: dashboardStats.data?.month_hours,
-				})
-			)
+			await handleCheckinSuccess(action, data.message)
 			return
 		} else {
 			// 处理错误：优先显示后端返回的友好错误信息
@@ -507,6 +675,7 @@ function onVisibilityChange() {
 
 onMounted(() => {
 	loadHomeScheduleSummary()
+	detectPlatformSupport()
 	const storage = typeof window !== "undefined" ? window.sessionStorage : null
 	const matchMedia = typeof window !== "undefined" ? window.matchMedia.bind(window) : null
 	if (shouldPlayIntro({ storage, matchMedia })) {
@@ -520,6 +689,7 @@ onMounted(() => {
 
 onIonViewWillEnter(() => {
 	loadHomeScheduleSummary()
+	passkeyContext.reload()
 })
 
 onBeforeUnmount(() => {
