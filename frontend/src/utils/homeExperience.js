@@ -661,6 +661,10 @@ export function getRosterEmptyCopy(lang = "zh") {
 	}
 }
 
+// Tabs parked while their features wait for development. Their pages and
+// routes stay in place; delete a key here to bring its tab back.
+export const HIDDEN_BOTTOM_TABS = new Set(["expenses", "salary"])
+
 export function getBottomTabItems(lang = "zh") {
 	return [
 		{ key: "home", title: pick(lang, "tabHome"), route: "/home" },
@@ -668,7 +672,7 @@ export function getBottomTabItems(lang = "zh") {
 		{ key: "roster", title: pick(lang, "tabRoster"), route: "/dashboard/work-roster" },
 		{ key: "expenses", title: pick(lang, "tabExpenses"), route: "/dashboard/expense-claims" },
 		{ key: "salary", title: pick(lang, "tabSalary"), route: "/dashboard/salary-slips" },
-	]
+	].filter((item) => !HIDDEN_BOTTOM_TABS.has(item.key))
 }
 
 export function getLanguageCardCopy(lang = "zh") {

@@ -228,8 +228,23 @@ test("derives the scan action and copy from the same work-status input", () => {
 test("returns localized bottom-tab labels without mixed-language fallbacks", () => {
 	assert.deepEqual(
 		getBottomTabItems("ja").map((item) => item.title),
-		["ホーム", "勤怠", "シフト", "経費", "給与"]
+		["ホーム", "勤怠", "シフト"]
 	)
+})
+
+// 経費 and 給与 are parked while they wait for development, not removed: their
+// tab definitions, pages and routes all stay, so bringing them back is a matter
+// of deleting them from HIDDEN_BOTTOM_TABS.
+test("parks the expense and salary tabs without removing their routes", () => {
+	assert.deepEqual([...homeExperience.HIDDEN_BOTTOM_TABS].sort(), ["expenses", "salary"])
+	assert.deepEqual(
+		getBottomTabItems("zh").map((item) => item.key),
+		["home", "attendance", "roster"]
+	)
+
+	const router = fs.readFileSync(path.resolve(currentDir, "../router/index.js"), "utf8")
+	assert.match(router, /path: "\/dashboard\/expense-claims"/)
+	assert.match(router, /path: "\/dashboard\/salary-slips"/)
 })
 
 test("emits and unbinds the check-in status refresh contract on EventTarget", () => {
