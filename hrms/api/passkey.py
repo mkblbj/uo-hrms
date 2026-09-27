@@ -3,27 +3,33 @@
 
 """面容/指纹（通行密钥）打卡接口：设置、首页一键打卡、门口 NFC 页。"""
 
-import base64
 import json
-import secrets
-from datetime import timedelta
 
 from webauthn.helpers import bytes_to_base64url
 
 import frappe
 from frappe import _
-from frappe.utils import get_datetime, now, now_datetime
+from frappe.utils import now
 
-from hrms.api.checkin_cooldown import is_checkin_cooldown_exempt
+from hrms.api.checkin_presence import EVIDENCE_GPS, evaluate_presence
+from hrms.api.checkin_service import (
+	CHECKIN_METHOD_NFC_PASSKEY,
+	create_checkin,
+	resolve_auto_log_type,
+	validate_checkin_timing,
+)
 from hrms.api.passkey_webauthn import (
+	PURPOSE_NFC,
 	PURPOSE_REGISTER,
 	PasskeyVerificationError,
+	build_authentication_options,
 	build_registration_options,
 	extract_client_challenge,
 	pop_challenge,
 	verify_assertion,
 	verify_registration,
 )
+from hrms.utils.client_network import get_client_ip
 
 MAX_PASSKEYS_PER_EMPLOYEE = 3
 VALID_LOG_TYPES = ("IN", "OUT")
@@ -161,62 +167,19 @@ def register_complete(credential: str, device_name: str | None = None):
 	return {"status": "ok", "message": _("Passkey registered successfully")}
 
 
-# WebAuthn 配置（门口 NFC 页旧接口使用）
-RP_ID = "erphr.toiroworld.com"
-ORIGIN = "https://erphr.toiroworld.com"
-CHALLENGE_TIMEOUT = 300
-
-
-def _generate_challenge() -> bytes:
-	"""生成随机 challenge"""
-	return secrets.token_bytes(32)
-
-
-def _b64_encode(data: bytes) -> str:
-	"""URL-safe base64 编码"""
-	return base64.urlsafe_b64encode(data).decode().rstrip("=")
-
-
-def _b64_decode(data: str) -> bytes:
-	"""URL-safe base64 解码"""
-	padding = 4 - len(data) % 4
-	if padding != 4:
-		data += "=" * padding
-	return base64.urlsafe_b64decode(data)
+def _require_enabled_location(location: str | None) -> str:
+	if not location or not frappe.db.get_value("QR Checkin Location", location, "enabled"):
+		frappe.throw(_("Check-in location is not available"))
+	return location
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST", "GET"], xss_safe=True)
 def auth_options(location: str | None = None):
-	"""
-	步骤3: 获取 Passkey 验证选项（NFC 打卡时调用）
-
-	Args:
-	    location: 打卡地点（可选，用于日志）
-
-	Returns:
-	    WebAuthn authentication options (JSON)
-	"""
-	# 生成 challenge
-	challenge = _generate_challenge()
-	challenge_b64 = _b64_encode(challenge)
-
-	# 保存 challenge 到缓存（用 challenge 本身作为 key，因为此时可能未登录）
-	frappe.cache().set_value(
-		f"passkey_auth_challenge:{challenge_b64}",
-		json.dumps({"location": location, "created": str(now())}),
-		expires_in_sec=CHALLENGE_TIMEOUT,
+	"""门口 NFC 页取认证选项（访客，可发现凭证）。"""
+	location_name = _require_enabled_location(location)
+	return build_authentication_options(
+		allow_credential_ids=[], data={"location": location_name}, purpose=PURPOSE_NFC
 	)
-
-	# 构建验证选项
-	options = {
-		"challenge": challenge_b64,
-		"rpId": RP_ID,
-		"timeout": CHALLENGE_TIMEOUT * 1000,
-		"userVerification": "required",
-		# 不指定 allowCredentials，允许任何已注册的 Passkey
-	}
-
-	return options
 
 
 @frappe.whitelist(allow_guest=True, methods=["POST"], xss_safe=True)
@@ -226,146 +189,42 @@ def passkey_checkin(
 	latitude: float | None = None,
 	longitude: float | None = None,
 ):
-	"""
-	步骤4: 使用 Passkey 验证并打卡
-
-	Args:
-	    credential: 前端返回的 credential JSON 字符串
-	    location: 打卡地点
-
-	Returns:
-	    {
-	        "status": "ok",
-	        "log_type": "IN",
-	        "employee_name": "张三",
-	        "time": "2025-01-30 09:00:00",
-	        "location": "office-2f-door"
-	    }
-	"""
-	try:
-		cred_data = json.loads(credential)
-	except json.JSONDecodeError:
-		frappe.throw(_("Invalid credential format"))
-
-	# 获取 credential_id
-	credential_id = cred_data.get("id")
-	if not credential_id:
-		frappe.throw(_("Missing credential ID"))
-
-	# 查找对应的 Passkey Credential
-	cred_doc = frappe.db.get_value(
-		"Passkey Credential",
-		{"credential_id": credential_id},
-		["name", "user", "employee", "public_key", "sign_count"],
-		as_dict=True,
-	)
-
+	"""门口 NFC 页打卡：核对通行密钥 → 在场判断 → 自动判断出勤/退勤。"""
+	location_name = _require_enabled_location(location)
+	data = _parse_credential(credential)
+	cred_doc = _get_credential_doc(data["id"])
 	if not cred_doc:
 		frappe.throw(_("Passkey not found. Please register first."))
 
-	# 解析 clientDataJSON
-	client_data_json = _b64_decode(cred_data["response"]["clientDataJSON"])
-	client_data = json.loads(client_data_json)
-
-	# 获取 challenge
-	challenge_b64 = client_data.get("challenge")
-
-	# 验证 challenge 是否有效
-	challenge_data = frappe.cache().get_value(f"passkey_auth_challenge:{challenge_b64}")
-	if not challenge_data:
+	challenge_b64 = extract_client_challenge(data)
+	record = pop_challenge(PURPOSE_NFC, challenge_b64)
+	if not record or record.get("location") != location_name:
 		frappe.throw(_("Authentication timeout or invalid challenge"))
+	_verify_or_throw(data, challenge_b64, cred_doc)
 
-	# 清除 challenge（一次性使用）
-	frappe.cache().delete_value(f"passkey_auth_challenge:{challenge_b64}")
-
-	# 验证 origin
-	if client_data.get("origin") != ORIGIN:
-		frappe.throw(_("Origin mismatch"))
-
-	# 验证 type
-	if client_data.get("type") != "webauthn.get":
-		frappe.throw(_("Invalid operation type"))
-
-	# 解析 authenticatorData 获取 sign_count
-	authenticator_data = _b64_decode(cred_data["response"]["authenticatorData"])
-	# sign_count 在 authenticatorData 的第 33-36 字节（大端序）
-	new_sign_count = int.from_bytes(authenticator_data[33:37], "big")
-
-	# 验证 sign_count（防重放攻击）
-	if new_sign_count <= cred_doc.sign_count:
-		# 警告但不阻止（某些设备 sign_count 可能不递增）
-		frappe.log_error(
-			message=f"Sign count not incremented for user {cred_doc.user}. Old: {cred_doc.sign_count}, New: {new_sign_count}",
-			title="Passkey Sign Count Warning",
+	client_ip = get_client_ip()
+	presence = evaluate_presence(location_name, client_ip, latitude, longitude)
+	if not presence.ok:
+		frappe.throw(
+			_(
+				"We couldn't confirm you are at the office. Please scan the QR code at the entrance with the app."
+			)
 		)
 
-	# 更新 sign_count 和 last_used
-	frappe.db.set_value(
-		"Passkey Credential", cred_doc.name, {"sign_count": new_sign_count, "last_used": now()}
-	)
-
-	# ===== 以下是打卡逻辑 =====
 	employee = cred_doc.employee
-
-	# 获取上次打卡记录，用于自动判断 IN/OUT
-	last_checkin = frappe.db.get_value(
-		"Employee Checkin", {"employee": employee}, ["log_type", "time"], order_by="time desc"
+	log_type = resolve_auto_log_type(employee)
+	validate_checkin_timing(employee, log_type)
+	gps = presence.evidence == EVIDENCE_GPS
+	checkin = create_checkin(
+		employee=employee,
+		log_type=log_type,
+		location=location_name,
+		method=CHECKIN_METHOD_NFC_PASSKEY,
+		latitude=float(latitude) if gps else None,
+		longitude=float(longitude) if gps else None,
+		evidence=presence.evidence,
+		client_ip=client_ip,
 	)
-
-	# 自动判断 IN/OUT
-	if last_checkin:
-		last_type, last_time = last_checkin
-		# 如果今天有打卡记录
-		if get_datetime(last_time).date() == now_datetime().date():
-			log_type = "OUT" if last_type == "IN" else "IN"
-		else:
-			# 新的一天，从 IN 开始
-			log_type = "IN"
-	else:
-		log_type = "IN"
-
-	if not is_checkin_cooldown_exempt(employee):
-		# 防重复打卡检查（5分钟内）
-		recent_checkin = frappe.db.get_all(
-			"Employee Checkin",
-			filters={"employee": employee, "time": (">", now_datetime() - timedelta(minutes=5))},
-			limit=1,
-		)
-
-		if recent_checkin:
-			frappe.throw(_("You have already checked in within the last 5 minutes"))
-
-	# 创建 Employee Checkin
-	checkin_data = {
-		"doctype": "Employee Checkin",
-		"employee": employee,
-		"time": now(),
-		"log_type": log_type,
-		"device_id": f"NFC-Passkey:{location}",
-		"skip_auto_attendance": 0,
-	}
-
-	# 如果提供了地理位置，设置经纬度
-	if latitude is not None and longitude is not None:
-		checkin_data["latitude"] = latitude
-		checkin_data["longitude"] = longitude
-
-	checkin = frappe.get_doc(checkin_data)
-	checkin.insert(ignore_permissions=True)
-	frappe.db.commit()
-
-	# 获取员工姓名
-	employee_name = checkin.employee_name
-
-	# 记录审计日志
-	try:
-		client_ip = frappe.local.request_ip or "Unknown"
-		frappe.log_error(
-			message=f"NFC-Passkey Checkin: Employee {employee} ({employee_name}) {log_type} at {location}. IP: {client_ip}",
-			title=f"NFC-Passkey Checkin - {log_type}",
-		)
-	except Exception:
-		pass
 
 	action = _("Check-in") if log_type == "IN" else _("Check-out")
 	return {
@@ -373,9 +232,9 @@ def passkey_checkin(
 		"message": _("{0} successful").format(action),
 		"log_type": log_type,
 		"employee": employee,
-		"employee_name": employee_name,
+		"employee_name": checkin.employee_name,
 		"time": str(checkin.time),
-		"location": location,
+		"location": location_name,
 	}
 
 
