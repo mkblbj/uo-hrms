@@ -630,7 +630,7 @@ test("home v3 keeps the existing BaseLayout logo and BottomTabs active indicator
 	const tabsSource = fs.readFileSync(bottomTabsPath, "utf8")
 	const panelSource = fs.readFileSync(checkInPanelPath, "utf8")
 
-	assert.match(baseSource, /src="\/uo-hr-logo\.png"/)
+	assert.match(baseSource, /src="\/uo-hr-attendance-logo\.png"/)
 	assert.match(tabsSource, /--h-tab-active/)
 	assert.doesNotMatch(panelSource, /uo-hr-logo/)
 	assert.doesNotMatch(panelSource, /BottomTabs/)

@@ -13,9 +13,10 @@
 - **仓库地址**: https://github.com/uo/hrms
 
 ### 2. Logo 和图标
-- 主 Logo: `/hrms/public/images/uo-hr-logo.svg`
+- 主 Logo: `/hrms/public/images/uo-hr-attendance-logo.png`
 - 公司 Logo: `/hrms/public/images/uo-company-logo.jpg`
-- Manifest Logo: `/hrms/public/manifest/frappe-hr-logo.svg` (已更新为 UO 标识)
+- PWA 图标: `/hrms/public/manifest/manifest-icon-192.png`、`manifest-icon-512.png` 及对应的 maskable 图标
+- iOS 图标和启动画面: `/hrms/public/manifest/apple-icon-180.png`、`apple-splash-*.jpg`
 - Desktop 图标: 所有桌面图标的 `parent_icon` 已更新为 "UO HR"
 
 ### 3. 配置文件修改
@@ -26,7 +27,7 @@ app_title = "UO HR"
 app_publisher = "株式会社UO"
 app_description = "UO人力资源管理系统"
 app_email = "hr@uo.co.jp"
-app_logo_url = "/assets/hrms/images/uo-hr-logo.svg"
+app_logo_url = "/assets/hrms/images/uo-hr-attendance-logo.png"
 ```
 
 #### pyproject.toml
@@ -171,4 +172,3 @@ bench --site hrms.localhost restore [backup_file]
 ---
 
 © 2025 株式会社UO. All Rights Reserved.
-

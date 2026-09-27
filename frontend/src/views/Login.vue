@@ -33,7 +33,7 @@
 
 			<div v-else class="flex h-screen w-screen flex-col justify-center bg-white">
 				<div class="flex flex-col mx-auto gap-3 items-center">
-					<img src="/uo-hr-logo.png" class="h-20 w-20 object-contain" alt="UO HR Logo" />
+					<img src="/uo-hr-attendance-logo.png" class="h-20 w-20 object-contain" alt="UO HR Logo" />
 					<div class="text-4xl-semibold text-gray-900 text-center">
 						{{ __("Login to UO HR") }}
 					</div>

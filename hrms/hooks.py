@@ -6,13 +6,13 @@ app_email = "hr@uo.co.jp"
 app_license = "Proprietary"
 required_apps = ["frappe/erpnext"]
 source_link = "http://github.com/uo/hrms"
-app_logo_url = "/assets/hrms/images/uo-hr-logo.svg"
+app_logo_url = "/assets/hrms/images/uo-hr-attendance-logo.png"
 app_home = "/app/overview"
 
 add_to_apps_screen = [
 	{
 		"name": "hrms",
-		"logo": "/assets/hrms/images/uo-hr-logo.svg",
+		"logo": "/assets/hrms/images/uo-hr-attendance-logo.png",
 		"title": "UO HR",
 		"route": app_home,
 		"has_permission": "hrms.hr.utils.check_app_permission",

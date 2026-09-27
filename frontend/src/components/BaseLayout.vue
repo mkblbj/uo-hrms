@@ -14,7 +14,7 @@
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 								</svg>
 							</button>
-							<img src="/uo-hr-logo.png" class="h-7 w-7 object-contain" alt="Logo" />
+							<img src="/uo-hr-attendance-logo.png" class="h-7 w-7 object-contain" alt="UO HR Logo" />
 							<h2 class="text-2xl-bold truncate" style="color: var(--h-fg-primary, #0a0a0a)">
 								{{ props.pageTitle || __("UO HR") }}
 							</h2>

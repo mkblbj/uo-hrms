@@ -6,6 +6,7 @@ import {
 	deleteToken,
 	onMessage as onFCMMessage,
 } from "firebase/messaging"
+import { getTokenWithServiceWorker } from "../src/utils/serviceWorkerRegistration.js"
 
 class FrappePushNotification {
 	static get relayServerBaseURL() {
@@ -43,6 +44,9 @@ class FrappePushNotification {
 		this.messaging = null
 		/** @type {ServiceWorkerRegistration | null} */
 		this.serviceWorkerRegistration = null
+		this.serviceWorkerURL = ""
+		this.serviceWorkerOptions = null
+		this.ready = null
 
 		// event handlers
 		this.onMessageHandler = null
@@ -180,13 +184,24 @@ class FrappePushNotification {
 				token: "",
 			}
 		}
+		if (this.ready) await this.ready
+		if (!this.messaging || !this.serviceWorkerRegistration) {
+			throw new Error("Push notification service worker is not ready")
+		}
 		// check in local storage for old token
 		let oldToken = localStorage.getItem(`firebase_token_${this.projectName}`)
 		const vapidKey = await this.fetchVapidPublicKey()
-		let newToken = await getToken(this.messaging, {
-			vapidKey: vapidKey,
-			serviceWorkerRegistration: this.serviceWorkerRegistration,
+		const { token: newToken, registration } = await getTokenWithServiceWorker({
+			registration: this.serviceWorkerRegistration,
+			register: () =>
+				navigator.serviceWorker.register(this.serviceWorkerURL, this.serviceWorkerOptions),
+			getToken: (activeRegistration) =>
+				getToken(this.messaging, {
+					vapidKey,
+					serviceWorkerRegistration: activeRegistration,
+				}),
 		})
+		this.serviceWorkerRegistration = registration
 		// register new token if token is changed
 		if (oldToken !== newToken) {
 			// unsubscribe old token

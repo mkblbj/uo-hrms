@@ -57,41 +57,44 @@ app.provide("$employee", employeeResource)
 app.provide("$socket", socket)
 app.provide("$dayjs", dayjs)
 
-const registerServiceWorker = async () => {
-	window.frappePushNotification = new FrappePushNotification("hrms")
+const registerServiceWorker = () => {
+	const push = new FrappePushNotification("hrms")
+	window.frappePushNotification = push
+	push.ready = (async () => {
+		if (!("serviceWorker" in navigator)) {
+			throw new Error("Service worker not enabled/supported by the browser")
+		}
 
-	if ("serviceWorker" in navigator) {
-		let serviceWorkerURL = "/assets/hrms/frontend/sw.js"
-		let config = ""
-
+		let serviceWorkerURL = "/hrms-sw.js"
+		let config = null
+		let configError = null
 		if (window.frappe?.boot?.push_relay_server_url) {
 			try {
-				config = await window.frappePushNotification.fetchWebConfig()
+				config = await push.fetchWebConfig()
 				serviceWorkerURL = `${serviceWorkerURL}?config=${encodeURIComponent(
 					JSON.stringify(config)
 				)}`
-			} catch (err) {
-				console.error("Failed to fetch FCM config", err)
+			} catch (error) {
+				configError = error
 			}
 		}
 
-		navigator.serviceWorker
-			.register(serviceWorkerURL, {
-				type: "classic",
-			})
-			.then((registration) => {
-				if (config) {
-					window.frappePushNotification.initialize(registration).then(() => {
-						console.log("Frappe Push Notification initialized")
-					})
-				}
-			})
-			.catch((err) => {
-				console.error("Failed to register service worker", err)
-			})
-	} else {
-		console.error("Service worker not enabled/supported by the browser")
-	}
+		push.serviceWorkerURL = serviceWorkerURL
+		push.serviceWorkerOptions = {
+			type: "classic",
+			scope: "/hrms",
+			updateViaCache: "none",
+		}
+		const registration = await navigator.serviceWorker.register(serviceWorkerURL, {
+			...push.serviceWorkerOptions,
+		})
+		push.serviceWorkerRegistration = registration
+		if (configError) throw configError
+		if (config) await push.initialize(registration)
+	})()
+	push.ready.catch((error) => {
+		console.error("Failed to initialize push service worker", error)
+	})
 }
 
 router.isReady().then(async () => {
