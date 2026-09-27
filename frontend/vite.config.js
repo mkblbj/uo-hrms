@@ -45,7 +45,8 @@ export default defineConfig({
 				short_name: "UO HR",
 				start_url: "/hrms",
 				description: "株式会社UO人力资源管理系统",
-				theme_color: "#1E40AF",
+				theme_color: "#f1eee7",
+				background_color: "#f1eee7",
 				icons: [
 					{
 						src: "/assets/hrms/manifest/manifest-icon-192.maskable.png",

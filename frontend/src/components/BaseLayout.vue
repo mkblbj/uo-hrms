@@ -1,5 +1,5 @@
 <template>
-	<ion-page>
+	<ion-page data-status-bar="page">
 		<ion-header class="ion-no-border">
 			<div class="w-full">
 				<div class="flex flex-col px-4 pb-3 pt-3" style="background: var(--h-bg-page, #f1eee7)">

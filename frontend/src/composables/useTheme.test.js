@@ -1,13 +1,18 @@
 import assert from "node:assert/strict"
+import fs from "node:fs"
+import path from "node:path"
 import { test } from "node:test"
+import { fileURLToPath } from "node:url"
 
 import {
+	applyThemeToDocument,
 	getBoundaryDelay,
 	getNextBoundary,
 	LEGACY_THEME_KEY,
 	readOverride,
 	resolveTheme,
 	THEME_OVERRIDE_KEY,
+	THEME_PAGE_COLORS,
 	writeOverride,
 } from "./useTheme.js"
 
@@ -161,4 +166,48 @@ test("getBoundaryDelay counts the milliseconds to the next boundary", () => {
 test("getBoundaryDelay never returns less than a second", () => {
 	assert.ok(getBoundaryDelay(at(2026, 8, 11, 15, 59)) >= 1000)
 	assert.equal(getBoundaryDelay(new Date(at(2026, 8, 11, 16).getTime() - 1)), 1000)
+})
+
+function fakeDocument({ withMeta = true } = {}) {
+	const attributes = {}
+	const meta = withMeta ? { content: "#fff", setAttribute: (name, value) => { meta[name] = value } } : null
+	return {
+		attributes,
+		meta,
+		documentElement: { setAttribute: (name, value) => { attributes[name] = value } },
+		querySelector: (selector) => (selector === 'meta[name="theme-color"]' ? meta : null),
+	}
+}
+
+// Older iOS and Android still tint the status bar from theme-color, so it has
+// to follow the app's own theme — prefers-color-scheme is frozen per process in
+// a standalone web app and would never see a time-based switch.
+test("applying a theme updates data-theme and theme-color together", () => {
+	const doc = fakeDocument()
+	applyThemeToDocument(doc, "dark")
+	assert.equal(doc.attributes["data-theme"], "dark")
+	assert.equal(doc.meta.content, THEME_PAGE_COLORS.dark)
+
+	applyThemeToDocument(doc, "light")
+	assert.equal(doc.attributes["data-theme"], "light")
+	assert.equal(doc.meta.content, THEME_PAGE_COLORS.light)
+})
+
+test("a page without a theme-color meta still gets its theme", () => {
+	const doc = fakeDocument({ withMeta: false })
+	assert.doesNotThrow(() => applyThemeToDocument(doc, "dark"))
+	assert.equal(doc.attributes["data-theme"], "dark")
+})
+
+// The constants duplicate --h-bg-page so the meta can be set without a style
+// recalculation; this keeps the two from drifting apart.
+test("theme page colours match the --h-bg-page tokens", () => {
+	const tokensPath = path.resolve(
+		path.dirname(fileURLToPath(import.meta.url)),
+		"../theme/home-tokens.css"
+	)
+	const tokens = fs.readFileSync(tokensPath, "utf8")
+	const light = tokens.match(/:root\s*\{[\s\S]*?--h-bg-page:\s*([^;]+);/)[1].trim()
+	const dark = tokens.match(/\[data-theme="dark"\]\s*\{[\s\S]*?--h-bg-page:\s*([^;]+);/)[1].trim()
+	assert.deepEqual(THEME_PAGE_COLORS, { light, dark })
 })

@@ -73,9 +73,22 @@ export function writeOverride(theme, at) {
 	}
 }
 
+// Mirrors --h-bg-page in theme/home-tokens.css (a test keeps them in step) so the
+// meta can be written without forcing a style recalculation.
+export const THEME_PAGE_COLORS = { light: "#f1eee7", dark: "#121212" }
+
+// Older iOS and Android tint a home-screen app's status bar from theme-color.
+// iOS 26+ ignores it and samples the root background instead (see main.css);
+// this keeps the other platforms following the app's own theme.
+export function applyThemeToDocument(doc, theme) {
+	doc.documentElement.setAttribute("data-theme", theme)
+	const meta = doc.querySelector?.('meta[name="theme-color"]')
+	meta?.setAttribute("content", THEME_PAGE_COLORS[theme] || THEME_PAGE_COLORS.light)
+}
+
 function applyAttribute(theme) {
 	if (typeof document === "undefined") return
-	document.documentElement.setAttribute("data-theme", theme)
+	applyThemeToDocument(document, theme)
 }
 
 let singleton = null

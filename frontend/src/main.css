@@ -20,6 +20,35 @@ body {
 	-webkit-tap-highlight-color: transparent;
 }
 
+/*
+ * Since iOS 26 a home-screen app's status bar takes its colour from the page's
+ * root background, not theme-color. Ionic paints body a fixed #f4f5f6 in both
+ * themes, which left a pale band over the dark header and a cool grey seam
+ * over the light one. The root now matches whichever header is on screen:
+ * BaseLayout pages follow the theme; every other page still has a white header.
+ * Pages parked in Ionic's stack carry .ion-page-hidden — on themselves, or on an
+ * outer page such as the tabs shell while a pushed page is showing.
+ */
+:root {
+	--h-status-bar-bg: #ffffff;
+}
+
+:root:has([data-status-bar="page"]:not(.ion-page-hidden):not(.ion-page-hidden [data-status-bar="page"])) {
+	--h-status-bar-bg: var(--h-bg-page);
+}
+
+html,
+body {
+	background-color: var(--h-status-bar-bg);
+}
+
+/* The theme fade in home-tokens.css reaches body but not html, so body would
+   lag 250ms behind and iOS could sample the half-faded colour. body sits under
+   the app shell, so the fade was never visible; switch it instantly. */
+[data-theme] body {
+	transition: none;
+}
+
 .hide-scrollbar::-webkit-scrollbar {
 	display: none;
 }

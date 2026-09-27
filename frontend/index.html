@@ -4,15 +4,16 @@
 		<meta charset="UTF-8" />
 		<meta
 			name="viewport"
-			content="width=device-width, initial-scale=1.0, viewport-fit=cover maximum-scale=1.0, user-scalable=no"
+			content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no"
 		/>
 		<title>UO HR</title>
 
 		<meta name="apple-mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-title" content="UO HR" />
-		<meta name="apple-mobile-web-app-status-bar-style" content="white" />
-		<!-- required for setting the status bar bg as white -->
-		<meta name="theme-color" content="#fff" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+		<!-- Starting value only: useTheme rewrites it on every theme change. iOS 26+
+		     ignores theme-color and tints the status bar from the root background. -->
+		<meta name="theme-color" content="#f1eee7" />
 
 		<!-- PWA -->
 		<link
