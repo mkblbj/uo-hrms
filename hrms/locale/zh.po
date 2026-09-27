@@ -12427,3 +12427,99 @@ msgstr "周六"
 #: hrms/hr/report
 msgid "Sun"
 msgstr "周日"
+
+msgid "Check-ins can only be recorded through the attendance app."
+msgstr "打卡只能通过考勤 App 完成。"
+
+msgid "You already have {0} devices set up. Remove an old device in Settings first."
+msgstr "你已经设置了 {0} 台设备，请先在设置里删除不用的设备。"
+
+msgid "This device is already set up."
+msgstr "这台设备已经设置过了。"
+
+msgid "Face ID / fingerprint setup could not be verified. Please try again."
+msgstr "面容/指纹设置没能通过验证，请再试一次。"
+
+msgid "Face ID / fingerprint could not be verified. Please try again."
+msgstr "面容/指纹没能通过验证，请再试一次。"
+
+msgid "This device needs to set up Face ID / fingerprint check-in again."
+msgstr "这台设备需要重新设置面容/指纹打卡。"
+
+msgid "We couldn't confirm you are at the office. Please scan the QR code at the entrance with the app."
+msgstr "没能确认你在公司，请用 App 扫门口的二维码打卡。"
+
+msgid "Check-in timed out. Please try again."
+msgstr "打卡超时，请再试一次。"
+
+msgid "This device isn't set up for your account. Please set it up again."
+msgstr "这台设备没有为你的账号设置，请重新设置。"
+
+msgid "Invalid display key"
+msgstr "展示密钥不正确"
+
+msgid "Face ID / fingerprint check-in was set up on a new device"
+msgstr "面容/指纹打卡在新设备上设置了"
+
+msgid "{0} was added for check-in. If this wasn't you, please contact HR."
+msgstr "打卡设备新增了「{0}」。如果不是你本人操作，请联系 HR。"
+
+msgid "Check-in location is not available"
+msgstr "打卡点不可用"
+
+msgid "Invalid log type"
+msgstr "打卡类型不正确"
+
+msgid "Office network contains unrecognised entries: {0}"
+msgstr "公司网络里有无法识别的地址：{0}"
+
+msgid "Office Networks"
+msgstr "公司网络"
+
+msgid "Face ID / Fingerprint Check-in"
+msgstr "面容/指纹打卡"
+
+msgid "Check-in Location"
+msgstr "打卡点"
+
+msgid "Enable for All Employees"
+msgstr "对全员开启"
+
+msgid "Pilot Employees"
+msgstr "试用员工"
+
+msgid "Require Display Key"
+msgstr "要求展示密钥"
+
+msgid "Display Key"
+msgstr "展示密钥"
+
+msgid "Copy Wall Display URL"
+msgstr "复制墙上屏网址"
+
+msgid "Wall display URL copied"
+msgstr "已复制墙上屏网址"
+
+msgid "Check-in Method"
+msgstr "打卡方式"
+
+msgid "Check in by just glancing at your phone. Set up once per phone."
+msgstr "看一眼手机就能打卡，每台手机设置一次。"
+
+msgid "Set Up This Phone"
+msgstr "在这台手机上设置"
+
+msgid "Remove this device? It will no longer be able to check in with Face ID / fingerprint."
+msgstr "删除这台设备？删除后它不能再用面容/指纹打卡。"
+
+msgid "Last used"
+msgstr "最近使用"
+
+msgid "No devices set up yet"
+msgstr "还没有设置设备"
+
+msgid "Up to {0} devices"
+msgstr "最多 {0} 台设备"
+
+msgid "Remove"
+msgstr "删除"

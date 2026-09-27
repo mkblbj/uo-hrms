@@ -930,3 +930,99 @@ msgstr "土"
 #: hrms/hr/report
 msgid "Sun"
 msgstr "日"
+
+msgid "Check-ins can only be recorded through the attendance app."
+msgstr "打刻は勤怠アプリからのみ記録できます。"
+
+msgid "You already have {0} devices set up. Remove an old device in Settings first."
+msgstr "すでに{0}台の端末が設定されています。設定で古い端末を削除してください。"
+
+msgid "This device is already set up."
+msgstr "この端末は設定済みです。"
+
+msgid "Face ID / fingerprint setup could not be verified. Please try again."
+msgstr "顔認証・指紋の設定を確認できませんでした。もう一度お試しください。"
+
+msgid "Face ID / fingerprint could not be verified. Please try again."
+msgstr "顔認証・指紋を確認できませんでした。もう一度お試しください。"
+
+msgid "This device needs to set up Face ID / fingerprint check-in again."
+msgstr "この端末は顔認証・指紋打刻の再設定が必要です。"
+
+msgid "We couldn't confirm you are at the office. Please scan the QR code at the entrance with the app."
+msgstr "社内にいることを確認できませんでした。アプリで入口のQRコードを読み取って打刻してください。"
+
+msgid "Check-in timed out. Please try again."
+msgstr "打刻がタイムアウトしました。もう一度お試しください。"
+
+msgid "This device isn't set up for your account. Please set it up again."
+msgstr "この端末はあなたのアカウントに設定されていません。設定し直してください。"
+
+msgid "Invalid display key"
+msgstr "表示キーが正しくありません"
+
+msgid "Face ID / fingerprint check-in was set up on a new device"
+msgstr "新しい端末で顔認証・指紋打刻が設定されました"
+
+msgid "{0} was added for check-in. If this wasn't you, please contact HR."
+msgstr "打刻用の端末「{0}」が追加されました。心当たりがない場合は人事にご連絡ください。"
+
+msgid "Check-in location is not available"
+msgstr "打刻場所が利用できません"
+
+msgid "Invalid log type"
+msgstr "打刻種別が正しくありません"
+
+msgid "Office network contains unrecognised entries: {0}"
+msgstr "社内ネットワークに認識できない項目があります：{0}"
+
+msgid "Office Networks"
+msgstr "社内ネットワーク"
+
+msgid "Face ID / Fingerprint Check-in"
+msgstr "顔認証・指紋で打刻"
+
+msgid "Check-in Location"
+msgstr "打刻場所"
+
+msgid "Enable for All Employees"
+msgstr "全員に有効化"
+
+msgid "Pilot Employees"
+msgstr "試用メンバー"
+
+msgid "Require Display Key"
+msgstr "表示キーを必須にする"
+
+msgid "Display Key"
+msgstr "表示キー"
+
+msgid "Copy Wall Display URL"
+msgstr "壁掛け画面のURLをコピー"
+
+msgid "Wall display URL copied"
+msgstr "壁掛け画面のURLをコピーしました"
+
+msgid "Check-in Method"
+msgstr "打刻方法"
+
+msgid "Check in by just glancing at your phone. Set up once per phone."
+msgstr "スマホを見るだけで打刻できます。端末ごとに一度設定してください。"
+
+msgid "Set Up This Phone"
+msgstr "この端末で設定する"
+
+msgid "Remove this device? It will no longer be able to check in with Face ID / fingerprint."
+msgstr "この端末を削除しますか？削除すると顔認証・指紋で打刻できなくなります。"
+
+msgid "Last used"
+msgstr "最終利用"
+
+msgid "No devices set up yet"
+msgstr "まだ端末が設定されていません"
+
+msgid "Up to {0} devices"
+msgstr "最大{0}台まで"
+
+msgid "Remove"
+msgstr "削除"
