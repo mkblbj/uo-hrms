@@ -13,10 +13,11 @@ from datetime import timedelta
 
 import frappe
 from frappe import _
-from frappe.utils import get_datetime, now, now_datetime
+from frappe.utils import cint, get_datetime, now, now_datetime
 
 from hrms.api.checkin_cooldown import is_checkin_cooldown_exempt
 from hrms.hr.utils import get_distance_between_coordinates
+from hrms.utils.client_network import get_client_ip, is_office_network, parse_network_list
 
 TIME_SLOT_SECONDS = 30  # 二维码时间片,与前端保持一致
 ATTENDANCE_STATUS_LABELS = {
@@ -27,39 +28,25 @@ ATTENDANCE_STATUS_LABELS = {
 
 
 def validate_ip_whitelist():
-	"""
-	验证请求 IP 是否在白名单中
-	如果启用了 IP 限制，则检查当前请求 IP 是否在允许列表中
-	"""
+	"""开启 IP 限制且名单非空时，只允许公司网络打卡。读取设置出错时不挡人。"""
 	try:
-		hr_settings = frappe.get_single("HR Settings")
+		settings = frappe.get_cached_doc("HR Settings")
+		restriction_enabled = cint(settings.get("qr_checkin_ip_restriction"))
+		networks_text = settings.get("qr_checkin_allowed_ips") or ""
+	except Exception:
+		frappe.log_error(title="QR Checkin IP Validation Error")
+		return
 
-		# 如果启用了 IP 限制
-		if hr_settings.get("qr_checkin_ip_restriction"):
-			allowed_ips = hr_settings.get("qr_checkin_allowed_ips", "")
-			if not allowed_ips:
-				# 如果启用了限制但没有配置IP，允许所有（避免误配置导致无法打卡）
-				return
+	if not restriction_enabled or not parse_network_list(networks_text):
+		return
 
-			# 解析IP列表（支持换行分隔）
-			allowed_ips_list = [ip.strip() for ip in allowed_ips.split("\n") if ip.strip()]
-
-			if allowed_ips_list:
-				# 获取客户端IP
-				client_ip = frappe.local.request_ip or frappe.local.request.remote_addr
-
-				# 检查IP是否在白名单中（支持CIDR格式，但这里简化处理，只做精确匹配）
-				if client_ip not in allowed_ips_list:
-					frappe.throw(
-						_(
-							"Your network IP ({0}) is not in the allowed check-in range. Please contact HR."
-						).format(client_ip),
-						exc=frappe.exceptions.SecurityException,
-					)
-	except Exception as e:
-		# 如果获取设置失败，记录错误但不阻止打卡（避免配置错误导致系统不可用）
-		frappe.log_error(
-			message=f"IP whitelist validation error: {e!s}", title="QR Checkin IP Validation Error"
+	client_ip = get_client_ip()
+	if not is_office_network(client_ip, networks_text):
+		frappe.throw(
+			_("Your network IP ({0}) is not in the allowed check-in range. Please contact HR.").format(
+				client_ip
+			),
+			exc=frappe.exceptions.SecurityException,
 		)
 
 

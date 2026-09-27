@@ -310,11 +310,10 @@
    "label": "Enable QR Checkin IP Restriction"
   },
   {
-   "depends_on": "eval:doc.qr_checkin_enabled == 1 && doc.qr_checkin_ip_restriction == 1",
    "fieldname": "qr_checkin_allowed_ips",
    "fieldtype": "Small Text",
-   "label": "QR Checkin Allowed IPs",
-   "description": "Allowed IP addresses for QR check-in, one per line. Example:\n192.168.1.100\n192.168.1.0/24\n10.0.0.1"
+   "label": "Office Networks",
+   "description": "One IP address or network per line (IPv4 or IPv6, e.g. 203.0.113.10 or 2001:db8:1:2::/64). Used to recognise requests from the office network; the QR IP restriction also uses this list when it is enabled."
   },
   {
    "fieldname": "attendance_settings_section",
@@ -403,7 +402,7 @@
  "idx": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-12-29 16:25:06.271352",
+ "modified": "2026-09-27 21:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HR Settings",
