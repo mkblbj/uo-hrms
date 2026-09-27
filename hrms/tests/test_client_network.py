@@ -69,6 +69,8 @@ class TestClientNetwork(unittest.TestCase):
 		self.assertFalse(is_office_network("203.0.113.10", ""))
 
 	def test_reads_hr_settings_when_text_not_given(self):
-		with patch.object(client_network.frappe.db, "get_single_value", return_value="203.0.113.10") as getter:
+		with patch.object(
+			client_network.frappe.db, "get_single_value", return_value="203.0.113.10"
+		) as getter:
 			self.assertTrue(is_office_network("203.0.113.10"))
 		getter.assert_called_once_with("HR Settings", "qr_checkin_allowed_ips")
