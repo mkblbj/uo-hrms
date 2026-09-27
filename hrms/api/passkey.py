@@ -11,7 +11,7 @@ import frappe
 from frappe import _
 from frappe.utils import cint, now
 
-from hrms.api.checkin_presence import EVIDENCE_GPS, evaluate_presence
+from hrms.api.checkin_presence import evaluate_presence, normalize_coordinates
 from hrms.api.checkin_service import (
 	CHECKIN_METHOD_NFC_PASSKEY,
 	CHECKIN_METHOD_PASSKEY,
@@ -216,14 +216,14 @@ def passkey_checkin(
 	employee = cred_doc.employee
 	log_type = resolve_auto_log_type(employee)
 	validate_checkin_timing(employee, log_type)
-	gps = presence.evidence == EVIDENCE_GPS
+	coordinates = normalize_coordinates(latitude, longitude) or (None, None)
 	checkin = create_checkin(
 		employee=employee,
 		log_type=log_type,
 		location=location_name,
 		method=CHECKIN_METHOD_NFC_PASSKEY,
-		latitude=float(latitude) if gps else None,
-		longitude=float(longitude) if gps else None,
+		latitude=coordinates[0],
+		longitude=coordinates[1],
 		evidence=presence.evidence,
 		client_ip=client_ip,
 	)
@@ -300,7 +300,7 @@ def begin_checkin(
 		return {"status": "no_passkey"}
 
 	validate_checkin_timing(employee.name, log_type)
-	gps = presence.evidence == EVIDENCE_GPS
+	coordinates = normalize_coordinates(latitude, longitude) or (None, None)
 	options = build_authentication_options(
 		allow_credential_ids=credential_ids,
 		data={
@@ -309,8 +309,8 @@ def begin_checkin(
 			"log_type": log_type,
 			"location": location,
 			"evidence": presence.evidence,
-			"latitude": float(latitude) if gps else None,
-			"longitude": float(longitude) if gps else None,
+			"latitude": coordinates[0],
+			"longitude": coordinates[1],
 			"client_ip": client_ip,
 		},
 		purpose=PURPOSE_CHECKIN,

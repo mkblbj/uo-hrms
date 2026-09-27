@@ -205,6 +205,8 @@ class EmployeeCheckin(Document):
 			return
 
 		if not (self.latitude or self.longitude):
+			if self.flags.trusted_checkin_source and self.flags.presence_evidence == "office_network":
+				return
 			frappe.throw(_("Latitude and longitude values are required for checking in."))
 
 		assignment_locations = frappe.get_all(

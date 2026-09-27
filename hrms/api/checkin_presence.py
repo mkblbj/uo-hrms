@@ -44,6 +44,11 @@ def _valid_coordinates(latitude, longitude) -> tuple[float, float] | None:
 	return lat, lng
 
 
+def normalize_coordinates(latitude, longitude) -> tuple[float, float] | None:
+	"""手机送来的经纬度：合法时返回 (纬度, 经度)，否则 None。"""
+	return _valid_coordinates(latitude, longitude)
+
+
 def get_location_geofence(location_name: str):
 	shift_location = frappe.db.get_value("QR Checkin Location", location_name, "shift_location")
 	if not shift_location:

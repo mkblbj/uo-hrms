@@ -273,3 +273,74 @@ class TestOneTapCheckin(PasskeyApiTestCase):
 		with patch.object(passkey, "get_client_ip", return_value="203.0.113.5"):
 			with self.assertRaises(frappe.ValidationError):
 				passkey.begin_checkin("SIDEWAYS")
+
+
+class TestCheckinWithGeolocationTracking(PasskeyApiTestCase):
+	"""正式环境开着「地理位置追踪」：Employee Checkin 自身要求有经纬度。"""
+
+	def setUp(self):
+		super().setUp()
+		self.location = ensure_location()
+		frappe.db.set_single_value("HR Settings", "allow_geolocation_tracking", 1)
+		settings = frappe.get_doc("HR Settings")
+		settings.passkey_checkin_location = self.location
+		settings.passkey_checkin_enabled_for_all = 0
+		settings.set("passkey_checkin_pilot_employees", [{"employee": self.employee}])
+		settings.qr_checkin_allowed_ips = "203.0.113.0/24"
+		settings.save()
+
+	def tearDown(self):
+		frappe.db.set_single_value("HR Settings", "allow_geolocation_tracking", 0)
+		super().tearDown()
+
+	def _one_tap(self, authenticator, ip, **position):
+		frappe.set_user(API_USER)
+		with patch.object(passkey, "get_client_ip", return_value=ip):
+			begin = passkey.begin_checkin("IN", **position)
+		assertion = authenticator.authenticate(begin["options"]["challenge"])
+		with patch("frappe.publish_realtime"):
+			result = passkey.complete_checkin(json.dumps(assertion))
+		frappe.set_user("Administrator")
+		return begin, result
+
+	def test_office_network_one_tap_without_location(self):
+		authenticator = self.register_device()
+		begin, result = self._one_tap(authenticator, "203.0.113.5")
+		self.assertEqual((begin["evidence"], result["status"]), ("office_network", "ok"))
+
+	def test_gps_one_tap(self):
+		authenticator = self.register_device()
+		begin, result = self._one_tap(
+			authenticator, "198.51.100.1", latitude=35.6813, longitude=139.7672, accuracy=20
+		)
+		self.assertEqual((begin["evidence"], result["status"]), ("gps", "ok"))
+
+	def test_nfc_on_office_network_keeps_coordinates(self):
+		authenticator = self.register_device()
+		frappe.set_user("Guest")
+		options = passkey.auth_options(self.location)
+		assertion = authenticator.authenticate(options["challenge"])
+		with (
+			patch.object(passkey, "get_client_ip", return_value="203.0.113.5"),
+			patch("frappe.publish_realtime"),
+		):
+			result = passkey.passkey_checkin(json.dumps(assertion), self.location, 35.6813, 139.7672)
+		frappe.set_user("Administrator")
+		self.assertEqual(result["status"], "ok")
+		row = frappe.db.get_value(
+			"Employee Checkin", {"employee": self.employee}, ["latitude", "longitude"], as_dict=True
+		)
+		self.assertAlmostEqual(row.latitude, 35.6813, places=4)
+
+	def test_untrusted_checkin_still_needs_coordinates(self):
+		doc = frappe.get_doc(
+			{
+				"doctype": "Employee Checkin",
+				"employee": self.employee,
+				"log_type": "IN",
+				"time": frappe.utils.now(),
+			}
+		)
+		doc.flags.presence_evidence = "office_network"
+		with self.assertRaises(frappe.ValidationError):
+			doc.insert()

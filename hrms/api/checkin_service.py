@@ -96,6 +96,8 @@ def create_checkin(
 
 	checkin = frappe.get_doc(data)
 	checkin.flags.trusted_checkin_source = True
+	# 公司网络证明在场时可能没有经纬度，Employee Checkin 的定位校验据此放行
+	checkin.flags.presence_evidence = evidence
 	checkin.insert(ignore_permissions=True)
 
 	_write_audit(checkin, method=method, location=location, evidence=evidence, client_ip=client_ip)
