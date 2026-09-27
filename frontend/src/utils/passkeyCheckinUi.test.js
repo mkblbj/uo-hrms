@@ -49,3 +49,11 @@ test("passkey manager lists devices and registers with optionsJSON", () => {
 	assert.match(source, /startRegistration\(\{\s*optionsJSON/)
 	assert.match(source, /Face ID \/ Fingerprint Check-in/)
 })
+
+test("server errors open the error sheet instead of only a toast", () => {
+	const panel = read("../components/CheckInPanel.vue")
+	assert.match(panel, /openPasskeySheet\("error"/)
+	assert.match(panel, /:message="passkeySheet\.message"/)
+	const sheet = read("../components/home/PasskeyCheckinSheet.vue")
+	assert.match(sheet, /message:\s*{/)
+})

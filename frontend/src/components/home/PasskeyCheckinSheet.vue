@@ -41,6 +41,7 @@ const props = defineProps({
 	lang: { type: String, default: "zh" },
 	locationLabel: { type: String, default: "" },
 	locationFailed: { type: Boolean, default: false },
+	message: { type: String, default: "" },
 })
 
 const emit = defineEmits(["action", "dismiss"])
@@ -49,6 +50,7 @@ const content = computed(() =>
 	getSheetContent(props.variant, props.lang, {
 		locationLabel: props.locationLabel,
 		locationFailed: props.locationFailed,
+		message: props.message,
 	})
 )
 </script>

@@ -255,3 +255,10 @@ test("frappe caller posts json with csrf and returns message", async () => {
 	})
 	await assert.rejects(() => failing("x", {}), /不行/)
 })
+
+test("server errors get a sheet with retry, re-setup and the QR fallback", () => {
+	const content = getSheetContent("error", "zh", { message: "打卡超时，请再试一次。" })
+	assert.deepEqual(content.actions.map((a) => a.id), ["retry", "resetup", "scan"])
+	assert.equal(content.body, "打卡超时，请再试一次。")
+	assert.ok(getSheetContent("error", "ja").body)
+})

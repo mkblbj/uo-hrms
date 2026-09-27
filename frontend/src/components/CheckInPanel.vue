@@ -54,6 +54,7 @@
 		:lang="currentLanguage"
 		:location-label="passkeyContext.data?.location?.description || ''"
 		:location-failed="passkeySheet.locationFailed"
+		:message="passkeySheet.message"
 		@action="onPasskeySheetAction"
 		@dismiss="passkeySheet.isOpen = false"
 	/>
@@ -306,7 +307,13 @@ const passkeyContext = createResource({
 })
 const platformSupported = ref(false)
 const passkeyBusy = ref(false)
-const passkeySheet = reactive({ isOpen: false, variant: "first_time", locationFailed: false, pending: null })
+const passkeySheet = reactive({
+	isOpen: false,
+	variant: "first_time",
+	locationFailed: false,
+	message: "",
+	pending: null,
+})
 const checkinMode = computed(() =>
 	resolveCheckinMode({ context: passkeyContext.data, platformSupported: platformSupported.value })
 )
@@ -354,7 +361,11 @@ function deviceName() {
 }
 
 function openPasskeySheet(variant, extra = {}) {
-	Object.assign(passkeySheet, { isOpen: true, variant, locationFailed: false, pending: null }, extra)
+	Object.assign(
+		passkeySheet,
+		{ isOpen: true, variant, locationFailed: false, message: "", pending: null },
+		extra
+	)
 }
 
 function onPrimaryAction() {
@@ -430,9 +441,8 @@ async function handlePasskeyOutcome(action, result) {
 		openQRScanner()
 		return
 	}
-	toast.error(__("Error"), {
-		description: result.message || pickPasskeyCopy("checkinFailed", currentLanguage),
-	})
+	// 服务端报错（冷却规则、核对失败、超时等）：给出原因，并留着重试、重新设置和扫码
+	openPasskeySheet("error", { message: result.message || "" })
 }
 
 function safeLocalStorage() {

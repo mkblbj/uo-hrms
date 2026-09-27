@@ -91,8 +91,24 @@ export function shouldShowWifiTip(evidence, storage) {
 	}
 }
 
-export function getSheetContent(variant, lang = "zh", { locationLabel = "", locationFailed = false } = {}) {
+export function getSheetContent(
+	variant,
+	lang = "zh",
+	{ locationLabel = "", locationFailed = false, message = "" } = {}
+) {
 	const t = (key, ...args) => pickPasskeyCopy(key, lang, ...args)
+	if (variant === "error") {
+		return {
+			icon: "lucide-scan-face",
+			title: t("checkinFailed"),
+			body: message || t("fallbackBody"),
+			actions: [
+				{ id: "retry", label: t("retry"), primary: true },
+				{ id: "resetup", label: t("resetup"), primary: false },
+				{ id: "scan", label: t("scanThisTime"), primary: false },
+			],
+		}
+	}
 	if (variant === "first_time") {
 		return {
 			icon: "lucide-scan-face",
