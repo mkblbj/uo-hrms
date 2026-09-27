@@ -54,3 +54,4 @@ hrms.patches.v16_0.update_partially_paid_employee_advance_status
 hrms.patches.v16_0.delete_upload_attendance_doctype #2026-07-16
 hrms.patches.v16_0.restrict_employee_checkin_self_service_permissions
 hrms.patches.v16_0.backfill_employee_checkin_method
+hrms.patches.v16_0.migrate_passkey_public_keys
