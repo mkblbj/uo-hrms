@@ -196,6 +196,7 @@ const scannedLocation = ref("")
 const currentTimeDisplay = ref("")
 const submitting = ref(false)
 let timeUpdateInterval = null
+let locationPromise = null
 
 // 获取 HR Settings
 const settings = createResource({
@@ -290,24 +291,32 @@ function handleLocationError(error) {
 }
 
 const fetchLocation = () => {
-	if (!allowGeolocationTracking.value) {
-		return
-	}
-	
+	if (!allowGeolocationTracking.value) return Promise.resolve(null)
+	if (locationPromise) return locationPromise
 	if (!navigator.geolocation) {
 		locationStatus.value = __("Geolocation is not supported by your current browser")
-	} else {
-		locationStatus.value = __("Locating...")
+		return Promise.resolve(null)
+	}
+	locationStatus.value = __("Locating...")
+	locationPromise = new Promise((resolve) => {
 		navigator.geolocation.getCurrentPosition(
-			handleLocationSuccess,
-			handleLocationError,
+			(position) => {
+				handleLocationSuccess(position)
+				resolve(position)
+			},
+			(error) => {
+				handleLocationError(error)
+				locationPromise = null
+				resolve(null)
+			},
 			{
 				enableHighAccuracy: true,
 				timeout: 10000,
 				maximumAge: 0
 			}
 		)
-	}
+	})
+	return locationPromise
 }
 
 const startScanning = async () => {
@@ -337,26 +346,12 @@ const startScanning = async () => {
 	}
 }
 
-const checkTorchAvailability = async () => {
+const checkTorchAvailability = () => {
+	// 直接读取正在扫码的摄像头能力，不再为了检查手电筒另开一路摄像头
 	try {
-		// 检查 MediaDevices API 是否支持手电筒
-		if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-			const stream = await navigator.mediaDevices.getUserMedia({
-				video: { facingMode: "environment" }
-			})
-			
-			// 检查是否有 torch 约束支持
-			const track = stream.getVideoTracks()[0]
-			if (track && track.getCapabilities) {
-				const capabilities = track.getCapabilities()
-				torchAvailable.value = capabilities.torch !== undefined
-			}
-			
-			// 关闭测试流
-			stream.getTracks().forEach(track => track.stop())
-		}
+		const capabilities = html5QrCode?.getRunningTrackCapabilities?.()
+		torchAvailable.value = Boolean(capabilities && "torch" in capabilities)
 	} catch (err) {
-		// 不支持手电筒或无法检测
 		torchAvailable.value = false
 	}
 }
@@ -377,21 +372,6 @@ const toggleTorch = async () => {
 		torchOn.value = newTorchState
 	} catch (err) {
 		console.error("切换手电筒失败:", err)
-		// 如果失败，尝试使用 MediaStreamTrack API
-		try {
-			const stream = await navigator.mediaDevices.getUserMedia({
-				video: { facingMode: "environment" }
-			})
-			const track = stream.getVideoTracks()[0]
-			if (track && track.applyConstraints) {
-				await track.applyConstraints({
-					advanced: [{ torch: !torchOn.value }]
-				})
-				torchOn.value = !torchOn.value
-			}
-		} catch (e) {
-			console.error("手电筒控制失败:", e)
-		}
 	}
 }
 
@@ -424,34 +404,11 @@ const onScanSuccess = async (decodedText) => {
 	resultMessage.value = __("Verifying...")
 	resultMessageClass.value = "text-blue-600"
 	
-	// 如果启用了地理位置追踪但还没有获取到位置，等待获取完成
+	// 如果启用了地理位置追踪但还没有获取到位置，等待同一个定位请求完成（不重复请求）
 	if (allowGeolocationTracking.value && (!latitude.value || !longitude.value)) {
 		resultMessage.value = __("Getting location...")
-		try {
-			await new Promise((resolve, reject) => {
-				if (!navigator.geolocation) {
-					reject(new Error(__("Geolocation is not supported by your browser")))
-					return
-				}
-				
-				navigator.geolocation.getCurrentPosition(
-					(position) => {
-						handleLocationSuccess(position)
-						resolve(position)
-					},
-					(error) => {
-						handleLocationError(error)
-						reject(error)
-					},
-					{
-						enableHighAccuracy: true,
-						timeout: 10000,
-						maximumAge: 0
-					}
-				)
-			})
-		} catch (geoError) {
-			// 获取位置失败，仍然传递 null，让父组件处理错误
+		const position = await fetchLocation()
+		if (!position) {
 			resultMessage.value = __("Location unavailable, but continuing...")
 		}
 	}
@@ -502,6 +459,7 @@ const onScanError = (error) => {
 
 const resetState = () => {
 	// 重置所有状态
+	locationPromise = null
 	latitude.value = null
 	longitude.value = null
 	locationStatus.value = ""

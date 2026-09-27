@@ -34,3 +34,18 @@ test("sheet renders content from getSheetContent", () => {
 	assert.match(source, /getSheetContent/)
 	assert.match(source, /emit\(['"]action['"], action\.id\)/)
 })
+
+test("scanner no longer opens a second camera stream for the torch", () => {
+	const source = read("../components/QRScannerModal.vue")
+	assert.ok(!source.includes("getUserMedia"), "getUserMedia should be gone")
+	assert.match(source, /getRunningTrackCapabilities/)
+	assert.match(source, /locationPromise/)
+})
+
+test("passkey manager lists devices and registers with optionsJSON", () => {
+	const source = read("../components/PasskeyManager.vue")
+	assert.match(source, /get_my_passkeys/)
+	assert.match(source, /v-for="device in devices"/)
+	assert.match(source, /startRegistration\(\{\s*optionsJSON/)
+	assert.match(source, /Face ID \/ Fingerprint Check-in/)
+})
