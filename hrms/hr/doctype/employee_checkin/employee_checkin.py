@@ -16,6 +16,24 @@ from hrms.hr.utils import (
 	validate_active_employee,
 )
 
+PRIVILEGED_CHECKIN_ROLES = frozenset(
+	{"System Manager", "HR Manager", "HR User", "Attendance Correction Manager"}
+)
+PROTECTED_CHECKIN_FIELDS = ("employee", "time", "log_type", "latitude", "longitude", "device_id")
+
+
+def can_bypass_checkin_guard(doc) -> bool:
+	"""打卡记录只能由受信接口或有特权角色的人写入、修改、删除。"""
+	if doc.flags.trusted_checkin_source:
+		return True
+	if frappe.flags.in_install or frappe.flags.in_migrate or frappe.flags.in_patch:
+		return True
+	return bool(PRIVILEGED_CHECKIN_ROLES.intersection(frappe.get_roles()))
+
+
+def _throw_untrusted_checkin_write():
+	frappe.throw(_("Check-ins can only be recorded through the attendance app."), frappe.PermissionError)
+
 
 class CheckinRadiusExceededError(frappe.ValidationError):
 	pass
@@ -32,6 +50,7 @@ class EmployeeCheckin(Document):
 
 		attendance: DF.Link | None
 		attendance_correction_request: DF.Link | None
+		checkin_method: DF.Literal["", "QR", "Passkey", "NFC Passkey", "Attendance Correction"]
 		device_id: DF.Data | None
 		employee: DF.Link
 		employee_name: DF.Data | None
@@ -49,10 +68,21 @@ class EmployeeCheckin(Document):
 		time: DF.Datetime
 	# end: auto-generated types
 
+	def before_insert(self):
+		if not can_bypass_checkin_guard(self):
+			_throw_untrusted_checkin_write()
+
+	def on_trash(self):
+		if not can_bypass_checkin_guard(self):
+			_throw_untrusted_checkin_write()
+
 	def before_validate(self):
 		self.time = get_datetime(self.time).replace(microsecond=0)
 
 	def validate(self):
+		if not self.is_new() and not can_bypass_checkin_guard(self):
+			if any(self.has_value_changed(field) for field in PROTECTED_CHECKIN_FIELDS):
+				_throw_untrusted_checkin_write()
 		validate_active_employee(self.employee)
 		self.validate_duplicate_log()
 		self.validate_time_change()
