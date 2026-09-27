@@ -13,6 +13,8 @@
   "qr_refresh_interval",
   "section_break_2",
   "secret",
+  "require_display_key",
+  "display_key",
   "section_break_3",
   "shift_location"
  ],
@@ -63,6 +65,19 @@
    "description": "用于签名的密钥，请使用强随机字符串"
   },
   {
+   "default": "0",
+   "description": "When enabled, the wall display must open the URL that contains the display key. Switch the wall display to the new URL before enabling.",
+   "fieldname": "require_display_key",
+   "fieldtype": "Check",
+   "label": "Require Display Key"
+  },
+  {
+   "fieldname": "display_key",
+   "fieldtype": "Password",
+   "label": "Display Key",
+   "read_only": 1
+  },
+  {
    "fieldname": "section_break_3",
    "fieldtype": "Section Break",
    "label": "Integration"
@@ -76,7 +91,7 @@
   }
  ],
  "links": [],
- "modified": "2025-11-19 10:00:00.000000",
+ "modified": "2026-09-27 21:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "QR Checkin Location",

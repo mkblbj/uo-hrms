@@ -62,6 +62,13 @@ def get_context(context):
 	location_name = frappe.form_dict.get("location")
 
 	if location_name:
+		from hrms.hr.doctype.qr_checkin_location.qr_checkin_location import verify_display_key
+
+		if frappe.db.exists("QR Checkin Location", location_name) and not verify_display_key(
+			location_name, frappe.form_dict.get("key")
+		):
+			raise frappe.PermissionError
+
 		# 展示模式: 显示特定地点的二维码
 		# 直接生成初始 token
 		token_data = generate_token_for_display(location_name)
@@ -77,7 +84,9 @@ def get_context(context):
 			context.initial_token = token_data["token"]
 			context.refresh_interval = token_data["expires_in"]
 	else:
-		# 列表模式: 显示所有启用的地点
+		# 列表模式: 显示所有启用的地点（只给 HR 和系统管理员看）
+		if not set(frappe.get_roles()).intersection({"System Manager", "HR Manager", "HR User"}):
+			raise frappe.PermissionError
 		locations = frappe.get_all(
 			"QR Checkin Location",
 			filters={"enabled": 1},

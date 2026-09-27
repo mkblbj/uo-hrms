@@ -15,6 +15,7 @@ from frappe import _
 from frappe.utils import cint
 
 from hrms.api.checkin_service import CHECKIN_METHOD_QR, create_checkin, validate_checkin_timing
+from hrms.hr.doctype.qr_checkin_location.qr_checkin_location import verify_display_key
 from hrms.hr.utils import get_distance_between_coordinates
 from hrms.utils.client_network import get_client_ip, is_office_network, parse_network_list
 
@@ -65,7 +66,7 @@ def _sign(location_name: str, time_slot: int, secret: str) -> str:
 
 
 @frappe.whitelist(allow_guest=True)
-def generate_qr_token(location_name: str):
+def generate_qr_token(location_name: str, key: str | None = None):
 	"""
 	生成动态二维码 token
 	供墙上展示页面调用（允许访客访问）
@@ -84,6 +85,9 @@ def generate_qr_token(location_name: str):
 	# 验证地点是否存在且启用
 	if not frappe.db.exists("QR Checkin Location", location_name):
 		frappe.throw(_("Check-in location {0} does not exist").format(location_name))
+
+	if not verify_display_key(location_name, key):
+		frappe.throw(_("Invalid display key"), frappe.PermissionError)
 
 	doc = frappe.get_doc("QR Checkin Location", location_name)
 

@@ -516,6 +516,7 @@
 <script>
 (function() {
     const LOCATION_NAME = "{{ location_name }}";
+    const DISPLAY_KEY = new URLSearchParams(window.location.search).get('key') || '';
     const INITIAL_TOKEN = "{{ initial_token }}";
     let REFRESH_INTERVAL = {{ refresh_interval }};
     let qrcode = null;
@@ -580,7 +581,7 @@
     }
 
     function refreshQRCode() {
-        fetch('/api/method/hrms.api.qr_attendance.generate_qr_token?location_name=' + encodeURIComponent(LOCATION_NAME), {
+        fetch('/api/method/hrms.api.qr_attendance.generate_qr_token?location_name=' + encodeURIComponent(LOCATION_NAME) + '&key=' + encodeURIComponent(DISPLAY_KEY), {
             method: 'GET'
         })
         .then(response => response.json())
