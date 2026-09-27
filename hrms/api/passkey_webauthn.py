@@ -155,12 +155,21 @@ def build_authentication_options(
 	return options_to_json_dict(options)
 
 
+def _without_user_handle(credential: dict) -> dict:
+	"""核对签名用不到 userHandle（按凭证编号找人）；门口 NFC 页的 SimpleWebAuthn 9 会把它当
+	UTF-8 文本（旧注册里是邮箱）返回，交给 py_webauthn 解析会失败，所以核对前去掉。"""
+	response = credential.get("response")
+	if not isinstance(response, dict) or "userHandle" not in response:
+		return credential
+	return {**credential, "response": {k: v for k, v in response.items() if k != "userHandle"}}
+
+
 def verify_assertion(
 	credential: dict, *, expected_challenge_b64: str, public_key_b64: str, current_sign_count: int
 ):
 	try:
 		return verify_authentication_response(
-			credential=credential,
+			credential=_without_user_handle(credential),
 			expected_challenge=base64url_to_bytes(expected_challenge_b64),
 			expected_rp_id=get_rp_id(),
 			expected_origin=get_expected_origins(),

@@ -98,3 +98,19 @@ class TestPasskeyWebAuthn(unittest.TestCase):
 			data={},
 		)
 		self.assertEqual(options["excludeCredentials"][0]["id"], self.authenticator.credential_id_b64)
+
+	def test_accepts_plain_text_user_handle_from_legacy_nfc_page(self):
+		# 门口 NFC 页用的 SimpleWebAuthn 9 把 userHandle 当 UTF-8 文本返回（旧注册的 userHandle 是邮箱）
+		verified, _ = self._register()
+		options = pw.build_authentication_options(allow_credential_ids=[], data={})
+		assertion = self.authenticator.authenticate(options["challenge"])
+		# 这个邮箱去掉非 base64 字符后剩 21 个，按 base64url 解码必然失败
+		assertion["response"]["userHandle"] = "e2e-passkey@example.com"
+		result = pw.verify_assertion(
+			assertion,
+			expected_challenge_b64=options["challenge"],
+			public_key_b64=bytes_to_base64url(verified.credential_public_key),
+			current_sign_count=0,
+		)
+		self.assertTrue(result.user_verified)
+		self.assertEqual(assertion["response"]["userHandle"], "e2e-passkey@example.com")
