@@ -310,7 +310,7 @@ class TestGuestPhotoVisibility(ProfilePhotoTestCase):
 		try:
 			with patch("hrms.utils.profile_photo.get_client_ip", return_value=ip):
 				recent = qr_attendance.get_recent_checkins(location=LOCATION, limit=1, key=key)
-				at_work = qr_attendance.get_employees_at_work(location=LOCATION)
+				at_work = qr_attendance.get_employees_at_work(location=LOCATION, key=key)
 		finally:
 			frappe.set_user("Administrator")
 		mine = [row for row in at_work["employees"] if row["employee"] == self.employee]
@@ -323,10 +323,10 @@ class TestGuestPhotoVisibility(ProfilePhotoTestCase):
 		self.assertEqual(self.fetch(ip=OFFICE_IP), (self.photo, self.photo))
 
 	def test_wall_display_needs_a_required_and_valid_key(self):
-		self.assertEqual(self.fetch(key=self.key)[0], None)
+		self.assertEqual(self.fetch(key=self.key), (None, None))
 		frappe.db.set_value("QR Checkin Location", LOCATION, "require_display_key", 1)
-		self.assertEqual(self.fetch(key="wrong")[0], None)
-		self.assertEqual(self.fetch(key=self.key)[0], self.photo)
+		self.assertEqual(self.fetch(key="wrong"), (None, None))
+		self.assertEqual(self.fetch(key=self.key), (self.photo, self.photo))
 
 	def test_signed_in_users_get_the_photo(self):
 		self.assertEqual(self.fetch(user=OTHER_USER), (self.photo, self.photo))

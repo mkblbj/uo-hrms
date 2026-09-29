@@ -153,7 +153,7 @@ bench --site hrms.localhost migrate
 - 写入 `Employee.image` 和 `User.user_image`，同时删掉旧头像文件，包括框架自动挂在账号上的那份。
 
 隐私（`hrms/utils/profile_photo.py`）：
-- 不登录也能访问的接口，只有请求来自公司网络、或墙上屏带着有效展示密钥时才返回头像，否则头像字段为空。涉及三个接口：`get_recent_checkins`、`get_employees_at_work`、work_roster 的 `get_scheduled_attendance_snapshot`。
+- 不登录也能访问的接口，默认只有请求来自公司网络时才返回头像，否则头像字段为空。涉及三个接口：`get_recent_checkins`、`get_employees_at_work`、work_roster 的 `get_scheduled_attendance_snapshot`。前两个按打卡点查询，带上该打卡点的展示密钥（打卡点勾选了「要求展示密钥」）时，不在公司网络也返回头像；排班快照没有打卡点，只认公司网络。
 - 员工状态改成 Left 时，自动删掉头像文件，并清空两个字段。
 - HR 在后台更换或清空员工头像时，同步到账号头像，旧文件一并删除。
 - 查还没上传的人：在员工列表按「Image 未设置」筛选。

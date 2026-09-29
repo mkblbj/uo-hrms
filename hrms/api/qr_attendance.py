@@ -379,7 +379,7 @@ def get_location_info(location_name: str):
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET"])
-def get_employees_at_work(location: str | None = None):
+def get_employees_at_work(location: str | None = None, key: str | None = None):
 	"""
 	获取今天有打卡记录的员工列表，并标注当前状态
 
@@ -388,6 +388,7 @@ def get_employees_at_work(location: str | None = None):
 
 	Args:
 		location: 可选，筛选特定打卡地点的员工
+		key: 可选，该打卡点的展示密钥；不登录时只有在公司网络、或密钥有效才返回头像
 
 	Returns:
 		{
@@ -452,7 +453,7 @@ def get_employees_at_work(location: str | None = None):
 	results = frappe.db.sql(sql, params, as_dict=True)
 
 	# 格式化返回数据
-	show_photos = can_see_photos()
+	show_photos = can_see_photos(location, key)
 	employees = []
 	for row in results:
 		attendance_status = _get_attendance_status_from_log_type(row.log_type)
