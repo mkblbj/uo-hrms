@@ -15,19 +15,39 @@
 					</header>
 
 					<div class="flex flex-col items-center mt-5 p-4">
-						<!-- Profile Image -->
-						<img
-							v-if="user.data.user_image"
-							class="h-24 w-24 rounded-full object-cover"
-							:src="user.data.user_image"
-							:alt="user.data.first_name"
-						/>
-						<div
-							v-else
-							class="flex items-center justify-center bg-gray-200 uppercase text-gray-600 h-24 w-24 rounded-full object-cover"
+						<!-- Profile Image：点一下可以换头像 -->
+						<button
+							type="button"
+							class="relative rounded-full"
+							:aria-label="photoCopy('changeTitle')"
+							@click="isPhotoSheetOpen = true"
 						>
-							{{ user.data.first_name[0] }}
-						</div>
+							<img
+								v-if="user.data.user_image"
+								class="h-24 w-24 rounded-full object-cover"
+								:src="user.data.user_image"
+								:alt="user.data.first_name"
+							/>
+							<div
+								v-else
+								class="flex items-center justify-center bg-gray-200 uppercase text-gray-600 h-24 w-24 rounded-full object-cover"
+							>
+								{{ user.data.first_name[0] }}
+							</div>
+							<span
+								class="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gray-900 text-white"
+								aria-hidden="true"
+							>
+								<Icon icon="lucide-camera" class="h-4 w-4" />
+							</span>
+						</button>
+						<button
+							type="button"
+							class="mt-2 text-sm font-medium text-gray-600"
+							@click="isPhotoSheetOpen = true"
+						>
+							{{ photoCopy("changeTitle") }}
+						</button>
 
 						<div class="flex flex-col gap-1.5 items-center mt-2 mb-5">
 							<span v-if="employee" class="text-lg-bold text-gray-900">{{
@@ -114,6 +134,16 @@
 					"
 				/>
 			</ion-modal>
+
+			<ProfilePhotoSheet
+				:is-open="isPhotoSheetOpen"
+				mode="change"
+				:current-photo="user.data.user_image || ''"
+				:lang="photoLang"
+				@cancel="isPhotoSheetOpen = false"
+				@snooze="isPhotoSheetOpen = false"
+				@uploaded="onPhotoUploaded"
+			/>
 		</ion-content>
 	</ion-page>
 </template>
@@ -122,13 +152,17 @@
 import { inject, ref, watch, onMounted, onBeforeUnmount } from "vue"
 import { useRouter } from "vue-router"
 import { IonPage, IonContent } from "@ionic/vue"
-import { Icon, createDocumentResource, createResource } from "frappe-ui"
+import { Icon, createDocumentResource, createResource, toast } from "frappe-ui"
 
 import { showErrorAlert } from "@/utils/dialogs"
 import { formatCurrency } from "@/utils/formatters"
 
 import ProfileInfoModal from "@/components/ProfileInfoModal.vue"
 import PasskeyManager from "@/components/PasskeyManager.vue"
+import ProfilePhotoSheet from "@/components/profile/ProfilePhotoSheet.vue"
+import { refreshProfilePhoto } from "@/data/profilePhoto"
+import { resolveHomeLanguage } from "@/utils/homeExperience"
+import { pickPhotoCopy } from "@/utils/profilePhoto"
 
 const DOCTYPE = "Employee"
 
@@ -191,6 +225,16 @@ const profileLinks = [
 
 const isInfoModalOpen = ref(false)
 const selectedItem = ref(null)
+
+const photoLang = resolveHomeLanguage(window.frappe?.boot)
+const photoCopy = (key) => pickPhotoCopy(key, photoLang)
+const isPhotoSheetOpen = ref(false)
+
+const onPhotoUploaded = () => {
+	isPhotoSheetOpen.value = false
+	toast.success(photoCopy("uploaded"))
+	refreshProfilePhoto()
+}
 
 const openInfoModal = async (request) => {
 	selectedItem.value = request
