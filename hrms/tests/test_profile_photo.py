@@ -203,7 +203,14 @@ class TestProfilePhotoStatus(ProfilePhotoTestCase):
 	def test_off_by_default(self):
 		self.assertEqual(
 			self.status(),
-			{"required": False, "has_photo": False, "photo": None, "deadline": None, "overdue": False},
+			{
+				"required": False,
+				"has_photo": False,
+				"temporary": False,
+				"photo": None,
+				"deadline": None,
+				"overdue": False,
+			},
 		)
 
 	def test_reports_deadline_and_overdue(self):
@@ -226,7 +233,45 @@ class TestProfilePhotoStatus(ProfilePhotoTestCase):
 		url = self.upload(make_image((300, 300)))["photo"]
 		status = self.status()
 		self.assertTrue(status["has_photo"])
+		self.assertFalse(status["temporary"])
 		self.assertEqual(status["photo"], url)
+
+	def set_photo_as(self, owner):
+		# 模拟 HR 或脚本替员工设的头像：文件由别人上传、挂在员工头像字段上
+		frappe.set_user(owner)
+		try:
+			file = frappe.get_doc(
+				{
+					"doctype": "File",
+					"file_name": "landscape-avatar-test.png",
+					"content": make_image((256, 256), fmt="PNG"),
+					"is_private": 0,
+					"attached_to_doctype": "Employee",
+					"attached_to_name": self.employee,
+					"attached_to_field": "image",
+				}
+			).insert(ignore_permissions=True)
+		finally:
+			frappe.set_user("Administrator")
+		frappe.db.set_value("Employee", self.employee, "image", file.file_url)
+		frappe.db.set_value("User", PHOTO_USER, "user_image", file.file_url)
+		return file.file_url
+
+	def test_photo_set_by_someone_else_is_temporary(self):
+		url = self.set_photo_as("Administrator")
+		status = self.status()
+		self.assertFalse(status["has_photo"])
+		self.assertTrue(status["temporary"])
+		self.assertEqual(status["photo"], url)
+
+	def test_uploading_replaces_the_temporary_photo(self):
+		temporary = self.set_photo_as("Administrator")
+		url = self.upload(make_image((300, 300)))["photo"]
+		status = self.status()
+		self.assertTrue(status["has_photo"])
+		self.assertFalse(status["temporary"])
+		self.assertEqual(photo_files(self.employee), [url])
+		self.assertFalse(frappe.db.exists("File", {"file_url": temporary}))
 
 
 class TestEmployeePhotoSync(ProfilePhotoTestCase):

@@ -21,6 +21,7 @@
 		:is-open="sheetOpen"
 		mode="reminder"
 		:status="status.data"
+		:current-photo="status.data?.photo || ''"
 		:lang="lang"
 		@snooze="onSnooze"
 		@cancel="sheetOpen = false"

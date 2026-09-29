@@ -12,6 +12,7 @@ import {
 	getPromptCardContent,
 	getReminderContent,
 	maxZoomFor,
+	nextDay,
 	outputSizeFor,
 	pickPhotoCopy,
 	readSnoozedAt,
@@ -21,6 +22,18 @@ import {
 } from "./profilePhoto.js"
 
 const missing = { required: true, has_photo: false, deadline: null, overdue: false }
+const temporary = {
+	required: true,
+	has_photo: false,
+	temporary: true,
+	photo: "/files/landscape-avatar-test.png",
+	deadline: "2026-10-06",
+	overdue: false,
+}
+const ZH_CHANGE =
+	"因系统更新，自10月7日起，登录需使用您自行设置的头像。当前头像为系统临时生成，请最迟于10月6日完成更换。逾期将暂时无法登录。给您带来不便，敬请谅解。"
+const JA_CHANGE =
+	"システム更新により、10月7日以降のログインには、ご自身で設定したプロフィール画像が必要になります。現在の画像はシステムが仮に生成したものです。10月6日までに変更をお願いいたします。未変更の場合、一時的にログインできなくなります。ご不便をおかけしますが、ご理解のほどお願いいたします。"
 
 function memoryStorage() {
 	const data = new Map()
@@ -41,10 +54,17 @@ const brokenStorage = {
 }
 
 test("copy is picked by language and falls back to Chinese", () => {
-	assert.equal(pickPhotoCopy("title", "zh"), "请设置头像")
-	assert.equal(pickPhotoCopy("title", "ja"), "プロフィール写真の設定")
-	assert.equal(pickPhotoCopy("title", "fr"), "请设置头像")
-	assert.equal(pickPhotoCopy("deadline", "zh", "10月10日"), "请在 10月10日 前完成")
+	assert.equal(pickPhotoCopy("titleChange", "zh"), "请更换头像")
+	assert.equal(pickPhotoCopy("titleChange", "ja"), "プロフィール画像の変更")
+	assert.equal(pickPhotoCopy("titleChange", "fr"), "请更换头像")
+	assert.equal(pickPhotoCopy("titleSet", "zh"), "请设置头像")
+})
+
+test("the day after the deadline follows the calendar", () => {
+	assert.equal(nextDay("2026-10-06"), "2026-10-07")
+	assert.equal(nextDay("2026-10-31"), "2026-11-01")
+	assert.equal(nextDay("2026-12-31"), "2027-01-01")
+	assert.equal(nextDay(null), "")
 })
 
 test("deadline is shown as month and day", () => {
@@ -83,54 +103,79 @@ test("snooze time is stored per device and survives blocked storage", () => {
 	assert.equal(readSnoozedAt(undefined), null)
 })
 
-test("reminder is a short note with the deadline", () => {
-	assert.deepEqual(getReminderContent({ ...missing, deadline: "2026-10-10" }, "zh"), {
-		title: "请设置头像",
-		deadline: "请在 10月10日 前完成",
+test("a temporary photo gets the wording HR wrote, dates filled in", () => {
+	assert.deepEqual(getReminderContent(temporary, "zh"), {
+		title: "请更换头像",
+		lead: ZH_CHANGE,
 		overdue: false,
-		lead: "系统更新，需要每个人设置一张头像，1 分钟就好。",
 	})
-
-	const overdue = getReminderContent({ ...missing, deadline: "2026-10-10", overdue: true }, "ja")
-	assert.equal(overdue.overdue, true)
-	assert.match(overdue.deadline, /過ぎています/)
-
-	assert.equal(getReminderContent(missing, "zh").deadline, "")
+	assert.equal(getReminderContent(temporary, "ja").lead, JA_CHANGE)
+	assert.equal(getReminderContent({ ...temporary, overdue: true }, "zh").overdue, true)
+	assert.equal(getReminderContent({ ...temporary, overdue: true }, "zh").lead, ZH_CHANGE)
 })
 
-test("reminder wording stays short", () => {
-	assert.ok(getReminderContent(missing, "zh").lead.length <= 40)
-	assert.ok(getReminderContent(missing, "ja").lead.length <= 45)
-	assert.ok(getReminderContent(missing, "ja").title.length <= 12)
-	assert.ok(getPromptCardContent(missing, "zh").message.length <= 20)
+test("a photo someone else set counts as temporary even without the flag", () => {
+	const { temporary: _flag, ...older } = temporary
+	assert.equal(getReminderContent(older, "zh").title, "请更换头像")
+})
+
+test("without any photo it asks to set one; without a deadline it drops the dates", () => {
+	assert.equal(
+		getReminderContent({ ...missing, deadline: "2026-10-06" }, "zh").lead,
+		"因系统更新，自10月7日起，登录需使用您自行设置的头像。请最迟于10月6日完成设置。逾期将暂时无法登录。给您带来不便，敬请谅解。"
+	)
+	assert.equal(getReminderContent(missing, "zh").title, "请设置头像")
+	for (const lang of ["zh", "ja", "en"]) {
+		for (const status of [missing, { ...temporary, deadline: null }]) {
+			assert.doesNotMatch(getReminderContent(status, lang).lead, /\{|月|Oct/)
+		}
+	}
 })
 
 test("wording does not ask for a photo of yourself", () => {
 	for (const lang of ["zh", "ja", "en"]) {
 		for (const text of [
+			getReminderContent(temporary, lang).lead,
 			getReminderContent(missing, lang).lead,
+			getPromptCardContent(temporary, lang).message,
 			getPromptCardContent(missing, lang).message,
 			pickPhotoCopy("changeLead", lang),
 		]) {
-			assert.doesNotMatch(text, /本人|yourself/, text)
+			assert.doesNotMatch(text, /本人|photo of yourself/, text)
 		}
 	}
 })
 
-test("home card nudges with or without a deadline", () => {
+test("home card asks to change a temporary photo or set a missing one", () => {
+	assert.deepEqual(getPromptCardContent(temporary, "zh"), {
+		title: "请更换头像",
+		message: "当前头像为系统临时生成，请在10月6日前更换。",
+		action: "去更换",
+		overdue: false,
+	})
+	const overdue = getPromptCardContent({ ...temporary, overdue: true }, "zh")
+	assert.equal(overdue.overdue, true)
+	assert.equal(overdue.message, "当前头像为系统临时生成，已过更换期限（10月6日），请尽快更换。")
+	assert.equal(
+		getPromptCardContent({ ...temporary, deadline: null }, "zh").message,
+		"当前头像为系统临时生成，请尽快更换。"
+	)
 	assert.deepEqual(getPromptCardContent(missing, "zh"), {
 		title: "还没有设置头像",
-		message: "系统更新，需要设置一张头像。",
+		message: "请设置一张头像。",
 		action: "去设置",
 		overdue: false,
 	})
 	assert.equal(
-		getPromptCardContent({ ...missing, deadline: "2026-10-10" }, "zh").message,
-		"请在 10月10日 前设置。"
+		getPromptCardContent({ ...missing, deadline: "2026-10-06" }, "zh").message,
+		"请在10月6日前设置。"
 	)
-	const overdue = getPromptCardContent({ ...missing, deadline: "2026-10-10", overdue: true }, "zh")
-	assert.equal(overdue.overdue, true)
-	assert.match(overdue.message, /已过截止日期/)
+})
+
+test("home card stays short", () => {
+	for (const status of [temporary, { ...temporary, overdue: true }, missing]) {
+		assert.ok(getPromptCardContent(status, "zh").message.length <= 32)
+	}
 })
 
 test("crop keeps the image covering the circle", () => {

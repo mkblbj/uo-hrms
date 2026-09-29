@@ -18,16 +18,8 @@
 							<Icon v-else icon="lucide-circle-user-round" class="h-12 w-12" />
 						</div>
 						<h2 class="photo-sheet-title">{{ heading }}</h2>
-						<p
-							v-if="mode === 'reminder' && content.deadline"
-							class="photo-sheet-deadline"
-							:class="{ 'is-overdue': content.overdue }"
-						>
-							{{ content.deadline }}
-						</p>
-						<p class="photo-sheet-lead">
-							{{ mode === "reminder" ? content.lead : t("changeLead") }}
-						</p>
+						<p v-if="mode === 'reminder'" class="photo-sheet-notice">{{ content.lead }}</p>
+						<p v-else class="photo-sheet-lead">{{ t("changeLead") }}</p>
 					</template>
 
 					<ProfilePhotoEditor
@@ -246,23 +238,6 @@ onBeforeUnmount(releaseSource)
 	text-wrap: balance;
 }
 
-.photo-sheet-deadline {
-	display: inline-block;
-	padding: 4px 12px;
-	border-radius: 999px;
-	color: var(--h-tab-active);
-	background: var(--h-bg-card);
-	border: 1px solid var(--h-bd-default);
-	font-size: 13px;
-	font-weight: 700;
-}
-
-.photo-sheet-deadline.is-overdue {
-	color: var(--h-summary-warn-fg);
-	background: var(--h-summary-warn-bg);
-	border-color: var(--h-summary-warn-bd);
-}
-
 .photo-sheet-body {
 	display: flex;
 	flex: 1;
@@ -313,6 +288,19 @@ onBeforeUnmount(releaseSource)
 	font-size: 15px;
 	line-height: 1.7;
 	text-align: center;
+}
+
+/* 提醒正文比较长，放进卡片里左对齐，好读 */
+.photo-sheet-notice {
+	width: min(100%, 420px);
+	padding: 14px 16px;
+	color: var(--h-fg-primary);
+	background: var(--h-bg-card);
+	border: 1px solid var(--h-bd-default);
+	border-radius: 16px;
+	font-size: 15px;
+	line-height: 1.75;
+	text-align: left;
 }
 
 .photo-sheet-error {

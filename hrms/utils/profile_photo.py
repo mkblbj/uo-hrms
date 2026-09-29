@@ -93,6 +93,24 @@ def can_see_photos(location: str | None = None, key: str | None = None) -> bool:
 	return bool(requires_key) and verify_display_key(location, key)
 
 
+def photo_set_by_employee(employee) -> bool:
+	"""员工自己在应用里上传的头像才算设好；HR 或脚本替他设的算临时头像。"""
+	if not (employee.image and employee.user_id):
+		return False
+	return bool(
+		frappe.db.exists(
+			"File",
+			{
+				"attached_to_doctype": "Employee",
+				"attached_to_name": employee.name,
+				"attached_to_field": PHOTO_FIELD,
+				"file_url": employee.image,
+				"owner": employee.user_id,
+			},
+		)
+	)
+
+
 def delete_photo_files(
 	employee: str, user: str | None = None, keep_url: str | None = None, keep_name: str | None = None
 ) -> None:

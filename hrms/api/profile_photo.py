@@ -12,6 +12,7 @@ from hrms.utils.profile_photo import (
 	PHOTO_FILE_PREFIX,
 	delete_photo_files,
 	normalize_photo,
+	photo_set_by_employee,
 )
 
 
@@ -38,9 +39,12 @@ def get_profile_photo_status() -> dict:
 	deadline = (
 		getdate(settings.get("profile_photo_deadline")) if settings.get("profile_photo_deadline") else None
 	)
+	own = photo_set_by_employee(employee)
 	return {
 		"required": bool(cint(settings.get("require_profile_photo"))),
-		"has_photo": bool(employee.image),
+		# 只有自己上传的才算设好；别人代设的头像照样提醒更换
+		"has_photo": own,
+		"temporary": bool(employee.image) and not own,
 		"photo": employee.image or None,
 		"deadline": str(deadline) if deadline else None,
 		"overdue": bool(deadline) and getdate(today()) > deadline,

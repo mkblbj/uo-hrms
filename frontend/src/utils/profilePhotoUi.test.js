@@ -28,6 +28,7 @@ test("reminder pops up on open and on return, and respects the snooze", () => {
 		"onIonViewDidEnter",
 		'mode="reminder"',
 		"refreshProfilePhoto",
+		":current-photo=\"status.data?.photo || ''\"",
 	]) {
 		assert.ok(source.includes(needle), needle)
 	}
@@ -81,8 +82,10 @@ test("photo copy has no technical wording", () => {
 	const status = { required: true, has_photo: false, deadline: "2026-10-10", overdue: false }
 	const texts = []
 	for (const lang of ["zh", "ja", "en"]) {
-		const reminder = getReminderContent(status, lang)
-		texts.push(reminder.title, reminder.deadline, reminder.lead)
+		for (const variant of [status, { ...status, photo: "/files/a.png", temporary: true }]) {
+			const reminder = getReminderContent(variant, lang)
+			texts.push(reminder.title, reminder.lead)
+		}
 		texts.push(
 			...Object.values(getPromptCardContent(status, lang)).filter((v) => typeof v === "string")
 		)
