@@ -14,6 +14,8 @@ import frappe
 from frappe import _
 from frappe.utils import cint
 
+from hrms.api.checkin_location import is_location_required
+from hrms.api.checkin_presence import EVIDENCE_OFFICE_NETWORK, normalize_coordinates
 from hrms.api.checkin_service import CHECKIN_METHOD_QR, create_checkin, validate_checkin_timing
 from hrms.hr.doctype.qr_checkin_location.qr_checkin_location import verify_display_key
 from hrms.hr.utils import get_distance_between_coordinates
@@ -133,10 +135,12 @@ def qr_checkin(
 	Args:
 		token: 二维码内容 "location_name|time_slot|signature"
 		log_type: "IN" 或 "OUT"
-		latitude: 纬度（可选，如果启用了地理位置追踪则必需）
-		longitude: 经度（可选，如果启用了地理位置追踪则必需）
+		latitude: 纬度（连着公司网络时不需要；否则开了地理位置追踪就必需）
+		longitude: 经度（同上）
 
 	Returns:
+		缺定位时返回 {"status": "need_location"}，手机定位后再提交一次。
+		成功时：
 		{
 			"status": "ok",
 			"message": "签到成功",
@@ -198,42 +202,20 @@ def qr_checkin(
 	if not employee:
 		frappe.throw(_("Your account is not linked to an employee profile, please contact HR"))
 
-	# 6-7. 冷却规则（与 NFC、一键打卡共用）
+	# 6-7. 冷却规则（与一键打卡共用）
 	validate_checkin_timing(employee, log_type)
 
-	# 8. 地理位置验证（如果启用了地理位置追踪）
-	allow_geolocation_tracking = frappe.db.get_single_value("HR Settings", "allow_geolocation_tracking")
-
-	if allow_geolocation_tracking:
-		# 如果启用了地理位置追踪，必须提供经纬度
-		if latitude is None or longitude is None:
-			frappe.throw(_("Geolocation tracking is enabled. Please allow location access and try again."))
-
-		# 如果 QR Checkin Location 关联了 Shift Location，验证距离
-		if doc.shift_location:
-			shift_location = frappe.get_doc("Shift Location", doc.shift_location)
-
-			# 如果 Shift Location 配置了打卡半径，进行验证
-			if shift_location.checkin_radius and shift_location.checkin_radius > 0:
-				if not shift_location.latitude or not shift_location.longitude:
-					frappe.throw(
-						_("Shift Location {0} does not have valid coordinates configured").format(
-							shift_location.name
-						)
-					)
-
-				distance = get_distance_between_coordinates(
-					shift_location.latitude, shift_location.longitude, latitude, longitude
-				)
-
-				if distance > shift_location.checkin_radius:
-					frappe.throw(
-						_(
-							"You must be within {0} meters of the check-in location. Current distance: {1:.0f} meters"
-						).format(shift_location.checkin_radius, distance)
-					)
+	# 8. 在场：连着公司网络就算在公司；否则开了地理位置追踪时要带定位，并按打卡点半径查距离
+	client_ip = get_client_ip()
+	on_office_network = is_office_network(client_ip)
+	coordinates = normalize_coordinates(latitude, longitude)
+	if is_location_required(on_office_network):
+		if not coordinates:
+			return {"status": "need_location"}
+		_validate_distance_to_location(doc, coordinates)
 
 	# 9-11. 建记录、审计、推送墙上屏
+	latitude, longitude = coordinates or (None, None)
 	checkin = create_checkin(
 		employee=employee,
 		log_type=log_type,
@@ -241,8 +223,8 @@ def qr_checkin(
 		method=CHECKIN_METHOD_QR,
 		latitude=latitude,
 		longitude=longitude,
-		evidence="qr",
-		client_ip=get_client_ip(),
+		evidence=EVIDENCE_OFFICE_NETWORK if on_office_network else "qr",
+		client_ip=client_ip,
 	)
 
 	action = _("Check-in") if log_type == "IN" else _("Check-out")
@@ -255,6 +237,29 @@ def qr_checkin(
 		"time": checkin.time,
 		"location": location_name,
 	}
+
+
+def _validate_distance_to_location(doc, coordinates: tuple[float, float]) -> None:
+	"""打卡点关联了带半径的 Shift Location 时，定位必须在半径内。"""
+	if not doc.shift_location:
+		return
+	shift_location = frappe.get_doc("Shift Location", doc.shift_location)
+	if not shift_location.checkin_radius or shift_location.checkin_radius <= 0:
+		return
+	if not shift_location.latitude or not shift_location.longitude:
+		frappe.throw(
+			_("Shift Location {0} does not have valid coordinates configured").format(shift_location.name)
+		)
+
+	distance = get_distance_between_coordinates(
+		shift_location.latitude, shift_location.longitude, coordinates[0], coordinates[1]
+	)
+	if distance > shift_location.checkin_radius:
+		frappe.throw(
+			_(
+				"You must be within {0} meters of the check-in location. Current distance: {1:.0f} meters"
+			).format(shift_location.checkin_radius, distance)
+		)
 
 
 @frappe.whitelist(allow_guest=False)

@@ -204,9 +204,11 @@ class EmployeeCheckin(Document):
 		if self.attendance_correction_request:
 			return
 
+		# 打卡接口已凭公司网络确认人在公司：手机定位即使偏了也不再按距离拦
+		if self.flags.trusted_checkin_source and self.flags.presence_evidence == "office_network":
+			return
+
 		if not (self.latitude or self.longitude):
-			if self.flags.trusted_checkin_source and self.flags.presence_evidence == "office_network":
-				return
 			frappe.throw(_("Latitude and longitude values are required for checking in."))
 
 		assignment_locations = frappe.get_all(
