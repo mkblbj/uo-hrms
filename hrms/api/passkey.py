@@ -1,7 +1,7 @@
 # Copyright (c) 2025, Frappe Technologies and contributors
 # For license information, please see license.txt
 
-"""面容/指纹（通行密钥）打卡接口：设置、首页一键打卡、门口 NFC 页。"""
+"""面容/指纹（通行密钥）打卡接口：设置、首页一键打卡。"""
 
 import json
 
@@ -11,15 +11,12 @@ from frappe.utils import cint, now
 
 from hrms.api.checkin_presence import evaluate_presence, normalize_coordinates
 from hrms.api.checkin_service import (
-	CHECKIN_METHOD_NFC_PASSKEY,
 	CHECKIN_METHOD_PASSKEY,
 	create_checkin,
-	resolve_auto_log_type,
 	validate_checkin_timing,
 )
 from hrms.api.passkey_webauthn import (
 	PURPOSE_CHECKIN,
-	PURPOSE_NFC,
 	PURPOSE_REGISTER,
 	PasskeyVerificationError,
 	b64url_encode,
@@ -166,77 +163,6 @@ def register_complete(credential: str, device_name: str | None = None):
 	if existing_count:
 		_notify_new_device(user, doc.device_name)
 	return {"status": "ok", "message": _("Passkey registered successfully")}
-
-
-def _require_enabled_location(location: str | None) -> str:
-	if not location or not frappe.db.get_value("QR Checkin Location", location, "enabled"):
-		frappe.throw(_("Check-in location is not available"))
-	return location
-
-
-@frappe.whitelist(allow_guest=True, methods=["POST", "GET"], xss_safe=True)
-def auth_options(location: str | None = None):
-	"""门口 NFC 页取认证选项（访客，可发现凭证）。"""
-	location_name = _require_enabled_location(location)
-	return build_authentication_options(
-		allow_credential_ids=[], data={"location": location_name}, purpose=PURPOSE_NFC
-	)
-
-
-@frappe.whitelist(allow_guest=True, methods=["POST"], xss_safe=True)
-def passkey_checkin(
-	credential: str,
-	location: str,
-	latitude: float | None = None,
-	longitude: float | None = None,
-):
-	"""门口 NFC 页打卡：核对通行密钥 → 在场判断 → 自动判断出勤/退勤。"""
-	location_name = _require_enabled_location(location)
-	data = _parse_credential(credential)
-	cred_doc = _get_credential_doc(data["id"])
-	if not cred_doc:
-		frappe.throw(_("Passkey not found. Please register first."))
-
-	challenge_b64 = extract_client_challenge(data)
-	record = pop_challenge(PURPOSE_NFC, challenge_b64)
-	if not record or record.get("location") != location_name:
-		frappe.throw(_("Authentication timeout or invalid challenge"))
-	_verify_or_throw(data, challenge_b64, cred_doc)
-
-	client_ip = get_client_ip()
-	presence = evaluate_presence(location_name, client_ip, latitude, longitude)
-	if not presence.ok:
-		frappe.throw(
-			_(
-				"We couldn't confirm you are at the office. Please scan the QR code at the entrance with the app."
-			)
-		)
-
-	employee = cred_doc.employee
-	log_type = resolve_auto_log_type(employee)
-	validate_checkin_timing(employee, log_type)
-	coordinates = normalize_coordinates(latitude, longitude) or (None, None)
-	checkin = create_checkin(
-		employee=employee,
-		log_type=log_type,
-		location=location_name,
-		method=CHECKIN_METHOD_NFC_PASSKEY,
-		latitude=coordinates[0],
-		longitude=coordinates[1],
-		evidence=presence.evidence,
-		client_ip=client_ip,
-	)
-
-	action = _("Check-in") if log_type == "IN" else _("Check-out")
-	return {
-		"status": "ok",
-		"message": _("{0} successful").format(action),
-		"log_type": log_type,
-		"employee": employee,
-		"employee_name": checkin.employee_name,
-		"time": str(checkin.time),
-		"location": location_name,
-	}
 
 
 def _passkey_checkin_location() -> str | None:

@@ -10,7 +10,6 @@ from hrms.api import checkin_service
 from hrms.api.checkin_service import (
 	CHECKIN_METHOD_PASSKEY,
 	create_checkin,
-	resolve_auto_log_type,
 	validate_checkin_timing,
 )
 from hrms.tests.utils import HRMSTestSuite
@@ -59,11 +58,6 @@ class TestCheckinService(HRMSTestSuite):
 		self._log("IN", 1)
 		with patch.object(checkin_service, "is_checkin_cooldown_exempt", return_value=True):
 			validate_checkin_timing(self.employee, "OUT")
-
-	def test_auto_log_type(self):
-		self.assertEqual(resolve_auto_log_type(self.employee), "IN")
-		self._log("IN", 30)
-		self.assertEqual(resolve_auto_log_type(self.employee), "OUT")
 
 	def test_create_checkin_sets_fields_audits_and_notifies(self):
 		with (

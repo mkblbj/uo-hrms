@@ -76,7 +76,7 @@
 							</div>
 						</div>
 
-						<!-- NFC Passkey Manager -->
+						<!-- Passkey Manager -->
 						<div class="w-full my-4">
 							<PasskeyManager />
 						</div>

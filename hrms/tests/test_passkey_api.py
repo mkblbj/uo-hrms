@@ -99,7 +99,7 @@ class TestPasskeyRegistration(PasskeyApiTestCase):
 		self.assertEqual(passkey.get_my_passkeys(), [])
 
 
-NFC_LOCATION = "passkey-test-door"
+TEST_LOCATION = "passkey-test-door"
 
 
 def ensure_location(with_geofence=True):
@@ -113,63 +113,17 @@ def ensure_location(with_geofence=True):
 				"checkin_radius": 200,
 			}
 		).insert()
-	if not frappe.db.exists("QR Checkin Location", NFC_LOCATION):
+	if not frappe.db.exists("QR Checkin Location", TEST_LOCATION):
 		frappe.get_doc(
-			{"doctype": "QR Checkin Location", "location_name": NFC_LOCATION, "secret": "s" * 32}
+			{"doctype": "QR Checkin Location", "location_name": TEST_LOCATION, "secret": "s" * 32}
 		).insert()
 	frappe.db.set_value(
 		"QR Checkin Location",
-		NFC_LOCATION,
+		TEST_LOCATION,
 		"shift_location",
 		"Passkey Test Office" if with_geofence else None,
 	)
-	return NFC_LOCATION
-
-
-class TestNfcPasskeyCheckin(PasskeyApiTestCase):
-	rp_id = "erphr.toiroworld.com"
-	origin = "https://erphr.toiroworld.com"
-
-	def _nfc(self, authenticator, *, latitude=35.6813, longitude=139.7672, location=None, **kwargs):
-		location = location or ensure_location()
-		frappe.set_user("Guest")
-		options = passkey.auth_options(location)
-		assertion = authenticator.authenticate(options["challenge"], **kwargs)
-		with patch("frappe.publish_realtime"):
-			return passkey.passkey_checkin(json.dumps(assertion), location, latitude, longitude)
-
-	def test_guest_nfc_checkin_with_valid_passkey_and_location(self):
-		authenticator = self.register_device()
-		result = self._nfc(authenticator)
-		frappe.set_user("Administrator")
-		self.assertEqual(result["status"], "ok")
-		self.assertEqual(result["log_type"], "IN")
-		row = frappe.db.get_value(
-			"Employee Checkin", {"employee": self.employee}, ["device_id", "checkin_method"], as_dict=True
-		)
-		self.assertEqual((row.device_id, row.checkin_method), (NFC_LOCATION, "NFC Passkey"))
-
-	def test_forged_signature_is_rejected(self):
-		authenticator = self.register_device()
-		with self.assertRaisesRegex(frappe.ValidationError, "could not be verified"):
-			self._nfc(authenticator, tamper_signature=True)
-		frappe.set_user("Administrator")
-		self.assertFalse(frappe.db.exists("Employee Checkin", {"employee": self.employee}))
-
-	def test_unknown_location_is_rejected(self):
-		frappe.set_user("Guest")
-		with self.assertRaises(frappe.ValidationError):
-			passkey.auth_options("no-such-door")
-
-	def test_far_away_nfc_checkin_is_rejected(self):
-		authenticator = self.register_device()
-		with self.assertRaisesRegex(frappe.ValidationError, "confirm you are at the office"):
-			self._nfc(authenticator, latitude=35.75, longitude=139.9)
-
-	def test_unregistered_credential_keeps_old_message(self):
-		stranger = SoftAuthenticator(self.rp_id, self.origin)
-		with self.assertRaisesRegex(frappe.ValidationError, "Passkey not found"):
-			self._nfc(stranger)
+	return TEST_LOCATION
 
 
 class TestOneTapCheckin(PasskeyApiTestCase):
@@ -226,6 +180,15 @@ class TestOneTapCheckin(PasskeyApiTestCase):
 		frappe.set_user("Administrator")
 		row = frappe.db.get_value("Employee Checkin", {"employee": self.employee}, ["latitude"], as_dict=True)
 		self.assertAlmostEqual(row.latitude, 35.6813, places=4)
+
+	def test_forged_signature_is_rejected(self):
+		authenticator = self.register_device()
+		frappe.set_user(API_USER)
+		begin = self._begin(ip="203.0.113.5")
+		with self.assertRaisesRegex(frappe.ValidationError, "could not be verified"):
+			self._complete(authenticator, begin["options"], tamper_signature=True)
+		frappe.set_user("Administrator")
+		self.assertFalse(frappe.db.exists("Employee Checkin", {"employee": self.employee}))
 
 	def test_far_away_is_presence_unconfirmed(self):
 		self.register_device()
@@ -314,23 +277,6 @@ class TestCheckinWithGeolocationTracking(PasskeyApiTestCase):
 			authenticator, "198.51.100.1", latitude=35.6813, longitude=139.7672, accuracy=20
 		)
 		self.assertEqual((begin["evidence"], result["status"]), ("gps", "ok"))
-
-	def test_nfc_on_office_network_keeps_coordinates(self):
-		authenticator = self.register_device()
-		frappe.set_user("Guest")
-		options = passkey.auth_options(self.location)
-		assertion = authenticator.authenticate(options["challenge"])
-		with (
-			patch.object(passkey, "get_client_ip", return_value="203.0.113.5"),
-			patch("frappe.publish_realtime"),
-		):
-			result = passkey.passkey_checkin(json.dumps(assertion), self.location, 35.6813, 139.7672)
-		frappe.set_user("Administrator")
-		self.assertEqual(result["status"], "ok")
-		row = frappe.db.get_value(
-			"Employee Checkin", {"employee": self.employee}, ["latitude", "longitude"], as_dict=True
-		)
-		self.assertAlmostEqual(row.latitude, 35.6813, places=4)
 
 	def test_untrusted_checkin_still_needs_coordinates(self):
 		doc = frappe.get_doc(

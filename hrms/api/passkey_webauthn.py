@@ -20,7 +20,6 @@ CHECKIN_TIMEOUT_SECONDS = 120
 
 PURPOSE_REGISTER = "register"
 PURPOSE_CHECKIN = "checkin"
-PURPOSE_NFC = "nfc"
 
 INPUT_ERRORS = (ValueError, KeyError, TypeError)
 
@@ -171,8 +170,8 @@ def build_authentication_options(
 
 
 def _without_user_handle(credential: dict) -> dict:
-	"""核对签名用不到 userHandle（按凭证编号找人）；门口 NFC 页的 SimpleWebAuthn 9 会把它当
-	UTF-8 文本（旧注册里是邮箱）返回，交给 py_webauthn 解析会失败，所以核对前去掉。"""
+	"""核对签名用不到 userHandle（按凭证编号找人）；旧版前端库会把它当 UTF-8 文本
+	（旧注册里是邮箱）返回，交给 py_webauthn 解析会失败，所以核对前去掉。"""
 	response = credential.get("response")
 	if not isinstance(response, dict) or "userHandle" not in response:
 		return credential

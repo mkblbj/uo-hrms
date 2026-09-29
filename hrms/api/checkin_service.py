@@ -1,4 +1,4 @@
-"""扫码、NFC、一键打卡共用的打卡规则与建记录。"""
+"""扫码、一键打卡共用的打卡规则与建记录。"""
 
 from datetime import timedelta
 
@@ -10,13 +10,11 @@ from hrms.api.checkin_cooldown import is_checkin_cooldown_exempt
 
 CHECKIN_METHOD_QR = "QR"
 CHECKIN_METHOD_PASSKEY = "Passkey"
-CHECKIN_METHOD_NFC_PASSKEY = "NFC Passkey"
 CHECKIN_METHOD_CORRECTION = "Attendance Correction"
 
 AUDIT_TITLES = {
 	CHECKIN_METHOD_QR: "QR Checkin Audit",
 	CHECKIN_METHOD_PASSKEY: "Passkey Checkin Audit",
-	CHECKIN_METHOD_NFC_PASSKEY: "NFC-Passkey Checkin",
 }
 
 
@@ -59,15 +57,6 @@ def validate_checkin_timing(employee: str, log_type: str) -> None:
 				action
 			)
 		)
-
-
-def resolve_auto_log_type(employee: str) -> str:
-	last_checkin = frappe.db.get_value(
-		"Employee Checkin", {"employee": employee}, ["log_type", "time"], order_by="time desc"
-	)
-	if last_checkin and get_datetime(last_checkin[1]).date() == now_datetime().date():
-		return "OUT" if last_checkin[0] == "IN" else "IN"
-	return "IN"
 
 
 def create_checkin(
