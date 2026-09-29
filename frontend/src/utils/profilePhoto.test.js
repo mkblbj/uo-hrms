@@ -41,9 +41,9 @@ const brokenStorage = {
 }
 
 test("copy is picked by language and falls back to Chinese", () => {
-	assert.equal(pickPhotoCopy("title", "zh"), "请上传本人头像")
-	assert.equal(pickPhotoCopy("title", "ja"), "プロフィール写真を登録してください")
-	assert.equal(pickPhotoCopy("title", "fr"), "请上传本人头像")
+	assert.equal(pickPhotoCopy("title", "zh"), "请设置头像")
+	assert.equal(pickPhotoCopy("title", "ja"), "プロフィール写真の設定")
+	assert.equal(pickPhotoCopy("title", "fr"), "请设置头像")
 	assert.equal(pickPhotoCopy("deadline", "zh", "10月10日"), "请在 10月10日 前完成")
 })
 
@@ -83,20 +83,13 @@ test("snooze time is stored per device and survives blocked storage", () => {
 	assert.equal(readSnoozedAt(undefined), null)
 })
 
-test("reminder content explains uses, rules and promises, with the deadline", () => {
-	const content = getReminderContent({ ...missing, deadline: "2026-10-10" }, "zh")
-	assert.equal(content.title, "请上传本人头像")
-	assert.equal(content.deadline, "请在 10月10日 前完成")
-	assert.equal(content.overdue, false)
-	assert.deepEqual(
-		content.sections.map((section) => [section.id, section.items.length]),
-		[
-			["uses", 3],
-			["rules", 2],
-			["promise", 3],
-		]
-	)
-	assert.match(content.sections[2].items[1], /不用于人脸识别/)
+test("reminder is a short note with the deadline", () => {
+	assert.deepEqual(getReminderContent({ ...missing, deadline: "2026-10-10" }, "zh"), {
+		title: "请设置头像",
+		deadline: "请在 10月10日 前完成",
+		overdue: false,
+		lead: "系统更新，需要每个人设置一张头像（请用本人照片），1 分钟就好。",
+	})
 
 	const overdue = getReminderContent({ ...missing, deadline: "2026-10-10", overdue: true }, "ja")
 	assert.equal(overdue.overdue, true)
@@ -105,20 +98,27 @@ test("reminder content explains uses, rules and promises, with the deadline", ()
 	assert.equal(getReminderContent(missing, "zh").deadline, "")
 })
 
+test("reminder wording stays short", () => {
+	assert.ok(getReminderContent(missing, "zh").lead.length <= 40)
+	assert.ok(getReminderContent(missing, "ja").lead.length <= 45)
+	assert.ok(getReminderContent(missing, "ja").title.length <= 12)
+	assert.ok(getPromptCardContent(missing, "zh").message.length <= 20)
+})
+
 test("home card nudges with or without a deadline", () => {
 	assert.deepEqual(getPromptCardContent(missing, "zh"), {
-		title: "还没有上传头像",
-		message: "请上传一张本人照片作为头像。",
-		action: "去上传",
+		title: "还没有设置头像",
+		message: "系统更新，需要设置一张头像。",
+		action: "去设置",
 		overdue: false,
 	})
 	assert.equal(
 		getPromptCardContent({ ...missing, deadline: "2026-10-10" }, "zh").message,
-		"请在 10月10日 前上传本人照片。"
+		"请在 10月10日 前设置。"
 	)
 	const overdue = getPromptCardContent({ ...missing, deadline: "2026-10-10", overdue: true }, "zh")
 	assert.equal(overdue.overdue, true)
-	assert.match(overdue.message, /已超过截止日期/)
+	assert.match(overdue.message, /已过截止日期/)
 })
 
 test("crop keeps the image covering the circle", () => {

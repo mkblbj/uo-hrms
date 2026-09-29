@@ -6,38 +6,28 @@
 		@didDismiss="onDismissed"
 	>
 		<div class="photo-sheet">
-			<header class="photo-sheet-header">
+			<header v-if="step === 'edit'" class="photo-sheet-header">
 				<h2 class="photo-sheet-title">{{ heading }}</h2>
-				<p
-					v-if="step === 'intro' && mode === 'reminder' && content.deadline"
-					class="photo-sheet-deadline"
-					:class="{ 'is-overdue': content.overdue }"
-				>
-					{{ content.deadline }}
-				</p>
 			</header>
 
-			<div class="photo-sheet-body">
+			<div class="photo-sheet-body" :class="{ 'is-intro': step === 'intro' }">
 				<div class="photo-sheet-inner">
 					<template v-if="step === 'intro'">
 						<div class="photo-sheet-avatar" aria-hidden="true">
 							<img v-if="currentPhoto" :src="currentPhoto" alt="" />
 							<Icon v-else icon="lucide-circle-user-round" class="h-12 w-12" />
 						</div>
+						<h2 class="photo-sheet-title">{{ heading }}</h2>
+						<p
+							v-if="mode === 'reminder' && content.deadline"
+							class="photo-sheet-deadline"
+							:class="{ 'is-overdue': content.overdue }"
+						>
+							{{ content.deadline }}
+						</p>
 						<p class="photo-sheet-lead">
 							{{ mode === "reminder" ? content.lead : t("changeLead") }}
 						</p>
-						<section
-							v-for="section in sections"
-							:key="section.id"
-							class="photo-sheet-section"
-							:class="`is-${section.id}`"
-						>
-							<h3>{{ section.title }}</h3>
-							<ul>
-								<li v-for="item in section.items" :key="item">{{ item }}</li>
-							</ul>
-						</section>
 					</template>
 
 					<ProfilePhotoEditor
@@ -141,11 +131,6 @@ let closedByUs = false
 
 const t = (key) => pickPhotoCopy(key, props.lang)
 const content = computed(() => getReminderContent(props.status, props.lang))
-const sections = computed(() =>
-	props.mode === "reminder"
-		? content.value.sections
-		: content.value.sections.filter((section) => section.id === "rules")
-)
 const heading = computed(() => {
 	if (step.value === "edit") return t("editTitle")
 	return props.mode === "reminder" ? content.value.title : t("changeTitle")
@@ -254,14 +239,15 @@ onBeforeUnmount(releaseSource)
 }
 
 .photo-sheet-title {
-	font-size: 20px;
+	font-size: 21px;
 	font-weight: 900;
-	line-height: 1.3;
+	line-height: 1.35;
+	text-align: center;
+	text-wrap: balance;
 }
 
 .photo-sheet-deadline {
 	display: inline-block;
-	margin-top: 8px;
 	padding: 4px 12px;
 	border-radius: 999px;
 	color: var(--h-tab-active);
@@ -287,6 +273,11 @@ onBeforeUnmount(releaseSource)
 	-webkit-overflow-scrolling: touch;
 }
 
+/* 提醒页没有顶栏，自己让出刘海的位置 */
+.photo-sheet-body.is-intro {
+	padding-top: calc(20px + env(safe-area-inset-top));
+}
+
 /* 内容短时上下居中，长时照常从上往下滚 */
 .photo-sheet-inner {
 	display: flex;
@@ -300,8 +291,8 @@ onBeforeUnmount(releaseSource)
 .photo-sheet-avatar {
 	display: grid;
 	flex: 0 0 auto;
-	width: 88px;
-	height: 88px;
+	width: 112px;
+	height: 112px;
 	place-items: center;
 	overflow: hidden;
 	color: var(--h-fg-muted);
@@ -317,40 +308,11 @@ onBeforeUnmount(releaseSource)
 }
 
 .photo-sheet-lead {
-	max-width: 360px;
+	max-width: 320px;
 	color: var(--h-fg-secondary);
-	font-size: 14px;
-	line-height: 1.6;
-	text-align: center;
-}
-
-.photo-sheet-section {
-	width: min(100%, 420px);
-	padding: 14px 16px;
-	background: var(--h-bg-card);
-	border: 1px solid var(--h-bd-default);
-	border-radius: 16px;
-}
-
-.photo-sheet-section h3 {
-	margin-bottom: 6px;
 	font-size: 15px;
-	font-weight: 800;
-}
-
-.photo-sheet-section ul {
-	display: flex;
-	flex-direction: column;
-	gap: 6px;
-	padding-left: 18px;
-	list-style: disc;
-	color: var(--h-fg-secondary);
-	font-size: 13.5px;
-	line-height: 1.6;
-}
-
-.photo-sheet-section.is-promise {
-	background: var(--h-bg-card-inner);
+	line-height: 1.7;
+	text-align: center;
 }
 
 .photo-sheet-error {

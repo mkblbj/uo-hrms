@@ -41,6 +41,8 @@ test("sheet offers camera and library, cannot be dismissed by tapping outside", 
 	assert.match(source, /capture="user"/)
 	assert.match(source, /uploadProfilePhoto/)
 	assert.match(source, /<ProfilePhotoEditor/)
+	// 提醒只保留一句话，不再列用途、要求、承诺
+	assert.doesNotMatch(source, /photo-sheet-section/)
 	// 隐藏的选图框不能用 display:none
 	assert.doesNotMatch(source, /\.photo-sheet-input\s*{[^}]*display:\s*none/)
 })
@@ -81,7 +83,6 @@ test("photo copy has no technical wording", () => {
 	for (const lang of ["zh", "ja", "en"]) {
 		const reminder = getReminderContent(status, lang)
 		texts.push(reminder.title, reminder.deadline, reminder.lead)
-		reminder.sections.forEach((section) => texts.push(section.title, ...section.items))
 		texts.push(
 			...Object.values(getPromptCardContent(status, lang)).filter((v) => typeof v === "string")
 		)

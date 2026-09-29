@@ -142,7 +142,7 @@ bench --site hrms.localhost migrate
 员工在 PWA 里自己上传头像。HR 设置「Employee」标签的「Profile Photo」里有两项：打开提醒，以及可选的截止日期。
 
 提醒（`frontend/src/components/home/ProfilePhotoReminder.vue`）：
-- 没有头像时，首页每次打开都弹全屏提醒，内容是用途、照片要求和承诺。
+- 没有头像时，首页每次打开都弹全屏提醒，只有一句话：系统更新，需要设置一张头像（请用本人照片）。用户要求文案简短，别再加长。
 - 点「稍后再说」后，这台手机 3 小时内不再弹；首页顶部的卡片会一直留着，直到上传。
 - 不挡打卡。
 - 个人页点头像可以随时更换。

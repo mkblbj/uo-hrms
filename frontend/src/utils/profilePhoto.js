@@ -12,63 +12,20 @@ export const PHOTO_UPLOAD_METHOD = "hrms.api.profile_photo.upload_my_photo"
 
 const COPY = {
 	title: {
-		zh: "请上传本人头像",
-		ja: "プロフィール写真を登録してください",
-		en: "Please Add Your Profile Photo",
+		zh: "请设置头像",
+		ja: "プロフィール写真の設定",
+		en: "Please Set a Profile Photo",
 	},
-	deadline: { zh: "请在 {0} 前完成", ja: "{0}までに登録してください", en: "Please finish by {0}" },
+	deadline: { zh: "请在 {0} 前完成", ja: "{0}までに設定してください", en: "Please finish by {0}" },
 	overdue: {
-		zh: "已超过截止日期（{0}），请尽快上传",
-		ja: "登録期限（{0}）を過ぎています。至急登録してください",
-		en: "The deadline ({0}) has passed. Please add it now",
+		zh: "已过截止日期（{0}），请尽快设置",
+		ja: "期限（{0}）を過ぎています。早めに設定してください",
+		en: "The deadline ({0}) has passed. Please set it soon",
 	},
 	lead: {
-		zh: "公司请每位员工上传一张本人照片作为头像，1 分钟就能完成。",
-		ja: "全従業員に、本人の写真をプロフィール写真として登録していただいています。1分ほどで終わります。",
-		en: "Everyone is asked to add a photo of themselves as their profile photo. It takes about a minute.",
-	},
-	usesTitle: { zh: "用在哪里", ja: "利用目的", en: "Where It Is Used" },
-	useCheckin: {
-		zh: "打卡确认：门口打卡屏会显示打卡人的头像，方便确认是本人打卡。",
-		ja: "打刻の確認：入口の打刻画面に打刻した人の写真が表示され、本人の打刻か確認できます。",
-		en: "Check-in: the screen at the door shows the photo of whoever checks in, so it is clear the right person did.",
-	},
-	useRequests: {
-		zh: "申请与通知：请假、补卡等申请和系统通知会显示头像，一眼认出是谁。",
-		ja: "申請・通知：休暇や打刻修正などの申請、お知らせに写真が表示され、誰からか一目で分かります。",
-		en: "Requests and notifications: leave and correction requests and notifications show your photo, so people know who it is at a glance.",
-	},
-	useFuture: {
-		zh: "以后的新功能：公司内部系统以后新增的功能也用这张头像，这次统一收集，以后不用重复提交。",
-		ja: "今後の新機能：社内システムに今後追加する機能でも同じ写真を使います。今回まとめて登録すれば、改めて提出する必要はありません。",
-		en: "Future features: new features in our internal systems will use the same photo, so you only need to add it once.",
-	},
-	rulesTitle: { zh: "照片要求", ja: "写真の条件", en: "Photo Guidelines" },
-	ruleFace: {
-		zh: "本人近照，正面，五官清晰，不戴口罩和墨镜。",
-		ja: "本人の最近の写真で、正面から顔がはっきり写っているもの（マスク・サングラスなし）。",
-		en: "A recent photo of you, facing the camera with your face clearly visible, no mask or sunglasses.",
-	},
-	ruleNot: {
-		zh: "不用风景、卡通、合影或别人的照片。",
-		ja: "風景・イラスト・集合写真・他人の写真は使えません。",
-		en: "No scenery, cartoons, group photos or photos of other people.",
-	},
-	promiseTitle: { zh: "我们承诺", ja: "お約束", en: "Our Promise" },
-	promiseInternal: {
-		zh: "只在公司内部系统里显示，不对外公开，不提供给第三方。",
-		ja: "社内システムの中だけで表示し、社外への公開や第三者への提供はしません。",
-		en: "Shown only inside our internal systems, never published or shared with third parties.",
-	},
-	promiseNoFaceId: {
-		zh: "不用于人脸识别。面容/指纹打卡由你的手机自己验证，面部和指纹数据只在手机里，公司拿不到。",
-		ja: "顔認証には使いません。顔・指紋での打刻はスマートフォン自身が確認しており、顔や指紋のデータはスマートフォンの中にだけあり、会社には届きません。",
-		en: "Never used for face recognition. Face ID and fingerprint check-in is verified by your phone; that data stays on your phone and never reaches the company.",
-	},
-	promiseDelete: {
-		zh: "离职后删除。",
-		ja: "退職後は削除します。",
-		en: "Deleted when you leave the company.",
+		zh: "系统更新，需要每个人设置一张头像（请用本人照片），1 分钟就好。",
+		ja: "システム更新のため、ご本人の写真を設定してください。1分ほどで終わります。",
+		en: "After a system update, everyone needs a profile photo (a photo of yourself). It only takes a minute.",
 	},
 	takePhoto: { zh: "拍一张", ja: "写真を撮る", en: "Take a Photo" },
 	choosePhoto: { zh: "从相册选择", ja: "アルバムから選ぶ", en: "Choose from Library" },
@@ -76,9 +33,9 @@ const COPY = {
 	cancel: { zh: "取消", ja: "キャンセル", en: "Cancel" },
 	changeTitle: { zh: "更换头像", ja: "写真を変更", en: "Change Photo" },
 	changeLead: {
-		zh: "请选择一张本人近照，正面、五官清晰。",
-		ja: "本人の最近の写真で、顔がはっきり写っているものを選んでください。",
-		en: "Choose a recent photo of you with your face clearly visible.",
+		zh: "请选一张本人照片。",
+		ja: "ご本人の写真を選んでください。",
+		en: "Choose a photo of yourself.",
 	},
 	editTitle: { zh: "调整头像", ja: "写真の調整", en: "Adjust Your Photo" },
 	editHint: {
@@ -111,26 +68,26 @@ const COPY = {
 		en: "Upload failed. Please try again.",
 	},
 	cardTitle: {
-		zh: "还没有上传头像",
-		ja: "プロフィール写真が未登録です",
+		zh: "还没有设置头像",
+		ja: "プロフィール写真が未設定です",
 		en: "No Profile Photo Yet",
 	},
 	cardDeadline: {
-		zh: "请在 {0} 前上传本人照片。",
-		ja: "{0}までに本人の写真を登録してください。",
-		en: "Please add a photo of yourself by {0}.",
+		zh: "请在 {0} 前设置。",
+		ja: "{0}までに設定してください。",
+		en: "Please set it by {0}.",
 	},
 	cardOverdue: {
-		zh: "已超过截止日期（{0}），请尽快上传。",
-		ja: "登録期限（{0}）を過ぎています。至急登録してください。",
-		en: "The deadline ({0}) has passed. Please add it now.",
+		zh: "已过截止日期（{0}），请尽快设置。",
+		ja: "期限（{0}）を過ぎています。早めに設定してください。",
+		en: "The deadline ({0}) has passed. Please set it soon.",
 	},
 	cardNoDeadline: {
-		zh: "请上传一张本人照片作为头像。",
-		ja: "本人の写真をプロフィール写真として登録してください。",
-		en: "Please add a photo of yourself as your profile photo.",
+		zh: "系统更新，需要设置一张头像。",
+		ja: "システム更新のため、プロフィール写真を設定してください。",
+		en: "After a system update, please set a profile photo.",
 	},
-	cardAction: { zh: "去上传", ja: "登録する", en: "Add Photo" },
+	cardAction: { zh: "去设置", ja: "設定する", en: "Set Photo" },
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
@@ -181,26 +138,12 @@ function deadlineText(status, lang, key, overdueKey) {
 }
 
 export function getReminderContent(status, lang = "zh") {
-	const t = (key) => pickPhotoCopy(key, lang)
 	const deadline = deadlineText(status, lang, "deadline", "overdue")
 	return {
-		title: t("title"),
+		title: pickPhotoCopy("title", lang),
 		deadline: deadline.text,
 		overdue: deadline.overdue,
-		lead: t("lead"),
-		sections: [
-			{
-				id: "uses",
-				title: t("usesTitle"),
-				items: [t("useCheckin"), t("useRequests"), t("useFuture")],
-			},
-			{ id: "rules", title: t("rulesTitle"), items: [t("ruleFace"), t("ruleNot")] },
-			{
-				id: "promise",
-				title: t("promiseTitle"),
-				items: [t("promiseInternal"), t("promiseNoFaceId"), t("promiseDelete")],
-			},
-		],
+		lead: pickPhotoCopy("lead", lang),
 	}
 }
 
