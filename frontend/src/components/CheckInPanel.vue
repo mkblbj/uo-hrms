@@ -423,6 +423,14 @@ async function startPasskeyCheckin({ setup = false, pending = null } = {}) {
 				now: () => Date.now(),
 			},
 		})
+		// 本机刚设置好但这次没打成：先刷新状态，「再试一次」就不会重新设置
+		if (result.setupDone && result.outcome !== "success") {
+			try {
+				await passkeyContext.reload()
+			} catch (_) {
+				// 刷新失败也照常给出结果面板
+			}
+		}
 		await handlePasskeyOutcome(action, result)
 	} finally {
 		passkeyBusy.value = false

@@ -125,6 +125,20 @@ test("first use registers the phone and then checks in", async () => {
 	assert.equal(calls[1][1].device_name, "iPhone")
 })
 
+test("a phone set up just now is reported even when check-in stops afterwards", async () => {
+	const { deps } = makeDeps({
+		getPosition: async () => {
+			throw Object.assign(new Error("denied"), { reason: "denied" })
+		},
+	})
+	const result = await runPasskeyCheckin({
+		logType: "IN",
+		context: { ...officeContext, has_passkey: false, on_office_network: false },
+		deps,
+	})
+	assert.deepEqual(result, { outcome: "location_failed", reason: "denied", setupDone: true })
+})
+
 test("invalid state during setup continues to checkin", async () => {
 	const { deps, calls } = makeDeps({
 		startRegistration: async () => {

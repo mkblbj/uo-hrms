@@ -7,6 +7,7 @@ from frappe.utils import getdate
 from erpnext.setup.doctype.employee.test_employee import make_employee
 
 from hrms.api import checkin_location, qr_attendance
+from hrms.hr.doctype.employee_checkin.employee_checkin import CheckinRadiusExceededError
 from hrms.hr.doctype.shift_type.test_shift_type import make_shift_assignment, setup_shift_type
 from hrms.tests.utils import HRMSTestSuite
 
@@ -174,7 +175,7 @@ class TestEditingSavedCheckins(CheckinLocationTestCase):
 	def test_moving_the_coordinates_later_is_checked_again(self):
 		doc = frappe.get_doc("Employee Checkin", self.checkin_far_away("office_network").name)
 		doc.latitude = FAR[0] + 0.01
-		with self.assertRaises(frappe.ValidationError):
+		with self.assertRaises(CheckinRadiusExceededError):
 			doc.save()
 
 

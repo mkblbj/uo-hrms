@@ -238,13 +238,19 @@ async function beginWithPresence({ logType, context, deps }) {
 	return { begin }
 }
 
-export async function runPasskeyCheckin({ logType, context, deps, setup = false, pending = null }) {
+export async function runPasskeyCheckin(args) {
+	const progress = { setupDone: false }
+	const result = await runCheckinSteps(args, progress)
+	// 本机刚设置好：告诉界面刷新状态，免得「再试一次」又走一遍设置
+	return progress.setupDone ? { ...result, setupDone: true } : result
+}
+
+async function runCheckinSteps({ logType, context, deps, setup = false, pending = null }, progress) {
 	try {
-		let setupDone = false
 		if (setup || !context?.has_passkey) {
 			const registered = await registerThisDevice(deps)
 			if (registered.outcome !== "registered") return registered
-			setupDone = true
+			progress.setupDone = true
 		}
 
 		const freshPending =
@@ -259,10 +265,10 @@ export async function runPasskeyCheckin({ logType, context, deps, setup = false,
 			if (status === "ok") {
 				options = begin.options
 				evidence = begin.evidence
-			} else if (status === "no_passkey" && !setupDone) {
+			} else if (status === "no_passkey" && !progress.setupDone) {
 				const registered = await registerThisDevice(deps)
 				if (registered.outcome !== "registered") return registered
-				setupDone = true
+				progress.setupDone = true
 			} else if (status === "presence_unconfirmed" || status === "need_location") {
 				return { outcome: "presence_unconfirmed", reason: begin.reason || null }
 			} else if (status === "disabled") {
