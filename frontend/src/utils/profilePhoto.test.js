@@ -88,7 +88,7 @@ test("reminder is a short note with the deadline", () => {
 		title: "请设置头像",
 		deadline: "请在 10月10日 前完成",
 		overdue: false,
-		lead: "系统更新，需要每个人设置一张头像（请用本人照片），1 分钟就好。",
+		lead: "系统更新，需要每个人设置一张头像，1 分钟就好。",
 	})
 
 	const overdue = getReminderContent({ ...missing, deadline: "2026-10-10", overdue: true }, "ja")
@@ -103,6 +103,18 @@ test("reminder wording stays short", () => {
 	assert.ok(getReminderContent(missing, "ja").lead.length <= 45)
 	assert.ok(getReminderContent(missing, "ja").title.length <= 12)
 	assert.ok(getPromptCardContent(missing, "zh").message.length <= 20)
+})
+
+test("wording does not ask for a photo of yourself", () => {
+	for (const lang of ["zh", "ja", "en"]) {
+		for (const text of [
+			getReminderContent(missing, lang).lead,
+			getPromptCardContent(missing, lang).message,
+			pickPhotoCopy("changeLead", lang),
+		]) {
+			assert.doesNotMatch(text, /本人|yourself/, text)
+		}
+	}
 })
 
 test("home card nudges with or without a deadline", () => {

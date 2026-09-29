@@ -23,9 +23,9 @@ const COPY = {
 		en: "The deadline ({0}) has passed. Please set it soon",
 	},
 	lead: {
-		zh: "系统更新，需要每个人设置一张头像（请用本人照片），1 分钟就好。",
-		ja: "システム更新のため、ご本人の写真を設定してください。1分ほどで終わります。",
-		en: "After a system update, everyone needs a profile photo (a photo of yourself). It only takes a minute.",
+		zh: "系统更新，需要每个人设置一张头像，1 分钟就好。",
+		ja: "システム更新のため、プロフィール写真を設定してください。1分ほどで終わります。",
+		en: "After a system update, everyone needs a profile photo. It only takes a minute.",
 	},
 	takePhoto: { zh: "拍一张", ja: "写真を撮る", en: "Take a Photo" },
 	choosePhoto: { zh: "从相册选择", ja: "アルバムから選ぶ", en: "Choose from Library" },
@@ -33,9 +33,9 @@ const COPY = {
 	cancel: { zh: "取消", ja: "キャンセル", en: "Cancel" },
 	changeTitle: { zh: "更换头像", ja: "写真を変更", en: "Change Photo" },
 	changeLead: {
-		zh: "请选一张本人照片。",
-		ja: "ご本人の写真を選んでください。",
-		en: "Choose a photo of yourself.",
+		zh: "请选一张照片作为头像。",
+		ja: "プロフィール写真にする写真を選んでください。",
+		en: "Choose a photo for your profile.",
 	},
 	editTitle: { zh: "调整头像", ja: "写真の調整", en: "Adjust Your Photo" },
 	editHint: {
