@@ -5,8 +5,6 @@ import { extractFrappeError } from "./passkeyCheckin.js"
 export const PHOTO_OUTPUT_SIZE = 512
 export const PHOTO_MIN_SIDE = 128
 export const PHOTO_MAX_ZOOM = 4
-export const PHOTO_REMINDER_SNOOZE_MS = 3 * 60 * 60 * 1000
-export const PHOTO_REMINDER_STORAGE_KEY = "hrms:profile-photo-snoozed-at"
 export const PHOTO_STATUS_METHOD = "hrms.api.profile_photo.get_profile_photo_status"
 export const PHOTO_UPLOAD_METHOD = "hrms.api.profile_photo.upload_my_photo"
 
@@ -132,30 +130,6 @@ export function formatDeadline(value, lang = "zh") {
 	const month = Number(match[2])
 	const day = Number(match[3])
 	return lang === "en" ? `${MONTHS[month - 1]} ${day}` : `${month}月${day}日`
-}
-
-export function shouldShowPhotoReminder(status, { now = Date.now(), snoozedAt = null } = {}) {
-	if (!status?.required || status?.has_photo) return false
-	const snoozedRecently =
-		snoozedAt && now >= snoozedAt && now - snoozedAt < PHOTO_REMINDER_SNOOZE_MS
-	return !snoozedRecently
-}
-
-export function readSnoozedAt(storage = globalThis.localStorage) {
-	try {
-		const value = Number(storage?.getItem(PHOTO_REMINDER_STORAGE_KEY))
-		return Number.isFinite(value) && value > 0 ? value : null
-	} catch (_) {
-		return null
-	}
-}
-
-export function writeSnoozedAt(storage = globalThis.localStorage, now = Date.now()) {
-	try {
-		storage?.setItem(PHOTO_REMINDER_STORAGE_KEY, String(now))
-	} catch (_) {
-		// 存不了就每次打开都提醒
-	}
 }
 
 // 有头像但不是自己上传的（HR 或脚本代设），就是临时头像

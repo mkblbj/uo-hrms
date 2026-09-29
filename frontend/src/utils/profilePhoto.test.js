@@ -4,8 +4,6 @@ import assert from "node:assert/strict"
 import {
 	PHOTO_MIN_SIDE,
 	PHOTO_OUTPUT_SIZE,
-	PHOTO_REMINDER_SNOOZE_MS,
-	PHOTO_REMINDER_STORAGE_KEY,
 	clampOffset,
 	cropRect,
 	formatDeadline,
@@ -15,10 +13,7 @@ import {
 	nextDay,
 	outputSizeFor,
 	pickPhotoCopy,
-	readSnoozedAt,
-	shouldShowPhotoReminder,
 	uploadProfilePhoto,
-	writeSnoozedAt,
 } from "./profilePhoto.js"
 
 const missing = { required: true, has_photo: false, deadline: null, overdue: false }
@@ -34,24 +29,6 @@ const ZH_CHANGE =
 	"因系统更新，自10月7日起，登录需使用您自行设置的头像。当前头像为系统临时生成，请最迟于10月6日完成更换。逾期将暂时无法登录。给您带来不便，敬请谅解。"
 const JA_CHANGE =
 	"システム更新により、10月7日以降のログインには、ご自身で設定したプロフィール画像が必要になります。現在の画像はシステムが仮に生成したものです。10月6日までに変更をお願いいたします。未変更の場合、一時的にログインできなくなります。ご不便をおかけしますが、ご理解のほどお願いいたします。"
-
-function memoryStorage() {
-	const data = new Map()
-	return {
-		getItem: (key) => (data.has(key) ? data.get(key) : null),
-		setItem: (key, value) => data.set(key, String(value)),
-		data,
-	}
-}
-
-const brokenStorage = {
-	getItem() {
-		throw new Error("blocked")
-	},
-	setItem() {
-		throw new Error("blocked")
-	},
-}
 
 test("copy is picked by language and falls back to Chinese", () => {
 	assert.equal(pickPhotoCopy("titleChange", "zh"), "请更换头像")
@@ -73,34 +50,6 @@ test("deadline is shown as month and day", () => {
 	assert.equal(formatDeadline("2026-10-05", "en"), "Oct 5")
 	assert.equal(formatDeadline(null, "zh"), "")
 	assert.equal(formatDeadline("0001-01-01", "zh"), "")
-})
-
-test("reminder shows only when required and missing, and respects a recent snooze", () => {
-	const now = 1_800_000_000_000
-	assert.equal(shouldShowPhotoReminder(missing, { now }), true)
-	assert.equal(shouldShowPhotoReminder({ ...missing, required: false }, { now }), false)
-	assert.equal(shouldShowPhotoReminder({ ...missing, has_photo: true }, { now }), false)
-	assert.equal(shouldShowPhotoReminder(null, { now }), false)
-	assert.equal(shouldShowPhotoReminder(missing, { now, snoozedAt: now - 60_000 }), false)
-	assert.equal(
-		shouldShowPhotoReminder(missing, { now, snoozedAt: now - PHOTO_REMINDER_SNOOZE_MS }),
-		true
-	)
-	// 手机时间往回调过，也照样提醒
-	assert.equal(shouldShowPhotoReminder(missing, { now, snoozedAt: now + 60_000 }), true)
-})
-
-test("snooze time is stored per device and survives blocked storage", () => {
-	const storage = memoryStorage()
-	assert.equal(readSnoozedAt(storage), null)
-	writeSnoozedAt(storage, 1234)
-	assert.equal(storage.data.get(PHOTO_REMINDER_STORAGE_KEY), "1234")
-	assert.equal(readSnoozedAt(storage), 1234)
-	storage.setItem(PHOTO_REMINDER_STORAGE_KEY, "garbage")
-	assert.equal(readSnoozedAt(storage), null)
-	assert.equal(readSnoozedAt(brokenStorage), null)
-	assert.doesNotThrow(() => writeSnoozedAt(brokenStorage, 1))
-	assert.equal(readSnoozedAt(undefined), null)
 })
 
 test("a temporary photo gets the wording HR wrote, dates filled in", () => {

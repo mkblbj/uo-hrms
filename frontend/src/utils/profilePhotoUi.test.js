@@ -17,13 +17,13 @@ test("home shows the photo reminder right under the notification prompt", () => 
 	)
 })
 
-test("reminder pops up on open and on return, and respects the snooze", () => {
+test("reminder never pops up by itself; only the card button opens it", () => {
 	const source = read("../components/home/ProfilePhotoReminder.vue")
+	assert.match(source, /@click="sheetOpen = true"/)
+	assert.equal((source.match(/sheetOpen(\.value)? = true/g) || []).length, 1)
+	assert.doesNotMatch(source, /setTimeout|shouldShowPhotoReminder|readSnoozedAt|writeSnoozedAt/)
 	for (const needle of [
 		"PHOTO_STATUS_METHOD",
-		"shouldShowPhotoReminder",
-		"readSnoozedAt",
-		"writeSnoozedAt",
 		"visibilitychange",
 		"onIonViewDidEnter",
 		'mode="reminder"',

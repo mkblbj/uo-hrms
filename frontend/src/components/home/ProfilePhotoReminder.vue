@@ -23,7 +23,7 @@
 		:status="status.data"
 		:current-photo="status.data?.photo || ''"
 		:lang="lang"
-		@snooze="onSnooze"
+		@snooze="sheetOpen = false"
 		@cancel="sheetOpen = false"
 		@uploaded="onUploaded"
 	/>
@@ -36,43 +36,22 @@ import { Icon, createResource, toast } from "frappe-ui"
 
 import ProfilePhotoSheet from "@/components/profile/ProfilePhotoSheet.vue"
 import { refreshProfilePhoto } from "@/data/profilePhoto"
-import {
-	PHOTO_STATUS_METHOD,
-	getPromptCardContent,
-	pickPhotoCopy,
-	readSnoozedAt,
-	shouldShowPhotoReminder,
-	writeSnoozedAt,
-} from "@/utils/profilePhoto"
+import { PHOTO_STATUS_METHOD, getPromptCardContent, pickPhotoCopy } from "@/utils/profilePhoto"
 
 const props = defineProps({
 	lang: { type: String, default: "zh" },
 })
 
+// 不自动弹窗：只显示卡片，点卡片上的按钮才打开
 const sheetOpen = ref(false)
-let openTimer = null
 
 const status = createResource({
 	url: PHOTO_STATUS_METHOD,
 	auto: true,
-	onSuccess: () => scheduleReminder(),
 })
 
 const showCard = computed(() => Boolean(status.data?.required && !status.data?.has_photo))
 const card = computed(() => getPromptCardContent(status.data, props.lang))
-
-function dueNow() {
-	return shouldShowPhotoReminder(status.data, { snoozedAt: readSnoozedAt() })
-}
-
-// 首页先显示出来再弹，避免一打开就被挡住
-function scheduleReminder() {
-	clearTimeout(openTimer)
-	if (sheetOpen.value || !dueNow()) return
-	openTimer = setTimeout(() => {
-		if (!sheetOpen.value && dueNow()) sheetOpen.value = true
-	}, 600)
-}
 
 function recheck() {
 	if (!sheetOpen.value && !status.loading) status.reload()
@@ -80,11 +59,6 @@ function recheck() {
 
 function onVisibilityChange() {
 	if (document.visibilityState === "visible") recheck()
-}
-
-function onSnooze() {
-	writeSnoozedAt()
-	sheetOpen.value = false
 }
 
 function onUploaded() {
@@ -102,7 +76,6 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
 	document.removeEventListener("visibilitychange", onVisibilityChange)
-	clearTimeout(openTimer)
 })
 </script>
 
