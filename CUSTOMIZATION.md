@@ -128,8 +128,9 @@ bench --site hrms.localhost migrate
 在场与定位（`hrms/api/checkin_location.py`）：
 - 连着公司网络就算在公司，扫码和面容打卡都不再要手机定位；即使手机另外送了偏远的坐标，也不按距离拦（Employee Checkin 的距离检查同样放行）。
 - 不在公司网络、且开着「地理位置追踪」时要定位：扫码缺坐标时 `qr_checkin` 返回 `{"status": "need_location"}`，PWA 定位后再交一次；有坐标就按打卡点半径查距离。
-- PWA 取定位（`frontend/src/utils/checkinLocation.js`）：先要普通精度、可用半分钟内的位置（最多等 8 秒），误差超过 100 米再精确定位一次（最多 5 秒）；拿不到时按原因（被拒绝 / 超时或拿不到 / 不支持）给出做法和「重新获取」按钮。
-- 定位失败会记一条 Error Log，标题 `Checkin Location Failure - <原因>`，内容只有流程（qr / passkey）、等了多久和机型，不记位置；每人每小时最多 20 条。
+- 位置只在打卡那一刻核对：已保存的打卡记录，HR 事后改别的字段（坐标没动）时不再按定位规则拦；改了坐标才重新核对。
+- PWA 取定位（`frontend/src/utils/checkinLocation.js`）：总共最多等约 8 秒。先要普通精度、可用半分钟内的位置；误差超过 100 米且还剩 1.5 秒以上，才用剩下的时间（最多 5 秒）精确定位一次。拿不到时按原因（被拒绝 / 超时或拿不到 / 不支持）给出做法，扫码确认页有「重新获取」，面容打卡面板有「再试一次」和扫码。
+- 定位失败会记一条 Error Log，标题 `Checkin Location Failure - <原因>`，内容只有流程（qr / passkey）、等了多久和机型，不记位置；只记员工账号，每人每小时最多 20 条。机型里的 iOS 版本取自浏览器标识，新版 iOS 可能固定报 18.x，只作参考。
 
 安全相关：
 - 通行密钥用 py_webauthn 核对（`hrms/api/passkey_webauthn.py`），锁定 `webauthn==2.8.0` 以兼容 Frappe 锁定的 cryptography / pyOpenSSL 版本；RP 默认 `erphr.toiroworld.com`，可用站点配置 `passkey_rp_id`、`passkey_origins` 覆盖（开发站点用 localhost）。

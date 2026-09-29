@@ -24,7 +24,11 @@ def is_location_required(on_office_network: bool) -> bool:
 
 @frappe.whitelist()
 def get_location_requirement():
-	return {"location_required": is_location_required(is_office_network(get_client_ip()))}
+	on_office_network = is_office_network(get_client_ip())
+	return {
+		"location_required": is_location_required(on_office_network),
+		"on_office_network": on_office_network,
+	}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -32,7 +36,8 @@ def report_location_failure(flow: str, reason: str, elapsed_ms: int | None = Non
 	"""手机拿不到定位时调用：只记失败类型、等了多久和机型，方便统计哪类问题最多。"""
 	if flow not in FAILURE_FLOWS or reason not in FAILURE_REASONS:
 		frappe.throw(_("Invalid location report"))
-	if not _count_report(frappe.session.user):
+	user = frappe.session.user
+	if not frappe.db.exists("Employee", {"user_id": user}) or not _count_report(user):
 		return {"status": "skipped"}
 	waited = min(max(cint(elapsed_ms), 0), MAX_REPORTED_WAIT_MS)
 	frappe.log_error(
@@ -46,7 +51,8 @@ def _count_report(user: str) -> bool:
 	"""每人每小时最多记 REPORTS_PER_HOUR 条，防止反复重试把日志刷满。"""
 	key = frappe.cache.make_key(f"hrms:checkin-location-failures:{user}")
 	count = frappe.cache.incr(key)
-	if count == 1:
+	# 首次计数设一小时过期；上次设过期失败留下的无期限计数也补上，免得一直被拦
+	if count == 1 or frappe.cache.ttl(key) < 0:
 		frappe.cache.expire(key, 3600)
 	return count <= REPORTS_PER_HOUR
 

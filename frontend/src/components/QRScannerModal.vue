@@ -211,6 +211,7 @@ const longitude = ref(null)
 // idle → checking（问服务端要不要定位）→ not_needed / locating → located / failed
 const locationState = ref("idle")
 const locationFailure = ref(null)
+const onOfficeNetwork = ref(false)
 const uiLanguage = resolveHomeLanguage(window.frappe?.boot)
 const callFrappe = createFrappeCaller({
 	fetchImpl: (...args) => fetch(...args),
@@ -235,11 +236,15 @@ const submitting = ref(false)
 let timeUpdateInterval = null
 let locationRun = 0
 let preparePromise = null
+// 每次打开弹窗换一个编号：关掉重开后，上一次还没处理完的扫码结果直接丢弃
+let scanSession = 0
 
 const locationStatusText = computed(() => {
 	if (locationState.value === "locating") return locationCopy("locating", uiLanguage)
 	if (locationState.value === "located") return locationCopy("located", uiLanguage)
-	if (locationState.value === "not_needed") return locationCopy("officeNetwork", uiLanguage)
+	if (locationState.value === "not_needed" && onOfficeNetwork.value) {
+		return locationCopy("officeNetwork", uiLanguage)
+	}
 	return ""
 })
 const locationAdvice = computed(() =>
@@ -328,6 +333,7 @@ function prepareLocation() {
 		.catch(() => null)
 		.then((requirement) => {
 			if (run !== locationRun) return
+			onOfficeNetwork.value = requirement?.on_office_network === true
 			if (!shouldRequestLocation(requirement)) {
 				locationState.value = "not_needed"
 				return
@@ -432,6 +438,7 @@ const stopScanning = async () => {
 }
 
 const onScanSuccess = async (decodedText) => {
+	const session = scanSession
 	// 扫到一次就停止
 	await stopScanning()
 	
@@ -443,6 +450,7 @@ const onScanSuccess = async (decodedText) => {
 		resultMessage.value = locationCopy("locating", uiLanguage)
 	}
 	await preparePromise
+	if (session !== scanSession) return
 	
 	// 解析 token 获取地点信息
 	let locationName = ""
@@ -471,6 +479,7 @@ const onScanSuccess = async (decodedText) => {
 	} else {
 		scannedLocation.value = __("Unknown Location")
 	}
+	if (session !== scanSession) return
 	
 	// 保存 token，进入确认步骤
 	scannedToken.value = decodedText
@@ -489,9 +498,11 @@ const onScanError = (error) => {
 }
 
 const resetState = () => {
-	// 重置所有状态；进行中的定位作废
+	// 重置所有状态；进行中的定位和扫码结果作废
 	locationRun++
+	scanSession++
 	preparePromise = null
+	onOfficeNetwork.value = false
 	locationState.value = "idle"
 	locationFailure.value = null
 	latitude.value = null

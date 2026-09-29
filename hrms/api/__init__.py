@@ -1377,7 +1377,6 @@ def get_permitted_fields_for_write(doctype: str) -> list[str]:
 	return get_permitted_fields(doctype, permission_type="write")
 
 
-# QR Attendance - 动态二维码打卡
 # Passkey/WebAuthn - 面容/指纹打卡
 from hrms.api.passkey import (
 	check_passkey_registered,
@@ -1390,4 +1389,6 @@ from hrms.api.passkey import (
 from hrms.api.passkey import (
 	register_options as passkey_register_options,
 )
+
+# QR Attendance - 动态二维码打卡
 from hrms.api.qr_attendance import generate_qr_token, get_checkin_locations, qr_checkin

@@ -1,9 +1,12 @@
 // 打卡用的手机定位：先要一个够用的位置，太粗再精确定位一次；拿不到时给出原因和对应的做法。
 // 与界面、网络解耦：定位对象、时钟、服务端调用都从参数注入，方便测试。
 
-// 200 米的打卡范围用 Wi-Fi 定位就够准，几秒内能拿到；半分钟内刚拿到的位置直接用
-const QUICK_FIX = { enableHighAccuracy: false, maximumAge: 30000, timeout: 8000 }
-const PRECISE_FIX = { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 }
+// 200 米的打卡范围用 Wi-Fi 定位就够准，几秒内能拿到；半分钟内刚拿到的位置直接用。
+// 总共最多等约 8 秒：精确定位只用第一次剩下的时间，剩得太少就不再尝试
+const TOTAL_BUDGET_MS = 8000
+const QUICK_FIX = { enableHighAccuracy: false, maximumAge: 30000, timeout: TOTAL_BUDGET_MS }
+const PRECISE_FIX_MAX_MS = 5000
+const PRECISE_FIX_MIN_MS = 1500
 const GOOD_ENOUGH_ACCURACY_M = 100
 const ERROR_REASONS = { 1: "denied", 2: "unavailable", 3: "timeout" }
 const QR_CHECKIN_METHOD = "hrms.api.qr_attendance.qr_checkin"
@@ -81,8 +84,13 @@ export async function acquireCheckinLocation({
 	if (quick.error) return finish({ ok: false, reason: ERROR_REASONS[quick.error.code] || "unavailable" })
 
 	let best = toFix(quick.position)
-	if (best.accuracy > GOOD_ENOUGH_ACCURACY_M) {
-		const precise = await requestPosition(geolocation, PRECISE_FIX)
+	const remaining = TOTAL_BUDGET_MS - (now() - startedAt)
+	if (best.accuracy > GOOD_ENOUGH_ACCURACY_M && remaining >= PRECISE_FIX_MIN_MS) {
+		const precise = await requestPosition(geolocation, {
+			enableHighAccuracy: true,
+			maximumAge: 0,
+			timeout: Math.min(PRECISE_FIX_MAX_MS, Math.round(remaining)),
+		})
 		if (precise.position) {
 			const fix = toFix(precise.position)
 			if (fix.accuracy < best.accuracy) best = fix

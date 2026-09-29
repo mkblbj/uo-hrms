@@ -63,6 +63,20 @@ test("keeps the rough fix when the precise attempt fails or is worse", async () 
 	}
 })
 
+test("never waits much longer than 8 seconds in total", async () => {
+	const lateClock = { now: 0 }
+	const late = fakeGeolocation([{ accuracy: 900, after: 7000 }], lateClock)
+	const lateResult = await acquireCheckinLocation({ geolocation: late, now: () => lateClock.now })
+	assert.equal(late.requests.length, 1, "no time left for a precise attempt")
+	assert.deepEqual([lateResult.ok, lateResult.accuracy], [true, 900])
+
+	const midClock = { now: 0 }
+	const mid = fakeGeolocation([{ accuracy: 900, after: 4500 }, { accuracy: 40 }], midClock)
+	await acquireCheckinLocation({ geolocation: mid, now: () => midClock.now })
+	assert.equal(mid.requests.length, 2)
+	assert.ok(mid.requests[1].timeout <= 3500, "the precise attempt only gets what is left")
+})
+
 test("a refused permission is reported at once without asking again", async () => {
 	const geolocation = fakeGeolocation([{ code: 1 }])
 	const result = await acquireCheckinLocation({ geolocation })

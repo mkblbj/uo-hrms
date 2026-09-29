@@ -232,7 +232,8 @@ test("the presence sheet explains why the location failed", () => {
 	const timeout = getSheetContent("presence", "ja", { locationFailed: true, locationFailureReason: "timeout" })
 	assert.equal(denied.body, locationFailureAdvice("denied", "ja"))
 	assert.notEqual(denied.body, timeout.body)
-	assert.deepEqual(denied.actions.map((a) => a.id), ["scan"])
+	assert.deepEqual(denied.actions.map((a) => a.id), ["retry", "scan"])
+	assert.deepEqual(getSheetContent("presence", "ja").actions.map((a) => a.id), ["scan"])
 })
 
 test("sheet content has the right actions per variant", () => {

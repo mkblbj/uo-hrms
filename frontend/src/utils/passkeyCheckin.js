@@ -134,15 +134,24 @@ export function getSheetContent(
 			],
 		}
 	}
-	let body = t("presenceBody")
 	if (locationFailed) {
-		body = locationFailureReason ? locationFailureAdvice(locationFailureReason, lang) : t("locationFailedBody")
+		// 定位没拿到：按原因说明做法，可以再试一次，也可以这次扫码
+		return {
+			icon: "lucide-map-pin",
+			title: t("presenceTitle"),
+			body: locationFailureReason
+				? locationFailureAdvice(locationFailureReason, lang)
+				: t("locationFailedBody"),
+			actions: [
+				{ id: "retry", label: t("retry"), primary: true },
+				{ id: "scan", label: t("scanQr"), primary: false },
+			],
+		}
 	}
-	else if (locationLabel) body = t("presenceBodyAt", locationLabel)
 	return {
 		icon: "lucide-map-pin",
 		title: t("presenceTitle"),
-		body,
+		body: locationLabel ? t("presenceBodyAt", locationLabel) : t("presenceBody"),
 		actions: [{ id: "scan", label: t("scanQr"), primary: true }],
 	}
 }

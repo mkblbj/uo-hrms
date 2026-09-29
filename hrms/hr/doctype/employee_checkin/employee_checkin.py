@@ -204,6 +204,12 @@ class EmployeeCheckin(Document):
 		if self.attendance_correction_request:
 			return
 
+		# 位置只在打卡那一刻核对；HR 事后改别的字段（坐标没动）不再按定位规则拦
+		if not self.is_new() and not (
+			self.has_value_changed("latitude") or self.has_value_changed("longitude")
+		):
+			return
+
 		# 打卡接口已凭公司网络确认人在公司：手机定位即使偏了也不再按距离拦
 		if self.flags.trusted_checkin_source and self.flags.presence_evidence == "office_network":
 			return

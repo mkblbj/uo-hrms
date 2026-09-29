@@ -57,6 +57,35 @@ class CheckinLocationTestCase(HRMSTestSuite):
 		frappe.set_user("Administrator")
 		frappe.db.set_single_value("HR Settings", "allow_geolocation_tracking", 0)
 
+	def qr(self, ip, coordinates=(None, None)):
+		secret = frappe.get_doc("QR Checkin Location", LOCATION).get_password("secret")
+		slot = qr_attendance._get_time_slot()
+		token = f"{LOCATION}|{slot}|{qr_attendance._sign(LOCATION, slot, secret)}"
+		frappe.set_user(USER)
+		with (
+			patch.object(qr_attendance, "get_client_ip", return_value=ip),
+			patch("frappe.publish_realtime"),
+		):
+			return qr_attendance.qr_checkin(token, "IN", *coordinates)
+
+	def checkin_far_away(self, evidence):
+		"""排班带地点的员工，在远处打一条卡（由受信接口按给定证据建记录）。"""
+		shift_type = setup_shift_type(shift_type="_Test Checkin Location Shift")
+		make_shift_assignment(shift_type.name, self.employee, getdate(), shift_location=OFFICE)
+		doc = frappe.get_doc(
+			{
+				"doctype": "Employee Checkin",
+				"employee": self.employee,
+				"log_type": "IN",
+				"time": f"{getdate()} 08:30:00",
+				"latitude": FAR[0],
+				"longitude": FAR[1],
+			}
+		)
+		doc.flags.trusted_checkin_source = True
+		doc.flags.presence_evidence = evidence
+		return doc.insert(ignore_permissions=True)
+
 	def checkins(self):
 		frappe.set_user("Administrator")
 		return frappe.get_all(
@@ -73,27 +102,24 @@ class TestLocationRequirement(CheckinLocationTestCase):
 			return checkin_location.get_location_requirement()
 
 	def test_office_network_needs_no_location(self):
-		self.assertEqual(self._requirement(OFFICE_IP), {"location_required": False})
+		self.assertEqual(
+			self._requirement(OFFICE_IP), {"location_required": False, "on_office_network": True}
+		)
 
 	def test_mobile_data_needs_location(self):
-		self.assertEqual(self._requirement(MOBILE_IP), {"location_required": True})
+		self.assertEqual(
+			self._requirement(MOBILE_IP), {"location_required": True, "on_office_network": False}
+		)
 
 	def test_no_location_needed_when_tracking_is_off(self):
 		frappe.db.set_single_value("HR Settings", "allow_geolocation_tracking", 0)
-		self.assertEqual(self._requirement(MOBILE_IP), {"location_required": False})
+		self.assertEqual(
+			self._requirement(MOBILE_IP), {"location_required": False, "on_office_network": False}
+		)
 
 
 class TestQrCheckinPresence(CheckinLocationTestCase):
-	def _qr(self, ip, coordinates=(None, None)):
-		secret = frappe.get_doc("QR Checkin Location", LOCATION).get_password("secret")
-		slot = qr_attendance._get_time_slot()
-		token = f"{LOCATION}|{slot}|{qr_attendance._sign(LOCATION, slot, secret)}"
-		frappe.set_user(USER)
-		with (
-			patch.object(qr_attendance, "get_client_ip", return_value=ip),
-			patch("frappe.publish_realtime"),
-		):
-			return qr_attendance.qr_checkin(token, "IN", *coordinates)
+	_qr = CheckinLocationTestCase.qr
 
 	def test_office_network_checks_in_without_location(self):
 		result = self._qr(OFFICE_IP)
@@ -125,29 +151,31 @@ class TestQrCheckinPresence(CheckinLocationTestCase):
 class TestShiftGeofenceWithOfficeNetwork(CheckinLocationTestCase):
 	"""排班带地点的员工，Employee Checkin 自己还会按排班地点查一次距离。"""
 
-	def _checkin_far_away(self, evidence):
-		shift_type = setup_shift_type(shift_type="_Test Checkin Location Shift")
-		make_shift_assignment(shift_type.name, self.employee, getdate(), shift_location=OFFICE)
-		doc = frappe.get_doc(
-			{
-				"doctype": "Employee Checkin",
-				"employee": self.employee,
-				"log_type": "IN",
-				"time": f"{getdate()} 08:30:00",
-				"latitude": FAR[0],
-				"longitude": FAR[1],
-			}
-		)
-		doc.flags.trusted_checkin_source = True
-		doc.flags.presence_evidence = evidence
-		return doc.insert(ignore_permissions=True)
-
 	def test_office_network_skips_the_shift_distance_check(self):
-		self.assertTrue(self._checkin_far_away("office_network").name)
+		self.assertTrue(self.checkin_far_away("office_network").name)
 
 	def test_gps_outside_the_shift_radius_is_still_rejected(self):
 		with self.assertRaises(frappe.ValidationError):
-			self._checkin_far_away("gps")
+			self.checkin_far_away("gps")
+
+
+class TestEditingSavedCheckins(CheckinLocationTestCase):
+	"""位置只在打卡那一刻核对；HR 事后在后台改别的字段不该被定位规则拦住。"""
+
+	def test_hr_can_edit_an_office_network_checkin_later(self):
+		self.qr(OFFICE_IP)
+		frappe.set_user("Administrator")
+		name = frappe.db.get_value("Employee Checkin", {"employee": self.employee})
+		doc = frappe.get_doc("Employee Checkin", name)
+		doc.skip_auto_attendance = 1
+		doc.save()
+		self.assertEqual(frappe.db.get_value("Employee Checkin", name, "skip_auto_attendance"), 1)
+
+	def test_moving_the_coordinates_later_is_checked_again(self):
+		doc = frappe.get_doc("Employee Checkin", self.checkin_far_away("office_network").name)
+		doc.latitude = FAR[0] + 0.01
+		with self.assertRaises(frappe.ValidationError):
+			doc.save()
 
 
 class TestLocationFailureReport(CheckinLocationTestCase):
@@ -186,6 +214,22 @@ class TestLocationFailureReport(CheckinLocationTestCase):
 			with self.subTest(args=args), self.assertRaises(frappe.ValidationError):
 				self._report(*args)
 		self.assertEqual(self._reports(), [])
+
+	def test_users_without_an_employee_record_are_not_logged(self):
+		frappe.set_user("Administrator")
+		self.assertFalse(frappe.db.exists("Employee", {"user_id": "Administrator"}))
+		self.assertEqual(checkin_location.report_location_failure("qr", "denied", 1), {"status": "skipped"})
+		self.assertFalse(
+			frappe.db.exists(
+				"Error Log", {"method": ("like", "Checkin Location Failure%"), "owner": "Administrator"}
+			)
+		)
+
+	def test_a_counter_left_without_expiry_gets_one(self):
+		key = frappe.cache.make_key(f"hrms:checkin-location-failures:{USER}")
+		frappe.cache.set(key, 3)  # 上次设过期失败留下的计数
+		self._report("qr", "timeout", 1)
+		self.assertGreater(frappe.cache.ttl(key), 0)
 
 	def test_caps_reports_at_twenty_per_user_per_hour(self):
 		for _ in range(25):
