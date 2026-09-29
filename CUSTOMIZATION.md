@@ -137,6 +137,27 @@ bench --site hrms.localhost migrate
 - 真实客户端地址取 `CF-Connecting-IP`（`hrms/utils/client_network.py`），前提是源站只经 Cloudflare 隧道对外；HR 设置「公司网络」每行一个 IP 或网段，支持 IPv6 前缀。
 - 员工角色对 `Employee Checkin` 只有读权限；打卡记录的新建、改时间、删除只允许受信接口（`flags.trusted_checkin_source`）或 HR 角色（控制器守卫）。
 
+## 头像
+
+员工在 PWA 里自己上传头像。HR 设置「Employee」标签的「Profile Photo」里有两项：打开提醒，以及可选的截止日期。
+
+提醒（`frontend/src/components/home/ProfilePhotoReminder.vue`）：
+- 没有头像时，首页每次打开都弹全屏提醒，内容是用途、照片要求和承诺。
+- 点「稍后再说」后，这台手机 3 小时内不再弹；首页顶部的卡片会一直留着，直到上传。
+- 不挡打卡。
+- 个人页点头像可以随时更换。
+
+上传（`hrms/api/profile_photo.py`）：
+- 手机上在圆形取景框里拖动、缩放后，裁成最大 512 的正方形 JPEG 上传。
+- 服务器再处理一遍：按方向转正、居中裁方、缩到最大 512，重新编码并去掉 EXIF（包括 GPS），存成随机文件名的公开文件。
+- 写入 `Employee.image` 和 `User.user_image`，同时删掉旧头像文件，包括框架自动挂在账号上的那份。
+
+隐私（`hrms/utils/profile_photo.py`）：
+- 不登录也能访问的接口，只有请求来自公司网络、或墙上屏带着有效展示密钥时才返回头像，否则头像字段为空。涉及三个接口：`get_recent_checkins`、`get_employees_at_work`、work_roster 的 `get_scheduled_attendance_snapshot`。
+- 员工状态改成 Left 时，自动删掉头像文件，并清空两个字段。
+- HR 在后台更换或清空员工头像时，同步到账号头像，旧文件一并删除。
+- 查还没上传的人：在员工列表按「Image 未设置」筛选。
+
 ## 备份与恢复
 
 ### 备份站点
