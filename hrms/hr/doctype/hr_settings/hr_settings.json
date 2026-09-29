@@ -21,6 +21,9 @@
   "column_break_hyec",
   "sender",
   "sender_email",
+  "profile_photo_section",
+  "require_profile_photo",
+  "profile_photo_deadline",
   "leaves_tab",
   "leave_settings_section",
   "auto_leave_encashment",
@@ -259,6 +262,25 @@
    "read_only": 1
   },
   {
+   "fieldname": "profile_photo_section",
+   "fieldtype": "Section Break",
+   "label": "Profile Photo"
+  },
+  {
+   "default": "0",
+   "description": "Employees without a photo are reminded each time they open the app. Check-in is never blocked.",
+   "fieldname": "require_profile_photo",
+   "fieldtype": "Check",
+   "label": "Remind Employees to Upload a Profile Photo"
+  },
+  {
+   "depends_on": "eval:doc.require_profile_photo",
+   "description": "Optional. Shown in the reminder.",
+   "fieldname": "profile_photo_deadline",
+   "fieldtype": "Date",
+   "label": "Upload Deadline"
+  },
+  {
    "fieldname": "column_break_hyec",
    "fieldtype": "Column Break"
   },
@@ -431,7 +453,7 @@
  "idx": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-27 21:05:00.000000",
+ "modified": "2026-09-29 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HR Settings",

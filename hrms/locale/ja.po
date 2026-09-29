@@ -1026,3 +1026,36 @@ msgstr "最大{0}台まで"
 
 msgid "Remove"
 msgstr "削除"
+
+msgid "Profile Photo"
+msgstr "プロフィール写真"
+
+msgid "Remind Employees to Upload a Profile Photo"
+msgstr "従業員にプロフィール写真の登録を促す"
+
+msgid "Employees without a photo are reminded each time they open the app. Check-in is never blocked."
+msgstr "写真が未登録の従業員には、アプリを開くたびにお知らせが表示されます。打刻は妨げません。"
+
+msgid "Upload Deadline"
+msgstr "登録期限"
+
+msgid "Optional. Shown in the reminder."
+msgstr "任意。お知らせに表示されます。"
+
+msgid "Please choose a photo."
+msgstr "写真を選んでください。"
+
+msgid "This photo is too large. Please choose one under 10 MB."
+msgstr "写真が大きすぎます。10 MB 以下の写真を選んでください。"
+
+msgid "This file could not be read as a photo. Please choose another one."
+msgstr "この写真を読み込めませんでした。別の写真を選んでください。"
+
+msgid "This photo is too large. Please choose a smaller one."
+msgstr "写真が大きすぎます。小さめの写真を選んでください。"
+
+msgid "This photo is too small. Please choose a clearer one."
+msgstr "写真が小さすぎます。もっと鮮明な写真を選んでください。"
+
+msgid "No active employee is linked to your account."
+msgstr "このアカウントには在籍中の従業員情報が紐付いていません。"

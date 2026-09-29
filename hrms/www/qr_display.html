@@ -710,7 +710,7 @@
 
         console.log('Starting polling fallback...');
         pollingInterval = setInterval(function() {
-            fetch(`/api/method/hrms.api.qr_attendance.get_recent_checkins?location=${encodeURIComponent(LOCATION_NAME)}&limit=1`)
+            fetch(`/api/method/hrms.api.qr_attendance.get_recent_checkins?location=${encodeURIComponent(LOCATION_NAME)}&limit=1&key=${encodeURIComponent(DISPLAY_KEY)}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.message && data.message.length > 0) {

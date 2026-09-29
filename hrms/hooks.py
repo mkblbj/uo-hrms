@@ -209,6 +209,7 @@ doc_events = {
 		"on_update": [
 			"hrms.overrides.employee_master.update_approver_role",
 			"hrms.overrides.employee_master.publish_update",
+			"hrms.utils.profile_photo.sync_profile_photo",
 		],
 		"after_insert": [
 			"hrms.overrides.employee_master.update_job_applicant_and_offer",

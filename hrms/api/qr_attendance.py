@@ -20,6 +20,7 @@ from hrms.api.checkin_service import CHECKIN_METHOD_QR, create_checkin, validate
 from hrms.hr.doctype.qr_checkin_location.qr_checkin_location import verify_display_key
 from hrms.hr.utils import get_distance_between_coordinates
 from hrms.utils.client_network import get_client_ip, is_office_network, parse_network_list
+from hrms.utils.profile_photo import can_see_photos
 
 TIME_SLOT_SECONDS = 30  # 二维码时间片,与前端保持一致
 ATTENDANCE_STATUS_LABELS = {
@@ -289,7 +290,9 @@ def get_checkin_locations():
 
 
 @frappe.whitelist(allow_guest=True)
-def get_recent_checkins(location: str | None = None, limit: int = 5, compact: int = 0):
+def get_recent_checkins(
+	location: str | None = None, limit: int = 5, compact: int = 0, key: str | None = None
+):
 	"""
 	获取最近的打卡记录（允许访客访问，用于二维码展示页面）
 
@@ -297,6 +300,7 @@ def get_recent_checkins(location: str | None = None, limit: int = 5, compact: in
 		location: 打卡地点名称（可选）
 		limit: 返回记录数（默认5条）
 		compact: 轻量返回模式（1为启用）
+		key: 墙上屏的展示密钥；不登录时只有在公司网络、或密钥有效才返回头像
 
 	Returns:
 		[
@@ -341,11 +345,13 @@ def get_recent_checkins(location: str | None = None, limit: int = 5, compact: in
 		limit=limit,
 	)
 
-	# 获取员工头像
+	# 获取员工头像（不登录的访问只在公司网络或展示密钥有效时才给）
+	show_photos = can_see_photos(location, key)
 	for checkin in checkins:
 		if checkin.get("employee"):
-			employee_image = frappe.db.get_value("Employee", checkin["employee"], "image")
-			checkin["employee_image"] = employee_image
+			checkin["employee_image"] = (
+				frappe.db.get_value("Employee", checkin["employee"], "image") if show_photos else None
+			)
 
 	return checkins
 
@@ -446,6 +452,7 @@ def get_employees_at_work(location: str | None = None):
 	results = frappe.db.sql(sql, params, as_dict=True)
 
 	# 格式化返回数据
+	show_photos = can_see_photos()
 	employees = []
 	for row in results:
 		attendance_status = _get_attendance_status_from_log_type(row.log_type)
@@ -457,7 +464,7 @@ def get_employees_at_work(location: str | None = None):
 				"employee_name": row.employee_name,
 				"department": row.department,
 				"designation": row.designation,
-				"image": row.image,
+				"image": row.image if show_photos else None,
 				"checkin_time": checkin_time,
 				"attendance_status": attendance_status,
 				"attendance_status_label": ATTENDANCE_STATUS_LABELS[attendance_status],

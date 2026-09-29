@@ -12523,3 +12523,36 @@ msgstr "最多 {0} 台设备"
 
 msgid "Remove"
 msgstr "删除"
+
+msgid "Profile Photo"
+msgstr "头像"
+
+msgid "Remind Employees to Upload a Profile Photo"
+msgstr "提醒员工上传头像"
+
+msgid "Employees without a photo are reminded each time they open the app. Check-in is never blocked."
+msgstr "没有头像的员工每次打开应用都会看到提醒，不影响打卡。"
+
+msgid "Upload Deadline"
+msgstr "上传截止日期"
+
+msgid "Optional. Shown in the reminder."
+msgstr "可不填，填了会显示在提醒里。"
+
+msgid "Please choose a photo."
+msgstr "请选择一张照片。"
+
+msgid "This photo is too large. Please choose one under 10 MB."
+msgstr "照片太大了，请选择 10 MB 以内的照片。"
+
+msgid "This file could not be read as a photo. Please choose another one."
+msgstr "无法读取这张照片，请换一张。"
+
+msgid "This photo is too large. Please choose a smaller one."
+msgstr "照片太大了，请换一张小一点的。"
+
+msgid "This photo is too small. Please choose a clearer one."
+msgstr "照片太小了，请换一张更清晰的。"
+
+msgid "No active employee is linked to your account."
+msgstr "你的账号没有关联在职员工档案。"
