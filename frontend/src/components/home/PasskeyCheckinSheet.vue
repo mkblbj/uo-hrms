@@ -41,6 +41,7 @@ const props = defineProps({
 	lang: { type: String, default: "zh" },
 	locationLabel: { type: String, default: "" },
 	locationFailed: { type: Boolean, default: false },
+	locationFailureReason: { type: String, default: null },
 	message: { type: String, default: "" },
 })
 
@@ -50,6 +51,7 @@ const content = computed(() =>
 	getSheetContent(props.variant, props.lang, {
 		locationLabel: props.locationLabel,
 		locationFailed: props.locationFailed,
+		locationFailureReason: props.locationFailureReason,
 		message: props.message,
 	})
 )

@@ -54,6 +54,7 @@
 		:lang="currentLanguage"
 		:location-label="passkeyContext.data?.location?.description || ''"
 		:location-failed="passkeySheet.locationFailed"
+		:location-failure-reason="passkeySheet.locationFailureReason"
 		:message="passkeySheet.message"
 		@action="onPasskeySheetAction"
 		@dismiss="passkeySheet.isOpen = false"
@@ -187,6 +188,12 @@ import QRScannerModal from "@/components/QRScannerModal.vue"
 import HomeSummaryCard from "@/components/work_roster/HomeSummaryCard.vue"
 import RosterPreferenceBanner from "@/components/work_roster/RosterPreferenceBanner.vue"
 import { settings } from "@/data/settings"
+import {
+	acquireCheckinLocation,
+	locationFailureAdvice,
+	reportLocationFailure,
+	submitQrCheckin,
+} from "@/utils/checkinLocation"
 import { formatTimestamp } from "@/utils/formatters"
 import {
 	buildSuccessOverlayModel,
@@ -311,6 +318,7 @@ const passkeySheet = reactive({
 	isOpen: false,
 	variant: "first_time",
 	locationFailed: false,
+	locationFailureReason: null,
 	message: "",
 	pending: null,
 })
@@ -333,23 +341,18 @@ async function detectPlatformSupport() {
 	}
 }
 
-function getCurrentPosition() {
-	return new Promise((resolve, reject) => {
-		if (!navigator.geolocation) {
-			reject(new Error("unsupported"))
-			return
-		}
-		navigator.geolocation.getCurrentPosition(
-			(position) =>
-				resolve({
-					latitude: position.coords.latitude,
-					longitude: position.coords.longitude,
-					accuracy: position.coords.accuracy,
-				}),
-			reject,
-			{ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-		)
-	})
+// 面容打卡要定位时用：拿不到就记下原因，交给面板说明
+async function getCheckinPosition() {
+	const located = await acquireCheckinLocation()
+	if (!located.ok) {
+		reportLocationFailure(callFrappe, {
+			flow: "passkey",
+			reason: located.reason,
+			elapsedMs: located.elapsedMs,
+		})
+		throw Object.assign(new Error(located.reason), { reason: located.reason })
+	}
+	return located
 }
 
 function deviceName() {
@@ -363,7 +366,14 @@ function deviceName() {
 function openPasskeySheet(variant, extra = {}) {
 	Object.assign(
 		passkeySheet,
-		{ isOpen: true, variant, locationFailed: false, message: "", pending: null },
+		{
+			isOpen: true,
+			variant,
+			locationFailed: false,
+			locationFailureReason: null,
+			message: "",
+			pending: null,
+		},
 		extra
 	)
 }
@@ -408,7 +418,7 @@ async function startPasskeyCheckin({ setup = false, pending = null } = {}) {
 				call: callFrappe,
 				startRegistration,
 				startAuthentication,
-				getPosition: getCurrentPosition,
+				getPosition: getCheckinPosition,
 				deviceName,
 				now: () => Date.now(),
 			},
@@ -428,8 +438,12 @@ async function handlePasskeyOutcome(action, result) {
 		}
 		return
 	}
-	if (result.outcome === "presence_unconfirmed" || result.outcome === "location_failed") {
-		openPasskeySheet("presence", { locationFailed: result.outcome === "location_failed" })
+	if (result.outcome === "location_failed") {
+		openPasskeySheet("presence", { locationFailed: true, locationFailureReason: result.reason || null })
+		return
+	}
+	if (result.outcome === "presence_unconfirmed") {
+		openPasskeySheet("presence")
 		return
 	}
 	if (result.outcome === "webauthn_failed" || result.outcome === "setup_failed") {
@@ -559,95 +573,36 @@ async function handleCheckinSuccess(action, responseMessage) {
 	)
 }
 
-const handleQRScanSuccess = async (token, latitude = null, longitude = null) => {
+const handleQRScanSuccess = async (token, position = null) => {
 	const action = primaryScanMeta.value?.action
 	if (!action) return
 
 	try {
-		// 如果启用了地理位置追踪，但扫码模态框没有传递位置信息，则尝试获取
-		if (settings.data?.allow_geolocation_tracking && (!latitude || !longitude)) {
-			try {
-				const position = await new Promise((resolve, reject) => {
-					if (!navigator.geolocation) {
-						reject(new Error(__("Geolocation is not supported by your browser")))
-						return
-					}
-
-					navigator.geolocation.getCurrentPosition(resolve, reject, {
-						enableHighAccuracy: true,
-						timeout: 10000,
-						maximumAge: 0,
-					})
-				})
-
-				latitude = position.coords.latitude
-				longitude = position.coords.longitude
-			} catch (geoError) {
-				toast.error(__("Location Error"), {
-					description: __(
-						"Unable to retrieve your location. Please enable location access and try again."
-					),
-				})
-				// 重置 scanner 的 submitting 状态
-				if (qrScannerRef.value) {
-					qrScannerRef.value.submitting = false
-				}
-				return
-			}
-		}
-
-		// 调用后端二维码打卡 API
-		const response = await fetch("/api/method/hrms.api.qr_attendance.qr_checkin", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"X-Frappe-CSRF-Token": window.csrf_token || "",
-			},
-			body: JSON.stringify({
-				token: token,
-				log_type: action,
-				latitude: latitude,
-				longitude: longitude,
-			}),
+		// 扫码弹窗已按需要定位；服务端还要定位（刚从公司 Wi-Fi 换到流量）时再定位一次
+		const result = await submitQrCheckin({
+			call: callFrappe,
+			token,
+			logType: action,
+			position,
+			locate: () => acquireCheckinLocation(),
 		})
-
-		const data = await response.json()
-
-		// 检查是否成功
-		if (response.ok && data.message && data.message.status === "ok") {
-			await handleCheckinSuccess(action, data.message)
+		if (result.outcome === "success") {
+			await handleCheckinSuccess(action, result.message)
 			return
-		} else {
-			// 处理错误：优先显示后端返回的友好错误信息
-			let errorMessage = __("Check-in failed")
-
-			// Frappe 错误格式解析
-			if (data._server_messages) {
-				try {
-					const messages = JSON.parse(data._server_messages)
-					if (messages && messages.length > 0) {
-						const msg = JSON.parse(messages[0])
-						errorMessage = msg.message || errorMessage
-					}
-				} catch (e) {
-					console.error("Failed to parse error messages", e)
-				}
-			} else if (data.exception) {
-				// 从 exception 中提取错误信息
-				const match = data.exception.match(/frappe\.exceptions\.\w+:\s*(.+)/)
-				if (match && match[1]) {
-					errorMessage = match[1].trim()
-				}
-			} else if (data.exc) {
-				// 兼容旧版本
-				errorMessage = data.exc
-			}
-
-			throw new Error(errorMessage)
 		}
-	} catch (error) {
+		if (result.outcome === "location_failed") {
+			reportLocationFailure(callFrappe, {
+				flow: "qr",
+				reason: result.reason,
+				elapsedMs: result.location?.elapsedMs,
+			})
+			toast.error(__("Location Error"), {
+				description: locationFailureAdvice(result.reason, currentLanguage),
+			})
+			return
+		}
 		toast.error(__("Error"), {
-			description: error.message || __("Check-in failed"),
+			description: result.message || __("Check-in failed"),
 		})
 	} finally {
 		// 无论成功失败，都重置 scanner 的 submitting 状态

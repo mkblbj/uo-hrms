@@ -51,11 +51,27 @@
 						<span class="text-yellow-800 text-sm">{{ timeWarning }}</span>
 					</div>
 
-					<!-- 地理位置显示 -->
-					<template v-if="allowGeolocationTracking && latitude && longitude">
-						<div class="text-sm text-gray-500 mb-2">
-							{{ locationStatus }}
+					<!-- 地理位置：拿不到时说明原因，并可重新获取 -->
+					<div
+						v-if="locationState === 'failed'"
+						class="bg-red-50 border border-red-200 rounded-6 p-3 mb-4"
+					>
+						<div class="flex items-start gap-2">
+							<Icon icon="lucide-map-pin" class="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+							<span class="text-red-800 text-sm">{{ locationAdvice }}</span>
 						</div>
+						<Button variant="outline" class="w-full mt-3 py-3" @click="prepareLocation">
+							{{ locationCopy("retry", uiLanguage) }}
+						</Button>
+					</div>
+					<div v-else-if="locationStatusText" class="text-sm text-gray-500 mb-2 flex items-center gap-2">
+						<Icon
+							:icon="locationState === 'not_needed' ? 'lucide-wifi' : 'lucide-map-pin'"
+							class="w-4 h-4 flex-shrink-0"
+						/>
+						<span>{{ locationStatusText }}</span>
+					</div>
+					<template v-if="locationState === 'located' && latitude && longitude">
 						<div class="rounded-4 border-2 overflow-hidden w-full h-32 mb-4">
 							<iframe
 								width="100%"
@@ -81,7 +97,8 @@
 						<Button
 							:variant="props.logType === 'IN' ? 'solid' : 'solid'"
 							:class="['flex-1 py-4', props.logType === 'IN' ? 'bg-green-600 hover:bg-green-700' : 'bg-orange-600 hover:bg-orange-700']"
-							:loading="submitting"
+							:loading="submitting || locationState === 'checking' || locationState === 'locating'"
+							:disabled="!canConfirm"
 							@click="confirmCheckin"
 						>
 							{{ props.logType === 'IN' ? __("Confirm Check In") : __("Confirm Check Out") }}
@@ -93,10 +110,13 @@
 			<!-- 扫码步骤 -->
 			<template v-else>
 				<!-- 地理位置显示区域 -->
-				<template v-if="allowGeolocationTracking">
+				<template v-if="locationStatusText || locationAdvice">
 					<div class="px-4 pt-4 pb-2">
-						<span v-if="locationStatus" class=" text-gray-500 text-sm-medium block mb-2">
-							{{ locationStatus }}
+						<span v-if="locationStatusText" class=" text-gray-500 text-sm-medium block mb-2">
+							{{ locationStatusText }}
+						</span>
+						<span v-if="locationAdvice" class="text-red-700 text-sm block mb-2">
+							{{ locationAdvice }}
 						</span>
 
 						<div v-if="latitude !== null && longitude !== null && latitude !== 0 && longitude !== 0" class="rounded-4 border-4 translate-z-0 block overflow-hidden w-full h-170 mb-2">
@@ -157,8 +177,18 @@
 <script setup>
 import { ref, watch, onBeforeUnmount, inject, computed } from "vue"
 import { IonModal } from "@ionic/vue"
-import { Icon, Button, createResource } from "frappe-ui"
+import { Icon, Button } from "frappe-ui"
 import { Html5Qrcode } from "html5-qrcode"
+
+import {
+	acquireCheckinLocation,
+	locationCopy,
+	locationFailureAdvice,
+	reportLocationFailure,
+	shouldRequestLocation,
+} from "@/utils/checkinLocation"
+import { resolveHomeLanguage } from "@/utils/homeExperience"
+import { createFrappeCaller } from "@/utils/passkeyCheckin"
 
 const __ = inject("$translate")
 const dayjs = inject("$dayjs")
@@ -178,7 +208,14 @@ const resultMessage = ref("")
 const resultMessageClass = ref("text-gray-600")
 const latitude = ref(null)
 const longitude = ref(null)
-const locationStatus = ref("")
+// idle → checking（问服务端要不要定位）→ not_needed / locating → located / failed
+const locationState = ref("idle")
+const locationFailure = ref(null)
+const uiLanguage = resolveHomeLanguage(window.frappe?.boot)
+const callFrappe = createFrappeCaller({
+	fetchImpl: (...args) => fetch(...args),
+	getCsrfToken: () => window.csrf_token || "",
+})
 const torchOn = ref(false)
 const torchAvailable = ref(false)
 const logTypeIcon = computed(() =>
@@ -196,17 +233,19 @@ const scannedLocation = ref("")
 const currentTimeDisplay = ref("")
 const submitting = ref(false)
 let timeUpdateInterval = null
-let locationPromise = null
+let locationRun = 0
+let preparePromise = null
 
-// 获取 HR Settings
-const settings = createResource({
-	url: "hrms.api.get_hr_settings",
-	auto: true,
+const locationStatusText = computed(() => {
+	if (locationState.value === "locating") return locationCopy("locating", uiLanguage)
+	if (locationState.value === "located") return locationCopy("located", uiLanguage)
+	if (locationState.value === "not_needed") return locationCopy("officeNetwork", uiLanguage)
+	return ""
 })
-
-const allowGeolocationTracking = computed(() => {
-	return settings.data?.allow_geolocation_tracking || false
-})
+const locationAdvice = computed(() =>
+	locationState.value === "failed" ? locationFailureAdvice(locationFailure.value, uiLanguage) : ""
+)
+const canConfirm = computed(() => !["checking", "locating", "failed"].includes(locationState.value))
 
 // 智能时间提示
 const timeWarning = computed(() => {
@@ -270,53 +309,48 @@ function cancelConfirm() {
 
 // 确认打卡
 async function confirmCheckin() {
+	if (!canConfirm.value) return
 	submitting.value = true
-	emit("success", scannedToken.value, latitude.value || null, longitude.value || null)
+	const position =
+		locationState.value === "located" ? { latitude: latitude.value, longitude: longitude.value } : null
+	emit("success", scannedToken.value, position)
 	// 注意：不在这里关闭弹窗，由父组件处理
 }
 
-function handleLocationSuccess(position) {
-	latitude.value = position.coords.latitude
-	longitude.value = position.coords.longitude
-
-	locationStatus.value = [
-		__("Latitude: {0}°", [Number(latitude.value).toFixed(5)]),
-		__("Longitude: {0}°", [Number(longitude.value).toFixed(5)]),
-	].join(", ")
-}
-
-function handleLocationError(error) {
-	locationStatus.value = __("Unable to retrieve your location")
-	if (error) locationStatus.value += `: ERROR(${error.code}): ${error.message}`
-}
-
-const fetchLocation = () => {
-	if (!allowGeolocationTracking.value) return Promise.resolve(null)
-	if (locationPromise) return locationPromise
-	if (!navigator.geolocation) {
-		locationStatus.value = __("Geolocation is not supported by your current browser")
-		return Promise.resolve(null)
-	}
-	locationStatus.value = __("Locating...")
-	locationPromise = new Promise((resolve) => {
-		navigator.geolocation.getCurrentPosition(
-			(position) => {
-				handleLocationSuccess(position)
-				resolve(position)
-			},
-			(error) => {
-				handleLocationError(error)
-				locationPromise = null
-				resolve(null)
-			},
-			{
-				enableHighAccuracy: true,
-				timeout: 10000,
-				maximumAge: 0
+// 先问服务端要不要定位（连着公司网络就不用），要的话和扫码同时进行
+function prepareLocation() {
+	const run = ++locationRun
+	latitude.value = null
+	longitude.value = null
+	locationFailure.value = null
+	locationState.value = "checking"
+	preparePromise = callFrappe("hrms.api.checkin_location.get_location_requirement")
+		.catch(() => null)
+		.then((requirement) => {
+			if (run !== locationRun) return
+			if (!shouldRequestLocation(requirement)) {
+				locationState.value = "not_needed"
+				return
 			}
-		)
-	})
-	return locationPromise
+			locationState.value = "locating"
+			return acquireCheckinLocation().then((result) => {
+				if (run !== locationRun) return
+				if (result.ok) {
+					latitude.value = result.latitude
+					longitude.value = result.longitude
+					locationState.value = "located"
+					return
+				}
+				locationFailure.value = result.reason
+				locationState.value = "failed"
+				reportLocationFailure(callFrappe, {
+					flow: "qr",
+					reason: result.reason,
+					elapsedMs: result.elapsedMs,
+				})
+			})
+		})
+	return preparePromise
 }
 
 const startScanning = async () => {
@@ -404,14 +438,11 @@ const onScanSuccess = async (decodedText) => {
 	resultMessage.value = __("Verifying...")
 	resultMessageClass.value = "text-blue-600"
 	
-	// 如果启用了地理位置追踪但还没有获取到位置，等待同一个定位请求完成（不重复请求）
-	if (allowGeolocationTracking.value && (!latitude.value || !longitude.value)) {
-		resultMessage.value = __("Getting location...")
-		const position = await fetchLocation()
-		if (!position) {
-			resultMessage.value = __("Location unavailable, but continuing...")
-		}
+	// 等打开扫码时开始的那次定位做完（不重复请求）；拿不到的话在确认页说明原因并可重试
+	if (locationState.value === "checking" || locationState.value === "locating") {
+		resultMessage.value = locationCopy("locating", uiLanguage)
 	}
+	await preparePromise
 	
 	// 解析 token 获取地点信息
 	let locationName = ""
@@ -458,11 +489,13 @@ const onScanError = (error) => {
 }
 
 const resetState = () => {
-	// 重置所有状态
-	locationPromise = null
+	// 重置所有状态；进行中的定位作废
+	locationRun++
+	preparePromise = null
+	locationState.value = "idle"
+	locationFailure.value = null
 	latitude.value = null
 	longitude.value = null
-	locationStatus.value = ""
 	confirmStep.value = false
 	scannedToken.value = ""
 	scannedLocation.value = ""
@@ -489,10 +522,7 @@ const handleDismiss = async () => {
 watch(() => props.isOpen, async (newVal) => {
 	if (newVal) {
 		resetState()
-		// 如果启用了地理位置追踪，先获取位置
-		if (allowGeolocationTracking.value) {
-			fetchLocation()
-		}
+		prepareLocation()
 		// 延迟启动，等待 DOM 渲染
 		setTimeout(startScanning, 300)
 	} else {

@@ -1,5 +1,7 @@
 // 面容/指纹一键打卡的流程逻辑。与界面、网络解耦：依赖都从参数注入，方便测试。
 
+import { locationFailureAdvice } from "./checkinLocation.js"
+
 export const PASSKEY_MODE = "passkey"
 export const QR_MODE = "qr"
 export const PENDING_OPTIONS_MAX_AGE_MS = 100000
@@ -94,7 +96,7 @@ export function shouldShowWifiTip(evidence, storage) {
 export function getSheetContent(
 	variant,
 	lang = "zh",
-	{ locationLabel = "", locationFailed = false, message = "" } = {}
+	{ locationLabel = "", locationFailed = false, locationFailureReason = null, message = "" } = {}
 ) {
 	const t = (key, ...args) => pickPasskeyCopy(key, lang, ...args)
 	if (variant === "error") {
@@ -133,7 +135,9 @@ export function getSheetContent(
 		}
 	}
 	let body = t("presenceBody")
-	if (locationFailed) body = t("locationFailedBody")
+	if (locationFailed) {
+		body = locationFailureReason ? locationFailureAdvice(locationFailureReason, lang) : t("locationFailedBody")
+	}
 	else if (locationLabel) body = t("presenceBodyAt", locationLabel)
 	return {
 		icon: "lucide-map-pin",
@@ -209,16 +213,16 @@ async function beginWithPresence({ logType, context, deps }) {
 	if (needsLocation(context)) {
 		try {
 			position = await deps.getPosition()
-		} catch (_) {
-			return { failed: { outcome: "location_failed" } }
+		} catch (error) {
+			return { failed: { outcome: "location_failed", reason: error?.reason || null } }
 		}
 	}
 	let begin = await deps.call("hrms.api.passkey.begin_checkin", { log_type: logType, ...positionParams(position) })
 	if (begin?.status === "need_location" && !position) {
 		try {
 			position = await deps.getPosition()
-		} catch (_) {
-			return { failed: { outcome: "location_failed" } }
+		} catch (error) {
+			return { failed: { outcome: "location_failed", reason: error?.reason || null } }
 		}
 		begin = await deps.call("hrms.api.passkey.begin_checkin", { log_type: logType, ...positionParams(position) })
 	}

@@ -13,6 +13,7 @@ import {
 	runPasskeyCheckin,
 	shouldShowWifiTip,
 } from "./passkeyCheckin.js"
+import { locationFailureAdvice } from "./checkinLocation.js"
 
 function makeDeps(overrides = {}) {
 	const calls = []
@@ -210,6 +211,28 @@ test("wifi tip shows once and only for gps evidence", () => {
 		}),
 		false
 	)
+})
+
+test("a location failure keeps its reason so the sheet can explain it", async () => {
+	const { deps } = makeDeps({
+		getPosition: async () => {
+			throw Object.assign(new Error("denied"), { reason: "denied" })
+		},
+	})
+	const result = await runPasskeyCheckin({
+		logType: "IN",
+		context: { ...officeContext, on_office_network: false },
+		deps,
+	})
+	assert.deepEqual(result, { outcome: "location_failed", reason: "denied" })
+})
+
+test("the presence sheet explains why the location failed", () => {
+	const denied = getSheetContent("presence", "ja", { locationFailed: true, locationFailureReason: "denied" })
+	const timeout = getSheetContent("presence", "ja", { locationFailed: true, locationFailureReason: "timeout" })
+	assert.equal(denied.body, locationFailureAdvice("denied", "ja"))
+	assert.notEqual(denied.body, timeout.body)
+	assert.deepEqual(denied.actions.map((a) => a.id), ["scan"])
 })
 
 test("sheet content has the right actions per variant", () => {

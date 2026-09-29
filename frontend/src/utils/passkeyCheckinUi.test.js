@@ -39,7 +39,7 @@ test("scanner no longer opens a second camera stream for the torch", () => {
 	const source = read("../components/QRScannerModal.vue")
 	assert.ok(!source.includes("getUserMedia"), "getUserMedia should be gone")
 	assert.match(source, /getRunningTrackCapabilities/)
-	assert.match(source, /locationPromise/)
+	assert.match(source, /await preparePromise/)
 })
 
 test("passkey manager lists devices and registers with optionsJSON", () => {
