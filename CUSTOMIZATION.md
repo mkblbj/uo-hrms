@@ -119,11 +119,17 @@ bench --site hrms.localhost migrate
 
 ## 打卡
 
-三种打卡方式共用同一套规则（`hrms/api/checkin_service.py`）：冷却规则、建记录、审计日志、推送墙上屏。记录上的 `checkin_method` 字段标明打卡方式。
+两种打卡方式共用同一套规则（`hrms/api/checkin_service.py`）：冷却规则、建记录、审计日志、推送墙上屏。记录上的 `checkin_method` 字段标明打卡方式。
 
 - **面容/指纹一键打卡**（PWA 首页，`hrms/api/passkey.py` 的 `get_checkin_context` / `begin_checkin` / `complete_checkin`）：通行密钥核对本人，公司网络或手机定位（打卡点关联的 Shift Location 半径内）证明在场，证据不足时转去扫码。HR 设置「面容/指纹打卡」里设打卡点、对全员开启或试用名单。
-- **门口 NFC 页**（`/nfc_checkin?loc=...`，接口 `auth_options` / `passkey_checkin`）：同样核对通行密钥与在场证据，自动判断出勤/退勤。
 - **扫码**（`hrms/api/qr_attendance.py`）：墙上屏动态二维码；打卡点可勾选「要求展示密钥」，勾选前先用表单上的「复制墙上屏网址」更新墙上设备。
+- **NFC 打卡已停用**（2026-09-29）：`/nfc_checkin` 只显示停用提示，原来的访客接口 `auth_options` / `passkey_checkin` 已删除；历史记录的 `checkin_method` 仍是 `NFC Passkey`，通行密钥继续用于面容打卡。
+
+在场与定位（`hrms/api/checkin_location.py`）：
+- 连着公司网络就算在公司，扫码和面容打卡都不再要手机定位；即使手机另外送了偏远的坐标，也不按距离拦（Employee Checkin 的距离检查同样放行）。
+- 不在公司网络、且开着「地理位置追踪」时要定位：扫码缺坐标时 `qr_checkin` 返回 `{"status": "need_location"}`，PWA 定位后再交一次；有坐标就按打卡点半径查距离。
+- PWA 取定位（`frontend/src/utils/checkinLocation.js`）：先要普通精度、可用半分钟内的位置（最多等 8 秒），误差超过 100 米再精确定位一次（最多 5 秒）；拿不到时按原因（被拒绝 / 超时或拿不到 / 不支持）给出做法和「重新获取」按钮。
+- 定位失败会记一条 Error Log，标题 `Checkin Location Failure - <原因>`，内容只有流程（qr / passkey）、等了多久和机型，不记位置；每人每小时最多 20 条。
 
 安全相关：
 - 通行密钥用 py_webauthn 核对（`hrms/api/passkey_webauthn.py`），锁定 `webauthn==2.8.0` 以兼容 Frappe 锁定的 cryptography / pyOpenSSL 版本；RP 默认 `erphr.toiroworld.com`，可用站点配置 `passkey_rp_id`、`passkey_origins` 覆盖（开发站点用 localhost）。
