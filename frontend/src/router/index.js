@@ -37,6 +37,11 @@ const routes = [
 				component: () => import("@/views/work_roster/Dashboard.vue"),
 			},
 			{
+				path: "/chat",
+				name: "Chat",
+				component: () => import("@/views/Chat.vue"),
+			},
+			{
 				path: "/dashboard/expense-claims",
 				name: "ExpenseClaimsDashboard",
 				component: () => import("@/views/expense_claim/Dashboard.vue"),

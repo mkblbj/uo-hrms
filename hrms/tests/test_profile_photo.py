@@ -127,6 +127,24 @@ class ProfilePhotoTestCase(HRMSTestSuite):
 
 
 class TestUploadMyPhoto(ProfilePhotoTestCase):
+	def test_raven_avatar_follows_employee_upload_replace_and_clear(self):
+		if "raven" not in frappe.get_installed_apps():
+			self.skipTest("Raven is optional")
+		frappe.get_doc("User", PHOTO_USER).add_roles("Raven User")
+		from raven.api.raven_users import get_users
+
+		get_users()  # Seed the cache before the photo changes.
+		first = self.upload(make_image(color=(20, 180, 20)))["photo"]
+		self.assertEqual(frappe.db.get_value("Raven User", PHOTO_USER, "user_image"), first)
+		second = self.upload(make_image(color=(20, 20, 180)))["photo"]
+		self.assertNotEqual(first, second)
+		self.assertEqual(next(user for user in get_users() if user.name == PHOTO_USER).user_image, second)
+		employee = frappe.get_doc("Employee", self.employee)
+		employee.image = None
+		employee.save()
+		self.assertFalse(frappe.db.get_value("Raven User", PHOTO_USER, "user_image"))
+
+
 	def test_sets_employee_and_account_photo_from_a_public_random_file(self):
 		url = self.upload(make_image((1000, 800)))["photo"]
 		self.assertRegex(url, r"^/files/profile-photo-[0-9a-f]{20}\.jpg$")

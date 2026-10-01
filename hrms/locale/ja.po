@@ -1059,3 +1059,9 @@ msgstr "写真が小さすぎます。もっと鮮明な写真を選んでくだ
 
 msgid "No active employee is linked to your account."
 msgstr "このアカウントには在籍中の従業員情報が紐付いていません。"
+
+msgid "Chat"
+msgstr "チャット"
+
+msgid "Back to attendance"
+msgstr "勤怠に戻る"

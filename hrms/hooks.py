@@ -162,6 +162,7 @@ override_doctype_class = {
 
 doc_events = {
 	"User": {
+		"on_update": "hrms.utils.profile_photo.sync_user_photo_to_raven",
 		"validate": [
 			"erpnext.setup.doctype.employee.employee.validate_employee_role",
 			"hrms.overrides.employee_master.update_approver_user_roles",
