@@ -190,12 +190,8 @@ async function submit() {
 		pendingAttendanceCorrectionApprovals.reload(),
 		attendanceCorrectionApprovalCount.reload(),
 	])
-	toast({
-		title: __("Success"),
-		text: copy("form.submitted"),
-		icon: "check-circle",
-		position: "bottom-center",
-		iconClasses: "text-green-500",
+	toast.success(__("Success"), {
+		description: copy("form.submitted"),
 	})
 	router.replace({ name: "AttendanceCorrectionListView" })
 }

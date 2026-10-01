@@ -5,10 +5,12 @@ import {
 	addRosterMonth,
 	buildRosterCalendarCells,
 	createRosterRequestGate,
+	formatRosterPreferenceTitle,
 	getRosterCacheKey,
 	getRosterCopy,
 	normalizeRosterLanguage,
 	resolveRosterFallbackMonth,
+	resolveHomePreferenceNotice,
 	resolveRosterInitialState,
 	shouldCloseRosterSheet,
 } from "./rosterCalendar.js"
@@ -22,6 +24,66 @@ test("moves roster month across year boundaries", () => {
 		year: 2027,
 		month: 1,
 	})
+})
+
+test("home preference reminder is visible only while collecting", () => {
+	const unsubmitted = {
+		period: "Office-2044-10",
+		status: "Collecting",
+		has_preference: false,
+	}
+	const submitted = { ...unsubmitted, has_preference: true }
+
+	assert.equal(resolveHomePreferenceNotice(null), null)
+	assert.equal(resolveHomePreferenceNotice({ ...unsubmitted, status: "Scheduling" }), null)
+	assert.equal(
+		resolveHomePreferenceNotice({
+			status: "Collecting",
+			has_preference: false,
+		}),
+		null
+	)
+	assert.equal(
+		resolveHomePreferenceNotice({
+			period: "",
+			status: "Collecting",
+			has_preference: false,
+		}),
+		null
+	)
+	assert.equal(
+		resolveHomePreferenceNotice({
+			period: "Office-2044-10",
+			status: "Published",
+			has_preference: false,
+		}),
+		null
+	)
+	assert.equal(resolveHomePreferenceNotice(unsubmitted), unsubmitted)
+	assert.equal(resolveHomePreferenceNotice(submitted), submitted)
+})
+
+test("localizes the home preference reminder title from structured period data", () => {
+	const officeNotice = {
+		title: "2026年9月 - 办公室",
+		year: 2026,
+		month: 9,
+		department_category: "Office",
+	}
+	assert.equal(formatRosterPreferenceTitle(officeNotice, "zh"), "2026年9月 - 办公室")
+	assert.equal(formatRosterPreferenceTitle(officeNotice, "ja"), "2026年9月 - 事務")
+	assert.equal(formatRosterPreferenceTitle(officeNotice, "en"), "September 2026 - Office")
+	assert.equal(
+		formatRosterPreferenceTitle({ ...officeNotice, department_category: "Production" }, "ja"),
+		"2026年9月 - 生産"
+	)
+	assert.equal(
+		formatRosterPreferenceTitle({ ...officeNotice, department_category: undefined }, "ja"),
+		"2026年9月"
+	)
+	for (const year of [undefined, null, "", " ", 0]) {
+		assert.equal(formatRosterPreferenceTitle({ ...officeNotice, year }, "ja"), officeNotice.title)
+	}
 })
 
 test("defaults bottom-tab entry to mine and honors safe legacy query", () => {

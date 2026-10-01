@@ -23,12 +23,18 @@ export default defineConfig({
 	},
 	plugins: [
 		vue(),
-		frappeui(),
+		frappeui({
+			frappeProxy: false,
+			jinjaBootData: false,
+			buildConfig: false,
+		}),
 		emitFrontendVersionPlugin({
 			version: frontendVersion,
 			buildTime: frontendBuildTime,
 		}),
 		VitePWA({
+			manifestFilename: "manifest-20260927b.webmanifest",
+			scope: "/hrms",
 			registerType: "autoUpdate",
 			strategies: "injectManifest",
 			injectRegister: null,
@@ -40,29 +46,31 @@ export default defineConfig({
 				name: "UO HR",
 				short_name: "UO HR",
 				start_url: "/hrms",
+				scope: "/hrms",
 				description: "株式会社UO人力资源管理系统",
-				theme_color: "#1E40AF",
+				theme_color: "#f1eee7",
+				background_color: "#f1eee7",
 				icons: [
 					{
-						src: "/assets/hrms/manifest/manifest-icon-192.maskable.png",
+						src: "/assets/hrms/manifest/manifest-icon-192.png",
 						sizes: "192x192",
 						type: "image/png",
 						purpose: "any",
 					},
 					{
-						src: "/assets/hrms/manifest/manifest-icon-192.maskable.png",
+						src: "/assets/hrms/manifest/manifest-icon-192.maskable.png?v=20260927",
 						sizes: "192x192",
 						type: "image/png",
 						purpose: "maskable",
 					},
 					{
-						src: "/assets/hrms/manifest/manifest-icon-512.maskable.png",
+						src: "/assets/hrms/manifest/manifest-icon-512.png",
 						sizes: "512x512",
 						type: "image/png",
 						purpose: "any",
 					},
 					{
-						src: "/assets/hrms/manifest/manifest-icon-512.maskable.png",
+						src: "/assets/hrms/manifest/manifest-icon-512.maskable.png?v=20260927",
 						sizes: "512x512",
 						type: "image/png",
 						purpose: "maskable",
@@ -93,7 +101,8 @@ export default defineConfig({
 		},
 	},
 	optimizeDeps: {
-		include: ["frappe-ui > feather-icons", "showdown", "tailwind.config.js", "engine.io-client"],
+		include: ["tailwind.config.js", "engine.io-client"],
+		exclude: ["frappe-ui/experimental"],
 	},
 })
 
@@ -118,7 +127,7 @@ function getProxyOptions() {
 		console.log("No common_site_config.json found, using default port 8000")
 	}
 	return {
-		"^/(app|login|api|assets|files|private)": {
+		"^/(app|login|api|assets|files|private|hrms-sw\\.js)": {
 			target: `http://127.0.0.1:${webserver_port}`,
 			ws: true,
 			router: function (req) {

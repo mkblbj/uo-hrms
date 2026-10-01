@@ -37,6 +37,11 @@ const routes = [
 				component: () => import("@/views/work_roster/Dashboard.vue"),
 			},
 			{
+				path: "/chat",
+				name: "Chat",
+				component: () => import("@/views/Chat.vue"),
+			},
+			{
 				path: "/dashboard/expense-claims",
 				name: "ExpenseClaimsDashboard",
 				component: () => import("@/views/expense_claim/Dashboard.vue"),
@@ -52,6 +57,11 @@ const routes = [
 		path: "/login",
 		name: "Login",
 		component: () => import("@/views/Login.vue"),
+	},
+	{
+		path: "/forgot-password",
+		name: "ForgotPassword",
+		component: () => import("@/views/ForgotPassword.vue"),
 	},
 	{
 		path: "/profile",
@@ -72,6 +82,11 @@ const routes = [
 		path: "/settings",
 		name: "Settings",
 		component: () => import("@/views/AppSettings.vue"),
+	},
+	{
+		path: "/change-password",
+		name: "ChangePassword",
+		component: () => import("@/views/ChangePassword.vue"),
 	},
 	{
 		path: "/invalid-employee",

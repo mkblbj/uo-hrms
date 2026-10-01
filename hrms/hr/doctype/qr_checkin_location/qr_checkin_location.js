@@ -18,16 +18,26 @@ frappe.ui.form.on("QR Checkin Location", {
 			});
 		}
 
-		// 添加查看二维码按钮
+		// 查看二维码页面、复制墙上屏网址（网址里带展示密钥）
 		if (!frm.doc.__islocal && frm.doc.enabled) {
+			const withDisplayUrl = (callback) =>
+				frappe.call({
+					method: "hrms.hr.doctype.qr_checkin_location.qr_checkin_location.get_display_url",
+					args: { location_name: frm.doc.name },
+					callback: (r) => r.message && callback(r.message),
+				});
 			frm.add_custom_button(
 				__("View QR Code Page"),
-				function () {
-					const url = `/qr_display?location=${encodeURIComponent(
-						frm.doc.location_name,
-					)}`;
-					window.open(url, "_blank");
-				},
+				() => withDisplayUrl((url) => window.open(url, "_blank")),
+				__("Actions"),
+			);
+			frm.add_custom_button(
+				__("Copy Wall Display URL"),
+				() =>
+					withDisplayUrl((url) => {
+						frappe.utils.copy_to_clipboard(url);
+						frappe.show_alert({ message: __("Wall display URL copied"), indicator: "green" });
+					}),
 				__("Actions"),
 			);
 		}

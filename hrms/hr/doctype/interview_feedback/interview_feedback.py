@@ -24,7 +24,7 @@ class InterviewFeedback(Document):
 		average_rating: DF.Rating
 		feedback: DF.Text | None
 		interview: DF.Link
-		interview_round: DF.Link
+		interview_type: DF.Link
 		interviewer: DF.Link
 		job_applicant: DF.Link | None
 		result: DF.Literal["", "Cleared", "Rejected"]
@@ -102,4 +102,5 @@ class InterviewFeedback(Document):
 
 @frappe.whitelist()
 def get_applicable_interviewers(interview: str) -> list[str]:
+	frappe.has_permission("Interview", "read", interview, throw=True)
 	return frappe.get_all("Interview Detail", filters={"parent": interview}, pluck="interviewer")

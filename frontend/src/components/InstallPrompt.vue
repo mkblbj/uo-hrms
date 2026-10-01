@@ -1,35 +1,33 @@
 <template>
 	<!-- Install PWA dialog -->
-	<Dialog v-model="showDialog">
-		<template #body-title>
-			<h2 class="text-lg font-bold">{{ __("Install UO HR") }} </h2>
+	<Dialog v-model:open="showDialog">
+		<template #title>
+			<h2 class="text-lg-bold">{{ __("Install UO HR") }} </h2>
 		</template>
-		<template #body-content>
-			<p>{{ __("Get the app on your device for easy access & a better experience!") }} </p>
-		</template>
+		<p>{{ __("Get the app on your device for easy access & a better experience!") }} </p>
 		<template #actions>
 			<Button variant="solid" @click="() => install()" class="py-5 w-full">
-				<template #prefix><FeatherIcon name="download" class="w-4" /></template>
+				<template #prefix><Icon icon="lucide-download" class="w-4" /></template>
 				{{ __("Install") }}
 			</Button>
 		</template>
 	</Dialog>
 
 	<!-- iOS installation info message -->
-	<Popover :show="iosInstallMessage" placement="bottom">
-		<template #body>
+	<Teleport to="body">
+		<div v-if="iosInstallMessage" class="fixed inset-0 z-[1100] pointer-events-none">
 			<div
-				class="mt-[calc(100vh-15rem)] flex flex-col gap-3 mx-2 rounded py-5 bg-blue-100 drop-shadow-xl"
+				class="pointer-events-auto mt-[calc(100vh-15rem)] flex flex-col gap-3 mx-2 rounded-4 py-5 bg-blue-100 drop-shadow-xl"
 			>
 				<div
 					class="flex flex-row text-center items-center justify-between mb-1 px-3"
 				>
-					<span class="text-base text-gray-900 font-bold">
+					<span class="text-base-bold text-gray-900">
 						{{ __("Install UO HR") }}
 					</span>
 					<span class="inline-flex items-baseline">
-						<FeatherIcon
-							name="x"
+						<Icon
+							icon="lucide-x"
 							class="ml-auto h-4 w-4 text-gray-700"
 							@click="iosInstallMessage = false"
 						/>
@@ -42,20 +40,20 @@
 						</span>
 						<span class="inline-flex items-start whitespace-nowrap">
 							<span>Tap&nbsp;</span>
-							<FeatherIcon name="share" class="h-4 w-4 text-blue-600" />
+							<Icon icon="lucide-share" class="h-4 w-4 text-blue-600" />
 							<span>&nbsp;and then "Add to Home Screen"</span>
 						</span>
 					</span>
 				</div>
 			</div>
-		</template>
-	</Popover>
+		</div>
+	</Teleport>
 </template>
 
 <script setup>
 import { ref } from "vue"
 
-import { Dialog, Popover, FeatherIcon } from "frappe-ui"
+import { Dialog, Icon } from "frappe-ui"
 
 // Initialize deferredPrompt for use later to show browser install prompt.
 const deferredPrompt = ref(null)

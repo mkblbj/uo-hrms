@@ -1,0 +1,232 @@
+import assert from "node:assert/strict"
+import { test } from "node:test"
+import { nextTick, ref, watch } from "vue"
+
+import {
+	handleLinkOpenUpdate,
+	handlePayrollPeriodsSuccess,
+	handleSalaryDocumentsUpdate,
+	resetLinkSearchState,
+	syncSalaryDocuments,
+} from "./selectionControlState.js"
+
+function createSalaryDocuments() {
+	const documents = {
+		data: [{ name: "SAL-OLD" }],
+		filters: {
+			employee: "EMP-1",
+			start_date: ["between", ["2025-01-01", "2025-12-31"]],
+		},
+		abortCount: 0,
+		list: {
+			abort() {
+				documents.abortCount += 1
+			},
+		},
+		reloadCount: 0,
+		reload() {
+			this.reloadCount += 1
+		},
+		setData(data) {
+			this.data = data
+		},
+	}
+	return documents
+}
+
+function createAsyncSalaryDocuments() {
+	const documents = createSalaryDocuments()
+	const controller = new AbortController()
+	let resolveRequest
+	const response = new Promise((resolve) => {
+		resolveRequest = resolve
+	})
+	documents.list = {
+		abort() {
+			controller.abort()
+		},
+	}
+	documents.startRequest = async () => {
+		const data = await response
+		if (!controller.signal.aborted) documents.setData(data)
+	}
+	documents.completeRequest = (data) => {
+		resolveRequest(data)
+	}
+	return documents
+}
+
+function createOverlappingSalaryDocuments() {
+	const documents = createSalaryDocuments()
+	const requests = []
+	let controller = new AbortController()
+	documents.visibleData = documents.data
+	documents.commitData = (data) => {
+		documents.visibleData = data
+	}
+
+	documents.list = {
+		abort() {
+			controller.abort()
+		},
+	}
+	documents.reload = function () {
+		this.reloadCount += 1
+		controller = new AbortController()
+		let resolveRequest
+		const response = new Promise((resolve) => {
+			resolveRequest = resolve
+		})
+		const request = response.then((data) => {
+			// createListResource writes every resolved response before callers can inspect it.
+			documents.setData(data)
+		})
+		requests.push({ resolveRequest, request })
+		return request
+	}
+	documents.completeRequest = async (index, data) => {
+		requests[index].resolveRequest(data)
+		await requests[index].request
+	}
+	return documents
+}
+
+test("resetLinkSearchState cancels pending search before clearing and reloading", () => {
+	const query = ref("ali")
+	const searchText = ref("ali")
+	const events = []
+
+	resetLinkSearchState({
+		query,
+		searchText,
+		cancelPendingSearch() {
+			events.push("cancel")
+		},
+		reloadOptions(value) {
+			events.push(["reload", value, query.value, searchText.value])
+		},
+	})
+
+	assert.equal(query.value, "")
+	assert.equal(searchText.value, "")
+	assert.deepEqual(events, ["cancel", ["reload", "", "", ""]])
+})
+
+test("handleLinkOpenUpdate resets only when the combobox opens", () => {
+	let resetCount = 0
+	const reset = () => {
+		resetCount += 1
+	}
+
+	handleLinkOpenUpdate(false, reset)
+	handleLinkOpenUpdate(true, reset)
+
+	assert.equal(resetCount, 1)
+})
+
+test("same-name payroll refresh applies refreshed dates with one reload", () => {
+	const selectedPeriod = ref("FY-2026")
+	const periodsByName = {
+		"FY-2026": { start_date: "2026-04-01", end_date: "2027-03-31" },
+	}
+	const documents = createSalaryDocuments()
+	const sync = (name) => syncSalaryDocuments(name, periodsByName, documents)
+
+	handlePayrollPeriodsSuccess([{ value: "FY-2026" }], selectedPeriod, sync)
+
+	assert.equal(selectedPeriod.value, "FY-2026")
+	assert.deepEqual(documents.filters.start_date, ["between", ["2026-04-01", "2027-03-31"]])
+	assert.equal(documents.reloadCount, 1)
+})
+
+test("new payroll period relies on the watcher and reloads only once", async () => {
+	const selectedPeriod = ref("FY-2025")
+	const periodsByName = {
+		"FY-2026": { start_date: "2026-04-01", end_date: "2027-03-31" },
+	}
+	const documents = createSalaryDocuments()
+	const sync = (name) => syncSalaryDocuments(name, periodsByName, documents)
+	watch(selectedPeriod, sync)
+
+	handlePayrollPeriodsSuccess([{ value: "FY-2026" }], selectedPeriod, sync)
+	await nextTick()
+
+	assert.equal(selectedPeriod.value, "FY-2026")
+	assert.equal(documents.reloadCount, 1)
+})
+
+test("empty payroll periods clear the stale filter and salary data without reloading", async () => {
+	const selectedPeriod = ref("FY-2026")
+	const documents = createSalaryDocuments()
+	const sync = (name) => syncSalaryDocuments(name, {}, documents)
+	watch(selectedPeriod, sync)
+
+	handlePayrollPeriodsSuccess([], selectedPeriod, sync)
+	await nextTick()
+
+	assert.equal(selectedPeriod.value, "")
+	assert.equal("start_date" in documents.filters, false)
+	assert.deepEqual(documents.data, [])
+	assert.equal(documents.reloadCount, 0)
+})
+
+test("empty payroll periods prevent an older salary request from restoring stale data", async () => {
+	const documents = createAsyncSalaryDocuments()
+	const pendingRequest = documents.startRequest()
+
+	syncSalaryDocuments("", {}, documents)
+	documents.completeRequest([{ name: "SAL-LATE" }])
+	await pendingRequest
+
+	assert.deepEqual(documents.data, [])
+})
+
+test("salary socket updates keep an empty payroll period empty without reloading history", () => {
+	const documents = createSalaryDocuments()
+	documents.visibleData = documents.data
+	documents.commitData = (data) => {
+		documents.visibleData = data
+	}
+
+	handleSalaryDocumentsUpdate("", {}, documents)
+
+	assert.equal(documents.reloadCount, 0)
+	assert.equal("start_date" in documents.filters, false)
+	assert.deepEqual(documents.data, [])
+	assert.deepEqual(documents.visibleData, [])
+})
+
+test("salary socket updates reload the currently valid payroll period", () => {
+	const documents = createSalaryDocuments()
+	const periodsByName = {
+		"FY-2026": { start_date: "2026-04-01", end_date: "2027-03-31" },
+	}
+
+	handleSalaryDocumentsUpdate("FY-2026", periodsByName, documents)
+
+	assert.equal(documents.reloadCount, 1)
+	assert.deepEqual(documents.filters.start_date, ["between", ["2026-04-01", "2027-03-31"]])
+})
+
+test("overlapping salary requests cannot restore data after an empty period or a later reload", async () => {
+	const documents = createOverlappingSalaryDocuments()
+	const periodsByName = {
+		P1: { start_date: "2025-01-01", end_date: "2025-01-31" },
+		P2: { start_date: "2025-02-01", end_date: "2025-02-28" },
+		P3: { start_date: "2025-03-01", end_date: "2025-03-31" },
+	}
+
+	syncSalaryDocuments("P1", periodsByName, documents)
+	syncSalaryDocuments("P2", periodsByName, documents)
+	syncSalaryDocuments("", periodsByName, documents)
+	await documents.completeRequest(0, [{ name: "SAL-P1" }])
+
+	assert.deepEqual(documents.visibleData, [])
+
+	syncSalaryDocuments("P3", periodsByName, documents)
+	await documents.completeRequest(2, [{ name: "SAL-P3" }])
+	await documents.completeRequest(1, [{ name: "SAL-P2" }])
+
+	assert.deepEqual(documents.visibleData, [{ name: "SAL-P3" }])
+	assert.equal(documents.reloadCount, 3)
+})

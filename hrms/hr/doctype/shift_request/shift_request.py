@@ -44,6 +44,7 @@ class ShiftRequest(Document, PWANotificationsMixin):
 		self.validate_overlapping_shift_requests()
 		self.validate_approver()
 		self.validate_default_shift()
+		self.validate_status_change()
 
 	def on_update(self):
 		share_doc_with_approver(self, self.approver)
@@ -105,9 +106,14 @@ class ShiftRequest(Document, PWANotificationsMixin):
 	def validate_approver(self):
 		department = frappe.get_value("Employee", self.employee, "department")
 		shift_approver = frappe.get_value("Employee", self.employee, "shift_request_approver")
-		approvers = frappe.db.sql(
-			"""select approver from `tabDepartment Approver` where parent= %s and parentfield = 'shift_request_approver'""",
-			(department),
+		dept_approver = frappe.qb.DocType("Department Approver")
+		approvers = (
+			frappe.qb.from_(dept_approver)
+			.select(dept_approver.approver)
+			.where(
+				(dept_approver.parent == department) & (dept_approver.parentfield == "shift_request_approver")
+			)
+			.run()
 		)
 		approvers = [approver[0] for approver in approvers]
 		approvers.append(shift_approver)
@@ -154,3 +160,13 @@ class ShiftRequest(Document, PWANotificationsMixin):
 		)
 
 		frappe.throw(msg, title=_("Overlapping Shift Requests"), exc=OverlappingShiftRequestError)
+
+	def validate_status_change(self):
+		if frappe.has_permission("Shift Request", "submit", self):
+			return
+
+		if self.status != "Draft":
+			frappe.throw(
+				_("You do not have permission to change the Status of a Shift Request."),
+				frappe.PermissionError,
+			)

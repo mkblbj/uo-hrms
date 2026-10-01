@@ -7,12 +7,12 @@
 		<div
 			class="w-full flex flex-row gap-2 pt-8 pb-5 border-b justify-center items-center sticky top-0 z-[100]"
 		>
-			<span class="text-gray-900 font-bold text-lg text-center">
+			<span class="text-gray-900 text-lg-bold text-center">
 				{{ __(document?.doctype) }}
 			</span>
-			<FeatherIcon
+			<Icon
 				v-if="props.showOpenForm"
-				name="external-link"
+				icon="lucide-external-link"
 				class="h-4 w-4 text-gray-500 cursor-pointer"
 				@click="openFormView"
 			/>
@@ -55,7 +55,7 @@
 					<div class="text-gray-600 text-base">{{ __('Attachments') }}</div>
 					<ul class="w-full flex flex-col items-center gap-2">
 						<li
-							class="bg-gray-100 rounded p-2 w-full"
+							class="bg-gray-100 rounded-4 p-2 w-full"
 							v-for="(file, index) in attachedFiles.data"
 							:key="index"
 						>
@@ -91,7 +91,7 @@
 				theme="red"
 			>
 				<template #prefix>
-					<FeatherIcon name="x" class="w-4" />
+					<Icon icon="lucide-x" class="w-4" />
 				</template>
 				{{ __("Reject") }}
 			</Button>
@@ -103,7 +103,7 @@
 				theme="green"
 			>
 				<template #prefix>
-					<FeatherIcon name="check" class="w-4" />
+					<Icon icon="lucide-check" class="w-4" />
 				</template>
 				{{ __("Approve") }}
 			</Button>
@@ -138,7 +138,7 @@
 				theme="red"
 			>
 				<template #prefix>
-					<FeatherIcon name="x" class="w-4" />
+					<Icon icon="lucide-x" class="w-4" />
 				</template>
 				{{ __("Cancel") }}
 			</Button>
@@ -163,7 +163,7 @@ import {
 	toast,
 	createDocumentResource,
 	createResource,
-	FeatherIcon,
+	Icon,
 } from "frappe-ui"
 
 import FormattedField from "@/components/FormattedField.vue"
@@ -171,6 +171,7 @@ import FilePreviewModal from "@/components/FilePreviewModal.vue"
 import WorkflowActionSheet from "@/components/WorkflowActionSheet.vue"
 
 import { getCompanyCurrency } from "@/data/currencies"
+import { settings } from "@/data/settings"
 import { formatCurrency } from "@/utils/formatters"
 
 import useWorkflow from "@/composables/workflow"
@@ -231,9 +232,16 @@ const permittedWriteFields = createResource({
 	auto: true,
 })
 
+const sessionEmployee = inject("$employee")
+
 function hasPermission(action) {
-	if (action === "approval")
+	if (action === "approval" && props.modelValue.doctype === "Leave Application"){
+		// prevent self leave approval
+		const isSelfLeave = document?.doc?.employee === sessionEmployee?.data?.name 
+		if (isSelfLeave && settings.data?.prevent_self_leave_approval)
+			return false
 		return permittedWriteFields.data?.includes(approvalField.value)
+	}
 	return docPermissions.data?.permissions[action]
 }
 
@@ -305,21 +313,13 @@ const updateDocumentStatus = ({ status = "", docstatus = 0 }) => {
 			onSuccess() {
 				if (docstatus !== 0) modalController.dismiss()
 
-				toast({
-					title: __("Success"),
-					text: getSuccessMessage({ status, docstatus }),
-					icon: "check-circle",
-					position: "bottom-center",
-					iconClasses: "text-green-500",
+				toast.success(__("Success"), {
+					description: getSuccessMessage({ status, docstatus }),
 				})
 			},
 			onError() {
-				toast({
-					title: __("Error"),
-					text: getFailureMessage({ status, docstatus }),
-					icon: "alert-circle",
-					position: "bottom-center",
-					iconClasses: "text-red-500",
+				toast.error(__("Error"), {
+					description: getFailureMessage({ status, docstatus }),
 				})
 			},
 		}
@@ -343,6 +343,7 @@ const openFormView = () => {
 onMounted(() => {
 	workflow.value = useWorkflow(props.modelValue.doctype)
 })
+
 </script>
 
 <style scoped>

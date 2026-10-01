@@ -1,8 +1,8 @@
 <template>
-	<ion-page>
+	<ion-page data-status-bar="page">
 		<ion-header class="ion-no-border">
 			<div class="w-full">
-				<div class="flex flex-col px-4 pb-3 pt-3" style="background: var(--h-bg-page, #f1eee7)">
+				<div class="sticky top-0 flex flex-col px-4 pb-3 pt-3" style="background: var(--h-bg-page, #f1eee7)">
 					<div class="flex flex-row justify-between items-center">
 						<div class="flex flex-row items-center gap-2 min-w-0">
 							<button
@@ -14,8 +14,8 @@
 									<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
 								</svg>
 							</button>
-							<img src="/uo-hr-logo.png" class="h-7 w-7 object-contain" alt="Logo" />
-							<h2 class="text-xl font-bold truncate" style="color: var(--h-fg-primary, #0a0a0a)">
+							<img src="/uo-hr-attendance-logo.png" class="h-7 w-7 object-contain" alt="UO HR Logo" />
+							<h2 class="text-2xl-bold truncate" style="color: var(--h-fg-primary, #0a0a0a)">
 								{{ props.pageTitle || __("UO HR") }}
 							</h2>
 						</div>
@@ -27,7 +27,7 @@
 								class="flex h-9 w-9 items-center justify-center rounded-full shadow-sm" style="background: var(--h-bg-elevated, #fff); border: 1px solid var(--h-bd-default, #e3dfd4)"
 							>
 								<span class="relative inline-block" @click="navigate" style="color: var(--h-fg-primary, #0a0a0a)">
-									<FeatherIcon name="bell" class="h-6 w-6" />
+									<Icon icon="lucide-bell" class="h-6 w-6" />
 									<span v-if="unreadNotificationsCount.data" class="notification-badge">
 										{{ unreadNotificationsCount.data > 99 ? '99+' : unreadNotificationsCount.data }}
 									</span>
@@ -53,7 +53,7 @@
 <script setup>
 import { inject } from "vue"
 import { IonHeader, IonContent, IonPage } from "@ionic/vue"
-import { FeatherIcon, Avatar } from "frappe-ui"
+import { Icon, Avatar } from "frappe-ui"
 import { useRouter } from "vue-router"
 
 import { unreadNotificationsCount } from "@/data/notifications"

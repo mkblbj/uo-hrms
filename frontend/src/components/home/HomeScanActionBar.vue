@@ -8,20 +8,22 @@
 			@click="$emit('scan')"
 		>
 			<span class="scan-action-icon" aria-hidden="true">
-				<FeatherIcon :name="iconName" class="h-5 w-5" />
+				<Icon :icon="iconName" class="h-5 w-5" />
 			</span>
 			<span class="scan-action-copy">
 				<strong>{{ actionTitle }}</strong>
 				<small>{{ actionDescription }}</small>
 			</span>
-			<FeatherIcon name="chevron-right" class="scan-action-arrow" />
+			<Icon icon="lucide-chevron-right" class="scan-action-arrow" />
 		</button>
 	</div>
 </template>
 
 <script setup>
 import { computed } from "vue"
-import { FeatherIcon } from "frappe-ui"
+import { Icon } from "frappe-ui"
+
+import { PASSKEY_MODE, pickPasskeyCopy } from "@/utils/passkeyCheckin"
 
 const CHECK_IN = "CHECK_IN"
 const CHECK_OUT = "CHECK_OUT"
@@ -41,6 +43,14 @@ const props = defineProps({
 		default: "zh",
 	},
 	disabled: {
+		type: Boolean,
+		default: false,
+	},
+	mode: {
+		type: String,
+		default: "qr",
+	},
+	busy: {
 		type: Boolean,
 		default: false,
 	},
@@ -86,16 +96,22 @@ const actionMode = computed(() => {
 	return CHECK_IN
 })
 const isDone = computed(() => actionMode.value === DONE)
-const isDisabled = computed(() => props.disabled || !props.cta)
+const isPasskey = computed(() => props.mode === PASSKEY_MODE && !isDone.value)
+const isDisabled = computed(() => props.busy || props.disabled || !props.cta)
 const iconName = computed(() => {
-	if (isDone.value) return "check-circle"
-	return actionMode.value === CHECK_OUT ? "log-out" : "camera"
+	if (isDone.value) return "lucide-check-circle"
+	if (isPasskey.value) return "lucide-scan-face"
+	return actionMode.value === CHECK_OUT ? "lucide-log-out" : "lucide-camera"
 })
 const actionTitle = computed(() => {
+	if (isPasskey.value) {
+		return pickPasskeyCopy(actionMode.value === CHECK_OUT ? "checkOutTitle" : "checkInTitle", props.lang)
+	}
 	if (!isDone.value && props.cta?.title) return props.cta.title
 	return pick(actionMode.value, "title")
 })
 const actionDescription = computed(() => {
+	if (isPasskey.value) return pickPasskeyCopy(props.busy ? "verifying" : "passkeyHint", props.lang)
 	if (!isDone.value && props.cta?.description) return props.cta.description
 	return pick(actionMode.value, "description")
 })

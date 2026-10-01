@@ -1,38 +1,76 @@
 <template>
 	<ion-page>
 		<ion-content class="ion-padding">
-			<div class="flex h-screen w-screen flex-col justify-center bg-white">
+			<div
+				v-if="resetPassword.showDialog"
+				class="flex h-screen w-screen flex-col bg-white"
+			>
+				<header class="flex items-center justify-between px-6 py-4">
+					<div class="text-lg-semibold text-gray-900">
+						{{ __("Reset Password") }}
+					</div>
+					<button
+						type="button"
+						class="text-sm text-gray-600 hover:text-gray-900 underline"
+						@click="resetPassword.showDialog = false"
+					>
+						{{ __("Back to Login") }}
+					</button>
+				</header>
+				<div class="flex flex-1 flex-col items-center justify-center px-8 text-center">
+					<p class="text-gray-700">
+						{{ __("Your password has expired. Please reset your password to continue") }}
+					</p>
+					<a
+						class="mt-6 inline-flex items-center justify-center gap-2 transition-colors focus:outline-none text-white bg-gray-900 hover:bg-gray-800 active:bg-gray-700 focus-visible:ring focus-visible:ring-gray-400 h-9 text-base px-4 rounded-4"
+						:href="resetPassword.link"
+						target="_blank"
+					>
+						{{ __("Go to Reset Password page") }}
+					</a>
+				</div>
+			</div>
+
+			<div v-else class="flex h-screen w-screen flex-col justify-center bg-white">
 				<div class="flex flex-col mx-auto gap-3 items-center">
-					<img src="/uo-hr-logo.png" class="h-20 w-20 object-contain" alt="UO HR Logo" />
-					<div class="text-3xl font-semibold text-gray-900 text-center">
+					<img src="/uo-hr-attendance-logo.png" class="h-20 w-20 object-contain" alt="UO HR Logo" />
+					<div class="text-4xl-semibold text-gray-900 text-center">
 						{{ __("Login to UO HR") }}
 					</div>
 				</div>
 
 				<div class="mx-auto mt-10 w-full px-8 sm:w-96">
 					<form v-if="!user_pass_login_disabled.data" class="flex flex-col space-y-4" @submit.prevent="submit">
-						<Input
+						<TextInput
 							:label="__('Email')"
 							:placeholder="__('johndoe@mail.com')"
 							v-model="email"
 							type="text"
 							autocomplete="username"
 						/>
-						<Input
+						<Password
 							:label="__('Password')"
-							type="password"
 							placeholder="••••••"
 							v-model="password"
 							autocomplete="current-password"
 						/>
 						<ErrorMessage :message="errorMessage" />
 						<Button
+							type="submit"
 							:loading="session.login.loading"
 							variant="solid"
 							class="disabled:bg-gray-700 disabled:text-white !mt-6"
 						>
 							{{ __("Login") }}
 						</Button>
+						<div class="text-center mt-4">
+							<router-link
+								:to="{ name: 'ForgotPassword', query: email ? { email } : {} }"
+								class="text-sm text-gray-600 hover:text-gray-900 underline"
+							>
+								{{ __("Forgot Password?") }}
+							</router-link>
+						</div>
 					</form>
 
 					<template v-if="authProviders.data?.length">
@@ -41,7 +79,7 @@
 							<a
 								v-for="provider in authProviders.data"
 								:key="provider.name"
-								class="flex items-center justify-center gap-2 transition-colors focus:outline-none text-gray-800 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 focus-visible:ring focus-visible:ring-gray-400 h-7 text-base p-2 rounded"
+								class="flex items-center justify-center gap-2 transition-colors focus:outline-none text-gray-800 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 focus-visible:ring focus-visible:ring-gray-400 h-7 text-base p-2 rounded-4"
 								:href="provider.auth_url"
 							>
 								<img class="h-4 w-4" :src="provider.icon" :alt="provider.provider_name" />
@@ -53,54 +91,32 @@
 					<div v-else-if="user_pass_login_disabled.data" class="text-center text-gray-600 py-8">{{ __("No login methods are available. Please contact your administrator.") }}</div>
 				</div>
 			</div>
+			<Dialog v-model:open="otp.showDialog">
+				<template #title>
+					<h2 class="text-lg-bold">{{ __("OTP Verification") }}</h2>
+				</template>
+				<p class="mb-4" v-if="otp.verification.prompt">
+					{{ otp.verification.prompt }}
+				</p>
 
-			<Dialog v-model="resetPassword.showDialog">
-				<template #body-title>
-					<h2 class="text-lg font-bold">{{ __("Reset Password") }} </h2>
-				</template>
-				<template #body-content>
-					<p>
-						{{ __("Your password has expired. Please reset your password to continue") }}
-					</p>
-				</template>
-				<template #actions>
-					<a
-						class="inline-flex items-center justify-center gap-2 transition-colors focus:outline-none text-white bg-gray-900 hover:bg-gray-800 active:bg-gray-700 focus-visible:ring focus-visible:ring-gray-400 h-7 text-base px-2 rounded"
-						:href="resetPassword.link"
-						target="_blank"
+				<form class="flex flex-col space-y-4" @submit.prevent="submit">
+					<TextInput
+						:label="__('OTP Code')"
+						type="text"
+						placeholder="000000"
+						v-model="otp.code"
+						autocomplete="one-time-code"
+					/>
+					<ErrorMessage :message="errorMessage" />
+					<Button
+						type="submit"
+						:loading="session.otp.loading"
+						variant="solid"
+						class="disabled:bg-gray-700 disabled:text-white !mt-6"
 					>
-						{{ __("Go to Reset Password page") }}
-					</a>
-				</template>
-			</Dialog>
-
-			<Dialog v-model="otp.showDialog">
-				<template #body-title>
-					<h2 class="text-lg font-bold">{{ __("OTP Verification") }}</h2>
-				</template>
-				<template #body-content>
-					<p class="mb-4" v-if="otp.verification.prompt">
-						{{ otp.verification.prompt }}
-					</p>
-
-					<form class="flex flex-col space-y-4" @submit.prevent="submit">
-						<Input
-							:label="__('OTP Code')"
-							type="text"
-							placeholder="000000"
-							v-model="otp.code"
-							autocomplete="one-time-code"
-						/>
-						<ErrorMessage :message="errorMessage" />
-						<Button
-							:loading="session.otp.loading"
-							variant="solid"
-							class="disabled:bg-gray-700 disabled:text-white !mt-6"
-						>
-							{{ __("Verify") }}
-						</Button>
-					</form>
-				</template>
+						{{ __("Verify") }}
+					</Button>
+				</form>
 			</Dialog>
 		</ion-content>
 	</ion-page>
@@ -109,7 +125,7 @@
 <script setup>
 import { IonPage, IonContent } from "@ionic/vue"
 import { inject, reactive, ref } from "vue"
-import { Input, Button, ErrorMessage, Dialog, createResource } from "frappe-ui"
+import { TextInput, Password, Button, ErrorMessage, Dialog, createResource } from "frappe-ui"
 
 import FrappeHRLogo from "@/components/icons/FrappeHRLogo.vue"
 

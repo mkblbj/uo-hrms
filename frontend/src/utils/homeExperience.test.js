@@ -228,8 +228,34 @@ test("derives the scan action and copy from the same work-status input", () => {
 test("returns localized bottom-tab labels without mixed-language fallbacks", () => {
 	assert.deepEqual(
 		getBottomTabItems("ja").map((item) => item.title),
-		["ホーム", "勤怠", "シフト", "経費", "給与"]
+		["ホーム", "勤怠", "シフト"]
 	)
+})
+
+test("adds the localized chat tab only when chat is available", () => {
+	for (const [lang, title] of [["zh", "聊天"], ["ja", "チャット"], ["en", "Chat"]]) {
+		const tabs = getBottomTabItems(lang, { chatEnabled: true })
+		assert.deepEqual(tabs.map((item) => item.key), ["home", "attendance", "roster", "chat"])
+		assert.deepEqual(tabs.find((item) => item.key === "chat"), {
+			key: "chat", title, route: "/chat",
+		})
+		assert.equal(getBottomTabItems(lang, { chatEnabled: false }).some((item) => item.key === "chat"), false)
+	}
+})
+
+// 経費 and 給与 are parked while they wait for development, not removed: their
+// tab definitions, pages and routes all stay, so bringing them back is a matter
+// of deleting them from HIDDEN_BOTTOM_TABS.
+test("parks the expense and salary tabs without removing their routes", () => {
+	assert.deepEqual([...homeExperience.HIDDEN_BOTTOM_TABS].sort(), ["expenses", "salary"])
+	assert.deepEqual(
+		getBottomTabItems("zh").map((item) => item.key),
+		["home", "attendance", "roster"]
+	)
+
+	const router = fs.readFileSync(path.resolve(currentDir, "../router/index.js"), "utf8")
+	assert.match(router, /path: "\/dashboard\/expense-claims"/)
+	assert.match(router, /path: "\/dashboard\/salary-slips"/)
 })
 
 test("emits and unbinds the check-in status refresh contract on EventTarget", () => {
@@ -615,7 +641,7 @@ test("home v3 keeps the existing BaseLayout logo and BottomTabs active indicator
 	const tabsSource = fs.readFileSync(bottomTabsPath, "utf8")
 	const panelSource = fs.readFileSync(checkInPanelPath, "utf8")
 
-	assert.match(baseSource, /src="\/uo-hr-logo\.png"/)
+	assert.match(baseSource, /src="\/uo-hr-attendance-logo\.png"/)
 	assert.match(tabsSource, /--h-tab-active/)
 	assert.doesNotMatch(panelSource, /uo-hr-logo/)
 	assert.doesNotMatch(panelSource, /BottomTabs/)

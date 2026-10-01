@@ -7,28 +7,28 @@
 		<template #left>
 			<AttendanceIcon class="h-5 w-5 text-gray-500" />
 			<div class="flex flex-col items-start gap-1.5">
-				<div class="text-base font-normal text-gray-800">
+				<div class="text-base text-gray-800">
 					{{ props.doc.reason }}
 				</div>
-				<div class="text-xs font-normal text-gray-500">
+				<div class="text-xs text-gray-500">
 					<span>{{ props.doc.attendance_dates || getDates(props.doc) }}</span>
-					<span v-if="props.doc.to_date">
+					<span v-if="getTotalDays(props.doc) > 0">
 						<span class="whitespace-pre"> &middot; </span>
-						<span class="whitespace-nowrap">{{ __("{0}d", [props.doc.total_attendance_days]) }}</span>
+						<span class="whitespace-nowrap">{{ __("{0}d", [getTotalDays(props.doc)]) }}</span>
 					</span>
 				</div>
 			</div>
 		</template>
 		<template #right>
 			<Badge variant="outline" :theme="colorMap[status]" :label="__(status)" size="md" />
-			<FeatherIcon name="chevron-right" class="h-5 w-5 text-gray-500" />
+			<Icon icon="lucide-chevron-right" class="h-5 w-5 text-gray-500" />
 		</template>
 	</ListItem>
 </template>
 
 <script setup>
 import { computed } from "vue"
-import { Badge, FeatherIcon } from "frappe-ui"
+import { Badge, Icon } from "frappe-ui"
 
 import ListItem from "@/components/ListItem.vue"
 import AttendanceIcon from "@/components/icons/AttendanceIcon.vue"

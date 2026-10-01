@@ -2,12 +2,12 @@
 	<BaseLayout :pageTitle="__('Salary Slips')">
 		<template #body>
 			<div class="flex flex-col items-center my-7 p-4">
-				<div class="flex flex-col w-full bg-white rounded py-5 px-3.5 gap-5">
+				<div class="flex flex-col w-full bg-white rounded-4 py-5 px-3.5 gap-5">
 					<div v-if="lastSalarySlip && lastSalarySlip.year_to_date" class="flex flex-col w-full gap-1.5">
-						<span class="text-gray-600 text-sm font-medium leading-5">
+						<span class="text-gray-600 text-sm-medium leading-5">
 							{{ __("Year To Date") }}
 						</span>
-						<span class="text-gray-800 text-xl font-bold leading-6">
+						<span class="text-gray-800 text-2xl-bold leading-6">
 							{{
 								formatCurrency(
 									lastSalarySlip.year_to_date,
@@ -17,9 +17,10 @@
 						</span>
 					</div>
 
-					<Autocomplete
+					<Combobox
 						:label="__('Payroll Period')"
 						class="w-full"
+						trigger="button"
 						:placeholder="__('Select Payroll Period')"
 						v-model="selectedPeriod"
 						:options="payrollPeriods.data"
@@ -28,12 +29,12 @@
 
 				<div class="flex flex-col items-center mt-5 mb-7 w-full">
 					<div
-						v-if="documents.data?.length"
-						class="flex flex-col bg-white rounded mt-5 overflow-auto w-full"
+						v-if="visibleSalaryDocuments?.length"
+						class="flex flex-col bg-white rounded-4 mt-5 overflow-auto w-full"
 					>
 						<div
 							class="p-3.5 items-center justify-between border-b cursor-pointer"
-							v-for="link in documents.data"
+							v-for="link in visibleSalaryDocuments"
 							:key="link.name"
 						>
 							<router-link
@@ -56,16 +57,21 @@
 
 <script setup>
 import { inject, ref, computed, watch, onMounted, onBeforeUnmount } from "vue"
-import { Autocomplete, createListResource } from "frappe-ui"
+import { Combobox, createListResource } from "frappe-ui"
 
 import BaseLayout from "@/components/BaseLayout.vue"
 import EmptyState from "@/components/EmptyState.vue"
 import SalarySlipItem from "@/components/SalarySlipItem.vue"
 
 import { formatCurrency } from "@/utils/formatters"
+import {
+	handlePayrollPeriodsSuccess,
+	handleSalaryDocumentsUpdate,
+	syncSalaryDocuments,
+} from "@/utils/selectionControlState"
 
-let selectedPeriod = ref({})
-let periodsByName = ref({})
+const selectedPeriod = ref("")
+const periodsByName = ref({})
 
 const employee = inject("$employee")
 const dayjs = inject("$dayjs")
@@ -81,6 +87,7 @@ const payrollPeriods = createListResource({
 	orderBy: "start_date desc",
 	auto: true,
 	transform(data) {
+		periodsByName.value = {}
 		return data.map((period) => {
 			periodsByName.value[period.name] = period
 			return {
@@ -90,7 +97,7 @@ const payrollPeriods = createListResource({
 		})
 	},
 	onSuccess: (data) => {
-		selectedPeriod.value = data[0]
+		handlePayrollPeriodsSuccess(data, selectedPeriod, syncSelectedPeriod)
 	},
 })
 
@@ -112,7 +119,29 @@ const documents = createListResource({
 	orderBy: "end_date desc",
 })
 
-const lastSalarySlip = computed(() => documents.data?.[0])
+const visibleSalaryDocuments = ref(documents.data)
+const salaryDocuments = {
+	get filters() {
+		return documents.filters
+	},
+	get list() {
+		return documents.list
+	},
+	get data() {
+		return documents.data
+	},
+	reload() {
+		return documents.reload()
+	},
+	setData(data) {
+		documents.setData(data)
+	},
+	commitData(data) {
+		visibleSalaryDocuments.value = data
+	},
+}
+
+const lastSalarySlip = computed(() => visibleSalaryDocuments.value?.[0])
 
 function getPeriodLabel(period) {
 	return `${dayjs(period?.start_date).format("MMM YYYY")} - ${dayjs(
@@ -120,22 +149,23 @@ function getPeriodLabel(period) {
 	).format("MMM YYYY")}`
 }
 
+function syncSelectedPeriod(value) {
+	syncSalaryDocuments(value, periodsByName.value, salaryDocuments)
+}
+
 watch(
 	() => selectedPeriod.value,
-	(value) => {
-		let period = periodsByName.value[value?.value]
-		documents.filters.start_date = [
-			"between",
-			[period?.start_date, period?.end_date],
-		]
-		documents.reload()
-	}
+	(value) => syncSelectedPeriod(value)
 )
 
 onMounted(() => {
 	socket.on("hrms:update_salary_slips", (data) => {
 		if (data.employee === employee.data.name) {
-			documents.reload()
+			handleSalaryDocumentsUpdate(
+				selectedPeriod.value,
+				periodsByName.value,
+				salaryDocuments
+			)
 		}
 	})
 })

@@ -9,14 +9,18 @@
 import hashlib
 import hmac
 import time
-from datetime import timedelta
 
 import frappe
 from frappe import _
-from frappe.utils import get_datetime, now, now_datetime
+from frappe.utils import cint
 
-from hrms.api.checkin_cooldown import is_checkin_cooldown_exempt
+from hrms.api.checkin_location import is_location_required
+from hrms.api.checkin_presence import EVIDENCE_OFFICE_NETWORK, normalize_coordinates
+from hrms.api.checkin_service import CHECKIN_METHOD_QR, create_checkin, validate_checkin_timing
+from hrms.hr.doctype.qr_checkin_location.qr_checkin_location import verify_display_key
 from hrms.hr.utils import get_distance_between_coordinates
+from hrms.utils.client_network import get_client_ip, is_office_network, parse_network_list
+from hrms.utils.profile_photo import can_see_photos
 
 TIME_SLOT_SECONDS = 30  # 二维码时间片,与前端保持一致
 ATTENDANCE_STATUS_LABELS = {
@@ -27,39 +31,25 @@ ATTENDANCE_STATUS_LABELS = {
 
 
 def validate_ip_whitelist():
-	"""
-	验证请求 IP 是否在白名单中
-	如果启用了 IP 限制，则检查当前请求 IP 是否在允许列表中
-	"""
+	"""开启 IP 限制且名单非空时，只允许公司网络打卡。读取设置出错时不挡人。"""
 	try:
-		hr_settings = frappe.get_single("HR Settings")
+		settings = frappe.get_cached_doc("HR Settings")
+		restriction_enabled = cint(settings.get("qr_checkin_ip_restriction"))
+		networks_text = settings.get("qr_checkin_allowed_ips") or ""
+	except Exception:
+		frappe.log_error(title="QR Checkin IP Validation Error")
+		return
 
-		# 如果启用了 IP 限制
-		if hr_settings.get("qr_checkin_ip_restriction"):
-			allowed_ips = hr_settings.get("qr_checkin_allowed_ips", "")
-			if not allowed_ips:
-				# 如果启用了限制但没有配置IP，允许所有（避免误配置导致无法打卡）
-				return
+	if not restriction_enabled or not parse_network_list(networks_text):
+		return
 
-			# 解析IP列表（支持换行分隔）
-			allowed_ips_list = [ip.strip() for ip in allowed_ips.split("\n") if ip.strip()]
-
-			if allowed_ips_list:
-				# 获取客户端IP
-				client_ip = frappe.local.request_ip or frappe.local.request.remote_addr
-
-				# 检查IP是否在白名单中（支持CIDR格式，但这里简化处理，只做精确匹配）
-				if client_ip not in allowed_ips_list:
-					frappe.throw(
-						_(
-							"Your network IP ({0}) is not in the allowed check-in range. Please contact HR."
-						).format(client_ip),
-						exc=frappe.exceptions.SecurityException,
-					)
-	except Exception as e:
-		# 如果获取设置失败，记录错误但不阻止打卡（避免配置错误导致系统不可用）
-		frappe.log_error(
-			message=f"IP whitelist validation error: {e!s}", title="QR Checkin IP Validation Error"
+	client_ip = get_client_ip()
+	if not is_office_network(client_ip, networks_text):
+		frappe.throw(
+			_("Your network IP ({0}) is not in the allowed check-in range. Please contact HR.").format(
+				client_ip
+			),
+			exc=frappe.exceptions.SecurityException,
 		)
 
 
@@ -79,7 +69,7 @@ def _sign(location_name: str, time_slot: int, secret: str) -> str:
 
 
 @frappe.whitelist(allow_guest=True)
-def generate_qr_token(location_name: str):
+def generate_qr_token(location_name: str, key: str | None = None):
 	"""
 	生成动态二维码 token
 	供墙上展示页面调用（允许访客访问）
@@ -99,20 +89,34 @@ def generate_qr_token(location_name: str):
 	if not frappe.db.exists("QR Checkin Location", location_name):
 		frappe.throw(_("Check-in location {0} does not exist").format(location_name))
 
+	if not verify_display_key(location_name, key):
+		frappe.throw(_("Invalid display key"), frappe.PermissionError)
+
 	doc = frappe.get_doc("QR Checkin Location", location_name)
 
 	if not doc.enabled:
 		frappe.throw(_("Check-in location {0} is disabled").format(location_name))
 
-	time_slot = _get_time_slot()
+	server_time = int(time.time())
+	time_slot = _get_time_slot(server_time)
 	sig = _sign(doc.name, time_slot, doc.get_password("secret"))
 	token = f"{doc.name}|{time_slot}|{sig}"
+	frappe.local.response_headers.update(
+		{
+			"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+			"Pragma": "no-cache",
+			"Expires": "0",
+		}
+	)
 
 	return {
 		"token": token,
 		"expires_in": doc.qr_refresh_interval or TIME_SLOT_SECONDS,
 		"location": doc.name,
 		"description": doc.description,
+		"server_time": server_time,
+		"refresh_at": (time_slot + 1) * TIME_SLOT_SECONDS,
+		"expires_at": (time_slot + 2) * TIME_SLOT_SECONDS,
 	}
 
 
@@ -132,10 +136,12 @@ def qr_checkin(
 	Args:
 		token: 二维码内容 "location_name|time_slot|signature"
 		log_type: "IN" 或 "OUT"
-		latitude: 纬度（可选，如果启用了地理位置追踪则必需）
-		longitude: 经度（可选，如果启用了地理位置追踪则必需）
+		latitude: 纬度（连着公司网络时不需要；否则开了地理位置追踪就必需）
+		longitude: 经度（同上）
 
 	Returns:
+		缺定位时返回 {"status": "need_location"}，手机定位后再提交一次。
+		成功时：
 		{
 			"status": "ok",
 			"message": "签到成功",
@@ -197,166 +203,30 @@ def qr_checkin(
 	if not employee:
 		frappe.throw(_("Your account is not linked to an employee profile, please contact HR"))
 
-	if not is_checkin_cooldown_exempt(employee):
-		# 6. 获取上次打卡记录，用于间隔检查
-		last_checkin = frappe.db.get_value(
-			"Employee Checkin", {"employee": employee}, ["log_type", "time"], order_by="time desc"
-		)
+	# 6-7. 冷却规则（与一键打卡共用）
+	validate_checkin_timing(employee, log_type)
 
-		if last_checkin:
-			last_type, last_time = last_checkin
-			minutes_since = (now_datetime() - get_datetime(last_time)).total_seconds() / 60
+	# 8. 在场：连着公司网络就算在公司；否则开了地理位置追踪时要带定位，并按打卡点半径查距离
+	client_ip = get_client_ip()
+	on_office_network = is_office_network(client_ip)
+	coordinates = normalize_coordinates(latitude, longitude)
+	if is_location_required(on_office_network):
+		if not coordinates:
+			return {"status": "need_location"}
+		_validate_distance_to_location(doc, coordinates)
 
-			# 签到后 15 分钟内不能签退（防止误操作）
-			if last_type == "IN" and log_type == "OUT" and minutes_since < 15:
-				frappe.throw(
-					_(
-						"You just checked in {0} minutes ago. Please wait at least 15 minutes before checking out."
-					).format(int(minutes_since))
-				)
-
-			# 签退后 5 分钟内不能签到（防止误操作）
-			if last_type == "OUT" and log_type == "IN" and minutes_since < 5:
-				frappe.throw(
-					_(
-						"You just checked out {0} minutes ago. Please wait at least 5 minutes before checking in."
-					).format(int(minutes_since))
-				)
-
-		# 7. 防重复打卡检查(5分钟内不能重复相同类型的打卡)
-		recent_checkin = frappe.db.get_all(
-			"Employee Checkin",
-			filters={
-				"employee": employee,
-				"log_type": log_type,
-				"time": (">", now_datetime() - timedelta(minutes=5)),
-			},
-			limit=1,
-		)
-
-		if recent_checkin:
-			action = _("checked in") if log_type == "IN" else _("checked out")
-			frappe.throw(
-				_(
-					"You have already {0} within the last 5 minutes, please do not check in repeatedly"
-				).format(action)
-			)
-
-	# 8. 地理位置验证（如果启用了地理位置追踪）
-	allow_geolocation_tracking = frappe.db.get_single_value("HR Settings", "allow_geolocation_tracking")
-
-	if allow_geolocation_tracking:
-		# 如果启用了地理位置追踪，必须提供经纬度
-		if latitude is None or longitude is None:
-			frappe.throw(_("Geolocation tracking is enabled. Please allow location access and try again."))
-
-		# 如果 QR Checkin Location 关联了 Shift Location，验证距离
-		if doc.shift_location:
-			shift_location = frappe.get_doc("Shift Location", doc.shift_location)
-
-			# 如果 Shift Location 配置了打卡半径，进行验证
-			if shift_location.checkin_radius and shift_location.checkin_radius > 0:
-				if not shift_location.latitude or not shift_location.longitude:
-					frappe.throw(
-						_("Shift Location {0} does not have valid coordinates configured").format(
-							shift_location.name
-						)
-					)
-
-				distance = get_distance_between_coordinates(
-					shift_location.latitude, shift_location.longitude, latitude, longitude
-				)
-
-				if distance > shift_location.checkin_radius:
-					frappe.throw(
-						_(
-							"You must be within {0} meters of the check-in location. Current distance: {1:.0f} meters"
-						).format(shift_location.checkin_radius, distance)
-					)
-
-	# 9. 创建 Employee Checkin (复用标准流程)
-	# 注意: 这里直接调用标准 DocType,会自动触发:
-	#   - validate_active_employee
-	#   - validate_duplicate_log
-	#   - fetch_shift (自动关联班次)
-	#   - validate_distance_from_shift_location (如果启用了地理位置追踪)
-	#   - 后续的自动考勤逻辑
-
-	checkin_data = {
-		"doctype": "Employee Checkin",
-		"employee": employee,
-		"time": now(),
-		"log_type": log_type,
-		"device_id": location_name,  # 记录打卡地点
-		"skip_auto_attendance": 0,  # 不跳过自动考勤
-	}
-
-	# 如果提供了地理位置，设置经纬度
-	if latitude is not None and longitude is not None:
-		checkin_data["latitude"] = latitude
-		checkin_data["longitude"] = longitude
-
-	checkin = frappe.get_doc(checkin_data)
-
-	try:
-		checkin.insert(ignore_permissions=True)
-		frappe.db.commit()
-	except frappe.exceptions.ValidationError as e:
-		# 捕获验证错误(如重复打卡、员工不活跃、地理位置超出范围等)
-		frappe.throw(str(e))
-
-	# 10. 记录审计日志
-	try:
-		client_ip = frappe.local.request_ip or frappe.local.request.remote_addr or "Unknown"
-		geo_info = ""
-		if latitude is not None and longitude is not None:
-			geo_info = f" (Lat: {latitude:.5f}, Lng: {longitude:.5f})"
-
-		# 使用 frappe.logger 记录审计日志（信息级别，不是错误）
-		frappe.logger().info(
-			f"QR Checkin Audit: Employee {employee} ({checkin.employee_name}) {log_type} at {location_name} on {checkin.time}. IP: {client_ip}{geo_info}"
-		)
-
-		# 同时使用 frappe.log_error 记录到错误日志表（便于查询和审计）
-		# 使用特殊的title格式，便于区分审计日志和错误日志
-		frappe.log_error(
-			message=f"QR Checkin Audit: Employee {employee} ({checkin.employee_name}) {log_type} at {location_name} on {checkin.time}. IP: {client_ip}{geo_info}",
-			title=f"QR Checkin Audit - {log_type}",
-		)
-	except Exception as log_error:
-		# 日志记录失败不应影响打卡流程
-		frappe.log_error(
-			message=f"Failed to log QR checkin audit: {log_error!s}", title="QR Checkin Audit Log Error"
-		)
-
-	# 11. 发送实时通知到二维码展示页面（公共房间，无需登录）
-	try:
-		action_text_ja = "出勤" if log_type == "IN" else "退勤"
-
-		# 获取员工头像
-		employee_image = frappe.db.get_value("Employee", employee, "image")
-
-		# 发送到基于location的公共房间，所有访问该location二维码页面的人都能收到
-		frappe.publish_realtime(
-			event="qr_checkin_notification",
-			message={
-				"employee_name": checkin.employee_name,
-				"employee_image": employee_image,
-				"log_type": log_type,
-				"action_ja": action_text_ja,
-				"location": location_name,
-				"time": str(checkin.time),
-				"message_ja": f"{checkin.employee_name}さんが{action_text_ja}しました。お疲れ様です！",
-			},
-			room=f"qr_location_{location_name}",  # 基于location的房间
-			after_commit=True,  # 在事务提交后发送
-		)
-	except Exception as notify_error:
-		# 通知发送失败不应影响打卡流程
-		frappe.log_error(
-			message=f"Failed to send QR checkin notification: {notify_error!s}",
-			title="QR Checkin Notification Error",
-		)
+	# 9-11. 建记录、审计、推送墙上屏
+	latitude, longitude = coordinates or (None, None)
+	checkin = create_checkin(
+		employee=employee,
+		log_type=log_type,
+		location=location_name,
+		method=CHECKIN_METHOD_QR,
+		latitude=latitude,
+		longitude=longitude,
+		evidence=EVIDENCE_OFFICE_NETWORK if on_office_network else "qr",
+		client_ip=client_ip,
+	)
 
 	action = _("Check-in") if log_type == "IN" else _("Check-out")
 	return {
@@ -368,6 +238,29 @@ def qr_checkin(
 		"time": checkin.time,
 		"location": location_name,
 	}
+
+
+def _validate_distance_to_location(doc, coordinates: tuple[float, float]) -> None:
+	"""打卡点关联了带半径的 Shift Location 时，定位必须在半径内。"""
+	if not doc.shift_location:
+		return
+	shift_location = frappe.get_doc("Shift Location", doc.shift_location)
+	if not shift_location.checkin_radius or shift_location.checkin_radius <= 0:
+		return
+	if not shift_location.latitude or not shift_location.longitude:
+		frappe.throw(
+			_("Shift Location {0} does not have valid coordinates configured").format(shift_location.name)
+		)
+
+	distance = get_distance_between_coordinates(
+		shift_location.latitude, shift_location.longitude, coordinates[0], coordinates[1]
+	)
+	if distance > shift_location.checkin_radius:
+		frappe.throw(
+			_(
+				"You must be within {0} meters of the check-in location. Current distance: {1:.0f} meters"
+			).format(shift_location.checkin_radius, distance)
+		)
 
 
 @frappe.whitelist(allow_guest=False)
@@ -397,13 +290,17 @@ def get_checkin_locations():
 
 
 @frappe.whitelist(allow_guest=True)
-def get_recent_checkins(location: str | None = None, limit: int = 5):
+def get_recent_checkins(
+	location: str | None = None, limit: int = 5, compact: int = 0, key: str | None = None
+):
 	"""
 	获取最近的打卡记录（允许访客访问，用于二维码展示页面）
 
 	Args:
 		location: 打卡地点名称（可选）
 		limit: 返回记录数（默认5条）
+		compact: 轻量返回模式（1为启用）
+		key: 墙上屏的展示密钥；不登录时只有在公司网络、或密钥有效才返回头像
 
 	Returns:
 		[
@@ -416,6 +313,26 @@ def get_recent_checkins(location: str | None = None, limit: int = 5):
 			}
 		]
 	"""
+	if compact == 1:
+		if not location:
+			frappe.throw(_("Location is required for compact check-ins"))
+
+		limit = max(1, min(limit, 20))
+		frappe.local.response_headers.update(
+			{
+				"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+				"Pragma": "no-cache",
+				"Expires": "0",
+			}
+		)
+		return frappe.get_all(
+			"Employee Checkin",
+			filters={"device_id": location},
+			fields=["name", "log_type", "time", "device_id"],
+			order_by="time desc, name desc",
+			limit=limit,
+		)
+
 	filters = {}
 	if location:
 		filters["device_id"] = location
@@ -428,11 +345,13 @@ def get_recent_checkins(location: str | None = None, limit: int = 5):
 		limit=limit,
 	)
 
-	# 获取员工头像
+	# 获取员工头像（不登录的访问只在公司网络或展示密钥有效时才给）
+	show_photos = can_see_photos(location, key)
 	for checkin in checkins:
 		if checkin.get("employee"):
-			employee_image = frappe.db.get_value("Employee", checkin["employee"], "image")
-			checkin["employee_image"] = employee_image
+			checkin["employee_image"] = (
+				frappe.db.get_value("Employee", checkin["employee"], "image") if show_photos else None
+			)
 
 	return checkins
 
@@ -460,7 +379,7 @@ def get_location_info(location_name: str):
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET"])
-def get_employees_at_work(location: str | None = None):
+def get_employees_at_work(location: str | None = None, key: str | None = None):
 	"""
 	获取今天有打卡记录的员工列表，并标注当前状态
 
@@ -469,6 +388,7 @@ def get_employees_at_work(location: str | None = None):
 
 	Args:
 		location: 可选，筛选特定打卡地点的员工
+		key: 可选，该打卡点的展示密钥；不登录时只有在公司网络、或密钥有效才返回头像
 
 	Returns:
 		{
@@ -533,6 +453,7 @@ def get_employees_at_work(location: str | None = None):
 	results = frappe.db.sql(sql, params, as_dict=True)
 
 	# 格式化返回数据
+	show_photos = can_see_photos(location, key)
 	employees = []
 	for row in results:
 		attendance_status = _get_attendance_status_from_log_type(row.log_type)
@@ -544,7 +465,7 @@ def get_employees_at_work(location: str | None = None):
 				"employee_name": row.employee_name,
 				"department": row.department,
 				"designation": row.designation,
-				"image": row.image,
+				"image": row.image if show_photos else None,
 				"checkin_time": checkin_time,
 				"attendance_status": attendance_status,
 				"attendance_status_label": ATTENDANCE_STATUS_LABELS[attendance_status],

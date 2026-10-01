@@ -1,6 +1,6 @@
 <template>
 	<div
-		class="flex flex-col bg-white rounded mt-5 overflow-auto"
+		class="flex flex-col bg-white rounded-4 mt-5 overflow-auto"
 		v-if="props.items?.length"
 	>
 		<router-link

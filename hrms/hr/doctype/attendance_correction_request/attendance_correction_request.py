@@ -3,6 +3,7 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import add_days, get_datetime, getdate
 
+from hrms.api.checkin_service import CHECKIN_METHOD_CORRECTION
 from hrms.hr.utils import validate_active_employee
 
 APPLY_SAVEPOINT = "attendance_correction_apply"
@@ -210,10 +211,12 @@ class AttendanceCorrectionRequest(Document):
 				"time": self.requested_time,
 				"log_type": self.requested_log_type,
 				"device_id": "Attendance Correction",
+				"checkin_method": CHECKIN_METHOD_CORRECTION,
 				"skip_auto_attendance": 0,
 				"attendance_correction_request": self.name,
 			}
 		)
+		checkin.flags.trusted_checkin_source = True
 		checkin.insert(ignore_permissions=True)
 		return checkin.name
 
@@ -223,6 +226,8 @@ class AttendanceCorrectionRequest(Document):
 		checkin.log_type = self.requested_log_type
 		checkin.attendance_correction_request = self.name
 		checkin.flags.ignore_permissions = True
+		checkin.checkin_method = CHECKIN_METHOD_CORRECTION
+		checkin.flags.trusted_checkin_source = True
 		checkin.save()
 		return checkin.name
 

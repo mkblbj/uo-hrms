@@ -13,17 +13,39 @@
 		</span>
 
 		<!-- Select or Link field with predefined options -->
-		<Autocomplete
+		<Combobox
 			v-if="props.fieldtype === 'Select' || props.documentList"
-			:class="isReadOnly ? 'pointer-events-none' : ''"
+			trigger="button"
 			:placeholder="__('Select {0}', [props.label])"
 			:options="selectionList"
-			:modelValue="modelValue"
-			:hideSearch="props.hideSearch"
+			:model-value="modelValue ?? null"
+			:hide-search="props.hideSearch"
 			v-bind="$attrs"
-			:disabled="isReadOnly"
-			@update:modelValue="(v) => emit('update:modelValue', v?.value)"
-		/>
+			:disabled="isReadOnly || $attrs.disabled === '' || Boolean($attrs.disabled)"
+			@update:model-value="(value) => emit('update:modelValue', value ?? '')"
+		>
+			<template #suffix="{ clear, disabled: isDisabled, open }">
+				<span
+					v-if="modelValue !== '' && modelValue != null && !isDisabled"
+					role="button"
+					tabindex="0"
+					:aria-label="__('Clear {0}', [props.label])"
+					class="inline-flex rounded-2 p-1 text-gray-600 hover:text-gray-900 focus-visible:outline focus-visible:outline-2"
+					@click.stop.prevent="clear()"
+					@keydown.enter.stop.prevent="clear()"
+					@keydown.space.stop.prevent="clear()"
+					@keyup.enter.stop.prevent
+					@keyup.space.stop.prevent
+				>
+					<Icon icon="lucide-x" class="h-4 w-4" aria-hidden="true" />
+				</span>
+				<Icon
+					icon="lucide-chevron-down"
+					:class="['h-4 w-4 shrink-0 text-gray-600 transition-transform', open && 'rotate-180']"
+					aria-hidden="true"
+				/>
+			</template>
+		</Combobox>
 
 		<!-- Link field -->
 		<Link
@@ -31,7 +53,7 @@
 			:doctype="props.options"
 			:modelValue="modelValue"
 			:filters="props.linkFilters"
-			:disabled="isReadOnly"
+			:disabled="isReadOnly || $attrs.disabled === '' || Boolean($attrs.disabled)"
 			@update:modelValue="(v) => emit('update:modelValue', v)"
 		/>
 
@@ -42,64 +64,57 @@
 			@change="(v) => emit('update:modelValue', v)"
 			:fixedMenu="true"
 			:editable="!isReadOnly"
-			editor-class="prose-sm border-b border-x border-gray-200 rounded-b-sm p-1 min-h-[4rem]"
+			editor-class="prose-sm border-b border-x border-gray-200 rounded-b-1 p-1 min-h-[4rem]"
 		/>
 
 		<!-- Text -->
-		<Input
+		<Textarea
 			v-else-if="['Small Text', 'Text', 'Long Text'].includes(props.fieldtype)"
-			type="textarea"
-			:value="modelValue"
+			:model-value="modelValue"
 			:placeholder="__('Enter {0}', [props.label])"
-			@input="(v) => emit('update:modelValue', v)"
-			@change="(v) => emit('change', v)"
+			@update:model-value="(v) => emit('update:modelValue', v)"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
 			class="h-15"
 		/>
 
 		<!-- Check -->
-		<Input
+		<Checkbox
 			v-else-if="props.fieldtype === 'Check'"
-			type="checkbox"
 			:label="props.label"
-			:value="modelValue"
-			@input="(v) => emit('update:modelValue', v)"
-			@change="(v) => emit('change', v)"
+			:model-value="modelValue"
+			@update:model-value="(v) => emit('update:modelValue', v)"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
-			class="rounded-sm text-gray-800"
+			class="rounded-1 text-gray-800"
 		/>
 
 		<!-- Data field -->
-		<Input
+		<TextInput
 			v-else-if="props.fieldtype === 'Data'"
 			type="text"
-			:value="modelValue"
-			@input="(v) => emit('update:modelValue', v)"
-			@change="(v) => emit('change', v)"
+			:model-value="modelValue"
+			@update:model-value="(v) => emit('update:modelValue', v)"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
 		/>
 
 		<!-- Read only currency field -->
-		<Input
+		<TextInput
 			v-else-if="props.fieldtype === 'Currency' && isReadOnly"
 			type="text"
-			:value="modelValue"
-			@input="(v) => emit('update:modelValue', v)"
-			@change="(v) => emit('change', v)"
+			:model-value="modelValue"
+			@update:model-value="(v) => emit('update:modelValue', v)"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
 		/>
 
 		<!-- Float/Int field -->
-		<Input
+		<TextInput
 			v-else-if="isNumberType"
 			type="number"
-			:value="modelValue"
-			@input="(v) => emit('update:modelValue', v)"
-			@change="(v) => emit('change', v)"
+			:model-value="modelValue"
+			@update:model-value="(v) => emit('update:modelValue', v)"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
 		/>
@@ -111,7 +126,7 @@
 		>
 			<h2
 				v-if="props.label"
-				class="text-base font-semibold text-gray-800"
+				class="text-base-semibold text-gray-800"
 				:class="props.addSectionPadding ? 'pt-4' : ''"
 			>
 				{{ props.label }}
@@ -120,14 +135,13 @@
 
 		<!-- Date -->
 		<!-- FIXME: default datepicker has poor UI -->
-		<Input
+		<TextInput
 			v-else-if="props.fieldtype === 'Date'"
 			type="date"
-			:value="modelValue"
+			:model-value="modelValue"
 			:placeholder="__('Select {0}', [props.label])"
 			:formatValue="(val) => dayjs(val).format('DD-MM-YYYY')"
-			@input="(v) => emit('update:modelValue', v)"
-			@change="(v) => emit('change', v)"
+			@update:model-value="(v) => emit('update:modelValue', v)"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
 			:min="props.minDate"
@@ -145,11 +159,11 @@
 			@change="changeNativeDateTime"
 			v-bind="$attrs"
 			:disabled="isReadOnly"
-			class="form-input block w-full rounded border-gray-400 placeholder-gray-500"
+			class="form-input block w-full rounded-4 border-gray-400 placeholder-gray-500"
 		/>
 		<DateTimePicker
 			v-else-if="props.fieldtype === 'Datetime'"
-			:value="modelValue"
+			:model-value="modelValue"
 			:placeholder="__('Select {0}', [props.label])"
 			:formatter="props.dateTimeFormatter || ((val) => dayjs(val).format('DD-MM-YYYY HH:mm:ss'))"
 			@update:modelValue="(v) => emit('update:modelValue', v)"
@@ -162,7 +176,16 @@
 </template>
 
 <script setup>
-import { Autocomplete, DateTimePicker, ErrorMessage, Input, TextEditor } from "frappe-ui"
+import {
+	Combobox,
+	DateTimePicker,
+	ErrorMessage,
+	TextInput,
+	Textarea,
+	Checkbox,
+	Icon,
+} from "frappe-ui"
+import { TextEditor } from "frappe-ui/experimental"
 import { computed, onMounted, inject } from "vue"
 
 import Link from "@/components/Link.vue"

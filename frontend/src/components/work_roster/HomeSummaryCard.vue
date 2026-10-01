@@ -8,7 +8,7 @@
 			<router-link to="/dashboard/work-roster" v-slot="{ navigate }">
 				<button type="button" class="roster-view-button" @click="navigate">
 					<span>{{ t("viewAll") }}</span>
-					<FeatherIcon name="chevron-right" class="h-3.5 w-3.5" />
+					<Icon icon="lucide-chevron-right" class="h-3.5 w-3.5" />
 				</button>
 			</router-link>
 		</div>
@@ -70,7 +70,7 @@
 <script setup>
 import { computed, inject, onMounted } from "vue"
 import { onIonViewWillEnter } from "@ionic/vue"
-import { createResource, FeatherIcon } from "frappe-ui"
+import { createResource, Icon } from "frappe-ui"
 import { getRosterEmptyCopy, resolveHomeLanguage } from "@/utils/homeExperience"
 
 const props = defineProps({

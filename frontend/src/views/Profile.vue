@@ -7,44 +7,60 @@
 						class="flex flex-row bg-white shadow-sm py-4 px-3 items-center justify-between border-b sticky top-0 z-10"
 					>
 						<div class="flex flex-row items-center">
-							<Button
-								variant="ghost"
-								class="!pl-0 hover:bg-white"
-								@click="router.back()"
-							>
-								<FeatherIcon name="chevron-left" class="h-5 w-5" />
+							<Button variant="ghost" class="!pl-0 hover:bg-white" @click="router.back()">
+								<Icon icon="lucide-chevron-left" class="h-5 w-5" />
 							</Button>
-							<h2 class="text-xl font-semibold text-gray-900">{{ __("Profile") }}</h2>
+							<h2 class="text-2xl-semibold text-gray-900">{{ __("Profile") }}</h2>
 						</div>
 					</header>
 
 					<div class="flex flex-col items-center mt-5 p-4">
-						<!-- Profile Image -->
-						<img
-							v-if="user.data.user_image"
-							class="h-24 w-24 rounded-full object-cover"
-							:src="user.data.user_image"
-							:alt="user.data.first_name"
-						/>
-						<div
-							v-else
-							class="flex items-center justify-center bg-gray-200 uppercase text-gray-600 h-24 w-24 rounded-full object-cover"
+						<!-- Profile Image：点一下可以换头像 -->
+						<button
+							type="button"
+							class="relative rounded-full"
+							:aria-label="photoCopy('changeTitle')"
+							@click="isPhotoSheetOpen = true"
 						>
-							{{ user.data.first_name[0] }}
-						</div>
+							<img
+								v-if="user.data.user_image"
+								class="h-24 w-24 rounded-full object-cover"
+								:src="user.data.user_image"
+								:alt="user.data.first_name"
+							/>
+							<div
+								v-else
+								class="flex items-center justify-center bg-gray-200 uppercase text-gray-600 h-24 w-24 rounded-full object-cover"
+							>
+								{{ user.data.first_name[0] }}
+							</div>
+							<span
+								class="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-gray-900 text-white"
+								aria-hidden="true"
+							>
+								<Icon icon="lucide-camera" class="h-4 w-4" />
+							</span>
+						</button>
+						<button
+							type="button"
+							class="mt-2 text-sm font-medium text-gray-600"
+							@click="isPhotoSheetOpen = true"
+						>
+							{{ photoCopy("changeTitle") }}
+						</button>
 
 						<div class="flex flex-col gap-1.5 items-center mt-2 mb-5">
-							<span v-if="employee" class="text-lg font-bold text-gray-900">{{
+							<span v-if="employee" class="text-lg-bold text-gray-900">{{
 								employee?.data?.employee_name
 							}}</span>
-							<span v-if="employee" class="font-normal text-sm text-gray-500">{{
+							<span v-if="employee" class=" text-sm text-gray-500">{{
 								employee?.data?.designation
 							}}</span>
 						</div>
 
 						<!-- Profile Links -->
 						<div class="flex flex-col gap-5 my-4 w-full">
-							<div class="flex flex-col bg-white rounded">
+							<div class="flex flex-col bg-white rounded-4">
 								<div
 									class="flex flex-row cursor-pointer flex-start p-4 items-center justify-between border-b"
 									v-for="link in profileLinks"
@@ -52,59 +68,42 @@
 									@click="openInfoModal(link)"
 								>
 									<div class="flex flex-row items-center gap-3 grow">
-										<FeatherIcon
-											:name="link.icon"
-											class="h-5 w-5 text-gray-500"
-										/>
-										<div class="text-base font-normal text-gray-800">
+										<Icon :icon="link.icon" class="h-5 w-5 text-gray-500" />
+										<div class="text-base text-gray-800">
 											{{ link.title }}
 										</div>
 									</div>
-									<FeatherIcon
-										name="chevron-right"
-										class="h-5 w-5 text-gray-500"
-									/>
+									<Icon icon="lucide-chevron-right" class="h-5 w-5 text-gray-500" />
 								</div>
 							</div>
 						</div>
 
 						<!-- Settings -->
 						<div class="flex flex-col gap-5 my-4 w-full">
-							<div class="flex flex-col bg-white rounded">
+							<div class="flex flex-col bg-white rounded-4">
 								<router-link
 									:to="{ name: 'Settings' }"
 									class="flex flex-row cursor-pointer flex-start p-4 items-center justify-between border-b"
 								>
 									<div class="flex flex-row items-center gap-3 grow">
-										<FeatherIcon
-											name="settings"
-											class="h-5 w-5 text-gray-500"
-										/>
-										<div class="text-base font-normal text-gray-800">
+										<Icon icon="lucide-settings" class="h-5 w-5 text-gray-500" />
+										<div class="text-base text-gray-800">
 											{{ __("Settings") }}
 										</div>
 									</div>
-									<FeatherIcon
-										name="chevron-right"
-										class="h-5 w-5 text-gray-500"
-									/>
+									<Icon icon="lucide-chevron-right" class="h-5 w-5 text-gray-500" />
 								</router-link>
 							</div>
 						</div>
 
-						<!-- NFC Passkey Manager -->
+						<!-- Passkey Manager -->
 						<div class="w-full my-4">
 							<PasskeyManager />
 						</div>
 
-						<Button
-							@click="logout"
-							variant="outline"
-							theme="red"
-							class="w-full shadow py-4 mt-5"
-						>
+						<Button @click="logout" variant="outline" theme="red" class="w-full shadow py-4 mt-5">
 							<template #prefix>
-								<FeatherIcon name="log-out" class="w-4" />
+								<Icon icon="lucide-log-out" class="w-4" />
 							</template>
 							{{ __("Log Out") }}
 						</Button>
@@ -120,13 +119,14 @@
 				:breakpoints="[0, 1]"
 			>
 				<ProfileInfoModal
+					v-if="selectedItem"
 					:title="selectedItem.title"
 					:data="
 						selectedItem.fields.map((field) => {
 							const [label, fieldtype] = getFieldInfo(field)
 							return {
 								fieldname: field,
-								value: employeeDoc.doc[field],
+								value: getFieldValue(field),
 								label: label,
 								fieldtype: fieldtype,
 							}
@@ -134,21 +134,35 @@
 					"
 				/>
 			</ion-modal>
+
+			<ProfilePhotoSheet
+				:is-open="isPhotoSheetOpen"
+				mode="change"
+				:current-photo="user.data.user_image || ''"
+				:lang="photoLang"
+				@cancel="isPhotoSheetOpen = false"
+				@snooze="isPhotoSheetOpen = false"
+				@uploaded="onPhotoUploaded"
+			/>
 		</ion-content>
 	</ion-page>
 </template>
 
 <script setup>
-import { inject, ref, onMounted, onBeforeUnmount } from "vue"
+import { inject, ref, watch, onMounted, onBeforeUnmount } from "vue"
 import { useRouter } from "vue-router"
-import { IonModal, IonPage, IonContent } from "@ionic/vue"
-import { FeatherIcon, createDocumentResource, createResource } from "frappe-ui"
+import { IonPage, IonContent } from "@ionic/vue"
+import { Icon, createDocumentResource, createResource, toast } from "frappe-ui"
 
 import { showErrorAlert } from "@/utils/dialogs"
 import { formatCurrency } from "@/utils/formatters"
 
 import ProfileInfoModal from "@/components/ProfileInfoModal.vue"
 import PasskeyManager from "@/components/PasskeyManager.vue"
+import ProfilePhotoSheet from "@/components/profile/ProfilePhotoSheet.vue"
+import { refreshProfilePhoto } from "@/data/profilePhoto"
+import { resolveHomeLanguage } from "@/utils/homeExperience"
+import { pickPhotoCopy } from "@/utils/profilePhoto"
 
 const DOCTYPE = "Employee"
 
@@ -162,7 +176,7 @@ const router = useRouter()
 
 const profileLinks = [
 	{
-		icon: "user",
+		icon: "lucide-user",
 		title: __("Employee Details"),
 		fields: [
 			"employee_name",
@@ -174,7 +188,7 @@ const profileLinks = [
 		],
 	},
 	{
-		icon: "file",
+		icon: "lucide-file",
 		title: __("Company Information"),
 		fields: [
 			"company",
@@ -187,17 +201,12 @@ const profileLinks = [
 		],
 	},
 	{
-		icon: "book",
+		icon: "lucide-book",
 		title: __("Contact Information"),
-		fields: [
-			"cell_number",
-			"personal_email",
-			"company_email",
-			"preferred_email",
-		],
+		fields: ["cell_number", "personal_email", "company_email", "preferred_email"],
 	},
 	{
-		icon: "dollar-sign",
+		icon: "lucide-dollar-sign",
 		title: __("Salary Information"),
 		fields: [
 			"ctc",
@@ -216,6 +225,16 @@ const profileLinks = [
 
 const isInfoModalOpen = ref(false)
 const selectedItem = ref(null)
+
+const photoLang = resolveHomeLanguage(window.frappe?.boot)
+const photoCopy = (key) => pickPhotoCopy(key, photoLang)
+const isPhotoSheetOpen = ref(false)
+
+const onPhotoUploaded = () => {
+	isPhotoSheetOpen.value = false
+	toast.success(photoCopy("uploaded"))
+	refreshProfilePhoto()
+}
 
 const openInfoModal = async (request) => {
 	selectedItem.value = request
@@ -238,6 +257,19 @@ const employeeDoc = createDocumentResource({
 	},
 })
 
+const reportsToName = createResource({
+	url: "hrms.api.get_reports_to_employee_name",
+})
+
+watch(
+	() => employeeDoc.doc?.reports_to,
+	(reports_to) => {
+		if (reports_to) {
+			reportsToName.submit({ employee: reports_to })
+		}
+	}
+)
+
 const employeeDocType = createResource({
 	url: "hrms.api.get_doctype_fields",
 	params: { doctype: DOCTYPE },
@@ -245,10 +277,18 @@ const employeeDocType = createResource({
 })
 
 const getFieldInfo = (fieldname) => {
-	const field = employeeDocType.data.find(
-		(field) => field.fieldname === fieldname
-	)
+	const field = employeeDocType.data.find((field) => field.fieldname === fieldname)
 	return [__(field?.label, null, "Employee"), field?.fieldtype]
+}
+
+const getFieldValue = (fieldname) => {
+	if (fieldname === "employee_number" && !employeeDoc.doc[fieldname]) {
+		return employeeDoc.doc["name"]
+	}
+	if (fieldname === "reports_to") {
+		return reportsToName.data || employeeDoc.doc[fieldname]
+	}
+	return employeeDoc.doc[fieldname]
 }
 
 const logout = async () => {

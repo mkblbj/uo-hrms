@@ -5,7 +5,6 @@ import { initSocket } from "./socket"
 
 import {
 	Button,
-	Input,
 	setConfig,
 	frappeRequest,
 	resourcesPlugin,
@@ -42,7 +41,6 @@ app.use(resourcesPlugin)
 app.use(translationsPlugin)
 
 app.component("Button", Button)
-app.component("Input", Input)
 app.component("FormControl", FormControl)
 app.component("EmptyState", EmptyState)
 
@@ -59,39 +57,44 @@ app.provide("$employee", employeeResource)
 app.provide("$socket", socket)
 app.provide("$dayjs", dayjs)
 
-const registerServiceWorker = async () => {
-	window.frappePushNotification = new FrappePushNotification("hrms")
-
-	if ("serviceWorker" in navigator) {
-		let serviceWorkerURL = "/assets/hrms/frontend/sw.js"
-		let config = ""
-
-		try {
-			config = await window.frappePushNotification.fetchWebConfig()
-			serviceWorkerURL = `${serviceWorkerURL}?config=${encodeURIComponent(
-				JSON.stringify(config)
-			)}`
-		} catch (err) {
-			console.error("Failed to fetch FCM config", err)
+const registerServiceWorker = () => {
+	const push = new FrappePushNotification("hrms")
+	window.frappePushNotification = push
+	push.ready = (async () => {
+		if (!("serviceWorker" in navigator)) {
+			throw new Error("Service worker not enabled/supported by the browser")
 		}
 
-		navigator.serviceWorker
-			.register(serviceWorkerURL, {
-				type: "classic",
-			})
-			.then((registration) => {
-				if (config) {
-					window.frappePushNotification.initialize(registration).then(() => {
-						console.log("Frappe Push Notification initialized")
-					})
-				}
-			})
-			.catch((err) => {
-				console.error("Failed to register service worker", err)
-			})
-	} else {
-		console.error("Service worker not enabled/supported by the browser")
-	}
+		let serviceWorkerURL = "/hrms-sw.js"
+		let config = null
+		let configError = null
+		if (window.frappe?.boot?.push_relay_server_url) {
+			try {
+				config = await push.fetchWebConfig()
+				serviceWorkerURL = `${serviceWorkerURL}?config=${encodeURIComponent(
+					JSON.stringify(config)
+				)}`
+			} catch (error) {
+				configError = error
+			}
+		}
+
+		push.serviceWorkerURL = serviceWorkerURL
+		push.serviceWorkerOptions = {
+			type: "classic",
+			scope: "/hrms",
+			updateViaCache: "none",
+		}
+		const registration = await navigator.serviceWorker.register(serviceWorkerURL, {
+			...push.serviceWorkerOptions,
+		})
+		push.serviceWorkerRegistration = registration
+		if (configError) throw configError
+		if (config) await push.initialize(registration)
+	})()
+	push.ready.catch((error) => {
+		console.error("Failed to initialize push service worker", error)
+	})
 }
 
 router.isReady().then(async () => {
@@ -123,8 +126,8 @@ router.beforeEach(async (to, _, next) => {
 		// password reset page is outside the PWA scope
 		if (to.path === "/update-password") {
 			return next(false)
-		} else if (to.name !== "Login") {
-			next({ name: "Login" })
+		} else if (!["Login", "ForgotPassword"].includes(to.name)) {
+			return next({ name: "Login" })
 		}
 	}
 
@@ -137,7 +140,7 @@ router.beforeEach(async (to, _, next) => {
 			employeeResource?.data?.user_id !== userResource.data.name
 		) {
 			next({ name: "InvalidEmployee" })
-		} else if (to.name === "Login") {
+		} else if (["Login", "ForgotPassword"].includes(to.name)) {
 			next({ name: "Home" })
 		} else {
 			next()

@@ -3,254 +3,156 @@
 		<div class="passkey-card">
 			<div class="passkey-header">
 				<div class="passkey-icon">
-					<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-6 h-6">
-						<path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
-					</svg>
+					<Icon icon="lucide-scan-face" class="w-6 h-6" />
 				</div>
 				<div class="passkey-title-section">
-					<h3 class="passkey-title">{{ __('NFC Passkey') }}</h3>
-					<p class="passkey-subtitle">{{ __('Register for NFC check-in with FaceID/Fingerprint') }}</p>
+					<h3 class="passkey-title">{{ __("Face ID / Fingerprint Check-in") }}</h3>
+					<p class="passkey-subtitle">
+						{{ __("Check in by just glancing at your phone. Set up once per phone.") }}
+					</p>
 				</div>
 			</div>
 
-			<!-- 已注册状态 -->
-			<div v-if="isRegistered" class="passkey-registered">
-				<div class="registered-info">
-					<div class="registered-badge">
-						<svg viewBox="0 0 24 24" fill="none" class="w-5 h-5 text-green-500">
-							<path d="M9 12l2 2 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-							<circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2"/>
-						</svg>
-						<span class="text-green-600 font-medium">{{ __('Registered') }}</span>
-					</div>
+			<div v-if="devices.length" class="passkey-registered">
+				<div v-for="device in devices" :key="device.name" class="registered-info">
 					<div class="device-info">
-						<span class="device-name">{{ deviceName || __('Unknown Device') }}</span>
-						<span class="device-date">{{ formatDate(createdAt) }}</span>
+						<span class="device-name">{{ device.device_name || __("Unknown Device") }}</span>
+						<span class="device-date">
+							{{ formatDate(device.created_at) }}
+							<template v-if="device.last_used">
+								· {{ __("Last used") }} {{ formatDate(device.last_used) }}
+							</template>
+						</span>
 					</div>
+					<button
+						class="delete-btn"
+						:disabled="deletingName === device.name"
+						@click="removeDevice(device)"
+					>
+						<span v-if="deletingName === device.name" class="loading-spinner"></span>
+						<span>{{ __("Remove") }}</span>
+					</button>
 				</div>
-				<button 
-					class="delete-btn"
-					@click="confirmDelete"
-					:disabled="isDeleting"
-				>
-					<svg v-if="!isDeleting" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-4 h-4">
-						<path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
-					</svg>
-					<span v-if="isDeleting" class="loading-spinner"></span>
-					<span>{{ isDeleting ? __('Deleting...') : __('Delete') }}</span>
-				</button>
 			</div>
+			<p v-else class="register-hint">{{ __("No devices set up yet") }}</p>
 
-			<!-- 未注册状态 -->
-			<div v-else class="passkey-unregistered">
-				<p class="register-hint">
-					{{ __('After registration, you can check in by tapping NFC tag and verifying with FaceID/Fingerprint.') }}
-				</p>
-				<button 
-					class="register-btn"
-					@click="registerPasskey"
-					:disabled="isRegistering"
-				>
-					<svg v-if="!isRegistering" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="w-5 h-5">
-						<path d="M12 5v14M5 12h14"/>
-					</svg>
-					<span v-if="isRegistering" class="loading-spinner"></span>
-					<span>{{ isRegistering ? __('Registering...') : __('Register Passkey') }}</span>
-				</button>
-			</div>
+			<button
+				v-if="devices.length < MAX_DEVICES"
+				class="register-btn"
+				:disabled="isRegistering"
+				@click="registerPasskey"
+			>
+				<span v-if="isRegistering" class="loading-spinner"></span>
+				<span>{{ __("Set Up This Phone") }}</span>
+			</button>
+			<p v-else class="register-hint">{{ __("Up to {0} devices", [MAX_DEVICES]) }}</p>
 		</div>
 	</div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { createResource } from 'frappe-ui'
-import { IonToast, toastController } from '@ionic/vue'
+import { inject, onMounted, ref } from "vue"
+import { Icon } from "frappe-ui"
+import { toastController } from "@ionic/vue"
 
-// State
-const isRegistered = ref(false)
-const deviceName = ref('')
-const createdAt = ref('')
+import { createFrappeCaller } from "@/utils/passkeyCheckin"
+
+const __ = inject("$translate")
+const MAX_DEVICES = 3
+const devices = ref([])
 const isRegistering = ref(false)
-const isDeleting = ref(false)
-const passkeyName = ref('')
-
-// Check if passkey is registered
-const checkStatus = createResource({
-	url: 'hrms.api.passkey.check_passkey_registered',
-	auto: true,
-	onSuccess(data) {
-		isRegistered.value = data.registered
-		deviceName.value = data.device_name || ''
-		createdAt.value = data.created_at || ''
-	}
+const deletingName = ref("")
+const call = createFrappeCaller({
+	fetchImpl: (...args) => fetch(...args),
+	getCsrfToken: () => window.csrf_token || "",
 })
 
-// Register passkey
+async function loadDevices() {
+	try {
+		devices.value = (await call("hrms.api.passkey.get_my_passkeys", {})) || []
+	} catch (_) {
+		devices.value = []
+	}
+}
+
 async function registerPasskey() {
 	if (isRegistering.value) return
 	isRegistering.value = true
-
 	try {
-		// 动态导入 SimpleWebAuthn
-		const { startRegistration } = await import('@simplewebauthn/browser')
-
-		// 1. 获取注册选项
-		const optionsRes = await fetch('/api/method/hrms.api.passkey.register_options', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'X-Frappe-CSRF-Token': window.csrf_token || ''
-			}
-		})
-		const optionsData = await optionsRes.json()
-		
-		if (optionsData.exc) {
-			throw new Error(extractError(optionsData.exc))
-		}
-
-		const options = optionsData.message
-
-		// 2. 调用 WebAuthn（弹出 FaceID/指纹）
+		const { startRegistration } = await import("@simplewebauthn/browser")
+		const options = await call("hrms.api.passkey.register_options", {})
 		let credential
 		try {
-			credential = await startRegistration(options)
+			credential = await startRegistration({ optionsJSON: options })
 		} catch (authErr) {
-			if (authErr.name === 'NotAllowedError') {
-				throw new Error(__('Registration was cancelled or timed out'))
+			if (authErr.name === "NotAllowedError") {
+				throw new Error(__("Registration was cancelled or timed out"))
 			}
 			throw authErr
 		}
-
-		// 3. 发送到后端保存
-		const saveRes = await fetch('/api/method/hrms.api.passkey.register_complete', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'X-Frappe-CSRF-Token': window.csrf_token || ''
-			},
-			body: JSON.stringify({
-				credential: JSON.stringify(credential),
-				device_name: getDeviceName()
-			})
+		await call("hrms.api.passkey.register_complete", {
+			credential: JSON.stringify(credential),
+			device_name: getDeviceName(),
 		})
-		const result = await saveRes.json()
-
-		if (result.exc) {
-			throw new Error(extractError(result.exc))
-		}
-
-		// 成功
-		await showToast(__('Passkey registered successfully!'), 'success')
-		checkStatus.reload()
-
+		await showToast(__("Passkey registered successfully!"), "success")
+		await loadDevices()
 	} catch (err) {
-		console.error('Passkey registration error:', err)
-		await showToast(err.message || __('Registration failed'), 'danger')
+		console.error("Passkey registration error:", err)
+		await showToast(err.message || __("Registration failed"), "danger")
 	} finally {
 		isRegistering.value = false
 	}
 }
 
-// Delete passkey
-async function confirmDelete() {
-	if (!confirm(__('Are you sure you want to delete this Passkey? You will need to register again to use NFC check-in.'))) {
+async function removeDevice(device) {
+	if (!confirm(__("Remove this device? It will no longer be able to check in with Face ID / fingerprint."))) {
 		return
 	}
-
-	isDeleting.value = true
-
+	deletingName.value = device.name
 	try {
-		// 获取 passkey 列表并删除
-		const listRes = await fetch('/api/method/hrms.api.passkey.get_my_passkeys', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-				'X-Frappe-CSRF-Token': window.csrf_token || ''
-			}
-		})
-		const listData = await listRes.json()
-		
-		if (listData.message && listData.message.length > 0) {
-			const passkey = listData.message[0]
-			
-			const deleteRes = await fetch('/api/method/hrms.api.passkey.delete_passkey', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'X-Frappe-CSRF-Token': window.csrf_token || ''
-				},
-				body: JSON.stringify({ passkey_name: passkey.name })
-			})
-			const deleteData = await deleteRes.json()
-
-			if (deleteData.exc) {
-				throw new Error(extractError(deleteData.exc))
-			}
-
-			await showToast(__('Passkey deleted'), 'success')
-			isRegistered.value = false
-			deviceName.value = ''
-			createdAt.value = ''
-		}
+		await call("hrms.api.passkey.delete_passkey", { passkey_name: device.name })
+		await showToast(__("Passkey deleted"), "success")
+		await loadDevices()
 	} catch (err) {
-		console.error('Passkey deletion error:', err)
-		await showToast(err.message || __('Deletion failed'), 'danger')
+		console.error("Passkey deletion error:", err)
+		await showToast(err.message || __("Deletion failed"), "danger")
 	} finally {
-		isDeleting.value = false
+		deletingName.value = ""
 	}
 }
 
-// Helpers
 function formatDate(dateStr) {
-	if (!dateStr) return ''
-	const date = new Date(dateStr)
-	return date.toLocaleDateString()
+	if (!dateStr) return ""
+	return new Date(dateStr).toLocaleDateString()
 }
 
 function getDeviceName() {
 	const ua = navigator.userAgent
-	if (/iPhone/i.test(ua)) return 'iPhone'
-	if (/iPad/i.test(ua)) return 'iPad'
+	if (/iPhone/i.test(ua)) return "iPhone"
+	if (/iPad/i.test(ua)) return "iPad"
 	if (/Android/i.test(ua)) {
-		if (/Samsung/i.test(ua)) return 'Samsung'
-		if (/Pixel/i.test(ua)) return 'Google Pixel'
-		if (/Xiaomi|Mi /i.test(ua)) return 'Xiaomi'
-		if (/HUAWEI/i.test(ua)) return 'Huawei'
-		return 'Android'
+		if (/Samsung/i.test(ua)) return "Samsung"
+		if (/Pixel/i.test(ua)) return "Google Pixel"
+		if (/Xiaomi|Mi /i.test(ua)) return "Xiaomi"
+		if (/HUAWEI/i.test(ua)) return "Huawei"
+		return "Android"
 	}
-	if (/Mac/i.test(ua)) return 'Mac'
-	if (/Windows/i.test(ua)) return 'Windows'
-	return 'Unknown Device'
+	if (/Mac/i.test(ua)) return "Mac"
+	if (/Windows/i.test(ua)) return "Windows"
+	return "Unknown Device"
 }
 
-function extractError(exc) {
-	if (typeof exc === 'string') {
-		const match = exc.match(/ValidationError:\s*(.+)/)
-		if (match) return match[1]
-		return exc.split('\n')[0]
-	}
-	return 'Unknown error'
-}
-
-async function showToast(message, color = 'primary') {
+async function showToast(message, color = "primary") {
 	const toast = await toastController.create({
 		message,
 		duration: 3000,
 		color,
-		position: 'top'
+		position: "top",
 	})
 	await toast.present()
 }
 
-// i18n helper
-function __(text) {
-	return window.__ ? window.__(text) : text
-}
-
-onMounted(() => {
-	checkStatus.reload()
-})
+onMounted(loadDevices)
 </script>
 
 <style scoped>
@@ -307,16 +209,19 @@ onMounted(() => {
 /* 已注册状态 */
 .passkey-registered {
 	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 12px;
-	background: #f0fdf4;
-	border-radius: 8px;
-	gap: 12px;
+	flex-direction: column;
+	gap: 8px;
+	margin-bottom: 12px;
 }
 
 .registered-info {
-	flex: 1;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 12px;
+	background: #f0fdf4;
+	border-radius: 8px;
 }
 
 .registered-badge {

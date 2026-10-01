@@ -1,5 +1,5 @@
 <template>
-	<div class="flex flex-col bg-white rounded mt-5 overflow-auto" v-if="props.items?.length">
+	<div class="flex flex-col bg-white rounded-4 mt-5 overflow-auto" v-if="props.items?.length">
 		<div
 			class="flex flex-row p-3.5 items-center justify-between border-b cursor-pointer"
 			v-for="link in props.items"
@@ -37,7 +37,10 @@
 		:initial-breakpoint="1"
 		:breakpoints="[0, 1]"
 	>
-		<RequestActionSheet :fields="fieldsMap[selectedRequest?.doctype]" v-model="selectedRequest" />
+		<RequestActionSheet
+			:fields="fieldsMap[selectedRequest?.doctype]" 
+			v-model="selectedRequest"
+		/>
 	</ion-modal>
 </template>
 

@@ -15,6 +15,8 @@
   "recipients",
   "message_section",
   "message",
+  "notification_title",
+  "target_route",
   "html_section",
   "use_html_source",
   "html_source",
@@ -82,6 +84,16 @@
    "fieldtype": "Text Editor",
    "label": "Message",
    "description": "使用富文本编辑器编辑消息内容"
+  },
+  {
+   "fieldname": "notification_title",
+   "fieldtype": "Data",
+   "label": "Notification Title"
+  },
+  {
+   "fieldname": "target_route",
+   "fieldtype": "Data",
+   "label": "Target Route"
   },
   {
    "collapsible": 1,

@@ -45,6 +45,7 @@ const COPY = {
 		tabHome: "首页",
 		tabAttendance: "勤怠",
 		tabRoster: "排班",
+		tabChat: "聊天",
 		tabExpenses: "经费",
 		tabSalary: "工资",
 	},
@@ -61,6 +62,7 @@ const COPY = {
 		tabHome: "ホーム",
 		tabAttendance: "勤怠",
 		tabRoster: "シフト",
+		tabChat: "チャット",
 		tabExpenses: "経費",
 		tabSalary: "給与",
 	},
@@ -78,6 +80,7 @@ const COPY = {
 		tabHome: "Home",
 		tabAttendance: "Attendance",
 		tabRoster: "Roster",
+		tabChat: "Chat",
 		tabExpenses: "Expenses",
 		tabSalary: "Salary",
 	},
@@ -661,14 +664,19 @@ export function getRosterEmptyCopy(lang = "zh") {
 	}
 }
 
-export function getBottomTabItems(lang = "zh") {
+// Tabs parked while their features wait for development. Their pages and
+// routes stay in place; delete a key here to bring its tab back.
+export const HIDDEN_BOTTOM_TABS = new Set(["expenses", "salary"])
+
+export function getBottomTabItems(lang = "zh", { chatEnabled = false } = {}) {
 	return [
 		{ key: "home", title: pick(lang, "tabHome"), route: "/home" },
 		{ key: "attendance", title: pick(lang, "tabAttendance"), route: "/dashboard/attendance" },
 		{ key: "roster", title: pick(lang, "tabRoster"), route: "/dashboard/work-roster" },
+		...(chatEnabled ? [{ key: "chat", title: pick(lang, "tabChat"), route: "/chat" }] : []),
 		{ key: "expenses", title: pick(lang, "tabExpenses"), route: "/dashboard/expense-claims" },
 		{ key: "salary", title: pick(lang, "tabSalary"), route: "/dashboard/salary-slips" },
-	]
+	].filter((item) => !HIDDEN_BOTTOM_TABS.has(item.key))
 }
 
 export function getLanguageCardCopy(lang = "zh") {

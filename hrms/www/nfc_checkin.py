@@ -1,42 +1,11 @@
 # Copyright (c) 2025, Frappe Technologies and contributors
 # For license information, please see license.txt
 
-"""
-NFC Checkin Page Controller
-路由: /nfc-checkin 或 /nfc-checkin?loc=xxx
-"""
-
-from pathlib import Path
-
-import frappe
+"""NFC 打卡已停用。墙上的 NFC 贴片还指向这里，只显示停用提示，不再调用任何打卡接口。"""
 
 no_cache = 1
 
 
 def get_context(context):
-	"""设置页面上下文"""
-	# 设置 HTTP 响应头禁止缓存
-	frappe.local.response["headers"] = {
-		"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
-		"Pragma": "no-cache",
-		"Expires": "0",
-	}
-
-	# 获取地点参数
-	location = frappe.form_dict.get("loc") or frappe.form_dict.get("location") or "unknown"
-
-	context.location = location
-	context.title = f"NFC 打卡 - {location}"
 	context.no_cache = 1
-	context.animation_css_version = get_animation_css_version()
-
 	return context
-
-
-def get_animation_css_version():
-	"""Return a stable cache-buster for the external animation stylesheet."""
-	css_path = Path(frappe.get_app_path("hrms", "public", "css", "nfc_success_animations.css"))
-	try:
-		return str(int(css_path.stat().st_mtime))
-	except OSError:
-		return "dev"

@@ -1,367 +1,281 @@
 # Copyright (c) 2025, Frappe Technologies and contributors
 # For license information, please see license.txt
 
-"""
-WebAuthn/Passkey API for NFC Check-in
-支持 FaceID/TouchID/指纹 验证的 NFC 打卡
-"""
+"""面容/指纹（通行密钥）打卡接口：设置、首页一键打卡。"""
 
-import base64
 import json
-import secrets
-from datetime import timedelta
 
 import frappe
 from frappe import _
-from frappe.utils import get_datetime, now, now_datetime
+from frappe.utils import cint, now
 
-from hrms.api.checkin_cooldown import is_checkin_cooldown_exempt
+from hrms.api.checkin_presence import evaluate_presence, normalize_coordinates
+from hrms.api.checkin_service import (
+	CHECKIN_METHOD_PASSKEY,
+	create_checkin,
+	validate_checkin_timing,
+)
+from hrms.api.passkey_webauthn import (
+	PURPOSE_CHECKIN,
+	PURPOSE_REGISTER,
+	PasskeyVerificationError,
+	b64url_encode,
+	build_authentication_options,
+	build_registration_options,
+	extract_client_challenge,
+	pop_challenge,
+	verify_assertion,
+	verify_registration,
+)
+from hrms.utils.client_network import get_client_ip, is_office_network
 
-# WebAuthn 配置
-RP_ID = "erphr.toiroworld.com"
-RP_NAME = "UO HR System"
-ORIGIN = "https://erphr.toiroworld.com"
-
-# Challenge 有效期（秒）
-CHALLENGE_TIMEOUT = 300
-
-
-def _generate_challenge() -> bytes:
-	"""生成随机 challenge"""
-	return secrets.token_bytes(32)
-
-
-def _b64_encode(data: bytes) -> str:
-	"""URL-safe base64 编码"""
-	return base64.urlsafe_b64encode(data).decode().rstrip("=")
-
-
-def _b64_decode(data: str) -> bytes:
-	"""URL-safe base64 解码"""
-	# 补齐 padding
-	padding = 4 - len(data) % 4
-	if padding != 4:
-		data += "=" * padding
-	return base64.urlsafe_b64decode(data)
+MAX_PASSKEYS_PER_EMPLOYEE = 3
+VALID_LOG_TYPES = ("IN", "OUT")
 
 
-@frappe.whitelist()
-def register_options():
-	"""
-	步骤1: 获取 Passkey 注册选项
-	员工在 HR 系统中注册 Passkey 时调用
-
-	Returns:
-	    WebAuthn registration options (JSON)
-	"""
+def _require_employee_user():
 	user = frappe.session.user
 	if user in ("Guest", "Administrator"):
-		frappe.throw(_("Please login first"))
-
-	# 获取员工信息
-	employee = frappe.db.get_value("Employee", {"user_id": user}, ["name", "employee_name"], as_dict=True)
+		frappe.throw(_("Please login first"), frappe.PermissionError)
+	employee = frappe.db.get_value(
+		"Employee", {"user_id": user, "status": "Active"}, ["name", "employee_name"], as_dict=True
+	)
 	if not employee:
 		frappe.throw(_("Your account is not linked to an employee profile"))
-
-	# 检查是否已有 Passkey（目前只支持单设备）
-	existing = frappe.db.exists("Passkey Credential", {"user": user})
-	if existing:
-		frappe.throw(
-			_("You already have a Passkey registered. Please delete it first before registering a new one.")
-		)
-
-	# 生成 challenge
-	challenge = _generate_challenge()
-	challenge_b64 = _b64_encode(challenge)
-
-	# 保存 challenge 到缓存
-	frappe.cache().set_value(f"passkey_reg_challenge:{user}", challenge_b64, expires_in_sec=CHALLENGE_TIMEOUT)
-
-	# 构建注册选项（符合 WebAuthn 规范）
-	options = {
-		"challenge": challenge_b64,
-		"rp": {"name": RP_NAME, "id": RP_ID},
-		"user": {"id": _b64_encode(user.encode()), "name": user, "displayName": employee.employee_name},
-		"pubKeyCredParams": [
-			{"alg": -7, "type": "public-key"},  # ES256
-			{"alg": -257, "type": "public-key"},  # RS256
-		],
-		"timeout": CHALLENGE_TIMEOUT * 1000,
-		"authenticatorSelection": {
-			"authenticatorAttachment": "platform",  # 使用设备内置认证器
-			"residentKey": "preferred",
-			"userVerification": "required",  # 必须验证用户（FaceID/指纹）
-		},
-		"attestation": "none",  # 不需要证明
-	}
-
-	return options
+	return user, employee
 
 
-@frappe.whitelist()
-def register_complete(credential: str, device_name: str | None = None):
-	"""
-	步骤2: 完成 Passkey 注册
+def _user_credential_ids(user: str) -> list[str]:
+	return frappe.get_all("Passkey Credential", filters={"user": user}, pluck="credential_id")
 
-	Args:
-	    credential: 前端返回的 credential JSON 字符串
-	    device_name: 设备名称（可选）
 
-	Returns:
-	    {"status": "ok", "message": "Passkey registered successfully"}
-	"""
-	user = frappe.session.user
-	if user in ("Guest", "Administrator"):
-		frappe.throw(_("Please login first"))
-
-	# 获取保存的 challenge
-	challenge_b64 = frappe.cache().get_value(f"passkey_reg_challenge:{user}")
-	if not challenge_b64:
-		frappe.throw(_("Registration timeout, please try again"))
-
-	# 清除 challenge（一次性使用）
-	frappe.cache().delete_value(f"passkey_reg_challenge:{user}")
-
-	try:
-		cred_data = json.loads(credential)
-	except json.JSONDecodeError:
+def _parse_credential(credential) -> dict:
+	if isinstance(credential, dict):
+		data = credential
+	else:
+		try:
+			data = json.loads(credential)
+		except (TypeError, ValueError):
+			frappe.throw(_("Invalid credential format"))
+	if not isinstance(data, dict) or not data.get("id") or not isinstance(data.get("response"), dict):
 		frappe.throw(_("Invalid credential format"))
+	return data
 
-	# 解析 clientDataJSON
-	client_data_json = _b64_decode(cred_data["response"]["clientDataJSON"])
-	client_data = json.loads(client_data_json)
 
-	# 验证 challenge
-	if client_data.get("challenge") != challenge_b64:
-		frappe.throw(_("Challenge mismatch"))
+def _get_credential_doc(credential_id: str):
+	return frappe.db.get_value(
+		"Passkey Credential",
+		{"credential_id": credential_id},
+		["name", "user", "employee", "credential_public_key", "sign_count"],
+		as_dict=True,
+	)
 
-	# 验证 origin
-	if client_data.get("origin") != ORIGIN:
-		frappe.throw(_("Origin mismatch"))
 
-	# 验证 type
-	if client_data.get("type") != "webauthn.create":
-		frappe.throw(_("Invalid operation type"))
+def _verify_or_throw(credential: dict, challenge_b64: str, cred_doc):
+	if not cred_doc.credential_public_key:
+		frappe.throw(_("This device needs to set up Face ID / fingerprint check-in again."))
+	try:
+		verified = verify_assertion(
+			credential,
+			expected_challenge_b64=challenge_b64,
+			public_key_b64=cred_doc.credential_public_key,
+			current_sign_count=cred_doc.sign_count,
+		)
+	except PasskeyVerificationError as error:
+		frappe.throw(str(error))
+	frappe.db.set_value(
+		"Passkey Credential",
+		cred_doc.name,
+		{"sign_count": verified.new_sign_count, "last_used": now()},
+		update_modified=False,
+	)
+	return verified
 
-	# 获取 credential ID 和公钥
-	credential_id = cred_data["id"]
 
-	# attestationObject 包含公钥，这里简化处理
-	# 实际生产环境应该使用 py_webauthn 库完整解析
-	attestation_object = cred_data["response"]["attestationObject"]
+def _notify_new_device(user: str, device_name: str) -> None:
+	frappe.get_doc(
+		{
+			"doctype": "PWA Notification",
+			"from_user": "Administrator",
+			"to_user": user,
+			"notification_title": _("Face ID / fingerprint check-in was set up on a new device"),
+			"message": _("{0} was added for check-in. If this wasn't you, please contact HR.").format(
+				device_name
+			),
+			"target_route": "/settings",
+		}
+	).insert(ignore_permissions=True)
 
-	# 获取员工
-	employee = frappe.db.get_value("Employee", {"user_id": user}, "name")
 
-	# 保存 credential
+def _device_limit_message():
+	return _("You already have {0} devices set up. Remove an old device in Settings first.").format(
+		MAX_PASSKEYS_PER_EMPLOYEE
+	)
+
+
+@frappe.whitelist(methods=["POST"])
+def register_options():
+	user, employee = _require_employee_user()
+	existing = _user_credential_ids(user)
+	if len(existing) >= MAX_PASSKEYS_PER_EMPLOYEE:
+		frappe.throw(_device_limit_message())
+	return build_registration_options(
+		user=user,
+		display_name=employee.employee_name,
+		exclude_credential_ids=existing,
+		data={"user": user, "employee": employee.name},
+	)
+
+
+@frappe.whitelist(methods=["POST"])
+def register_complete(credential: str, device_name: str | None = None):
+	user, employee = _require_employee_user()
+	data = _parse_credential(credential)
+	challenge_b64 = extract_client_challenge(data)
+	record = pop_challenge(PURPOSE_REGISTER, challenge_b64)
+	if not record or record.get("user") != user:
+		frappe.throw(_("Registration timeout, please try again"))
+	try:
+		verified = verify_registration(data, expected_challenge_b64=challenge_b64)
+	except PasskeyVerificationError as error:
+		frappe.throw(str(error))
+
+	credential_id = b64url_encode(verified.credential_id)
+	if frappe.db.exists("Passkey Credential", {"credential_id": credential_id}):
+		frappe.throw(_("This device is already set up."))
+	existing_count = len(_user_credential_ids(user))
+	if existing_count >= MAX_PASSKEYS_PER_EMPLOYEE:
+		frappe.throw(_device_limit_message())
+
 	doc = frappe.get_doc(
 		{
 			"doctype": "Passkey Credential",
 			"user": user,
-			"employee": employee,
+			"employee": employee.name,
 			"credential_id": credential_id,
-			"public_key": attestation_object,  # 存储完整的 attestationObject
-			"sign_count": 0,
-			"device_name": device_name or _get_device_name_from_request(),
+			"public_key": data["response"].get("attestationObject") or credential_id,
+			"credential_public_key": b64url_encode(verified.credential_public_key),
+			"sign_count": verified.sign_count,
+			"device_name": (device_name or _get_device_name_from_request())[:140],
 		}
 	)
 	doc.insert(ignore_permissions=True)
-	frappe.db.commit()
-
+	if existing_count:
+		_notify_new_device(user, doc.device_name)
 	return {"status": "ok", "message": _("Passkey registered successfully")}
 
 
-@frappe.whitelist(allow_guest=True, methods=["POST", "GET"], xss_safe=True)
-def auth_options(location: str | None = None):
-	"""
-	步骤3: 获取 Passkey 验证选项（NFC 打卡时调用）
+def _passkey_checkin_location() -> str | None:
+	location = frappe.db.get_single_value("HR Settings", "passkey_checkin_location")
+	if location and frappe.db.get_value("QR Checkin Location", location, "enabled"):
+		return location
+	return None
 
-	Args:
-	    location: 打卡地点（可选，用于日志）
 
-	Returns:
-	    WebAuthn authentication options (JSON)
-	"""
-	# 生成 challenge
-	challenge = _generate_challenge()
-	challenge_b64 = _b64_encode(challenge)
-
-	# 保存 challenge 到缓存（用 challenge 本身作为 key，因为此时可能未登录）
-	frappe.cache().set_value(
-		f"passkey_auth_challenge:{challenge_b64}",
-		json.dumps({"location": location, "created": str(now())}),
-		expires_in_sec=CHALLENGE_TIMEOUT,
+def _passkey_checkin_enabled_for(employee: str) -> bool:
+	if cint(frappe.db.get_single_value("HR Settings", "passkey_checkin_enabled_for_all")):
+		return True
+	return bool(
+		frappe.db.exists(
+			"Passkey Checkin Pilot Employee",
+			{"parent": "HR Settings", "parentfield": "passkey_checkin_pilot_employees", "employee": employee},
+		)
 	)
 
-	# 构建验证选项
-	options = {
-		"challenge": challenge_b64,
-		"rpId": RP_ID,
-		"timeout": CHALLENGE_TIMEOUT * 1000,
-		"userVerification": "required",
-		# 不指定 allowCredentials，允许任何已注册的 Passkey
+
+@frappe.whitelist()
+def get_checkin_context():
+	user, employee = _require_employee_user()
+	location = _passkey_checkin_location()
+	enabled = bool(location) and _passkey_checkin_enabled_for(employee.name)
+	return {
+		"enabled": enabled,
+		"has_passkey": bool(_user_credential_ids(user)),
+		"on_office_network": is_office_network(get_client_ip()) if enabled else False,
+		"location": {
+			"name": location,
+			"description": frappe.db.get_value("QR Checkin Location", location, "description") or location,
+		}
+		if enabled
+		else None,
 	}
 
-	return options
 
-
-@frappe.whitelist(allow_guest=True, methods=["POST"], xss_safe=True)
-def passkey_checkin(
-	credential: str,
-	location: str,
+@frappe.whitelist(methods=["POST"])
+def begin_checkin(
+	log_type: str,
 	latitude: float | None = None,
 	longitude: float | None = None,
+	accuracy: float | None = None,
 ):
-	"""
-	步骤4: 使用 Passkey 验证并打卡
+	user, employee = _require_employee_user()
+	if log_type not in VALID_LOG_TYPES:
+		frappe.throw(_("Invalid log type"))
+	location = _passkey_checkin_location()
+	if not location or not _passkey_checkin_enabled_for(employee.name):
+		return {"status": "disabled"}
 
-	Args:
-	    credential: 前端返回的 credential JSON 字符串
-	    location: 打卡地点
+	client_ip = get_client_ip()
+	presence = evaluate_presence(location, client_ip, latitude, longitude, accuracy)
+	if not presence.ok:
+		return {"status": presence.status, "reason": presence.reason}
 
-	Returns:
-	    {
-	        "status": "ok",
-	        "log_type": "IN",
-	        "employee_name": "张三",
-	        "time": "2025-01-30 09:00:00",
-	        "location": "office-2f-door"
-	    }
-	"""
-	try:
-		cred_data = json.loads(credential)
-	except json.JSONDecodeError:
-		frappe.throw(_("Invalid credential format"))
+	credential_ids = _user_credential_ids(user)
+	if not credential_ids:
+		return {"status": "no_passkey"}
 
-	# 获取 credential_id
-	credential_id = cred_data.get("id")
-	if not credential_id:
-		frappe.throw(_("Missing credential ID"))
-
-	# 查找对应的 Passkey Credential
-	cred_doc = frappe.db.get_value(
-		"Passkey Credential",
-		{"credential_id": credential_id},
-		["name", "user", "employee", "public_key", "sign_count"],
-		as_dict=True,
+	validate_checkin_timing(employee.name, log_type)
+	coordinates = normalize_coordinates(latitude, longitude) or (None, None)
+	options = build_authentication_options(
+		allow_credential_ids=credential_ids,
+		data={
+			"user": user,
+			"employee": employee.name,
+			"log_type": log_type,
+			"location": location,
+			"evidence": presence.evidence,
+			"latitude": coordinates[0],
+			"longitude": coordinates[1],
+			"client_ip": client_ip,
+		},
+		purpose=PURPOSE_CHECKIN,
 	)
+	return {"status": "ok", "options": options, "evidence": presence.evidence}
 
-	if not cred_doc:
-		frappe.throw(_("Passkey not found. Please register first."))
 
-	# 解析 clientDataJSON
-	client_data_json = _b64_decode(cred_data["response"]["clientDataJSON"])
-	client_data = json.loads(client_data_json)
+@frappe.whitelist(methods=["POST"])
+def complete_checkin(credential: str):
+	user, employee = _require_employee_user()
+	data = _parse_credential(credential)
+	cred_doc = _get_credential_doc(data["id"])
+	if not cred_doc or cred_doc.user != user:
+		frappe.throw(_("This device isn't set up for your account. Please set it up again."))
 
-	# 获取 challenge
-	challenge_b64 = client_data.get("challenge")
+	challenge_b64 = extract_client_challenge(data)
+	record = pop_challenge(PURPOSE_CHECKIN, challenge_b64)
+	if not record or record.get("user") != user:
+		frappe.throw(_("Check-in timed out. Please try again."))
+	_verify_or_throw(data, challenge_b64, cred_doc)
 
-	# 验证 challenge 是否有效
-	challenge_data = frappe.cache().get_value(f"passkey_auth_challenge:{challenge_b64}")
-	if not challenge_data:
-		frappe.throw(_("Authentication timeout or invalid challenge"))
-
-	# 清除 challenge（一次性使用）
-	frappe.cache().delete_value(f"passkey_auth_challenge:{challenge_b64}")
-
-	# 验证 origin
-	if client_data.get("origin") != ORIGIN:
-		frappe.throw(_("Origin mismatch"))
-
-	# 验证 type
-	if client_data.get("type") != "webauthn.get":
-		frappe.throw(_("Invalid operation type"))
-
-	# 解析 authenticatorData 获取 sign_count
-	authenticator_data = _b64_decode(cred_data["response"]["authenticatorData"])
-	# sign_count 在 authenticatorData 的第 33-36 字节（大端序）
-	new_sign_count = int.from_bytes(authenticator_data[33:37], "big")
-
-	# 验证 sign_count（防重放攻击）
-	if new_sign_count <= cred_doc.sign_count:
-		# 警告但不阻止（某些设备 sign_count 可能不递增）
-		frappe.log_error(
-			message=f"Sign count not incremented for user {cred_doc.user}. Old: {cred_doc.sign_count}, New: {new_sign_count}",
-			title="Passkey Sign Count Warning",
-		)
-
-	# 更新 sign_count 和 last_used
-	frappe.db.set_value(
-		"Passkey Credential", cred_doc.name, {"sign_count": new_sign_count, "last_used": now()}
+	validate_checkin_timing(employee.name, record["log_type"])
+	checkin = create_checkin(
+		employee=employee.name,
+		log_type=record["log_type"],
+		location=record["location"],
+		method=CHECKIN_METHOD_PASSKEY,
+		latitude=record.get("latitude"),
+		longitude=record.get("longitude"),
+		evidence=record.get("evidence"),
+		client_ip=record.get("client_ip"),
 	)
-
-	# ===== 以下是打卡逻辑 =====
-	employee = cred_doc.employee
-
-	# 获取上次打卡记录，用于自动判断 IN/OUT
-	last_checkin = frappe.db.get_value(
-		"Employee Checkin", {"employee": employee}, ["log_type", "time"], order_by="time desc"
-	)
-
-	# 自动判断 IN/OUT
-	if last_checkin:
-		last_type, last_time = last_checkin
-		# 如果今天有打卡记录
-		if get_datetime(last_time).date() == now_datetime().date():
-			log_type = "OUT" if last_type == "IN" else "IN"
-		else:
-			# 新的一天，从 IN 开始
-			log_type = "IN"
-	else:
-		log_type = "IN"
-
-	if not is_checkin_cooldown_exempt(employee):
-		# 防重复打卡检查（5分钟内）
-		recent_checkin = frappe.db.get_all(
-			"Employee Checkin",
-			filters={"employee": employee, "time": (">", now_datetime() - timedelta(minutes=5))},
-			limit=1,
-		)
-
-		if recent_checkin:
-			frappe.throw(_("You have already checked in within the last 5 minutes"))
-
-	# 创建 Employee Checkin
-	checkin_data = {
-		"doctype": "Employee Checkin",
-		"employee": employee,
-		"time": now(),
-		"log_type": log_type,
-		"device_id": f"NFC-Passkey:{location}",
-		"skip_auto_attendance": 0,
-	}
-
-	# 如果提供了地理位置，设置经纬度
-	if latitude is not None and longitude is not None:
-		checkin_data["latitude"] = latitude
-		checkin_data["longitude"] = longitude
-
-	checkin = frappe.get_doc(checkin_data)
-	checkin.insert(ignore_permissions=True)
-	frappe.db.commit()
-
-	# 获取员工姓名
-	employee_name = checkin.employee_name
-
-	# 记录审计日志
-	try:
-		client_ip = frappe.local.request_ip or "Unknown"
-		frappe.log_error(
-			message=f"NFC-Passkey Checkin: Employee {employee} ({employee_name}) {log_type} at {location}. IP: {client_ip}",
-			title=f"NFC-Passkey Checkin - {log_type}",
-		)
-	except Exception:
-		pass
-
-	action = _("Check-in") if log_type == "IN" else _("Check-out")
 	return {
 		"status": "ok",
-		"message": _("{0} successful").format(action),
-		"log_type": log_type,
-		"employee": employee,
-		"employee_name": employee_name,
+		"log_type": checkin.log_type,
 		"time": str(checkin.time),
-		"location": location,
+		"employee": employee.name,
+		"employee_name": checkin.employee_name,
+		"location": record["location"],
+		"evidence": record.get("evidence"),
 	}
 
 

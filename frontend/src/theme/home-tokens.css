@@ -77,6 +77,26 @@
 	--h-summary-warn-bg: #fffbeb;
 	--h-summary-warn-bd: #fde68a;
 	--h-summary-warn-fg: #92400e;
+
+	/* ── roster calendar cell blocks ── */
+	--h-roster-shift-bg: #dcfce7;
+	--h-roster-shift-fg: #14532d;
+	--h-roster-rest-bg: #e9edf2;
+	--h-roster-rest-fg: #52627a;
+	--h-roster-event-bg: #fde68a;
+	--h-roster-event-fg: #7c3a0c;
+
+	/* ── attendance calendar cell blocks ── */
+	--h-attn-work-bg: #dcfce7;
+	--h-attn-work-fg: #14532d;
+	--h-attn-overtime-bg: #16a34a;
+	--h-attn-overtime-fg: #f0fdf4;
+	--h-attn-anomaly-bg: #fee2e2;
+	--h-attn-anomaly-fg: #991b1b;
+	--h-attn-rest-bg: #e9edf2;
+	--h-attn-rest-fg: #52627a;
+	--h-attn-holiday-bg: #fde8e8;
+	--h-attn-holiday-fg: #9b2c2c;
 }
 
 [data-theme="dark"] {
@@ -146,6 +166,26 @@
 	--h-summary-warn-bg: #2a1f0e;
 	--h-summary-warn-bd: #6b4f23;
 	--h-summary-warn-fg: #fbbf24;
+
+	/* ── roster calendar cell blocks ── */
+	--h-roster-shift-bg: #14532d;
+	--h-roster-shift-fg: #86efac;
+	--h-roster-rest-bg: #2f2f2f;
+	--h-roster-rest-fg: #b0b0b0;
+	--h-roster-event-bg: #78350f;
+	--h-roster-event-fg: #fbbf24;
+
+	/* ── attendance calendar cell blocks ── */
+	--h-attn-work-bg: #14532d;
+	--h-attn-work-fg: #86efac;
+	--h-attn-overtime-bg: #166534;
+	--h-attn-overtime-fg: #bbf7d0;
+	--h-attn-anomaly-bg: #4c1d1d;
+	--h-attn-anomaly-fg: #fca5a5;
+	--h-attn-rest-bg: #2f2f2f;
+	--h-attn-rest-fg: #b0b0b0;
+	--h-attn-holiday-bg: #3d2020;
+	--h-attn-holiday-fg: #f0a8a8;
 }
 
 /* Smooth transition when toggling theme manually */

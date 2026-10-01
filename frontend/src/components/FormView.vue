@@ -9,14 +9,14 @@
 					class="!pl-0 hover:bg-white"
 					@click="router.back()"
 				>
-					<FeatherIcon name="chevron-left" class="h-5 w-5" />
+					<Icon icon="lucide-chevron-left" class="h-5 w-5" />
 				</Button>
 				<div
 					v-if="id"
 					class="flex flex-row items-center gap-2 overflow-hidden grow"
 				>
 					<h2
-						class="text-xl font-semibold text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis"
+						class="text-2xl-semibold text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis"
 					>
 						{{ __(props.doctype) }}
 					</h2>
@@ -49,12 +49,12 @@
 						]"
 						:button="{
 							label: __('Menu'),
-							icon: 'more-horizontal',
+							icon: 'lucide-more-horizontal',
 							variant: 'ghost',
 						}"
 					/>
 				</div>
-				<h2 v-else class="text-2xl font-semibold text-gray-900">
+				<h2 v-else class="text-3xl-semibold text-gray-900">
 					{{ __('New {0}', [__(doctype)], props.doctype) }}
 				</h2>
 			</header>
@@ -64,13 +64,13 @@
 				<!-- Tabs -->
 				<template v-if="tabbedView">
 					<div
-						class="px-4 sticky top-0 z-[100] bg-white text-sm font-medium text-center text-gray-500 border-b border-gray-200 dark:text-gray-400 dark:border-gray-700"
+						class="px-4 sticky top-0 z-[100] bg-white text-sm-medium text-center text-gray-500 border-b border-gray-200 dark:text-gray-400 dark:border-gray-700"
 					>
 						<ul class="flex -mb-px overflow-auto hide-scrollbar">
 							<li class="mr-2 whitespace-nowrap" v-for="tab in tabs">
 								<button
 									@click="activeTab = tab.name"
-									class="inline-block py-4 px-2 border-b-2 border-transparent rounded-t-lg"
+									class="inline-block py-4 px-2 border-b-2 border-transparent rounded-t-6"
 									:class="[
 										activeTab === tab.name
 											? '!text-gray-800 !border-gray-800'
@@ -176,7 +176,7 @@
 			<!-- custom form button eg: Download button in salary slips -->
 			<div
 				v-if="!showFormButton"
-				class="px-4 pt-4 pb-4 standalone:pb-safe-bottom sm:w-96 bg-white sticky bottom-0 w-full drop-shadow-xl z-40 border-t rounded-t-lg"
+				class="px-4 pt-4 pb-4 standalone:pb-safe-bottom sm:w-96 bg-white sticky bottom-0 w-full drop-shadow-xl z-40 border-t rounded-t-6"
 			>
 				<slot name="formButton"></slot>
 			</div>
@@ -192,7 +192,7 @@
 			<!-- save/submit/cancel -->
 			<div
 				v-else-if="isFormDirty || (!workflow?.hasWorkflow && formButton)"
-				class="px-4 pt-4 pb-4 standalone:pb-safe-bottom sm:w-96 bg-white sticky bottom-0 w-full drop-shadow-xl z-40 border-t rounded-t-lg"
+				class="px-4 pt-4 pb-4 standalone:pb-safe-bottom sm:w-96 bg-white sticky bottom-0 w-full drop-shadow-xl z-40 border-t rounded-t-6"
 			>
 				<ErrorMessage
 					class="mb-2"
@@ -204,7 +204,7 @@
 				/>
 
 				<Button
-					class="w-full rounded py-5 text-base disabled:bg-gray-700 disabled:text-white"
+					class="w-full rounded-4 py-5 text-base disabled:bg-gray-700 disabled:text-white"
 					:class="formButton === 'Cancel' ? 'shadow' : ''"
 					@click="formButton === 'Save' ? saveForm() : submitOrCancelForm()"
 					:variant="formButton === 'Cancel' ? 'subtle' : 'solid'"
@@ -219,17 +219,15 @@
 	</div>
 
 	<!-- Confirmation Dialogs -->
-	<Dialog v-model="showDeleteDialog">
-		<template #body-title>
-			<h2 class="text-xl font-bold">{{ __("Delete {0}", [__(props.doctype)]) }}</h2>
+	<Dialog v-model:open="showDeleteDialog">
+		<template #title>
+			<h2 class="text-2xl-bold">{{ __("Delete {0}", [__(props.doctype)]) }}</h2>
 		</template>
-		<template #body-content>
-			<p>
-				{{ __("Are you sure you want to delete the {0}", [__(props.doctype)])  }}
-				<span class="font-bold">{{ formModel.name }}</span>
-				?
-			</p>
-		</template>
+		<p>
+			{{ __("Are you sure you want to delete the {0}", [__(props.doctype)])  }}
+			<span class="font-bold">{{ formModel.name }}</span>
+			?
+		</p>
 		<template #actions>
 			<div class="flex flex-row gap-4">
 				<Button
@@ -251,17 +249,15 @@
 		</template>
 	</Dialog>
 
-	<Dialog v-model="showSubmitDialog">
-		<template #body-title>
-			<h2 class="text-xl font-bold">{{ __("Confirm") }} </h2>
+	<Dialog v-model:open="showSubmitDialog">
+		<template #title>
+			<h2 class="text-2xl-bold">{{ __("Confirm") }} </h2>
 		</template>
-		<template #body-content>
-			<p>
-				{{ __("Permanently submit {0}", [__(props.doctype)]) }}
-				<span class="font-bold">{{ formModel.name }}</span>
-				?
-			</p>
-		</template>
+		<p>
+			{{ __("Permanently submit {0}", [__(props.doctype)]) }}
+			<span class="font-bold">{{ formModel.name }}</span>
+			?
+		</p>
 		<template #actions>
 			<div class="flex flex-row gap-4">
 				<Button
@@ -282,17 +278,15 @@
 		</template>
 	</Dialog>
 
-	<Dialog v-model="showCancelDialog">
-		<template #body-title>
-			<h2 class="text-xl font-bold">{{ __("Confirm") }} </h2>
+	<Dialog v-model:open="showCancelDialog">
+		<template #title>
+			<h2 class="text-2xl-bold">{{ __("Confirm") }} </h2>
 		</template>
-		<template #body-content>
-			<p>
-				{{ __("Permanently cancel {0}", [__(props.doctype)]) }}
-				<span class="font-bold">{{ formModel.name }}</span
-				>?
-			</p>
-		</template>
+		<p>
+			{{ __("Permanently cancel {0}", [__(props.doctype)]) }}
+			<span class="font-bold">{{ formModel.name }}</span
+			>?
+		</p>
 		<template #actions>
 			<div class="flex flex-row gap-4">
 				<Button
@@ -320,7 +314,7 @@ import { useRouter } from "vue-router"
 import {
 	ErrorMessage,
 	Badge,
-	FeatherIcon,
+	Icon,
 	createListResource,
 	createDocumentResource,
 	toast,
@@ -523,12 +517,8 @@ const docList = createListResource({
 	doctype: props.doctype,
 	insert: {
 		async onSuccess(data) {
-			toast({
-				title: __("Success"),
-				text: __("{0} created successfully!", [__(props.doctype)]),
-				icon: "check-circle",
-				position: "bottom-center",
-				iconClasses: "text-green-500",
+			toast.success(__("Success"), {
+				description: __("{0} created successfully!", [__(props.doctype)]),
 			})
 			await uploadAllAttachments(data.doctype, data.name, fileAttachments.value)
 
@@ -538,12 +528,8 @@ const docList = createListResource({
 			})
 		},
 		onError() {
-			toast({
-				title: __("Error"),
-				text: __("Error creating {0}", [__(props.doctype)]),
-				icon: "alert-circle",
-				position: "bottom-center",
-				iconClasses: "text-red-500",
+			toast.error(__("Error"), {
+				description: __("Error creating {0}", [__(props.doctype)]),
 			})
 			console.log(`Error creating ${props.doctype}`)
 		},
@@ -555,21 +541,13 @@ const documentResource = createDocumentResource({
 	name: props.id,
 	setValue: {
 		onSuccess() {
-			toast({
-				title: __("Success"),
-				text: __("{0} updated successfully!", [__(props.doctype)]),
-				icon: "check-circle",
-				position: "bottom-center",
-				iconClasses: "text-green-500",
+			toast.success(__("Success"), {
+				description: __("{0} updated successfully!", [__(props.doctype)]),
 			})
 		},
 		onError() {
-			toast({
-				title: __("Error"),
-				text: __("Error updating {0}", [__(props.doctype)]),
-				icon: "alert-circle",
-				position: "bottom-center",
-				iconClasses: "text-red-500",
+			toast.error(__("Error"), {
+				description: __("Error updating {0}", [__(props.doctype)]),
 			})
 			console.log(`Error updating ${props.doctype}`)
 		},
@@ -577,21 +555,13 @@ const documentResource = createDocumentResource({
 	delete: {
 		onSuccess() {
 			router.back()
-			toast({
-				title: __("Success"),
-				text: __("{0} deleted successfully!", [__(props.doctype)]),
-				icon: "check-circle",
-				position: "bottom-center",
-				iconClasses: "text-green-500",
+			toast.success(__("Success"), {
+				description: __("{0} deleted successfully!", [__(props.doctype)]),
 			})
 		},
 		onError() {
-			toast({
-				title: __("Error"),
-				text: __("Error deleting {0}", [__(props.doctype)]),
-				icon: "alert-circle",
-				position: "bottom-center",
-				iconClasses: "text-red-500",
+			toast.error(__("Error"), {
+				description: __("Error deleting {0}", [__(props.doctype)]),
 			})
 			console.log(`Error deleting ${props.doctype}`)
 		},

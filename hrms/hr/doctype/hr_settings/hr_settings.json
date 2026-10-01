@@ -21,6 +21,9 @@
   "column_break_hyec",
   "sender",
   "sender_email",
+  "profile_photo_section",
+  "require_profile_photo",
+  "profile_photo_deadline",
   "leaves_tab",
   "leave_settings_section",
   "auto_leave_encashment",
@@ -47,6 +50,10 @@
   "qr_checkin_enabled",
   "qr_checkin_ip_restriction",
   "qr_checkin_allowed_ips",
+  "passkey_checkin_section",
+  "passkey_checkin_location",
+  "passkey_checkin_enabled_for_all",
+  "passkey_checkin_pilot_employees",
   "tenure_tab",
   "employee_exit_settings_section",
   "exit_questionnaire_web_form",
@@ -255,6 +262,25 @@
    "read_only": 1
   },
   {
+   "fieldname": "profile_photo_section",
+   "fieldtype": "Section Break",
+   "label": "Profile Photo"
+  },
+  {
+   "default": "0",
+   "description": "Employees without a photo are reminded each time they open the app. Check-in is never blocked.",
+   "fieldname": "require_profile_photo",
+   "fieldtype": "Check",
+   "label": "Remind Employees to Upload a Profile Photo"
+  },
+  {
+   "depends_on": "eval:doc.require_profile_photo",
+   "description": "Optional. Shown in the reminder.",
+   "fieldname": "profile_photo_deadline",
+   "fieldtype": "Date",
+   "label": "Upload Deadline"
+  },
+  {
    "fieldname": "column_break_hyec",
    "fieldtype": "Column Break"
   },
@@ -310,11 +336,35 @@
    "label": "Enable QR Checkin IP Restriction"
   },
   {
-   "depends_on": "eval:doc.qr_checkin_enabled == 1 && doc.qr_checkin_ip_restriction == 1",
    "fieldname": "qr_checkin_allowed_ips",
    "fieldtype": "Small Text",
-   "label": "QR Checkin Allowed IPs",
-   "description": "Allowed IP addresses for QR check-in, one per line. Example:\n192.168.1.100\n192.168.1.0/24\n10.0.0.1"
+   "label": "Office Networks",
+   "description": "One IP address or network per line (IPv4 or IPv6, e.g. 203.0.113.10 or 2001:db8:1:2::/64). Used to recognise requests from the office network; the QR IP restriction also uses this list when it is enabled."
+  },
+  {
+   "fieldname": "passkey_checkin_section",
+   "fieldtype": "Section Break",
+   "label": "Face ID / Fingerprint Check-in"
+  },
+  {
+   "description": "One-tap check-ins are recorded at this location. Leave empty to turn the feature off.",
+   "fieldname": "passkey_checkin_location",
+   "fieldtype": "Link",
+   "label": "Check-in Location",
+   "options": "QR Checkin Location"
+  },
+  {
+   "default": "0",
+   "fieldname": "passkey_checkin_enabled_for_all",
+   "fieldtype": "Check",
+   "label": "Enable for All Employees"
+  },
+  {
+   "depends_on": "eval:!doc.passkey_checkin_enabled_for_all",
+   "fieldname": "passkey_checkin_pilot_employees",
+   "fieldtype": "Table MultiSelect",
+   "label": "Pilot Employees",
+   "options": "Passkey Checkin Pilot Employee"
   },
   {
    "fieldname": "attendance_settings_section",
@@ -403,7 +453,7 @@
  "idx": 1,
  "issingle": 1,
  "links": [],
- "modified": "2025-12-29 16:25:06.271352",
+ "modified": "2026-09-29 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HR Settings",

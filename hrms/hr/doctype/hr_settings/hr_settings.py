@@ -4,8 +4,11 @@
 # For license information, please see license.txt
 
 import frappe
+from frappe import _
 from frappe.model.document import Document
 from frappe.utils import format_date
+
+from hrms.utils.client_network import find_invalid_network_lines
 
 # Wether to proceed with frequency change
 PROCEED_WITH_FREQUENCY_CHANGE = False
@@ -64,6 +67,8 @@ class HRSettings(Document):
 		if not PROCEED_WITH_FREQUENCY_CHANGE:
 			self.validate_frequency_change()
 		PROCEED_WITH_FREQUENCY_CHANGE = False
+
+		validate_office_networks(self.get("qr_checkin_allowed_ips"))
 
 	def set_naming_series(self):
 		from erpnext.utilities.naming import set_by_naming_series
@@ -139,3 +144,9 @@ def set_proceed_with_frequency_change():
 	"""Enables proceed with frequency change"""
 	global PROCEED_WITH_FREQUENCY_CHANGE
 	PROCEED_WITH_FREQUENCY_CHANGE = True
+
+
+def validate_office_networks(text: str | None) -> None:
+	invalid = find_invalid_network_lines(text)
+	if invalid:
+		frappe.throw(_("Office network contains unrecognised entries: {0}").format(", ".join(invalid)))

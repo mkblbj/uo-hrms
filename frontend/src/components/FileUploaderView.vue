@@ -1,13 +1,13 @@
 <template>
 	<div class="flex flex-col gap-3 py-4">
 		<label class="file-select">
-			<h2 class="text-base font-semibold text-gray-800 pb-4">{{ __("Attachments") }} </h2>
+			<h2 class="text-base-semibold text-gray-800 pb-4">{{ __("Attachments") }} </h2>
 			<div class="select-button cursor-pointer">
 				<div
-					class="flex flex-col w-full border shadow-sm items-center rounded p-3 gap-2"
+					class="flex flex-col w-full border shadow-sm items-center rounded-4 p-3 gap-2"
 				>
-					<FeatherIcon name="upload" class="h-6 w-6 text-gray-700" />
-					<span class="block text-sm font-normal leading-5 text-gray-700">
+					<Icon icon="lucide-upload" class="h-6 w-6 text-gray-700" />
+					<span class="block text-sm leading-5 text-gray-700">
 						{{ __("Upload images or documents") }}
 					</span>
 				</div>
@@ -25,7 +25,7 @@
 		<div v-if="modelValue.length" class="w-full">
 			<ul class="w-full flex flex-col items-center gap-2">
 				<li
-					class="bg-gray-100 rounded p-2 w-full"
+					class="bg-gray-100 rounded-4 p-2 w-full"
 					v-for="(file, index) in modelValue"
 					:key="index"
 				>
@@ -35,8 +35,8 @@
 						<span class="grow" @click="showFilePreview(file)">
 							{{ file.file_name || file.name }}
 						</span>
-						<FeatherIcon
-							name="x"
+						<Icon
+							icon="lucide-x"
 							class="h-4 w-4 cursor-pointer text-gray-700"
 							@click="() => confirmDeleteAttachment(file)"
 						/>
@@ -44,17 +44,15 @@
 				</li>
 			</ul>
 
-			<Dialog v-model="showDialog">
-				<template #body-title>
-					<h2 class="text-lg font-bold">{{ __("Delete Attachment") }} </h2>
+			<Dialog v-model:open="showDialog">
+				<template #title>
+					<h2 class="text-lg-bold">{{ __("Delete Attachment") }} </h2>
 				</template>
-				<template #body-content>
-					<p>
-						{{ __("Are you sure you want to delete the attachment") }}
-						<span class="font-bold">{{ selectedFile.file_name }}</span>
-						?
-					</p>
-				</template>
+				<p>
+					{{ __("Are you sure you want to delete the attachment") }}
+					<span class="font-bold">{{ selectedFile.file_name }}</span>
+					?
+				</p>
 				<template #actions>
 					<div class="flex flex-row gap-4">
 						<Button
@@ -89,7 +87,7 @@
 </template>
 
 <script setup>
-import { FeatherIcon, Dialog } from "frappe-ui"
+import { Icon, Dialog } from "frappe-ui"
 import { ref } from "vue"
 import { IonModal } from "@ionic/vue"
 

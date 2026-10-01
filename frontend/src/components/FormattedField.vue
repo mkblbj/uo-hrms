@@ -13,18 +13,17 @@
 		{{ dayjs(props.value).format("D MMM YYYY") }}
 	</div>
 
-	<Input
+	<Checkbox
 		v-else-if="props.fieldtype === 'Check'"
-		type="checkbox"
 		label=""
-		v-model="props.value"
+		:model-value="props.value"
 		:disabled="true"
-		class="rounded-sm text-gray-800"
+		class="rounded-1 text-gray-800"
 	/>
 
 	<div
 		v-else-if="['Small Text', 'Text', 'Long Text'].includes(props.fieldtype)"
-		class="text-gray-900 text-base bg-gray-100 rounded py-3 pl-3 mt-2"
+		class="text-gray-900 text-base bg-gray-100 rounded-4 py-3 pl-3 mt-2"
 	>
 		{{ props.value }}
 	</div>
@@ -37,7 +36,7 @@
 
 	<div
 		v-else-if="props.fieldtype === 'geolocation'"
-		class="rounded border-4 translate-z-0 block overflow-hidden w-full h-170 mt-2"
+		class="rounded-4 border-4 translate-z-0 block overflow-hidden w-full h-170 mt-2"
 	>
 		<iframe
 			width="100%"
@@ -59,7 +58,7 @@
 
 <script setup>
 import { inject } from "vue"
-import { Badge, FormControl, Input } from "frappe-ui"
+import { Badge, Checkbox } from "frappe-ui"
 
 import EmployeeAvatar from "@/components/EmployeeAvatar.vue"
 

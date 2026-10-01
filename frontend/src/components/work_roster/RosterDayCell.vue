@@ -12,23 +12,26 @@
 		<span v-if="cell.event" class="roster-day-event">
 			{{ cell.event.title }}
 		</span>
-		<span v-if="scope === 'mine' && cell.data?.my_shift" class="roster-my-time">
-			{{ compactTime(cell.data.my_shift.scheduled_time) }}
-		</span>
-		<span v-else-if="scope === 'mine'" class="roster-rest">
-			{{ labels.rest }}
-		</span>
-		<span v-else-if="cell.data?.actual_count > 0" class="roster-counts">
-			<span>
-				{{ labels.actualShort }}
-				{{ cell.data.actual_count }}
+		<span v-else class="roster-day-event is-spacer" aria-hidden="true">&nbsp;</span>
+		<span v-if="scope === 'mine' && cell.data?.my_shift" class="roster-primary">
+			<span class="roster-primary-value">
+				{{ compactTime(cell.data.my_shift.scheduled_time) }}
 			</span>
-			<span v-if="departmentCategory === 'Production' && cell.data.equivalent_count != null">
+		</span>
+		<span v-else-if="scope === 'mine'" class="roster-primary blank">
+			<span class="roster-primary-value">{{ labels.rest }}</span>
+		</span>
+		<span v-else-if="cell.data?.actual_count > 0" class="roster-primary">
+			<span class="roster-primary-value">{{ cell.data.actual_count }}</span>
+			<small v-if="departmentCategory === 'Production' && cell.data.equivalent_count != null">
 				{{ labels.equivalentShort }}
 				{{ Number(cell.data.equivalent_count).toFixed(1) }}
-			</span>
+			</small>
+			<small v-else>{{ labels.actualShort }}</small>
 		</span>
-		<span v-else class="roster-rest">{{ labels.emptyShort }}</span>
+		<span v-else class="roster-primary blank">
+			<span class="roster-primary-value">{{ labels.emptyShort }}</span>
+		</span>
 	</button>
 </template>
 
@@ -63,7 +66,6 @@ const dayClasses = computed(() => ({
 	saturday: props.cell.isSaturday,
 	holiday: props.cell.isHoliday,
 	"weekly-off": props.cell.isWeeklyOff,
-	event: Boolean(props.cell.event),
 }))
 
 function compactTime(value) {
@@ -92,11 +94,12 @@ defineExpose({ focus })
 	flex-direction: column;
 	align-items: stretch;
 	justify-content: flex-start;
+	gap: 2px;
 	width: 100%;
 	height: 100%;
 	min-width: 0;
 	min-height: 44px;
-	padding: 5px 3px 4px;
+	padding: 5px 3px;
 	overflow: hidden;
 	color: var(--h-fg-primary, #0a0a0a);
 	text-align: left;
@@ -122,58 +125,101 @@ defineExpose({ focus })
 	background: color-mix(in srgb, var(--h-chip-off-bg, #f4f4f5) 72%, var(--h-bg-card, #ffffff));
 }
 
-.roster-day.event {
-	border-top: 3px solid var(--roster-event-color, #f59e0b);
-	padding-top: 3px;
-}
-
 .roster-day-number {
-	font-size: clamp(11px, 3.2vw, 13px);
-	font-weight: 750;
+	font-size: clamp(12px, 3.2vw, 14px);
+	font-weight: 500;
 	line-height: 1;
 }
 
 .roster-day-event {
-	margin-top: 3px;
 	overflow: hidden;
-	color: var(--h-summary-warn-fg, #92400e);
-	font-size: clamp(7px, 2.3vw, 9px);
-	font-weight: 700;
-	line-height: 1.15;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-.roster-my-time,
-.roster-rest {
-	margin-top: auto;
-	overflow: hidden;
-	color: var(--h-fg-secondary, #64748b);
-	font-size: clamp(8px, 2.5vw, 10px);
+	padding: 1px 0;
+	color: var(--h-roster-event-fg, #7c3a0c);
+	font-size: clamp(7px, 2vw, 9px);
 	font-weight: 650;
-	line-height: 1.15;
+	line-height: 1.35;
 	text-align: center;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	background: var(--h-roster-event-bg, #fde68a);
+	border-radius: 4px;
+}
+
+/* Reserves the event row on every cell so the block below starts at the same
+   height whether or not the day has an event. Without it, event days push their
+   block down and shrink it, and a week reads as ragged. */
+.roster-day-event.is-spacer {
+	visibility: hidden;
+}
+
+.roster-primary {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-height: 0;
+	overflow: hidden;
+	color: var(--h-roster-shift-fg, #14532d);
+	font-size: clamp(13px, 4.1vw, 18px);
+	font-weight: 500;
+	line-height: 1;
+	background: var(--h-roster-shift-bg, #dcfce7);
+	border-radius: 6px;
+}
+
+.roster-primary.blank {
+	color: var(--h-roster-rest-fg, #52627a);
+	font-size: clamp(13px, 4vw, 16px);
+	background: var(--h-roster-rest-bg, #e9edf2);
+}
+
+.roster-primary-value {
+	max-width: 100%;
+	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.roster-my-time {
-	color: var(--h-summary-shift-fg, #15803d);
-}
-
-.roster-counts {
-	display: grid;
-	gap: 1px;
-	margin-top: auto;
+.roster-primary small {
+	max-width: 100%;
+	margin-top: 2px;
+	overflow: hidden;
 	color: var(--h-fg-secondary, #64748b);
-	font-size: clamp(7px, 2.35vw, 9px);
-	font-weight: 700;
-	line-height: 1.15;
-	text-align: center;
+	font-size: clamp(10px, 2.7vw, 12px);
+	font-weight: 650;
+	line-height: 1;
+	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
-.roster-counts span:last-child {
-	color: var(--h-summary-shift-fg, #15803d);
+/* A 320px phone leaves each cell about 46px of height — too little for a date
+   row, an event row and a block with any body to it. Drop the spacer and tighten
+   everything so the block keeps a readable height on real event days. */
+@media (max-width: 340px) {
+	.roster-day {
+		gap: 1px;
+		padding: 4px 2px;
+	}
+
+	.roster-day-event.is-spacer {
+		display: none;
+	}
+
+	.roster-day-event {
+		line-height: 1.2;
+	}
+
+	.roster-day-number {
+		font-size: 11px;
+	}
+
+	.roster-primary {
+		font-size: 12px;
+	}
+
+	.roster-primary.blank {
+		font-size: 11px;
+	}
 }
 </style>

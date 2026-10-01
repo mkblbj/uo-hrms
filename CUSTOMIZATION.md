@@ -13,9 +13,10 @@
 - **仓库地址**: https://github.com/uo/hrms
 
 ### 2. Logo 和图标
-- 主 Logo: `/hrms/public/images/uo-hr-logo.svg`
+- 主 Logo: `/hrms/public/images/uo-hr-attendance-logo.png`
 - 公司 Logo: `/hrms/public/images/uo-company-logo.jpg`
-- Manifest Logo: `/hrms/public/manifest/frappe-hr-logo.svg` (已更新为 UO 标识)
+- PWA 图标: `/hrms/public/manifest/manifest-icon-192.png`、`manifest-icon-512.png` 及对应的 maskable 图标
+- iOS 图标和启动画面: `/hrms/public/manifest/apple-icon-180.png`、`apple-splash-*.jpg`
 - Desktop 图标: 所有桌面图标的 `parent_icon` 已更新为 "UO HR"
 
 ### 3. 配置文件修改
@@ -26,7 +27,7 @@ app_title = "UO HR"
 app_publisher = "株式会社UO"
 app_description = "UO人力资源管理系统"
 app_email = "hr@uo.co.jp"
-app_logo_url = "/assets/hrms/images/uo-hr-logo.svg"
+app_logo_url = "/assets/hrms/images/uo-hr-attendance-logo.png"
 ```
 
 #### pyproject.toml
@@ -116,6 +117,49 @@ bench --site hrms.localhost migrate
 - 路径: `/hrms/hr/workspace/`
 - JSON 格式配置文件
 
+## 打卡
+
+两种打卡方式共用同一套规则（`hrms/api/checkin_service.py`）：冷却规则、建记录、审计日志、推送墙上屏。记录上的 `checkin_method` 字段标明打卡方式。
+
+- **面容/指纹一键打卡**（PWA 首页，`hrms/api/passkey.py` 的 `get_checkin_context` / `begin_checkin` / `complete_checkin`）：通行密钥核对本人，公司网络或手机定位（打卡点关联的 Shift Location 半径内）证明在场，证据不足时转去扫码。HR 设置「面容/指纹打卡」里设打卡点、对全员开启或试用名单。
+- **扫码**（`hrms/api/qr_attendance.py`）：墙上屏动态二维码；打卡点可勾选「要求展示密钥」，勾选前先用表单上的「复制墙上屏网址」更新墙上设备。
+- **NFC 打卡已停用**（2026-09-29）：`/nfc_checkin` 只显示停用提示，原来的访客接口 `auth_options` / `passkey_checkin` 已删除；历史记录的 `checkin_method` 仍是 `NFC Passkey`，通行密钥继续用于面容打卡。
+
+在场与定位（`hrms/api/checkin_location.py`）：
+- 连着公司网络就算在公司，扫码和面容打卡都不再要手机定位；即使手机另外送了偏远的坐标，也不按距离拦（Employee Checkin 的距离检查同样放行）。
+- 不在公司网络、且开着「地理位置追踪」时要定位：扫码缺坐标时 `qr_checkin` 返回 `{"status": "need_location"}`，PWA 定位后再交一次；有坐标就按打卡点半径查距离。
+- 位置只在打卡那一刻核对：已保存的打卡记录，HR 事后改别的字段（坐标没动）时不再按定位规则拦；改了坐标才重新核对。
+- PWA 取定位（`frontend/src/utils/checkinLocation.js`）：总共最多等约 8 秒。先要普通精度、可用半分钟内的位置；误差超过 100 米且还剩 1.5 秒以上，才用剩下的时间（最多 5 秒）精确定位一次。拿不到时按原因（被拒绝 / 超时或拿不到 / 不支持）给出做法，扫码确认页有「重新获取」，面容打卡面板有「再试一次」和扫码。
+- 定位失败会记一条 Error Log，标题 `Checkin Location Failure - <原因>`，内容只有流程（qr / passkey）、等了多久和机型，不记位置；只记员工账号，每人每小时最多 20 条。机型里的 iOS 版本取自浏览器标识，新版 iOS 可能固定报 18.x，只作参考。
+
+安全相关：
+- 通行密钥用 py_webauthn 核对（`hrms/api/passkey_webauthn.py`），锁定 `webauthn==2.8.0` 以兼容 Frappe 锁定的 cryptography / pyOpenSSL 版本；RP 默认 `erphr.toiroworld.com`，可用站点配置 `passkey_rp_id`、`passkey_origins` 覆盖（开发站点用 localhost）。
+- 真实客户端地址取 `CF-Connecting-IP`（`hrms/utils/client_network.py`），前提是源站只经 Cloudflare 隧道对外；HR 设置「公司网络」每行一个 IP 或网段，支持 IPv6 前缀。
+- 员工角色对 `Employee Checkin` 只有读权限；打卡记录的新建、改时间、删除只允许受信接口（`flags.trusted_checkin_source`）或 HR 角色（控制器守卫）。
+
+## 头像
+
+员工在 PWA 里自己上传头像。HR 设置「Employee」标签的「Profile Photo」里有两项：打开提醒，以及可选的截止日期。
+
+提醒（`frontend/src/components/home/ProfilePhotoReminder.vue`）：
+- 只有员工自己在应用里上传的头像才算设好（头像文件的上传人是员工本人）。HR 或脚本替员工设的头像算临时头像，照样提醒更换。2026-09-29 HR 用脚本给全员设了临时头像（landscape-avatar-*.png）。
+- 没设好时，首页顶部一直显示「请更换头像」卡片，不自动弹窗（HR 2026-09-29 要求）。点卡片上的「去更换」才弹出全屏提醒，正文是 HR 给的原话（`frontend/src/utils/profilePhoto.js` 的 leadChange 等），日期按截止日期自动填：「请最迟于{截止日}完成更换」「自{第二天}起」。改文案先问 HR。
+- 文案里说逾期暂时无法登录，但系统不拦：过了截止日期照样能用，只是首页卡片变橙色。HR 说到时口头提醒。
+- 弹窗里点「稍后再说」只是关掉；卡片一直留着，直到员工自己上传。
+- 不挡打卡。
+- 个人页点头像可以随时更换。
+
+上传（`hrms/api/profile_photo.py`）：
+- 手机上在圆形取景框里拖动、缩放后，裁成最大 512 的正方形 JPEG 上传。
+- 服务器再处理一遍：按方向转正、居中裁方、缩到最大 512，重新编码并去掉 EXIF（包括 GPS），存成随机文件名的公开文件。
+- 写入 `Employee.image` 和 `User.user_image`，同时删掉旧头像文件，包括框架自动挂在账号上的那份。
+
+隐私（`hrms/utils/profile_photo.py`）：
+- 不登录也能访问的接口，默认只有请求来自公司网络时才返回头像，否则头像字段为空。涉及三个接口：`get_recent_checkins`、`get_employees_at_work`、work_roster 的 `get_scheduled_attendance_snapshot`。前两个按打卡点查询，带上该打卡点的展示密钥（打卡点勾选了「要求展示密钥」）时，不在公司网络也返回头像；排班快照没有打卡点，只认公司网络。
+- 员工状态改成 Left 时，自动删掉头像文件，并清空两个字段。
+- HR 在后台更换或清空员工头像时，同步到账号头像，旧文件一并删除。
+- 查还没自己上传的人：在员工列表筛选「Image」包含 landscape-avatar（HR 批量设的临时头像）或未设置。
+
 ## 备份与恢复
 
 ### 备份站点
@@ -171,4 +215,3 @@ bench --site hrms.localhost restore [backup_file]
 ---
 
 © 2025 株式会社UO. All Rights Reserved.
-

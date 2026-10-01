@@ -1,5 +1,8 @@
 <template>
 	<div class="checkin-panel" :class="{ 'intro-play': introPlay }">
+		<PushNotificationPrompt />
+		<ProfilePhotoReminder :lang="currentLanguage" />
+
 		<section
 			v-if="todaySaleEvent"
 			class="home-sale-banner intro-stagger intro-stagger-0"
@@ -11,6 +14,8 @@
 				<span>{{ todaySaleEvent.title }}・{{ tSale("hint") }}</span>
 			</div>
 		</section>
+
+		<RosterPreferenceBanner :notice="homePreferenceNotice" :labels="preferenceLabels" />
 
 		<HomeHeroCard
 			ref="heroCardRef"
@@ -27,15 +32,33 @@
 		/>
 
 		<HomeSummaryCard class="intro-stagger intro-stagger-2" :lang="currentLanguage" />
-		<HomeStatsGrid class="intro-stagger intro-stagger-3" :stats="dashboardStats.data" :lang="currentLanguage" />
+		<HomeStatsGrid
+			class="intro-stagger intro-stagger-3"
+			:stats="dashboardStats.data"
+			:lang="currentLanguage"
+		/>
 	</div>
 
 	<HomeScanActionBar
 		:cta="primaryScanMeta"
 		:work-status="props.workStatus?.data"
 		:lang="currentLanguage"
-		:disabled="!isMobileCheckinAllowed"
-		@scan="openQRScanner"
+		:mode="checkinMode"
+		:busy="passkeyBusy"
+		:disabled="!isMobileCheckinAllowed || props.workStatus?.loading"
+		@scan="onPrimaryAction"
+	/>
+
+	<PasskeyCheckinSheet
+		:is-open="passkeySheet.isOpen"
+		:variant="passkeySheet.variant"
+		:lang="currentLanguage"
+		:location-label="passkeyContext.data?.location?.description || ''"
+		:location-failed="passkeySheet.locationFailed"
+		:location-failure-reason="passkeySheet.locationFailureReason"
+		:message="passkeySheet.message"
+		@action="onPasskeySheetAction"
+		@dismiss="passkeySheet.isOpen = false"
 	/>
 
 	<!-- 扫码模态框 -->
@@ -158,10 +181,21 @@ import { useRoute, useRouter } from "vue-router"
 
 import CheckinSuccessOverlay from "@/components/home/CheckinSuccessOverlay.vue"
 import HomeHeroCard from "@/components/home/HomeHeroCard.vue"
+import PushNotificationPrompt from "@/components/home/PushNotificationPrompt.vue"
+import ProfilePhotoReminder from "@/components/home/ProfilePhotoReminder.vue"
 import HomeScanActionBar from "@/components/home/HomeScanActionBar.vue"
 import HomeStatsGrid from "@/components/home/HomeStatsGrid.vue"
+import PasskeyCheckinSheet from "@/components/home/PasskeyCheckinSheet.vue"
 import QRScannerModal from "@/components/QRScannerModal.vue"
 import HomeSummaryCard from "@/components/work_roster/HomeSummaryCard.vue"
+import RosterPreferenceBanner from "@/components/work_roster/RosterPreferenceBanner.vue"
+import { settings } from "@/data/settings"
+import {
+	acquireCheckinLocation,
+	locationFailureAdvice,
+	reportLocationFailure,
+	submitQrCheckin,
+} from "@/utils/checkinLocation"
 import { formatTimestamp } from "@/utils/formatters"
 import {
 	buildSuccessOverlayModel,
@@ -170,6 +204,19 @@ import {
 	resolveHomeLanguage,
 } from "@/utils/homeExperience"
 import { shouldPlayIntro, markIntroPlayed } from "@/utils/homeIntroAnimation"
+import {
+	PASSKEY_MODE,
+	createFrappeCaller,
+	pickPasskeyCopy,
+	resolveCheckinMode,
+	runPasskeyCheckin,
+	shouldShowWifiTip,
+} from "@/utils/passkeyCheckin"
+import {
+	formatRosterPreferenceTitle,
+	getRosterCopy,
+	resolveHomePreferenceNotice,
+} from "@/utils/rosterCalendar"
 
 const props = defineProps({
 	workStatus: {
@@ -188,6 +235,10 @@ const qrScannerRef = ref(null)
 const heroCardRef = ref(null)
 const introPlay = ref(false)
 const currentLanguage = resolveHomeLanguage(window.frappe?.boot)
+const PREFERENCE_LABEL_KEYS = ["submitPreference", "editPreference", "submitted", "deadline"]
+const preferenceLabels = Object.fromEntries(
+	PREFERENCE_LABEL_KEYS.map((key) => [key, getRosterCopy(key, currentLanguage)])
+)
 const successOverlayState = reactive({
 	isOpen: false,
 	actionsVisible: false,
@@ -196,10 +247,6 @@ const successOverlayState = reactive({
 })
 const successOverlayController = createSuccessOverlayController({
 	state: successOverlayState,
-})
-const settings = createResource({
-	url: "hrms.api.get_hr_settings",
-	auto: true,
 })
 
 const dashboardStats = createResource({
@@ -239,14 +286,195 @@ const weatherSummary = computed(() => {
 	return `${icon} ${temp}°`.trim()
 })
 const todaySaleEvent = computed(() => homeScheduleSummary.data?.today_event || null)
+const homePreferenceNotice = computed(() => {
+	const notice = resolveHomePreferenceNotice(homeScheduleSummary.data?.preference_notice)
+	if (!notice) return null
+	return {
+		...notice,
+		title: formatRosterPreferenceTitle(notice, currentLanguage),
+	}
+})
 
 const openQRScanner = () => {
-	if (!settings.data?.allow_employee_checkin_from_mobile_app || !primaryScanMeta.value) return
+	if (
+		props.workStatus?.loading ||
+		!settings.data?.allow_employee_checkin_from_mobile_app ||
+		!primaryScanMeta.value
+	) {
+		return
+	}
 	showQRScanner.value = true
 }
 
 function loadHomeScheduleSummary() {
 	homeScheduleSummary.fetch()
+}
+
+const passkeyContext = createResource({
+	url: "hrms.api.passkey.get_checkin_context",
+	auto: true,
+})
+const platformSupported = ref(false)
+const passkeyBusy = ref(false)
+const passkeySheet = reactive({
+	isOpen: false,
+	variant: "first_time",
+	locationFailed: false,
+	locationFailureReason: null,
+	message: "",
+	pending: null,
+})
+const checkinMode = computed(() =>
+	resolveCheckinMode({ context: passkeyContext.data, platformSupported: platformSupported.value })
+)
+const callFrappe = createFrappeCaller({
+	fetchImpl: (...args) => fetch(...args),
+	getCsrfToken: () => window.csrf_token || "",
+})
+
+async function detectPlatformSupport() {
+	try {
+		platformSupported.value = Boolean(
+			window.PublicKeyCredential &&
+				(await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable())
+		)
+	} catch (_) {
+		platformSupported.value = false
+	}
+}
+
+// 面容打卡要定位时用：拿不到就记下原因，交给面板说明
+async function getCheckinPosition() {
+	const located = await acquireCheckinLocation()
+	if (!located.ok) {
+		reportLocationFailure(callFrappe, {
+			flow: "passkey",
+			reason: located.reason,
+			elapsedMs: located.elapsedMs,
+		})
+		throw Object.assign(new Error(located.reason), { reason: located.reason })
+	}
+	return located
+}
+
+function deviceName() {
+	const ua = navigator.userAgent || ""
+	if (/iPhone/.test(ua)) return "iPhone"
+	if (/iPad/.test(ua)) return "iPad"
+	if (/Android/.test(ua)) return "Android"
+	return "Browser"
+}
+
+function openPasskeySheet(variant, extra = {}) {
+	Object.assign(
+		passkeySheet,
+		{
+			isOpen: true,
+			variant,
+			locationFailed: false,
+			locationFailureReason: null,
+			message: "",
+			pending: null,
+		},
+		extra
+	)
+}
+
+function onPrimaryAction() {
+	if (checkinMode.value !== PASSKEY_MODE) {
+		openQRScanner()
+		return
+	}
+	if (!passkeyContext.data?.has_passkey) {
+		openPasskeySheet("first_time")
+		return
+	}
+	startPasskeyCheckin()
+}
+
+async function onPasskeySheetAction(actionId) {
+	const pending = passkeySheet.pending
+	passkeySheet.isOpen = false
+	if (actionId === "scan") {
+		openQRScanner()
+		return
+	}
+	await startPasskeyCheckin({
+		setup: actionId === "start" || actionId === "resetup",
+		pending: actionId === "retry" ? pending : null,
+	})
+}
+
+async function startPasskeyCheckin({ setup = false, pending = null } = {}) {
+	const action = primaryScanMeta.value?.action
+	if (!action || passkeyBusy.value) return
+	passkeyBusy.value = true
+	try {
+		const { startAuthentication, startRegistration } = await import("@simplewebauthn/browser")
+		const result = await runPasskeyCheckin({
+			logType: action,
+			context: passkeyContext.data,
+			setup,
+			pending,
+			deps: {
+				call: callFrappe,
+				startRegistration,
+				startAuthentication,
+				getPosition: getCheckinPosition,
+				deviceName,
+				now: () => Date.now(),
+			},
+		})
+		// 本机刚设置好但这次没打成：先刷新状态，「再试一次」就不会重新设置
+		if (result.setupDone && result.outcome !== "success") {
+			try {
+				await passkeyContext.reload()
+			} catch (_) {
+				// 刷新失败也照常给出结果面板
+			}
+		}
+		await handlePasskeyOutcome(action, result)
+	} finally {
+		passkeyBusy.value = false
+	}
+}
+
+async function handlePasskeyOutcome(action, result) {
+	if (result.outcome === "success") {
+		passkeyContext.reload()
+		await handleCheckinSuccess(action, result.message)
+		if (shouldShowWifiTip(result.evidence, safeLocalStorage())) {
+			toast.info(pickPasskeyCopy("wifiTip", currentLanguage))
+		}
+		return
+	}
+	if (result.outcome === "location_failed") {
+		openPasskeySheet("presence", { locationFailed: true, locationFailureReason: result.reason || null })
+		return
+	}
+	if (result.outcome === "presence_unconfirmed") {
+		openPasskeySheet("presence")
+		return
+	}
+	if (result.outcome === "webauthn_failed" || result.outcome === "setup_failed") {
+		openPasskeySheet("fallback", { pending: result.pending || null })
+		return
+	}
+	if (result.outcome === "disabled") {
+		passkeyContext.reload()
+		openQRScanner()
+		return
+	}
+	// 服务端报错（冷却规则、核对失败、超时等）：给出原因，并留着重试、重新设置和扫码
+	openPasskeySheet("error", { message: result.message || "" })
+}
+
+function safeLocalStorage() {
+	try {
+		return window.localStorage
+	} catch (_) {
+		return null
+	}
 }
 
 function tSale(key) {
@@ -293,7 +521,9 @@ function tintColor(color, whiteMix) {
 }
 
 function hexToRgb(color) {
-	const match = String(color || "").trim().match(/^#?([0-9a-f]{6})$/i)
+	const match = String(color || "")
+		.trim()
+		.match(/^#?([0-9a-f]{6})$/i)
 	if (!match) return null
 	const intValue = parseInt(match[1], 16)
 	return {
@@ -325,127 +555,64 @@ function handleSuccessOverlayDismiss(event) {
 	})
 }
 
-const handleQRScanSuccess = async (token, latitude = null, longitude = null) => {
+async function handleCheckinSuccess(action, responseMessage) {
+	try {
+		await dashboardStats.reload()
+	} catch (reloadError) {
+		console.error("Failed to refresh dashboard stats", reloadError)
+	}
+	try {
+		await heroCardRef.value?.reloadAttendance?.()
+	} catch (reloadError) {
+		console.error("Failed to refresh attendance heatmap", reloadError)
+	}
+
+	// 发送全局事件通知工作状态徽章更新
+	emitCheckinStatusChanged(window, { log_type: action })
+	showQRScanner.value = false
+	// iOS PWA: 等上一个 ion-modal 开始 dismiss 后再开启 success overlay，
+	// 避免两个 ion-modal 的进出场动画重叠导致子 CSS 动画被 WebKit 合成器冻结。
+	await new Promise((resolve) => setTimeout(resolve, 320))
+	openSuccessOverlay(
+		buildSuccessOverlayModel({
+			action,
+			lang: currentLanguage,
+			responseMessage,
+			monthHours: dashboardStats.data?.month_hours,
+		})
+	)
+}
+
+const handleQRScanSuccess = async (token, position = null) => {
 	const action = primaryScanMeta.value?.action
 	if (!action) return
 
 	try {
-		// 如果启用了地理位置追踪，但扫码模态框没有传递位置信息，则尝试获取
-		if (settings.data?.allow_geolocation_tracking && (!latitude || !longitude)) {
-			try {
-				const position = await new Promise((resolve, reject) => {
-					if (!navigator.geolocation) {
-						reject(new Error(__("Geolocation is not supported by your browser")))
-						return
-					}
-
-					navigator.geolocation.getCurrentPosition(resolve, reject, {
-						enableHighAccuracy: true,
-						timeout: 10000,
-						maximumAge: 0,
-					})
-				})
-
-				latitude = position.coords.latitude
-				longitude = position.coords.longitude
-			} catch (geoError) {
-				toast({
-					title: __("Location Error"),
-					text: __(
-						"Unable to retrieve your location. Please enable location access and try again."
-					),
-					icon: "alert-circle",
-					position: "bottom-center",
-					iconClasses: "text-red-500",
-				})
-				// 重置 scanner 的 submitting 状态
-				if (qrScannerRef.value) {
-					qrScannerRef.value.submitting = false
-				}
-				return
-			}
-		}
-
-		// 调用后端二维码打卡 API
-		const response = await fetch("/api/method/hrms.api.qr_attendance.qr_checkin", {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"X-Frappe-CSRF-Token": window.csrf_token || "",
-			},
-			body: JSON.stringify({
-				token: token,
-				log_type: action,
-				latitude: latitude,
-				longitude: longitude,
-			}),
+		// 扫码弹窗已按需要定位；服务端还要定位（刚从公司 Wi-Fi 换到流量）时再定位一次
+		const result = await submitQrCheckin({
+			call: callFrappe,
+			token,
+			logType: action,
+			position,
+			locate: () => acquireCheckinLocation(),
 		})
-
-		const data = await response.json()
-
-		// 检查是否成功
-		if (response.ok && data.message && data.message.status === "ok") {
-			try {
-				await dashboardStats.reload()
-			} catch (reloadError) {
-				console.error("Failed to refresh dashboard stats", reloadError)
-			}
-			try {
-				await heroCardRef.value?.reloadAttendance?.()
-			} catch (reloadError) {
-				console.error("Failed to refresh attendance heatmap", reloadError)
-			}
-
-			// 发送全局事件通知工作状态徽章更新
-			emitCheckinStatusChanged(window, { log_type: action })
-			showQRScanner.value = false
-			// iOS PWA: 等待 QR scanner 的 ion-modal 开始 dismiss 后再开启 success overlay，
-			// 避免两个 ion-modal 的进出场动画重叠导致子 CSS 动画被 WebKit 合成器冻结。
-			await new Promise((resolve) => setTimeout(resolve, 320))
-			openSuccessOverlay(
-				buildSuccessOverlayModel({
-					action,
-					lang: currentLanguage,
-					responseMessage: data.message,
-					monthHours: dashboardStats.data?.month_hours,
-				})
-			)
+		if (result.outcome === "success") {
+			await handleCheckinSuccess(action, result.message)
 			return
-		} else {
-			// 处理错误：优先显示后端返回的友好错误信息
-			let errorMessage = __("Check-in failed")
-
-			// Frappe 错误格式解析
-			if (data._server_messages) {
-				try {
-					const messages = JSON.parse(data._server_messages)
-					if (messages && messages.length > 0) {
-						const msg = JSON.parse(messages[0])
-						errorMessage = msg.message || errorMessage
-					}
-				} catch (e) {
-					console.error("Failed to parse error messages", e)
-				}
-			} else if (data.exception) {
-				// 从 exception 中提取错误信息
-				const match = data.exception.match(/frappe\.exceptions\.\w+:\s*(.+)/)
-				if (match && match[1]) {
-					errorMessage = match[1].trim()
-				}
-			} else if (data.exc) {
-				// 兼容旧版本
-				errorMessage = data.exc
-			}
-
-			throw new Error(errorMessage)
 		}
-	} catch (error) {
-		toast({
-			title: __("Error"),
-			text: error.message || __("Check-in failed"),
-			icon: "alert-circle",
-			position: "bottom-center",
-			iconClasses: "text-red-500",
+		if (result.outcome === "location_failed") {
+			reportLocationFailure(callFrappe, {
+				flow: "qr",
+				reason: result.reason,
+				elapsedMs: result.location?.elapsedMs,
+			})
+			toast.error(__("Location Error"), {
+				description: locationFailureAdvice(result.reason, currentLanguage),
+			})
+			return
+		}
+		toast.error(__("Error"), {
+			description: result.message || __("Check-in failed"),
 		})
 	} finally {
 		// 无论成功失败，都重置 scanner 的 submitting 状态
@@ -483,6 +650,7 @@ function onVisibilityChange() {
 
 onMounted(() => {
 	loadHomeScheduleSummary()
+	detectPlatformSupport()
 	const storage = typeof window !== "undefined" ? window.sessionStorage : null
 	const matchMedia = typeof window !== "undefined" ? window.matchMedia.bind(window) : null
 	if (shouldPlayIntro({ storage, matchMedia })) {
@@ -496,6 +664,7 @@ onMounted(() => {
 
 onIonViewWillEnter(() => {
 	loadHomeScheduleSummary()
+	passkeyContext.reload()
 })
 
 onBeforeUnmount(() => {
@@ -609,13 +778,24 @@ function formatDate() {
 		transform: translateY(12px);
 		animation: ckp-stagger-in 640ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 	}
-	.checkin-panel.intro-play .intro-stagger-0 { animation-delay: 0ms; }
-	.checkin-panel.intro-play .intro-stagger-1 { animation-delay: 0ms; }
-	.checkin-panel.intro-play .intro-stagger-2 { animation-delay: 150ms; }
-	.checkin-panel.intro-play .intro-stagger-3 { animation-delay: 300ms; }
+	.checkin-panel.intro-play .intro-stagger-0 {
+		animation-delay: 0ms;
+	}
+	.checkin-panel.intro-play .intro-stagger-1 {
+		animation-delay: 0ms;
+	}
+	.checkin-panel.intro-play .intro-stagger-2 {
+		animation-delay: 150ms;
+	}
+	.checkin-panel.intro-play .intro-stagger-3 {
+		animation-delay: 300ms;
+	}
 }
 
 @keyframes ckp-stagger-in {
-	to { opacity: 1; transform: translateY(0); }
+	to {
+		opacity: 1;
+		transform: translateY(0);
+	}
 }
 </style>

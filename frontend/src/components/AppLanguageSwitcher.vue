@@ -2,7 +2,7 @@
 	<div class="relative" ref="menuRef">
 		<button
 			type="button"
-			class="flex h-9 min-w-[2.75rem] items-center justify-center rounded-full bg-gray-100 px-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-200"
+			class="flex h-9 min-w-[2.75rem] items-center justify-center rounded-full bg-gray-100 px-3 text-sm-semibold text-gray-700 transition hover:bg-gray-200"
 			aria-haspopup="menu"
 			:aria-expanded="isOpen"
 			@click="toggleMenu"
@@ -12,14 +12,14 @@
 
 		<div
 			v-if="isOpen"
-			class="absolute right-0 top-11 z-20 w-40 rounded-2xl border border-gray-200 bg-white p-2 shadow-xl"
+			class="absolute right-0 top-11 z-20 w-40 rounded-8 border border-gray-200 bg-white p-2 shadow-xl"
 			role="menu"
 		>
 			<button
 				v-for="option in PWA_LANGUAGE_OPTIONS"
 				:key="option.value"
 				type="button"
-				class="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
+				class="flex w-full items-center justify-between rounded-7 px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-100"
 				:class="option.value === currentLanguage ? 'bg-gray-100 font-semibold text-gray-900' : ''"
 				@click="selectLanguage(option.value)"
 			>
