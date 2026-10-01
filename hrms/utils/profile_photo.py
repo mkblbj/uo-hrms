@@ -123,6 +123,8 @@ def delete_photo_files(
 	targets = [("Employee", employee, PHOTO_FIELD)]
 	if user:
 		targets.append(("User", user, "user_image"))
+		if "raven" in frappe.get_installed_apps():
+			targets.append(("Raven User", user, "user_image"))
 	for doctype, name, field in targets:
 		rows = frappe.get_all(
 			"File",
@@ -151,6 +153,7 @@ def sync_profile_photo(doc, method=None):
 	if doc.user_id:
 		frappe.db.set_value("User", doc.user_id, "user_image", doc.image or None)
 		frappe.clear_cache(user=doc.user_id)
+		sync_raven_profile_photo(doc.user_id, doc.image)
 	delete_photo_files(doc.name, doc.user_id, keep_url=doc.image)
 
 
@@ -161,8 +164,26 @@ def _remove_departed_photo(doc) -> None:
 		if doc.user_id:
 			frappe.db.set_value("User", doc.user_id, "user_image", None, update_modified=False)
 			frappe.clear_cache(user=doc.user_id)
+			sync_raven_profile_photo(doc.user_id, None)
 		delete_photo_files(doc.name, doc.user_id)
 	except Exception:
 		frappe.log_error(
 			title="Profile photo cleanup failed", reference_doctype="Employee", reference_name=doc.name
 		)
+
+
+def sync_raven_profile_photo(user: str, photo: str | None) -> None:
+	"""让 Raven 使用账号头像，并通过原生保存流程更新文件关联、缓存和实时通知。"""
+	if "raven" not in frappe.get_installed_apps() or not frappe.db.exists("Raven User", user):
+		return
+	raven_user = frappe.get_doc("Raven User", user)
+	if (raven_user.user_image or None) == (photo or None):
+		return
+	raven_user.user_image = photo or None
+	raven_user.save(ignore_permissions=True)
+
+
+def sync_user_photo_to_raven(doc, method=None) -> None:
+	before = doc.get_doc_before_save()
+	if before and before.user_image != doc.user_image:
+		sync_raven_profile_photo(doc.name, doc.user_image)

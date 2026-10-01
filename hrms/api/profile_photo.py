@@ -13,6 +13,7 @@ from hrms.utils.profile_photo import (
 	delete_photo_files,
 	normalize_photo,
 	photo_set_by_employee,
+	sync_raven_profile_photo,
 )
 
 
@@ -79,5 +80,6 @@ def save_employee_photo(employee, content: bytes) -> dict:
 	if employee.user_id:
 		frappe.db.set_value("User", employee.user_id, "user_image", file_doc.file_url)
 		frappe.clear_cache(user=employee.user_id)
+		sync_raven_profile_photo(employee.user_id, file_doc.file_url)
 	delete_photo_files(employee.name, employee.user_id, keep_url=file_doc.file_url, keep_name=file_doc.name)
 	return {"photo": file_doc.file_url}

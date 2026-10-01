@@ -232,6 +232,17 @@ test("returns localized bottom-tab labels without mixed-language fallbacks", () 
 	)
 })
 
+test("adds the localized chat tab only when chat is available", () => {
+	for (const [lang, title] of [["zh", "聊天"], ["ja", "チャット"], ["en", "Chat"]]) {
+		const tabs = getBottomTabItems(lang, { chatEnabled: true })
+		assert.deepEqual(tabs.map((item) => item.key), ["home", "attendance", "roster", "chat"])
+		assert.deepEqual(tabs.find((item) => item.key === "chat"), {
+			key: "chat", title, route: "/chat",
+		})
+		assert.equal(getBottomTabItems(lang, { chatEnabled: false }).some((item) => item.key === "chat"), false)
+	}
+})
+
 // 経費 and 給与 are parked while they wait for development, not removed: their
 // tab definitions, pages and routes all stay, so bringing them back is a matter
 // of deleting them from HIDDEN_BOTTOM_TABS.
