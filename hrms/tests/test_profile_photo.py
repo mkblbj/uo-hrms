@@ -144,7 +144,6 @@ class TestUploadMyPhoto(ProfilePhotoTestCase):
 		employee.save()
 		self.assertFalse(frappe.db.get_value("Raven User", PHOTO_USER, "user_image"))
 
-
 	def test_sets_employee_and_account_photo_from_a_public_random_file(self):
 		url = self.upload(make_image((1000, 800)))["photo"]
 		self.assertRegex(url, r"^/files/profile-photo-[0-9a-f]{20}\.jpg$")
