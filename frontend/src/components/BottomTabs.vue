@@ -73,6 +73,13 @@ ion-tab-button {
 	--color-selected: var(--h-tab-active);
 	background: transparent;
 }
+/* Ionic clips a tab button's contents to the button box. The unread badge sits
+   above the icon's top-right corner and pokes over that edge, which cut its top
+   flat. The clip only keeps Material mode's tap ripple inside the button; the app
+   runs Ionic's iOS mode everywhere, so nothing relies on it. */
+ion-tab-button::part(native) {
+	overflow: visible;
+}
 .chat-unread-badge {
 	position: absolute;
 	top: -7px;
