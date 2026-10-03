@@ -1,7 +1,8 @@
 <template>
 	<ion-modal
 		:is-open="isOpen"
-		:backdrop-dismiss="false"
+		:backdrop-dismiss="mandatory"
+		:can-dismiss="canDismiss"
 		class="photo-sheet-modal"
 		@didDismiss="onDismissed"
 	>
@@ -18,6 +19,10 @@
 							<Icon v-else icon="lucide-circle-user-round" class="h-12 w-12" />
 						</div>
 						<h2 class="photo-sheet-title">{{ heading }}</h2>
+						<p v-if="mandatory" class="photo-sheet-required">{{ t("mandatoryNotice") }}</p>
+						<p v-if="mode === 'reminder' && content.deadline" class="photo-sheet-deadline">
+							{{ content.deadline }}
+						</p>
 						<p v-if="mode === 'reminder'" class="photo-sheet-notice">{{ content.lead }}</p>
 						<p v-else class="photo-sheet-lead">{{ t("changeLead") }}</p>
 					</template>
@@ -37,6 +42,7 @@
 
 			<footer class="photo-sheet-actions">
 				<template v-if="step === 'intro'">
+					<p class="photo-sheet-formats">{{ t("supportedFormats") }}</p>
 					<button type="button" class="photo-sheet-button is-primary" @click="pick('camera')">
 						<Icon icon="lucide-camera" class="h-5 w-5" />
 						{{ t("takePhoto") }}
@@ -45,7 +51,12 @@
 						<Icon icon="lucide-image" class="h-5 w-5" />
 						{{ t("choosePhoto") }}
 					</button>
-					<button type="button" class="photo-sheet-link" @click="close(dismissEvent)">
+					<button
+						v-if="!mandatory"
+						type="button"
+						class="photo-sheet-link"
+						@click="close(dismissEvent)"
+					>
 						{{ mode === "reminder" ? t("later") : t("cancel") }}
 					</button>
 				</template>
@@ -98,11 +109,17 @@ import { IonModal } from "@ionic/vue"
 import { Icon } from "frappe-ui"
 
 import ProfilePhotoEditor from "@/components/profile/ProfilePhotoEditor.vue"
-import { getReminderContent, pickPhotoCopy, uploadProfilePhoto } from "@/utils/profilePhoto"
+import {
+	getReminderContent,
+	pickPhotoCopy,
+	preparePhotoUpload,
+	uploadProfilePhoto,
+} from "@/utils/profilePhoto"
 
 const props = defineProps({
 	isOpen: { type: Boolean, default: false },
-	// reminder：带用途和承诺的强提醒；change：个人页里换头像
+	mandatory: { type: Boolean, default: false },
+	// reminder：头像更换和期限提醒；change：个人页里换头像
 	mode: { type: String, default: "reminder" },
 	status: { type: Object, default: null },
 	currentPhoto: { type: String, default: "" },
@@ -113,6 +130,7 @@ const emit = defineEmits(["snooze", "cancel", "uploaded"])
 
 const step = ref("intro")
 const sourceUrl = ref("")
+const sourceFile = ref(null)
 const editorReady = ref(false)
 const uploading = ref(false)
 const errorMessage = ref("")
@@ -140,6 +158,7 @@ function onFileChosen(event) {
 	event.target.value = ""
 	if (!file) return
 	releaseSource()
+	sourceFile.value = file
 	sourceUrl.value = URL.createObjectURL(file)
 	errorMessage.value = ""
 	step.value = "edit"
@@ -160,8 +179,8 @@ async function upload() {
 	uploading.value = true
 	errorMessage.value = ""
 	try {
-		const blob = await editorRef.value.exportBlob()
-		const photo = await uploadProfilePhoto(blob)
+		const { blob, crop } = await preparePhotoUpload(sourceFile.value, editorRef.value)
+		const photo = await uploadProfilePhoto(blob, { crop })
 		closedByUs = true
 		emit("uploaded", photo)
 		reset()
@@ -179,9 +198,15 @@ function backToIntro() {
 }
 
 function close(event) {
+	if (props.mandatory) return
 	closedByUs = true
 	emit(event)
 	reset()
+}
+
+function canDismiss() {
+	// 强制模式让 Ionic 接管返回键和 Esc，实际关闭统一由这个条件决定。
+	return !props.mandatory || !props.isOpen || closedByUs
 }
 
 // 安卓返回键这类从外面关掉的，按「稍后再说 / 取消」算
@@ -194,6 +219,7 @@ function onDismissed() {
 function releaseSource() {
 	if (sourceUrl.value) URL.revokeObjectURL(sourceUrl.value)
 	sourceUrl.value = ""
+	sourceFile.value = null
 	editorReady.value = false
 }
 
@@ -204,7 +230,10 @@ function reset() {
 	step.value = "intro"
 }
 
-onBeforeUnmount(releaseSource)
+onBeforeUnmount(() => {
+	closedByUs = true
+	releaseSource()
+})
 </script>
 
 <style scoped>
@@ -290,6 +319,31 @@ onBeforeUnmount(releaseSource)
 	text-align: center;
 }
 
+.photo-sheet-deadline {
+	width: min(100%, 420px);
+	padding: 12px 16px;
+	color: var(--h-summary-warn-fg);
+	background: var(--h-summary-warn-bg);
+	border: 1px solid var(--h-summary-warn-bd);
+	border-radius: 12px;
+	font-size: 18px;
+	font-weight: 800;
+	line-height: 1.5;
+	text-align: center;
+}
+
+.photo-sheet-required {
+	width: min(100%, 420px);
+	padding: 12px 16px;
+	border-radius: 12px;
+	color: var(--h-summary-warn-fg);
+	background: var(--h-summary-warn-bg);
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.5;
+	text-align: center;
+}
+
 /* 提醒正文比较长，放进卡片里左对齐，好读 */
 .photo-sheet-notice {
 	width: min(100%, 420px);
@@ -333,6 +387,13 @@ onBeforeUnmount(releaseSource)
 	border-radius: 14px;
 	font-size: 15px;
 	font-weight: 800;
+}
+
+.photo-sheet-formats {
+	color: var(--h-fg-secondary);
+	font-size: 13px;
+	line-height: 1.5;
+	text-align: center;
 }
 
 .photo-sheet-button:disabled {

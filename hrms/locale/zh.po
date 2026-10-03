@@ -12557,5 +12557,8 @@ msgstr "照片太小了，请换一张更清晰的。"
 msgid "No active employee is linked to your account."
 msgstr "你的账号没有关联在职员工档案。"
 
+msgid "This photo could not be cropped. Please choose it again."
+msgstr "无法裁剪这张照片，请重新选择。"
+
 msgid "Back to attendance"
 msgstr "返回考勤"

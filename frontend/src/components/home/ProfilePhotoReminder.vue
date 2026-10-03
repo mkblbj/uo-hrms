@@ -11,72 +11,30 @@
 		<div class="photo-prompt-content">
 			<strong>{{ card.title }}</strong>
 			<p>{{ card.message }}</p>
-			<button type="button" class="photo-prompt-button" @click="sheetOpen = true">
+			<button type="button" class="photo-prompt-button" @click="checkProfilePhoto">
 				{{ card.action }}
 			</button>
 		</div>
 	</section>
-
-	<ProfilePhotoSheet
-		:is-open="sheetOpen"
-		mode="reminder"
-		:status="status.data"
-		:current-photo="status.data?.photo || ''"
-		:lang="lang"
-		@snooze="sheetOpen = false"
-		@cancel="sheetOpen = false"
-		@uploaded="onUploaded"
-	/>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue"
-import { onIonViewDidEnter } from "@ionic/vue"
-import { Icon, createResource, toast } from "frappe-ui"
+import { computed } from "vue"
+import { Icon } from "frappe-ui"
 
-import ProfilePhotoSheet from "@/components/profile/ProfilePhotoSheet.vue"
-import { refreshProfilePhoto } from "@/data/profilePhoto"
-import { PHOTO_STATUS_METHOD, getPromptCardContent, pickPhotoCopy } from "@/utils/profilePhoto"
+import { profilePhotoStatus as status } from "@/data/profilePhoto"
+import { getPromptCardContent } from "@/utils/profilePhoto"
 
 const props = defineProps({
 	lang: { type: String, default: "zh" },
 })
 
-// 不自动弹窗：只显示卡片，点卡片上的按钮才打开
-const sheetOpen = ref(false)
-
-const status = createResource({
-	url: PHOTO_STATUS_METHOD,
-	auto: true,
-})
-
 const showCard = computed(() => Boolean(status.data?.required && !status.data?.has_photo))
 const card = computed(() => getPromptCardContent(status.data, props.lang))
 
-function recheck() {
-	if (!sheetOpen.value && !status.loading) status.reload()
+function checkProfilePhoto() {
+	status.reload().catch(() => {})
 }
-
-function onVisibilityChange() {
-	if (document.visibilityState === "visible") recheck()
-}
-
-function onUploaded() {
-	sheetOpen.value = false
-	toast.success(pickPhotoCopy("uploaded", props.lang))
-	status.reload()
-	refreshProfilePhoto()
-}
-
-onIonViewDidEnter(recheck)
-
-onMounted(() => {
-	document.addEventListener("visibilitychange", onVisibilityChange)
-})
-
-onBeforeUnmount(() => {
-	document.removeEventListener("visibilitychange", onVisibilityChange)
-})
 </script>
 
 <style scoped>

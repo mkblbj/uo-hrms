@@ -9,9 +9,31 @@ export const PHOTO_STATUS_METHOD = "hrms.api.profile_photo.get_profile_photo_sta
 export const PHOTO_UPLOAD_METHOD = "hrms.api.profile_photo.upload_my_photo"
 
 const COPY = {
+	mandatoryNotice: {
+		zh: "请先设置头像，完成后才能继续使用。",
+		ja: "プロフィール画像を設定するまで、他の機能は利用できません。",
+		en: "Set your profile photo to continue using the app.",
+	},
+	checkingPhoto: {
+		zh: "正在检查头像…",
+		ja: "プロフィール画像を確認中…",
+		en: "Checking your profile photo…",
+	},
+	photoCheckFailed: {
+		zh: "暂时无法确认头像状态，请重试。",
+		ja: "プロフィール画像を確認できませんでした。もう一度お試しください。",
+		en: "Could not check your profile photo. Please try again.",
+	},
+	photoCheckRetry: { zh: "重试", ja: "再試行", en: "Retry" },
 	// 提醒正文是 HR 给的原话（2026-09-29），{0} 是截止日，{1} 是截止日第二天
 	titleChange: { zh: "请更换头像", ja: "プロフィール画像の変更", en: "Change Your Profile Photo" },
 	titleSet: { zh: "请设置头像", ja: "プロフィール画像の設定", en: "Set Your Profile Photo" },
+	deadlineLabel: { zh: "截止日期：{0}", ja: "設定期限：{0}", en: "Deadline: {0}" },
+	deadlineOverdue: {
+		zh: "已超过截止日期：{0}",
+		ja: "設定期限を過ぎています：{0}",
+		en: "Deadline passed: {0}",
+	},
 	leadChange: {
 		zh: "因系统更新，自{1}起，登录需使用您自行设置的头像。当前头像为系统临时生成，请最迟于{0}完成更换。逾期将暂时无法登录。给您带来不便，敬请谅解。",
 		ja: "システム更新により、{1}以降のログインには、ご自身で設定したプロフィール画像が必要になります。現在の画像はシステムが仮に生成したものです。{0}までに変更をお願いいたします。未変更の場合、一時的にログインできなくなります。ご不便をおかけしますが、ご理解のほどお願いいたします。",
@@ -34,6 +56,11 @@ const COPY = {
 	},
 	takePhoto: { zh: "拍一张", ja: "写真を撮る", en: "Take a Photo" },
 	choosePhoto: { zh: "从相册选择", ja: "アルバムから選ぶ", en: "Choose from Library" },
+	supportedFormats: {
+		zh: "支持 JPG/JPEG、PNG、GIF（含动图）、WebP、BMP、AVIF，最大 10MB。",
+		ja: "対応形式：JPG/JPEG、PNG、GIF（アニメーション可）、WebP、BMP、AVIF。最大10MB。",
+		en: "Supports JPG/JPEG, PNG, GIF (including animation), WebP, BMP and AVIF. Up to 10 MB.",
+	},
 	later: { zh: "稍后再说", ja: "あとで", en: "Later" },
 	cancel: { zh: "取消", ja: "キャンセル", en: "Cancel" },
 	changeTitle: { zh: "更换头像", ja: "プロフィール画像の変更", en: "Change Photo" },
@@ -147,13 +174,17 @@ export function nextDay(value) {
 export function getReminderContent(status, lang = "zh") {
 	const kind = isTemporary(status) ? "Change" : "Set"
 	const deadline = formatDeadline(status?.deadline, lang)
+	const overdue = Boolean(deadline && status?.overdue)
 	const lead = deadline
 		? pickPhotoCopy(`lead${kind}`, lang, deadline, formatDeadline(nextDay(status.deadline), lang))
 		: pickPhotoCopy(`lead${kind}NoDate`, lang)
 	return {
 		title: pickPhotoCopy(`title${kind}`, lang),
+		deadline: deadline
+			? pickPhotoCopy(overdue ? "deadlineOverdue" : "deadlineLabel", lang, deadline)
+			: "",
 		lead,
-		overdue: Boolean(deadline && status?.overdue),
+		overdue,
 	}
 }
 
@@ -205,15 +236,26 @@ export function outputSizeFor(cropSize) {
 	return Math.max(PHOTO_MIN_SIDE, Math.min(PHOTO_OUTPUT_SIZE, Math.round(cropSize)))
 }
 
+function isGif(file) {
+	return file?.type === "image/gif" || /\.gif$/i.test(file?.name || "")
+}
+
+export async function preparePhotoUpload(file, editor) {
+	if (isGif(file)) return { blob: file, crop: editor.getCrop() }
+	return { blob: await editor.exportBlob(), crop: null }
+}
+
 export async function uploadProfilePhoto(
 	blob,
 	{
 		fetchImpl = globalThis.fetch?.bind(globalThis),
 		csrfToken = globalThis.window?.csrf_token,
+		crop = null,
 	} = {}
 ) {
 	const body = new FormData()
-	body.append("file", blob, "profile-photo.jpg")
+	body.append("file", blob, isGif(blob) ? "profile-photo.gif" : "profile-photo.jpg")
+	if (crop) body.append("crop", JSON.stringify(crop))
 	const response = await fetchImpl(`/api/method/${PHOTO_UPLOAD_METHOD}`, {
 		method: "POST",
 		headers: { Accept: "application/json", "X-Frappe-CSRF-Token": csrfToken || "" },

@@ -40,13 +40,15 @@ def get_profile_photo_status() -> dict:
 	deadline = (
 		getdate(settings.get("profile_photo_deadline")) if settings.get("profile_photo_deadline") else None
 	)
-	own = photo_set_by_employee(employee)
+	# PWA 实际显示账号头像；员工档案里留下的旧图片不能继续作为已完成凭据。
+	photo = frappe.db.get_value("User", employee.user_id, "user_image") or None
+	own = bool(photo and photo == employee.image and photo_set_by_employee(employee))
 	return {
 		"required": bool(cint(settings.get("require_profile_photo"))),
 		# 只有自己上传的才算设好；别人代设的头像照样提醒更换
 		"has_photo": own,
-		"temporary": bool(employee.image) and not own,
-		"photo": employee.image or None,
+		"temporary": bool(photo) and not own,
+		"photo": photo,
 		"deadline": str(deadline) if deadline else None,
 		"overdue": bool(deadline) and getdate(today()) > deadline,
 	}
@@ -58,16 +60,21 @@ def upload_my_photo() -> dict:
 	upload = frappe.request.files.get("file") if frappe.request else None
 	if not upload:
 		frappe.throw(_("Please choose a photo."))
-	return save_employee_photo(employee, upload.stream.read(MAX_UPLOAD_BYTES + 1))
+	try:
+		crop = frappe.parse_json(frappe.request.form.get("crop"))
+	except (ValueError, TypeError):
+		frappe.throw(_("This photo could not be cropped. Please choose it again."))
+	return save_employee_photo(employee, upload.stream.read(MAX_UPLOAD_BYTES + 1), crop=crop)
 
 
-def save_employee_photo(employee, content: bytes) -> dict:
+def save_employee_photo(employee, content: bytes, crop: dict | None = None) -> dict:
 	"""处理照片，挂到员工的头像字段，同步账号头像，再删掉旧的头像文件。"""
-	photo = normalize_photo(content)
+	photo = normalize_photo(content, crop=crop)
+	extension = "gif" if photo.startswith((b"GIF87a", b"GIF89a")) else "jpg"
 	file_doc = frappe.get_doc(
 		{
 			"doctype": "File",
-			"file_name": f"{PHOTO_FILE_PREFIX}{secrets.token_hex(10)}.jpg",
+			"file_name": f"{PHOTO_FILE_PREFIX}{secrets.token_hex(10)}.{extension}",
 			"content": photo,
 			"is_private": 0,
 			"attached_to_doctype": "Employee",

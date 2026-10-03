@@ -1060,6 +1060,9 @@ msgstr "写真が小さすぎます。もっと鮮明な写真を選んでくだ
 msgid "No active employee is linked to your account."
 msgstr "このアカウントには在籍中の従業員情報が紐付いていません。"
 
+msgid "This photo could not be cropped. Please choose it again."
+msgstr "この写真を切り抜けませんでした。もう一度選んでください。"
+
 msgid "Chat"
 msgstr "チャット"
 

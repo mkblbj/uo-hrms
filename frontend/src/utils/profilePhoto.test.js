@@ -1,5 +1,6 @@
 import test from "node:test"
 import assert from "node:assert/strict"
+import * as photoUtils from "./profilePhoto.js"
 
 import {
 	PHOTO_MIN_SIDE,
@@ -55,12 +56,25 @@ test("deadline is shown as month and day", () => {
 test("a temporary photo gets the wording HR wrote, dates filled in", () => {
 	assert.deepEqual(getReminderContent(temporary, "zh"), {
 		title: "请更换头像",
+		deadline: "截止日期：10月6日",
 		lead: ZH_CHANGE,
 		overdue: false,
 	})
 	assert.equal(getReminderContent(temporary, "ja").lead, JA_CHANGE)
 	assert.equal(getReminderContent({ ...temporary, overdue: true }, "zh").overdue, true)
 	assert.equal(getReminderContent({ ...temporary, overdue: true }, "zh").lead, ZH_CHANGE)
+})
+
+test("the reminder highlights the configured deadline in every language and marks overdue dates", () => {
+	assert.equal(getReminderContent(temporary, "zh").deadline, "截止日期：10月6日")
+	assert.equal(getReminderContent(temporary, "ja").deadline, "設定期限：10月6日")
+	assert.equal(getReminderContent(temporary, "en").deadline, "Deadline: Oct 6")
+	assert.equal(
+		getReminderContent({ ...temporary, overdue: true }, "zh").deadline,
+		"已超过截止日期：10月6日"
+	)
+	assert.equal(getReminderContent(missing, "zh").deadline, "")
+	assert.equal(getReminderContent({ ...missing, overdue: true }, "zh").deadline, "")
 })
 
 test("a photo someone else set counts as temporary even without the flag", () => {
@@ -176,6 +190,47 @@ test("upload posts the photo with the CSRF token and returns its address", async
 	assert.equal(calls[0].options.headers["X-Frappe-CSRF-Token"], "token-1")
 	assert.ok(calls[0].options.body instanceof FormData)
 	assert.ok(calls[0].options.body.get("file"))
+})
+
+test("GIF preparation keeps the original bytes and the crop even when the MIME type is missing", async () => {
+	for (const type of ["image/gif", ""]) {
+		const file = new File(["GIF89a-original-animation"], "avatar.GIF", { type })
+		const prepared = await photoUtils.preparePhotoUpload(file, {
+			getCrop: () => ({ sx: 40, sy: 20, size: 200 }),
+			exportBlob: () => {
+				throw new Error("GIF must not be flattened by canvas")
+			},
+		})
+		assert.equal(await prepared.blob.text(), "GIF89a-original-animation")
+		assert.deepEqual(prepared.crop, { sx: 40, sy: 20, size: 200 })
+	}
+})
+
+test("still photo preparation uses the cropped canvas image", async () => {
+	const file = new File(["original"], "photo.png", { type: "image/png" })
+	const prepared = await photoUtils.preparePhotoUpload(file, {
+		exportBlob: async () => new Blob(["cropped-photo"], { type: "image/jpeg" }),
+	})
+	assert.equal(await prepared.blob.text(), "cropped-photo")
+	assert.equal(prepared.blob.type, "image/jpeg")
+	assert.equal(prepared.crop, null)
+})
+
+test("GIF upload sends a GIF filename, original bytes and crop coordinates", async () => {
+	let body
+	const fetchImpl = async (_url, options) => {
+		body = options.body
+		return { ok: true, status: 200, json: async () => ({ message: { photo: "/files/p.gif" } }) }
+	}
+	const photo = await uploadProfilePhoto(new Blob(["GIF89a-animation"], { type: "image/gif" }), {
+		fetchImpl,
+		crop: { sx: 40, sy: 20, size: 200 },
+	})
+	assert.equal(photo, "/files/p.gif")
+	assert.equal(body.get("file").name, "profile-photo.gif")
+	assert.equal(body.get("file").type, "image/gif")
+	assert.equal(await body.get("file").text(), "GIF89a-animation")
+	assert.deepEqual(JSON.parse(body.get("crop")), { sx: 40, sy: 20, size: 200 })
 })
 
 test("upload failures carry the server message when there is one", async () => {
