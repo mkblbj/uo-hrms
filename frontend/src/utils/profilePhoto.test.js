@@ -9,6 +9,8 @@ import {
 	cropRect,
 	formatDeadline,
 	getPromptCardContent,
+	isPhotoDoneRemembered,
+	rememberPhotoDone,
 	getReminderContent,
 	maxZoomFor,
 	nextDay,
@@ -257,4 +259,39 @@ test("upload failures carry the server message when there is one", async () => {
 		uploadProfilePhoto(new Blob(["x"]), { fetchImpl: broken, csrfToken: "t" }),
 		(error) => error.message === "" && error.status === 502
 	)
+})
+
+function memoryStorage() {
+	const data = new Map()
+	return {
+		getItem: (key) => (data.has(key) ? data.get(key) : null),
+		setItem: (key, value) => data.set(key, String(value)),
+	}
+}
+
+test("a phone remembers which accounts already have their own photo", () => {
+	const storage = memoryStorage()
+	assert.equal(isPhotoDoneRemembered(storage, "a@example.com"), false)
+	rememberPhotoDone(storage, "a@example.com", true)
+	rememberPhotoDone(storage, "b@example.com", true)
+	assert.equal(isPhotoDoneRemembered(storage, "a@example.com"), true)
+	rememberPhotoDone(storage, "a@example.com", false)
+	assert.equal(isPhotoDoneRemembered(storage, "a@example.com"), false)
+	assert.equal(isPhotoDoneRemembered(storage, "b@example.com"), true)
+	assert.equal(isPhotoDoneRemembered(storage, ""), false)
+})
+
+test("photo memory never breaks the app when storage is unavailable", () => {
+	const broken = {
+		getItem() {
+			throw new Error("blocked")
+		},
+		setItem() {
+			throw new Error("blocked")
+		},
+	}
+	assert.equal(isPhotoDoneRemembered(broken, "a@example.com"), false)
+	assert.doesNotThrow(() => rememberPhotoDone(broken, "a@example.com", true))
+	assert.equal(isPhotoDoneRemembered(null, "a@example.com"), false)
+	assert.doesNotThrow(() => rememberPhotoDone(null, "a@example.com", true))
 })

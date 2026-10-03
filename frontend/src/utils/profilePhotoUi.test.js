@@ -11,7 +11,9 @@ import {
 	PHOTO_STATUS_METHOD,
 	getPromptCardContent,
 	getReminderContent,
+	isPhotoDoneRemembered,
 	pickPhotoCopy,
+	rememberPhotoDone,
 } from "./profilePhoto.js"
 
 const dir = path.dirname(fileURLToPath(import.meta.url))
@@ -34,7 +36,17 @@ const temporaryPhoto = {
 	overdue: false,
 }
 
-function setupGlobalGate(t, onBlocked) {
+function memoryStorage(rememberedUsers = []) {
+	const data = new Map()
+	const storage = {
+		getItem: (key) => (data.has(key) ? data.get(key) : null),
+		setItem: (key, value) => data.set(key, String(value)),
+	}
+	for (const user of rememberedUsers) rememberPhotoDone(storage, user, true)
+	return storage
+}
+
+function setupGlobalGate(t, onBlocked, { user = "employee@example.com", storage = memoryStorage() } = {}) {
 	const stops = []
 	let resolveRequest
 	let rejectRequest
@@ -75,6 +87,10 @@ function setupGlobalGate(t, onBlocked) {
 		onBeforeUnmount() {},
 		status,
 		pickPhotoCopy,
+		isPhotoDoneRemembered,
+		rememberPhotoDone,
+		session: { user },
+		window: { localStorage: storage },
 		toast: { success() {} },
 		refreshProfilePhoto() {},
 	})
@@ -151,6 +167,60 @@ test("a locked app rechecks server state when the requirement is lifted or anoth
 		assert.ok(request instanceof Promise)
 		gate.respond(next)
 		assert.equal(app.canUseApp.value, true)
+	}
+})
+
+function rememberedGate(t, rememberedUsers = ["employee@example.com"]) {
+	const storage = memoryStorage(rememberedUsers)
+	const app = setupAppGate(t, { storage })
+	const gate = setupGlobalGate(
+		t,
+		(value) => {
+			app.photoGateBlocked.value = value
+		},
+		{ storage }
+	)
+	return { app, gate, storage }
+}
+
+test("a phone that already confirmed the photo opens the app without waiting for the check", (t) => {
+	const { app, gate } = rememberedGate(t)
+	assert.equal(app.canUseApp.value, true)
+	assert.equal(gate.blocked.value, false)
+	gate.respond({ ...temporaryPhoto, has_photo: true, temporary: false })
+	assert.equal(app.canUseApp.value, true)
+})
+
+test("a remembered phone still locks when the check finds the photo missing", (t) => {
+	const { app, gate, storage } = rememberedGate(t)
+	gate.respond(temporaryPhoto)
+	assert.equal(gate.needsPhoto.value, true)
+	assert.equal(app.canUseApp.value, false)
+	assert.equal(isPhotoDoneRemembered(storage, "employee@example.com"), false)
+})
+
+test("a failed check does not lock a phone that already confirmed the photo", (t) => {
+	const { app, gate } = rememberedGate(t)
+	gate.fail()
+	assert.equal(app.canUseApp.value, true)
+})
+
+test("another account on the same phone still waits for its own check", (t) => {
+	const { app } = rememberedGate(t, ["someone-else@example.com"])
+	assert.equal(app.canUseApp.value, false)
+})
+
+test("a confirmed or newly uploaded photo is remembered for the next launch", (t) => {
+	for (const finish of ["confirmed", "uploaded"]) {
+		const storage = memoryStorage()
+		const gate = setupGlobalGate(t, () => {}, { storage })
+		if (finish === "confirmed") {
+			gate.respond({ ...temporaryPhoto, has_photo: true, temporary: false })
+		} else {
+			gate.respond(temporaryPhoto)
+			gate.onUploaded("/files/own-photo.jpg")
+		}
+		assert.equal(isPhotoDoneRemembered(storage, "employee@example.com"), true, finish)
 	}
 })
 
@@ -236,7 +306,7 @@ test("normal profile photo changes can still be cancelled", () => {
 
 function setupAppGate(
 	t,
-	{ user = "employee@example.com", routeName = "Home", linked = true } = {}
+	{ user = "employee@example.com", routeName = "Home", linked = true, storage = memoryStorage() } = {}
 ) {
 	const stops = []
 	const session = reactive({ user, isLoggedIn: Boolean(user) })
@@ -258,9 +328,10 @@ function setupAppGate(
 			useTheme() {},
 			useRoute: () => route,
 			resolveHomeLanguage: () => "zh",
+			isPhotoDoneRemembered,
 			session,
 			employeeResource,
-			window: {},
+			window: { localStorage: storage },
 		}
 	)
 	t.after(() => stops.forEach((stop) => stop()))

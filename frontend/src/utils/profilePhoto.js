@@ -276,3 +276,32 @@ export async function uploadProfilePhoto(
 	}
 	return photo
 }
+
+// 这台手机上已确认「头像已设好」的账号：下次打开应用不用先等检查，后台照常核对
+const PHOTO_DONE_KEY = "hrms:profile-photo-done"
+
+function rememberedUsers(storage) {
+	const users = JSON.parse(storage?.getItem(PHOTO_DONE_KEY) || "[]")
+	return Array.isArray(users) ? users : []
+}
+
+export function rememberPhotoDone(storage, user, done) {
+	if (!storage || !user) return
+	try {
+		const users = new Set(rememberedUsers(storage))
+		if (done) users.add(user)
+		else users.delete(user)
+		storage.setItem(PHOTO_DONE_KEY, JSON.stringify([...users]))
+	} catch (_) {
+		// 存不了就下次再查，不影响使用
+	}
+}
+
+export function isPhotoDoneRemembered(storage, user) {
+	if (!user) return false
+	try {
+		return rememberedUsers(storage).includes(user)
+	} catch (_) {
+		return false
+	}
+}

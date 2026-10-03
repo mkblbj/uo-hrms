@@ -30,9 +30,10 @@ import { session } from "@/data/session"
 import { showNotification } from "@/utils/pushNotifications"
 import { useTheme } from "@/composables/useTheme"
 import { resolveHomeLanguage } from "@/utils/homeExperience"
+import { isPhotoDoneRemembered } from "@/utils/profilePhoto"
 
 const route = useRoute()
-const photoGateBlocked = ref(true)
+const photoGateBlocked = ref(!photoDoneOnThisPhone())
 const photoGateActive = computed(
 	() =>
 		session.isLoggedIn &&
@@ -43,10 +44,18 @@ const canUseApp = computed(() => !photoGateActive.value || !photoGateBlocked.val
 const language = computed(() => resolveHomeLanguage(globalThis.window?.frappe?.boot))
 
 // 每次进入员工应用或切换账号，都先等头像状态确认，避免先显示可操作的页面。
+// 这台手机上确认过头像已设好的账号不用等：页面不撤下，由头像关卡在后台核对。
+function photoDoneOnThisPhone() {
+	try {
+		return isPhotoDoneRemembered(window.localStorage, session.user)
+	} catch (_) {
+		return false
+	}
+}
 watch(
 	[photoGateActive, () => session.user],
 	() => {
-		photoGateBlocked.value = true
+		photoGateBlocked.value = !photoDoneOnThisPhone()
 	},
 	{ flush: "sync" }
 )
