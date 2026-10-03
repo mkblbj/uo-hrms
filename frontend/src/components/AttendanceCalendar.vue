@@ -509,7 +509,7 @@ function isWorkLike(c) {
 }
 
 function isAttendanceDetailVisible(c) {
-	return isWorkLike(c) || c.state === "anomaly"
+	return isWorkLike(c) || c.state === "anomaly" || c.state === "working" || c.state === "checked_out"
 }
 
 // The dialog paints the same states as the grid, so it reads the same tokens
@@ -526,6 +526,8 @@ const STATE_TOKENS = {
 }
 
 function stateTokens(c) {
+	if (c?.state === "working" || c?.state === "checked_out") return STATE_TOKENS.work
+	if (c?.state === "not_checked_in") return STATE_TOKENS.rest
 	return STATE_TOKENS[c?.state] || STATE_TOKENS.empty
 }
 
@@ -541,6 +543,9 @@ function detailPillStyle(c) {
 }
 
 function statusLabel(c) {
+	if (["working", "checked_out", "not_checked_in"].includes(c.state)) {
+		return getAttendanceCopy(`status.${c.state}`, getLang())
+	}
 	const M = messages[getLang()] || messages.zh
 	return M.legend[c.state] || "—"
 }

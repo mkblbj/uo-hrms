@@ -20,7 +20,12 @@ const ATTENDANCE_COPY = {
 	"badge.rest": { zh: "休", ja: "休", en: "Off" },
 	"badge.holiday": { zh: "节", ja: "祝", en: "Hol" },
 	// A day that is clocked in but has no hours yet — typically today, still running.
-	"badge.working": { zh: "出勤", ja: "出勤", en: "In" },
+	"badge.working": { zh: "出勤中", ja: "勤務中", en: "In" },
+	"badge.checked_out": { zh: "已退勤", ja: "退勤済", en: "Out" },
+	"badge.not_checked_in": { zh: "未打卡", ja: "未打刻", en: "No log" },
+	"status.working": { zh: "出勤中", ja: "勤務中", en: "Working" },
+	"status.checked_out": { zh: "已退勤", ja: "退勤済", en: "Checked out" },
+	"status.not_checked_in": { zh: "未打卡", ja: "未打刻", en: "Not checked in" },
 }
 
 function normalizeLanguage(lang) {

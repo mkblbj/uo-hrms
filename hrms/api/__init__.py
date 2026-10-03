@@ -4,7 +4,7 @@ from frappe.model import get_permitted_fields
 from frappe.model.workflow import get_workflow_name
 from frappe.query_builder import Order
 from frappe.translate import get_all_translations
-from frappe.utils import add_days, date_diff, getdate, strip_html
+from frappe.utils import add_days, date_diff, get_datetime, getdate, strip_html
 
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 
@@ -150,6 +150,26 @@ def get_pwa_checkin_log_type(log) -> str:
 	return (log.get("log_type") or "").strip().upper()
 
 
+def build_pwa_today_checkin_event(checkins: list[dict]) -> dict:
+	"""Display today's punch state without creating attendance or calculating hours."""
+	logs = sorted(checkins or [], key=lambda log: get_datetime(log["time"]))
+	if not logs:
+		return {"checkin_status": "not_checked_in", "in_time": None, "out_time": None}
+
+	last_type = get_pwa_checkin_log_type(logs[-1])
+	if last_type not in ("IN", "OUT"):
+		last_type = "IN" if len(logs) % 2 else "OUT"
+	first_in = next((log for log in logs if get_pwa_checkin_log_type(log) == "IN"), None)
+	if not first_in and not any(get_pwa_checkin_log_type(log) for log in logs):
+		first_in = logs[0]
+
+	return {
+		"checkin_status": "working" if last_type == "IN" else "checked_out",
+		"in_time": get_datetime(first_in["time"]).strftime("%H:%M") if first_in else None,
+		"out_time": get_datetime(logs[-1]["time"]).strftime("%H:%M") if last_type == "OUT" else None,
+	}
+
+
 def build_pwa_attendance_anomaly(attendance_date, checkins: list[dict], today=None) -> dict:
 	attendance_date = getdate(attendance_date)
 	today = getdate(today) if today else getdate()
@@ -201,7 +221,7 @@ def group_pwa_checkins_by_attendance_date(
 		if attendance_name and attendance_name in attendance_date_by_name:
 			checkin_date = getdate(attendance_date_by_name[attendance_name])
 		else:
-			checkin_date = getdate(checkin.get("time"))
+			checkin_date = getdate(checkin.get("shift_start") or checkin.get("time"))
 
 		if from_date <= checkin_date <= to_date:
 			grouped.setdefault(checkin_date, []).append(checkin)
@@ -222,7 +242,7 @@ def get_checkins_for_attendance_calendar(
 		for row in frappe.get_all(
 			"Employee Checkin",
 			filters={"employee": employee, "attendance": ["in", attendance_names]},
-			fields=["name", "attendance", "log_type", "time"],
+			fields=["name", "attendance", "log_type", "time", "shift_start"],
 			order_by="time asc",
 		):
 			checkins_by_name[row.name] = row
@@ -233,7 +253,7 @@ def get_checkins_for_attendance_calendar(
 			"employee": employee,
 			"time": ["between", [f"{from_date} 00:00:00", f"{to_date} 23:59:59"]],
 		},
-		fields=["name", "attendance", "log_type", "time"],
+		fields=["name", "attendance", "log_type", "time", "shift_start"],
 		order_by="time asc",
 	):
 		checkins_by_name[row.name] = row
@@ -559,6 +579,7 @@ def get_attendance_calendar_events(from_date: str, to_date: str, employee: str |
 	)
 	shifts = get_shifts_for_calendar(employee, from_date, to_date)
 	events = {}
+	today = getdate()
 
 	date = getdate(from_date)
 	while date_diff(to_date, date) >= 0:
@@ -574,6 +595,9 @@ def get_attendance_calendar_events(from_date: str, to_date: str, employee: str |
 			event["working_hours"] = att["working_hours"]
 		elif date in holidays:
 			event["attendance"] = "Holiday"
+
+		if date == today and date not in attendance:
+			event.update(build_pwa_today_checkin_event(checkins_by_date.get(date, [])))
 
 		# 排班信息
 		if date_str in shifts:
