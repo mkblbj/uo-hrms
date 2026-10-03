@@ -14,17 +14,6 @@ const COPY = {
 		ja: "プロフィール画像を設定するまで、他の機能は利用できません。",
 		en: "Set your profile photo to continue using the app.",
 	},
-	checkingPhoto: {
-		zh: "正在检查头像…",
-		ja: "プロフィール画像を確認中…",
-		en: "Checking your profile photo…",
-	},
-	photoCheckFailed: {
-		zh: "暂时无法确认头像状态，请重试。",
-		ja: "プロフィール画像を確認できませんでした。もう一度お試しください。",
-		en: "Could not check your profile photo. Please try again.",
-	},
-	photoCheckRetry: { zh: "重试", ja: "再試行", en: "Retry" },
 	// 提醒正文是 HR 给的原话（2026-09-29），{0} 是截止日，{1} 是截止日第二天
 	titleChange: { zh: "请更换头像", ja: "プロフィール画像の変更", en: "Change Your Profile Photo" },
 	titleSet: { zh: "请设置头像", ja: "プロフィール画像の設定", en: "Set Your Profile Photo" },
@@ -275,33 +264,4 @@ export async function uploadProfilePhoto(
 		throw error
 	}
 	return photo
-}
-
-// 这台手机上已确认「头像已设好」的账号：下次打开应用不用先等检查，后台照常核对
-const PHOTO_DONE_KEY = "hrms:profile-photo-done"
-
-function rememberedUsers(storage) {
-	const users = JSON.parse(storage?.getItem(PHOTO_DONE_KEY) || "[]")
-	return Array.isArray(users) ? users : []
-}
-
-export function rememberPhotoDone(storage, user, done) {
-	if (!storage || !user) return
-	try {
-		const users = new Set(rememberedUsers(storage))
-		if (done) users.add(user)
-		else users.delete(user)
-		storage.setItem(PHOTO_DONE_KEY, JSON.stringify([...users]))
-	} catch (_) {
-		// 存不了就下次再查，不影响使用
-	}
-}
-
-export function isPhotoDoneRemembered(storage, user) {
-	if (!user) return false
-	try {
-		return rememberedUsers(storage).includes(user)
-	} catch (_) {
-		return false
-	}
 }

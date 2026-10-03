@@ -22,7 +22,7 @@
 import { computed } from "vue"
 import { Icon } from "frappe-ui"
 
-import { profilePhotoStatus as status } from "@/data/profilePhoto"
+import { openPhotoReminder, profilePhotoStatus as status } from "@/data/profilePhoto"
 import { getPromptCardContent } from "@/utils/profilePhoto"
 
 const props = defineProps({
@@ -32,7 +32,9 @@ const props = defineProps({
 const showCard = computed(() => Boolean(status.data?.required && !status.data?.has_photo))
 const card = computed(() => getPromptCardContent(status.data, props.lang))
 
+// 自己点开的提醒不用倒计时；顺便刷新一下状态
 function checkProfilePhoto() {
+	openPhotoReminder(0)
 	status.reload().catch(() => {})
 }
 </script>

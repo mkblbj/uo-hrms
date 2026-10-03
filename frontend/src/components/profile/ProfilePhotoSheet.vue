@@ -55,9 +55,10 @@
 						v-if="!mandatory"
 						type="button"
 						class="photo-sheet-link"
+						:disabled="remaining > 0"
 						@click="close(dismissEvent)"
 					>
-						{{ mode === "reminder" ? t("later") : t("cancel") }}
+						{{ laterLabel }}
 					</button>
 				</template>
 				<template v-else>
@@ -104,7 +105,7 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref } from "vue"
+import { computed, onBeforeUnmount, ref, watch } from "vue"
 import { IonModal } from "@ionic/vue"
 import { Icon } from "frappe-ui"
 
@@ -124,6 +125,8 @@ const props = defineProps({
 	status: { type: Object, default: null },
 	currentPhoto: { type: String, default: "" },
 	lang: { type: String, default: "zh" },
+	// 「稍后再说」要等这么多秒才能点（每次打开应用的提醒用；自己点开的为 0）
+	snoozeDelay: { type: Number, default: 0 },
 })
 
 const emit = defineEmits(["snooze", "cancel", "uploaded"])
@@ -146,6 +149,43 @@ const heading = computed(() => {
 	return props.mode === "reminder" ? content.value.title : t("changeTitle")
 })
 const dismissEvent = computed(() => (props.mode === "reminder" ? "snooze" : "cancel"))
+
+const remaining = ref(0)
+let countdownTimer = null
+const laterLabel = computed(() => {
+	const label = props.mode === "reminder" ? t("later") : t("cancel")
+	return remaining.value > 0 ? `${label} (${remaining.value}s)` : label
+})
+
+function stopCountdown() {
+	if (countdownTimer) clearInterval(countdownTimer)
+	countdownTimer = null
+}
+
+// 按结束时刻算剩余秒数：手机切到后台计时器变慢也不会多等
+function startCountdown() {
+	stopCountdown()
+	const delay = Math.max(0, Number(props.snoozeDelay) || 0)
+	const endsAt = Date.now() + delay * 1000
+	const tick = () => {
+		remaining.value = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))
+		if (remaining.value === 0) stopCountdown()
+	}
+	tick()
+	if (remaining.value > 0) countdownTimer = setInterval(tick, 250)
+}
+
+watch(
+	() => [props.isOpen, props.snoozeDelay],
+	([open]) => {
+		if (open) startCountdown()
+		else {
+			stopCountdown()
+			remaining.value = 0
+		}
+	},
+	{ immediate: true }
+)
 
 function pick(kind) {
 	errorMessage.value = ""
@@ -198,7 +238,7 @@ function backToIntro() {
 }
 
 function close(event) {
-	if (props.mandatory) return
+	if (props.mandatory || remaining.value > 0) return
 	closedByUs = true
 	emit(event)
 	reset()
@@ -206,7 +246,7 @@ function close(event) {
 
 function canDismiss() {
 	// 强制模式让 Ionic 接管返回键和 Esc，实际关闭统一由这个条件决定。
-	return !props.mandatory || !props.isOpen || closedByUs
+	return (!props.mandatory && remaining.value === 0) || !props.isOpen || closedByUs
 }
 
 // 安卓返回键这类从外面关掉的，按「稍后再说 / 取消」算
@@ -232,6 +272,7 @@ function reset() {
 
 onBeforeUnmount(() => {
 	closedByUs = true
+	stopCountdown()
 	releaseSource()
 })
 </script>
@@ -416,6 +457,10 @@ onBeforeUnmount(() => {
 	color: var(--h-fg-secondary);
 	font-size: 14px;
 	font-weight: 600;
+}
+
+.photo-sheet-link:disabled {
+	opacity: 0.5;
 }
 
 /* 不能用 display:none，部分 iPhone 上点不开选图 */

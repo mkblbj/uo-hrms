@@ -11,9 +11,7 @@ import {
 	PHOTO_STATUS_METHOD,
 	getPromptCardContent,
 	getReminderContent,
-	isPhotoDoneRemembered,
 	pickPhotoCopy,
-	rememberPhotoDone,
 } from "./profilePhoto.js"
 
 const dir = path.dirname(fileURLToPath(import.meta.url))
@@ -36,17 +34,7 @@ const temporaryPhoto = {
 	overdue: false,
 }
 
-function memoryStorage(rememberedUsers = []) {
-	const data = new Map()
-	const storage = {
-		getItem: (key) => (data.has(key) ? data.get(key) : null),
-		setItem: (key, value) => data.set(key, String(value)),
-	}
-	for (const user of rememberedUsers) rememberPhotoDone(storage, user, true)
-	return storage
-}
-
-function setupGlobalGate(t, onBlocked, { user = "employee@example.com", storage = memoryStorage() } = {}) {
+function setupReminderGate(t, { now = () => 0 } = {}) {
 	const stops = []
 	let resolveRequest
 	let rejectRequest
@@ -72,31 +60,39 @@ function setupGlobalGate(t, onBlocked, { user = "employee@example.com", storage 
 			})
 		},
 	})
+	// 每个提醒入口都是一次新打开的应用：提醒状态各自独立
+	const photoReminder = reactive({ open: false, snoozeDelay: 0 })
 	const { descriptor } = parse(read("../components/profile/ProfilePhotoGate.vue"))
 	const script = descriptor.scriptSetup.content.replace(/import[\s\S]*?from ["'][^"']+["']/g, "")
-	const state = runInNewContext(`${script}\n;({ blocked, needsPhoto, onUploaded, recheck })`, {
-		computed,
-		watch: (...args) => {
-			const stop = watch(...args)
-			stops.push(stop)
-			return stop
-		},
-		defineProps: () => ({ lang: "zh" }),
-		defineEmits: () => (_name, value) => onBlocked(value),
-		onMounted() {},
-		onBeforeUnmount() {},
-		status,
-		pickPhotoCopy,
-		isPhotoDoneRemembered,
-		rememberPhotoDone,
-		session: { user },
-		window: { localStorage: storage },
-		toast: { success() {} },
-		refreshProfilePhoto() {},
-	})
+	const state = runInNewContext(
+		`${script}\n;({ needsPhoto, onSnooze, onUploaded, onVisibilityChange })`,
+		{
+			computed,
+			watch: (...args) => {
+				const stop = watch(...args)
+				stops.push(stop)
+				return stop
+			},
+			defineProps: () => ({ lang: "zh" }),
+			onMounted() {},
+			onBeforeUnmount() {},
+			status,
+			photoReminder,
+			openPhotoReminder(snoozeDelay = 0) {
+				photoReminder.snoozeDelay = snoozeDelay
+				photoReminder.open = true
+			},
+			pickPhotoCopy,
+			toast: { success() {} },
+			refreshProfilePhoto() {},
+			document: { visibilityState: "visible" },
+			Date: { now },
+		}
+	)
 	t.after(() => stops.forEach((stop) => stop()))
 	return {
 		...state,
+		photoReminder,
 		respond(data) {
 			status.data = data
 			status.loading = false
@@ -110,118 +106,67 @@ function setupGlobalGate(t, onBlocked, { user = "employee@example.com", storage 
 	}
 }
 
-test("the global photo gate blocks unfinished photos and releases access after a successful upload", (t) => {
-	const app = setupAppGate(t, { routeName: "EmployeeChat" })
-	const gate = setupGlobalGate(t, (value) => {
-		app.photoGateBlocked.value = value
-	})
-	assert.equal(app.canUseApp.value, false)
+test("a missing photo opens the reminder with a 30 second wait every time the app opens", (t) => {
+	const gate = setupReminderGate(t)
+	assert.equal(gate.photoReminder.open, false)
 	gate.respond(temporaryPhoto)
-	assert.equal(gate.needsPhoto.value, true)
-	assert.equal(app.canUseApp.value, false)
-	gate.onUploaded("/files/own-photo.gif")
-	assert.equal(gate.needsPhoto.value, false)
-	assert.equal(app.canUseApp.value, true)
-	gate.respond({ ...temporaryPhoto, has_photo: true, temporary: false })
-	assert.equal(app.canUseApp.value, true)
+	assert.deepEqual([gate.photoReminder.open, gate.photoReminder.snoozeDelay], [true, 30])
+	gate.onSnooze()
+	assert.equal(gate.photoReminder.open, false)
+	const nextLaunch = setupReminderGate(t)
+	nextLaunch.respond(temporaryPhoto)
+	assert.deepEqual([nextLaunch.photoReminder.open, nextLaunch.photoReminder.snoozeDelay], [true, 30])
 })
 
-test("own photos and a disabled requirement allow access on the first check", (t) => {
+test("own photos, a disabled requirement or a failed check open no reminder", (t) => {
 	for (const status of [
-		{ ...temporaryPhoto, has_photo: true },
+		{ ...temporaryPhoto, has_photo: true, temporary: false },
 		{ ...temporaryPhoto, required: false },
 	]) {
-		const app = setupAppGate(t)
-		const gate = setupGlobalGate(t, (value) => {
-			app.photoGateBlocked.value = value
-		})
+		const gate = setupReminderGate(t)
 		gate.respond(status)
-		assert.equal(app.canUseApp.value, true)
+		assert.equal(gate.photoReminder.open, false)
 	}
+	const failed = setupReminderGate(t)
+	failed.fail()
+	assert.equal(failed.photoReminder.open, false)
 })
 
-test("a failed photo status check stays locked and retry checks the actual status", (t) => {
-	const app = setupAppGate(t)
-	const gate = setupGlobalGate(t, (value) => {
-		app.photoGateBlocked.value = value
-	})
-	gate.fail()
-	assert.equal(app.canUseApp.value, false)
-	gate.recheck()
-	gate.respond({ ...temporaryPhoto, has_photo: true })
-	assert.equal(app.canUseApp.value, true)
-})
-
-test("a locked app rechecks server state when the requirement is lifted or another device uploads", (t) => {
-	for (const next of [
-		{ ...temporaryPhoto, required: false },
-		{ ...temporaryPhoto, has_photo: true },
-	]) {
-		const app = setupAppGate(t)
-		const gate = setupGlobalGate(t, (value) => {
-			app.photoGateBlocked.value = value
-		})
-		gate.respond(temporaryPhoto)
-		assert.equal(app.canUseApp.value, false)
-		const request = gate.recheck()
-		assert.ok(request instanceof Promise)
-		gate.respond(next)
-		assert.equal(app.canUseApp.value, true)
-	}
-})
-
-function rememberedGate(t, rememberedUsers = ["employee@example.com"]) {
-	const storage = memoryStorage(rememberedUsers)
-	const app = setupAppGate(t, { storage })
-	const gate = setupGlobalGate(
-		t,
-		(value) => {
-			app.photoGateBlocked.value = value
-		},
-		{ storage }
-	)
-	return { app, gate, storage }
-}
-
-test("a phone that already confirmed the photo opens the app without waiting for the check", (t) => {
-	const { app, gate } = rememberedGate(t)
-	assert.equal(app.canUseApp.value, true)
-	assert.equal(gate.blocked.value, false)
-	gate.respond({ ...temporaryPhoto, has_photo: true, temporary: false })
-	assert.equal(app.canUseApp.value, true)
-})
-
-test("a remembered phone still locks when the check finds the photo missing", (t) => {
-	const { app, gate, storage } = rememberedGate(t)
+test("after skipping, coming back to the app reminds again only after 10 minutes", (t) => {
+	const clock = { now: 1_000_000 }
+	const gate = setupReminderGate(t, { now: () => clock.now })
 	gate.respond(temporaryPhoto)
-	assert.equal(gate.needsPhoto.value, true)
-	assert.equal(app.canUseApp.value, false)
-	assert.equal(isPhotoDoneRemembered(storage, "employee@example.com"), false)
+	gate.onSnooze()
+	clock.now += 9 * 60 * 1000
+	gate.onVisibilityChange()
+	assert.equal(gate.photoReminder.open, false)
+	clock.now += 2 * 60 * 1000
+	gate.onVisibilityChange()
+	assert.deepEqual([gate.photoReminder.open, gate.photoReminder.snoozeDelay], [true, 30])
 })
 
-test("a failed check does not lock a phone that already confirmed the photo", (t) => {
-	const { app, gate } = rememberedGate(t)
-	gate.fail()
-	assert.equal(app.canUseApp.value, true)
+test("uploading a photo closes the reminder", (t) => {
+	const gate = setupReminderGate(t)
+	gate.respond(temporaryPhoto)
+	gate.onUploaded("/files/own-photo.jpg")
+	assert.equal(gate.needsPhoto.value, false)
+	assert.equal(gate.photoReminder.open, false)
 })
 
-test("another account on the same phone still waits for its own check", (t) => {
-	const { app } = rememberedGate(t, ["someone-else@example.com"])
-	assert.equal(app.canUseApp.value, false)
-})
-
-test("a confirmed or newly uploaded photo is remembered for the next launch", (t) => {
-	for (const finish of ["confirmed", "uploaded"]) {
-		const storage = memoryStorage()
-		const gate = setupGlobalGate(t, () => {}, { storage })
-		if (finish === "confirmed") {
-			gate.respond({ ...temporaryPhoto, has_photo: true, temporary: false })
-		} else {
-			gate.respond(temporaryPhoto)
-			gate.onUploaded("/files/own-photo.jpg")
-		}
-		assert.equal(isPhotoDoneRemembered(storage, "employee@example.com"), true, finish)
-	}
+test("the home card opens the reminder without the wait", () => {
+	const opened = []
+	const { descriptor } = parse(read("../components/home/ProfilePhotoReminder.vue"))
+	const script = descriptor.scriptSetup.content.replace(/import[\s\S]*?from ["'][^"']+["']/g, "")
+	const card = runInNewContext(`${script}\n;({ showCard, checkProfilePhoto })`, {
+		computed,
+		defineProps: () => ({ lang: "zh" }),
+		status: reactive({ data: temporaryPhoto, reload: async () => temporaryPhoto }),
+		getPromptCardContent,
+		openPhotoReminder: (snoozeDelay = 0) => opened.push(snoozeDelay),
+	})
+	assert.equal(card.showCard.value, true)
+	card.checkProfilePhoto()
+	assert.deepEqual(opened, [0])
 })
 
 test("sheet offers camera and library, cannot be dismissed by tapping outside", () => {
@@ -238,15 +183,20 @@ test("sheet offers camera and library, cannot be dismissed by tapping outside", 
 	assert.doesNotMatch(source, /\.photo-sheet-input\s*{[^}]*display:\s*none/)
 })
 
-function setupSheet(props, uploadImpl = async () => "/files/own-photo.jpg") {
+function setupSheet(props, uploadImpl = async () => "/files/own-photo.jpg", { now = () => 0 } = {}) {
 	const emitted = []
+	const timers = []
 	const { descriptor } = parse(read("../components/profile/ProfilePhotoSheet.vue"))
 	const script = descriptor.scriptSetup.content.replace(/import[\s\S]*?from ["'][^"']+["']/g, "")
 	const state = runInNewContext(
-		`${script}\n;({ canDismiss: typeof canDismiss === 'function' ? canDismiss : () => true, close, upload, editorRef, errorMessage })`,
+		`${script}\n;({ canDismiss: typeof canDismiss === 'function' ? canDismiss : () => true, close, upload, editorRef, errorMessage, remaining: typeof remaining !== 'undefined' ? remaining : ref(0) })`,
 		{
 			computed,
 			ref,
+			watch,
+			Date: { now },
+			setInterval: (fn) => timers.push(fn),
+			clearInterval() {},
 			defineProps: () => props,
 			defineEmits: () => (name, value) => emitted.push({ name, value }),
 			onBeforeUnmount() {},
@@ -258,7 +208,7 @@ function setupSheet(props, uploadImpl = async () => "/files/own-photo.jpg") {
 		}
 	)
 	state.editorRef.value = {}
-	return { ...state, emitted }
+	return { ...state, emitted, tick: () => timers.forEach((fn) => fn()) }
 }
 
 test("mandatory photo sheet refuses every dismiss action until the upload succeeds", async () => {
@@ -304,57 +254,40 @@ test("normal profile photo changes can still be cancelled", () => {
 	assert.equal(sheet.emitted[0].name, "cancel")
 })
 
-function setupAppGate(
-	t,
-	{ user = "employee@example.com", routeName = "Home", linked = true, storage = memoryStorage() } = {}
-) {
-	const stops = []
-	const session = reactive({ user, isLoggedIn: Boolean(user) })
-	const route = reactive({ name: routeName })
-	const employeeResource = reactive({ data: linked ? { user_id: user } : null })
-	const { descriptor } = parse(read("../App.vue"))
-	const script = descriptor.scriptSetup.content.replace(/import[\s\S]*?from ["'][^"']+["']/g, "")
-	const state = runInNewContext(
-		`${script}\n;({ canUseApp: typeof canUseApp !== 'undefined' ? canUseApp : computed(() => true), photoGateBlocked: typeof photoGateBlocked !== 'undefined' ? photoGateBlocked : ref(false) })`,
-		{
-			computed,
-			ref,
-			watch: (...args) => {
-				const stop = watch(...args)
-				stops.push(stop)
-				return stop
-			},
-			onMounted() {},
-			useTheme() {},
-			useRoute: () => route,
-			resolveHomeLanguage: () => "zh",
-			isPhotoDoneRemembered,
-			session,
-			employeeResource,
-			window: { localStorage: storage },
-		}
+test("the later button only works after its 30 second countdown", () => {
+	const clock = { now: 0 }
+	const sheet = setupSheet(
+		{ mandatory: false, isOpen: true, mode: "reminder", lang: "zh", status: temporaryPhoto, snoozeDelay: 30 },
+		undefined,
+		{ now: () => clock.now }
 	)
-	t.after(() => stops.forEach((stop) => stop()))
-	return { ...state, session, route }
-}
-
-test("all employee routes stay locked until the global photo check allows access", (t) => {
-	for (const routeName of ["Home", "Profile", "EmployeeChat", "AttendanceDashboard"]) {
-		const app = setupAppGate(t, { routeName })
-		assert.equal(app.canUseApp.value, false, routeName)
-		app.photoGateBlocked.value = false
-		assert.equal(app.canUseApp.value, true, routeName)
-		app.photoGateBlocked.value = true
-		assert.equal(app.canUseApp.value, false, routeName)
-	}
+	assert.equal(sheet.remaining.value, 30)
+	assert.equal(sheet.canDismiss(undefined, "cancel"), false)
+	sheet.close("snooze")
+	assert.equal(sheet.emitted.length, 0)
+	clock.now = 29_500
+	sheet.tick()
+	assert.equal(sheet.remaining.value, 1)
+	clock.now = 30_000
+	sheet.tick()
+	assert.equal(sheet.remaining.value, 0)
+	assert.equal(sheet.canDismiss(undefined, "cancel"), true)
+	sheet.close("snooze")
+	assert.equal(sheet.emitted[0].name, "snooze")
 })
 
-test("photo enforcement leaves login, password recovery and invalid employee pages available", (t) => {
-	for (const routeName of ["Login", "ForgotPassword", "InvalidEmployee"]) {
-		assert.equal(setupAppGate(t, { routeName }).canUseApp.value, true)
-	}
-	assert.equal(setupAppGate(t, { user: null }).canUseApp.value, true)
-	assert.equal(setupAppGate(t, { linked: false }).canUseApp.value, true)
+test("a reminder opened from the home card can be closed at once", () => {
+	const sheet = setupSheet({
+		mandatory: false,
+		isOpen: true,
+		mode: "reminder",
+		lang: "zh",
+		status: temporaryPhoto,
+		snoozeDelay: 0,
+	})
+	assert.equal(sheet.remaining.value, 0)
+	sheet.close("snooze")
+	assert.equal(sheet.emitted[0].name, "snooze")
 })
 
 test("editor is a round frame with drag, pinch and a zoom slider", () => {
