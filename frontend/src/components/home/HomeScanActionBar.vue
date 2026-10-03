@@ -251,6 +251,10 @@ const actionDescription = computed(() => {
 	transition: transform 0.14s ease;
 }
 
+.scan-action-qr span {
+	white-space: nowrap;
+}
+
 .scan-action-qr:active:not(.is-disabled) {
 	transform: scale(0.97);
 }
