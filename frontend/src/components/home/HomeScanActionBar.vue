@@ -1,21 +1,36 @@
 <template>
 	<div class="home-scan-action-bar">
-		<button
-			type="button"
-			class="scan-action-button"
-			:class="{ 'is-disabled': isDisabled }"
-			:disabled="isDisabled"
-			@click="$emit('scan')"
-		>
-			<span class="scan-action-icon" aria-hidden="true">
-				<Icon :icon="iconName" class="h-5 w-5" />
-			</span>
-			<span class="scan-action-copy">
-				<strong>{{ actionTitle }}</strong>
-				<small>{{ actionDescription }}</small>
-			</span>
-			<Icon icon="lucide-chevron-right" class="scan-action-arrow" />
-		</button>
+		<!-- 面容／指纹模式：左边大按钮刷脸（主），右边小按钮直接扫码（次） -->
+		<div class="scan-action-row" :class="{ 'is-split': isPasskey }">
+			<button
+				type="button"
+				class="scan-action-button"
+				:class="{ 'is-disabled': isDisabled }"
+				:disabled="isDisabled"
+				@click="$emit('scan')"
+			>
+				<span class="scan-action-icon" aria-hidden="true">
+					<Icon :icon="iconName" class="h-5 w-5" />
+				</span>
+				<span class="scan-action-copy">
+					<strong>{{ actionTitle }}</strong>
+					<small>{{ actionDescription }}</small>
+				</span>
+				<Icon v-if="!isPasskey" icon="lucide-chevron-right" class="scan-action-arrow" />
+			</button>
+			<button
+				v-if="isPasskey"
+				type="button"
+				class="scan-action-qr"
+				:class="{ 'is-disabled': isDisabled }"
+				:disabled="isDisabled"
+				:aria-label="pickPasskeyCopy('scanQr', props.lang)"
+				@click="$emit('scan-qr')"
+			>
+				<Icon icon="lucide-qr-code" class="h-5 w-5" aria-hidden="true" />
+				<span>{{ pickPasskeyCopy("scanShort", props.lang) }}</span>
+			</button>
+		</div>
 	</div>
 </template>
 
@@ -56,7 +71,7 @@ const props = defineProps({
 	},
 })
 
-defineEmits(["scan"])
+defineEmits(["scan", "scan-qr"])
 
 const labels = {
 	CHECK_IN: {
@@ -125,6 +140,13 @@ const actionDescription = computed(() => {
 	left: 16px;
 	z-index: 25;
 	pointer-events: none;
+}
+
+.scan-action-row {
+	display: flex;
+	gap: 8px;
+	width: min(100%, 520px);
+	margin: 0 auto;
 }
 
 .scan-action-button {
@@ -199,5 +221,41 @@ const actionDescription = computed(() => {
 	width: 18px;
 	height: 18px;
 	opacity: 0.75;
+}
+
+.scan-action-row.is-split .scan-action-button {
+	flex: 1;
+	min-width: 0;
+	width: auto;
+	margin: 0;
+}
+
+.scan-action-qr {
+	display: flex;
+	flex: 0 0 72px;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 3px;
+	min-height: 54px;
+	border: 1px solid var(--h-bd-default);
+	border-radius: 20px;
+	background: var(--h-bg-elevated);
+	color: var(--h-fg-secondary);
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 1.2;
+	box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+	backdrop-filter: blur(18px);
+	pointer-events: auto;
+	transition: transform 0.14s ease;
+}
+
+.scan-action-qr:active:not(.is-disabled) {
+	transform: scale(0.97);
+}
+
+.scan-action-qr.is-disabled {
+	opacity: 0.5;
 }
 </style>

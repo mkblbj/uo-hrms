@@ -15,6 +15,15 @@ test("action bar has a passkey mode with a face icon and busy state", () => {
 	assert.match(source, /pickPasskeyCopy/)
 })
 
+test("face check-in bar has a smaller QR shortcut that opens the scanner", () => {
+	const bar = read("../components/home/HomeScanActionBar.vue")
+	assert.match(bar, /class="scan-action-qr"/)
+	assert.match(bar, /\$emit\('scan-qr'\)/)
+	assert.match(bar, /lucide-qr-code/)
+	const panel = read("../components/CheckInPanel.vue")
+	assert.match(panel, /@scan-qr="openQRScanner"/)
+})
+
 test("check-in panel wires the passkey flow and the sheet", () => {
 	const source = read("../components/CheckInPanel.vue")
 	for (const needle of [

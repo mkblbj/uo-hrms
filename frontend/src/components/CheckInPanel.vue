@@ -54,6 +54,7 @@
 		:busy="passkeyBusy"
 		:disabled="!isMobileCheckinAllowed || props.workStatus?.loading"
 		@scan="onPrimaryAction"
+		@scan-qr="openQRScanner"
 	/>
 
 	<PasskeyCheckinSheet
