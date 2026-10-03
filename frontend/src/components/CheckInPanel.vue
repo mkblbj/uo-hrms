@@ -2,6 +2,13 @@
 	<div class="checkin-panel" :class="{ 'intro-play': introPlay }">
 		<PushNotificationPrompt />
 		<ProfilePhotoReminder :lang="currentLanguage" />
+		<PasskeySetupReminder
+			v-if="isMobileCheckinAllowed"
+			:context="passkeyContext.data"
+			:platform-supported="platformSupported"
+			:lang="currentLanguage"
+			@registered="passkeyContext.reload()"
+		/>
 
 		<section
 			v-if="todaySaleEvent"
@@ -183,6 +190,7 @@ import CheckinSuccessOverlay from "@/components/home/CheckinSuccessOverlay.vue"
 import HomeHeroCard from "@/components/home/HomeHeroCard.vue"
 import PushNotificationPrompt from "@/components/home/PushNotificationPrompt.vue"
 import ProfilePhotoReminder from "@/components/home/ProfilePhotoReminder.vue"
+import PasskeySetupReminder from "@/components/home/PasskeySetupReminder.vue"
 import HomeScanActionBar from "@/components/home/HomeScanActionBar.vue"
 import HomeStatsGrid from "@/components/home/HomeStatsGrid.vue"
 import PasskeyCheckinSheet from "@/components/home/PasskeyCheckinSheet.vue"
