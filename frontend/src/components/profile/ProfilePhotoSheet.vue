@@ -20,9 +20,6 @@
 						</div>
 						<h2 class="photo-sheet-title">{{ heading }}</h2>
 						<p v-if="mandatory" class="photo-sheet-required">{{ t("mandatoryNotice") }}</p>
-						<p v-if="mode === 'reminder' && content.deadline" class="photo-sheet-deadline">
-							{{ content.deadline }}
-						</p>
 						<p v-if="mode === 'reminder'" class="photo-sheet-notice">{{ content.lead }}</p>
 						<p v-else class="photo-sheet-lead">{{ t("changeLead") }}</p>
 					</template>
@@ -357,19 +354,6 @@ onBeforeUnmount(() => {
 	color: var(--h-fg-secondary);
 	font-size: 15px;
 	line-height: 1.7;
-	text-align: center;
-}
-
-.photo-sheet-deadline {
-	width: min(100%, 420px);
-	padding: 12px 16px;
-	color: var(--h-summary-warn-fg);
-	background: var(--h-summary-warn-bg);
-	border: 1px solid var(--h-summary-warn-bd);
-	border-radius: 12px;
-	font-size: 18px;
-	font-weight: 800;
-	line-height: 1.5;
 	text-align: center;
 }
 

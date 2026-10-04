@@ -25,7 +25,7 @@ import {
 import { pickPhotoCopy } from "@/utils/profilePhoto"
 
 // 没自己上传头像的员工：每次打开应用弹出提醒，倒计时结束后可以先跳过，不挡打卡和其他页面。
-const SNOOZE_DELAY_SECONDS = 30
+const SNOOZE_DELAY_SECONDS = 60
 // 跳过后从后台切回来，离开超过这么久才再提醒（去拍照这类短暂切出不算）
 const REMIND_AGAIN_AFTER_MS = 10 * 60 * 1000
 

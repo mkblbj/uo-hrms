@@ -1,10 +1,5 @@
 <template>
-	<section
-		v-if="showCard"
-		class="photo-prompt"
-		:class="{ 'is-overdue': card.overdue }"
-		aria-live="polite"
-	>
+	<section v-if="showCard" class="photo-prompt" aria-live="polite">
 		<div class="photo-prompt-icon" aria-hidden="true">
 			<Icon icon="lucide-circle-user-round" class="h-5 w-5" />
 		</div>
@@ -52,12 +47,6 @@ function checkProfilePhoto() {
 	border-radius: 16px;
 }
 
-.photo-prompt.is-overdue {
-	color: var(--h-summary-warn-fg);
-	background: var(--h-summary-warn-bg);
-	border-color: var(--h-summary-warn-bd);
-}
-
 .photo-prompt-icon {
 	display: grid;
 	flex: 0 0 44px;
@@ -67,12 +56,6 @@ function checkProfilePhoto() {
 	color: var(--h-tab-active);
 	background: var(--h-bg-card-inner);
 	border-radius: 12px;
-}
-
-.is-overdue .photo-prompt-icon {
-	color: var(--h-summary-warn-fg);
-	background: var(--h-summary-warn-bg);
-	border: 1px solid var(--h-summary-warn-bd);
 }
 
 .photo-prompt-content {
@@ -92,10 +75,6 @@ function checkProfilePhoto() {
 	color: var(--h-fg-secondary);
 	font-size: 14px;
 	line-height: 1.5;
-}
-
-.is-overdue .photo-prompt-content p {
-	color: var(--h-summary-warn-fg);
 }
 
 .photo-prompt-button {

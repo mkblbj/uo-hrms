@@ -106,16 +106,16 @@ function setupReminderGate(t, { now = () => 0 } = {}) {
 	}
 }
 
-test("a missing photo opens the reminder with a 30 second wait every time the app opens", (t) => {
+test("a missing photo opens the reminder with a 60 second wait every time the app opens", (t) => {
 	const gate = setupReminderGate(t)
 	assert.equal(gate.photoReminder.open, false)
 	gate.respond(temporaryPhoto)
-	assert.deepEqual([gate.photoReminder.open, gate.photoReminder.snoozeDelay], [true, 30])
+	assert.deepEqual([gate.photoReminder.open, gate.photoReminder.snoozeDelay], [true, 60])
 	gate.onSnooze()
 	assert.equal(gate.photoReminder.open, false)
 	const nextLaunch = setupReminderGate(t)
 	nextLaunch.respond(temporaryPhoto)
-	assert.deepEqual([nextLaunch.photoReminder.open, nextLaunch.photoReminder.snoozeDelay], [true, 30])
+	assert.deepEqual([nextLaunch.photoReminder.open, nextLaunch.photoReminder.snoozeDelay], [true, 60])
 })
 
 test("own photos, a disabled requirement or a failed check open no reminder", (t) => {
@@ -142,7 +142,7 @@ test("after skipping, coming back to the app reminds again only after 10 minutes
 	assert.equal(gate.photoReminder.open, false)
 	clock.now += 2 * 60 * 1000
 	gate.onVisibilityChange()
-	assert.deepEqual([gate.photoReminder.open, gate.photoReminder.snoozeDelay], [true, 30])
+	assert.deepEqual([gate.photoReminder.open, gate.photoReminder.snoozeDelay], [true, 60])
 })
 
 test("uploading a photo closes the reminder", (t) => {
@@ -254,21 +254,21 @@ test("normal profile photo changes can still be cancelled", () => {
 	assert.equal(sheet.emitted[0].name, "cancel")
 })
 
-test("the later button only works after its 30 second countdown", () => {
+test("the later button only works after its 60 second countdown", () => {
 	const clock = { now: 0 }
 	const sheet = setupSheet(
-		{ mandatory: false, isOpen: true, mode: "reminder", lang: "zh", status: temporaryPhoto, snoozeDelay: 30 },
+		{ mandatory: false, isOpen: true, mode: "reminder", lang: "zh", status: temporaryPhoto, snoozeDelay: 60 },
 		undefined,
 		{ now: () => clock.now }
 	)
-	assert.equal(sheet.remaining.value, 30)
+	assert.equal(sheet.remaining.value, 60)
 	assert.equal(sheet.canDismiss(undefined, "cancel"), false)
 	sheet.close("snooze")
 	assert.equal(sheet.emitted.length, 0)
-	clock.now = 29_500
+	clock.now = 59_500
 	sheet.tick()
 	assert.equal(sheet.remaining.value, 1)
-	clock.now = 30_000
+	clock.now = 60_000
 	sheet.tick()
 	assert.equal(sheet.remaining.value, 0)
 	assert.equal(sheet.canDismiss(undefined, "cancel"), true)
