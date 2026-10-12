@@ -35,7 +35,8 @@ const emit = defineEmits(["select"])
 const button = ref(null)
 
 const blockKind = computed(() => {
-	const { state, hours } = props.cell
+	const { state, hours, weekday } = props.cell
+	if (state === "rest" && (weekday === 0 || weekday === 6)) return "empty"
 	if (["working", "checked_out", "not_checked_in"].includes(state)) return state
 	if (state === "anomaly") return "anomaly"
 	if (state === "holiday") return "holiday"
