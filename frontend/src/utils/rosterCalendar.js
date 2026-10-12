@@ -49,6 +49,31 @@ const ROSTER_COPY = {
 		ja: "締切 {date}",
 		en: "Due {date}",
 	},
+	homePreferenceTitle: {
+		zh: "排班意愿",
+		ja: "シフト希望",
+		en: "Shift preferences",
+	},
+	homePreferenceRemaining: {
+		zh: "还差 {n} 个月",
+		ja: "あと{n}か月分",
+		en: "{n} months left",
+	},
+	homePreferenceRemainingOne: {
+		zh: "还差 1 个月",
+		ja: "あと1か月分",
+		en: "1 month left",
+	},
+	homePreferenceAllSubmitted: {
+		zh: "已全部提交",
+		ja: "すべて提出済み",
+		en: "All submitted",
+	},
+	homePreferenceSubmit: {
+		zh: "填写意愿",
+		ja: "希望を入力",
+		en: "Submit",
+	},
 	previousMonth: {
 		zh: "上个月",
 		ja: "前の月",
@@ -220,6 +245,60 @@ export function resolveRosterInitialState({ now = new Date(), query = {} }) {
 		month: now.getMonth() + 1,
 		legacyPeriod: typeof query.period === "string" ? query.period : "",
 	}
+}
+
+const URGENT_DEADLINE_DAYS = 7
+
+function parseIsoDate(value) {
+	const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ""))
+	if (!match) return null
+	return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) }
+}
+
+function daysUntil(deadline, today) {
+	const a = parseIsoDate(deadline)
+	const b = parseIsoDate(today)
+	if (!a || !b) return null
+	const span = Date.UTC(a.year, a.month - 1, a.day) - Date.UTC(b.year, b.month - 1, b.day)
+	return Math.round(span / 86400000)
+}
+
+// 首页「シフト希望」卡片：一个表头加每月一行，整行可点；截止日一周内才标醒目色
+export function buildHomePreferenceGroup(notices, { lang = "zh", today = "" } = {}) {
+	const language = normalizeRosterLanguage(lang)
+	const rows = (notices || []).map((notice) => {
+		const done = Boolean(notice.has_preference)
+		const deadline = parseIsoDate(notice.preference_deadline)
+		const remaining = done ? null : daysUntil(notice.preference_deadline, today)
+		return {
+			period: notice.period,
+			title: formatRosterPreferenceTitle(notice, language),
+			done,
+			actionText: getRosterCopy(done ? "submitted" : "homePreferenceSubmit", language),
+			deadlineText: deadline
+				? getRosterCopy("deadline", language, { date: `${deadline.month}/${deadline.day}` })
+				: "",
+			urgent: remaining !== null && remaining <= URGENT_DEADLINE_DAYS,
+			to: `/work-roster/preference/${notice.period}`,
+		}
+	})
+	const pending = rows.filter((row) => !row.done).length
+	let countText = ""
+	let countTone = ""
+	if (rows.length > 1) {
+		if (pending === 0) {
+			countText = getRosterCopy("homePreferenceAllSubmitted", language)
+			countTone = "done"
+		} else {
+			countText = getRosterCopy(
+				pending === 1 ? "homePreferenceRemainingOne" : "homePreferenceRemaining",
+				language,
+				{ n: pending }
+			)
+			countTone = "pending"
+		}
+	}
+	return { title: getRosterCopy("homePreferenceTitle", language), countText, countTone, rows }
 }
 
 // 首页希望提醒：每个正在收集希望的月份都提示；旧版服务器只给一条 preference_notice

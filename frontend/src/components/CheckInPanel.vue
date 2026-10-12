@@ -22,14 +22,13 @@
 			</div>
 		</section>
 
-		<div v-if="homePreferenceNotices.length" class="home-preference-list">
-			<RosterPreferenceBanner
-				v-for="notice in homePreferenceNotices"
-				:key="notice.period"
-				:notice="notice"
-				:labels="preferenceLabels"
-			/>
-		</div>
+		<RosterPreferenceGroup
+			v-if="homePreferenceNotices.length"
+			class="intro-stagger intro-stagger-0"
+			:notices="homePreferenceNotices"
+			:lang="currentLanguage"
+			:today="homeScheduleSummary.data?.today || ''"
+		/>
 
 		<HomeHeroCard
 			ref="heroCardRef"
@@ -204,7 +203,7 @@ import HomeStatsGrid from "@/components/home/HomeStatsGrid.vue"
 import PasskeyCheckinSheet from "@/components/home/PasskeyCheckinSheet.vue"
 import QRScannerModal from "@/components/QRScannerModal.vue"
 import HomeSummaryCard from "@/components/work_roster/HomeSummaryCard.vue"
-import RosterPreferenceBanner from "@/components/work_roster/RosterPreferenceBanner.vue"
+import RosterPreferenceGroup from "@/components/work_roster/RosterPreferenceGroup.vue"
 import { settings } from "@/data/settings"
 import {
 	acquireCheckinLocation,
@@ -228,11 +227,7 @@ import {
 	runPasskeyCheckin,
 	shouldShowWifiTip,
 } from "@/utils/passkeyCheckin"
-import {
-	formatRosterPreferenceTitle,
-	getRosterCopy,
-	resolveHomePreferenceNotices,
-} from "@/utils/rosterCalendar"
+import { resolveHomePreferenceNotices } from "@/utils/rosterCalendar"
 
 const props = defineProps({
 	workStatus: {
@@ -251,10 +246,6 @@ const qrScannerRef = ref(null)
 const heroCardRef = ref(null)
 const introPlay = ref(false)
 const currentLanguage = resolveHomeLanguage(window.frappe?.boot)
-const PREFERENCE_LABEL_KEYS = ["submitPreference", "editPreference", "submitted", "deadline"]
-const preferenceLabels = Object.fromEntries(
-	PREFERENCE_LABEL_KEYS.map((key) => [key, getRosterCopy(key, currentLanguage)])
-)
 const successOverlayState = reactive({
 	isOpen: false,
 	actionsVisible: false,
@@ -302,12 +293,7 @@ const weatherSummary = computed(() => {
 	return `${icon} ${temp}°`.trim()
 })
 const todaySaleEvent = computed(() => homeScheduleSummary.data?.today_event || null)
-const homePreferenceNotices = computed(() =>
-	resolveHomePreferenceNotices(homeScheduleSummary.data).map((notice) => ({
-		...notice,
-		title: formatRosterPreferenceTitle(notice, currentLanguage),
-	}))
-)
+const homePreferenceNotices = computed(() => resolveHomePreferenceNotices(homeScheduleSummary.data))
 
 const openQRScanner = () => {
 	if (
@@ -737,12 +723,6 @@ function formatDate() {
 </script>
 
 <style scoped>
-.home-preference-list {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-}
-
 .checkin-panel {
 	display: flex;
 	flex-direction: column;
