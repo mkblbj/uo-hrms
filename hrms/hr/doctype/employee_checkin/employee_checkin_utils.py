@@ -16,9 +16,9 @@ def recalculate_attendance(
 	Recalculate attendance for a specific employee and date.
 
 	This will:
-	1. Cancel any existing attendance for that date
-	2. Clear attendance links from checkins
-	3. Trigger auto-attendance calculation
+	1. Defer unfinished shifts until their check-out window closes
+	2. Recover checkins skipped because attendance had already been submitted
+	3. Cancel existing attendance and recalculate from the applicable checkins
 
 	Args:
 	    employee: Employee ID
@@ -31,17 +31,7 @@ def recalculate_attendance(
 	"""
 	date = getdate(date)
 
-	# Step 1: Cancel existing attendance
-	existing_attendance = frappe.db.get_all(
-		"Attendance", filters={"employee": employee, "attendance_date": date, "docstatus": 1}, pluck="name"
-	)
-
-	for att_name in existing_attendance:
-		att_doc = frappe.get_doc("Attendance", att_name)
-		att_doc.flags.ignore_permissions = True
-		att_doc.cancel()
-
-	# Step 2: Get the shift for this employee
+	# Resolve the shift before changing any existing attendance.
 	shift_name = frappe.db.get_value(
 		"Shift Assignment",
 		{
@@ -63,6 +53,16 @@ def recalculate_attendance(
 	shift_doc = frappe.get_doc("Shift Type", shift_name)
 	start_datetime, end_datetime = get_attendance_recalculation_window(shift_doc, date)
 
+	restore_checkins_skipped_for_existing_attendance(employee, date, start_datetime, end_datetime)
+
+	existing_attendance = frappe.db.get_all(
+		"Attendance", filters={"employee": employee, "attendance_date": date, "docstatus": 1}, pluck="name"
+	)
+	for att_name in existing_attendance:
+		att_doc = frappe.get_doc("Attendance", att_name)
+		att_doc.flags.ignore_permissions = True
+		att_doc.cancel()
+
 	# Step 3: Clear attendance links from checkins in this shift window
 	frappe.db.sql(
 		"""
@@ -74,6 +74,14 @@ def recalculate_attendance(
     """,
 		(employee, start_datetime, end_datetime),
 	)
+
+	if frappe.utils.now_datetime() <= end_datetime:
+		if commit:
+			frappe.db.commit()
+		return {
+			"status": "deferred",
+			"message": _("Attendance will be calculated after the shift check-out window closes."),
+		}
 
 	# Step 4: Get checkins for this shift window
 	checkins = frappe.get_all(
@@ -102,7 +110,7 @@ def recalculate_attendance(
 		return {
 			"status": "warning",
 			"message": _("No checkin records found for employee {0} on {1}").format(employee, date),
-			}
+		}
 
 	# Update checkins with shift info if missing
 	for checkin in checkins:
@@ -179,6 +187,47 @@ def recalculate_attendance(
 		}
 	else:
 		return {"status": "error", "message": _("Failed to create attendance record")}
+
+
+def restore_checkins_skipped_for_existing_attendance(employee, date, start_datetime, end_datetime):
+	"""Recover automatic attendance conflicts without enabling manually skipped punches."""
+	skipped_logs = frappe.get_all(
+		"Employee Checkin",
+		filters={
+			"employee": employee,
+			"time": ["between", [start_datetime, end_datetime]],
+			"skip_auto_attendance": 1,
+		},
+		pluck="name",
+	)
+	if not skipped_logs:
+		return
+
+	attendance_names = frappe.get_all(
+		"Attendance",
+		filters={"employee": employee, "attendance_date": date, "docstatus": ["in", [1, 2]]},
+		pluck="name",
+	)
+	comments = frappe.get_all(
+		"Comment",
+		filters={
+			"reference_doctype": "Employee Checkin",
+			"reference_name": ["in", skipped_logs],
+			"comment_type": "Comment",
+		},
+		fields=["reference_name", "content"],
+	)
+	# handle_attendance_exception records the conflict as a bold prefix, a line
+	# break, and a link to the existing Attendance, independently of its language.
+	recovered_logs = {
+		comment.reference_name
+		for comment in comments
+		if (comment.content or "").startswith("<strong>")
+		and "<br>" in comment.content
+		and any(f"/attendance/{name}" in comment.content for name in attendance_names)
+	}
+	if recovered_logs:
+		frappe.db.set_value("Employee Checkin", {"name": ["in", recovered_logs]}, "skip_auto_attendance", 0)
 
 
 def get_attendance_recalculation_window(shift_doc, date: str) -> tuple[datetime, datetime]:
