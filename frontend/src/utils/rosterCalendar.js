@@ -84,6 +84,11 @@ const ROSTER_COPY = {
 		ja: "祝日",
 		en: "Holiday",
 	},
+	holidayShort: {
+		zh: "祝",
+		ja: "祝",
+		en: "H",
+	},
 	sale: {
 		zh: "促销",
 		ja: "セール",

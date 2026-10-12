@@ -99,6 +99,7 @@ const LABEL_KEYS = [
 	"departmentOffice",
 	"departmentProduction",
 	"holiday",
+	"holidayShort",
 	"sale",
 	"bigSale",
 	"saturday",
