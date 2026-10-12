@@ -1,5 +1,5 @@
 <template>
-	<section v-if="group.rows.length" class="pref-card" :aria-label="group.title">
+	<section v-if="group.rows.length" class="pref-card">
 		<header class="pref-head">
 			<h3>{{ group.title }}</h3>
 			<span v-if="group.countText" class="pref-head-count" :class="`is-${group.countTone}`">
@@ -128,14 +128,13 @@ const group = computed(() =>
 	min-width: 0;
 }
 
+/* 放不下时折成两行，不把月份截掉（只有窄屏英文会用到） */
 .pref-row-title {
-	overflow: hidden;
 	font-size: 14px;
 	line-height: 18px;
 	font-weight: 700;
 	color: var(--h-fg-primary);
-	text-overflow: ellipsis;
-	white-space: nowrap;
+	overflow-wrap: anywhere;
 }
 
 /* 已提交的月份标题降灰，没交的更显眼 */
