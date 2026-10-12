@@ -10,7 +10,7 @@ import {
 	getRosterCopy,
 	normalizeRosterLanguage,
 	resolveRosterFallbackMonth,
-	resolveHomePreferenceNotice,
+	resolveHomePreferenceNotices,
 	resolveRosterInitialState,
 	shouldCloseRosterSheet,
 } from "./rosterCalendar.js"
@@ -26,41 +26,44 @@ test("moves roster month across year boundaries", () => {
 	})
 })
 
-test("home preference reminder is visible only while collecting", () => {
-	const unsubmitted = {
-		period: "Office-2044-10",
-		status: "Collecting",
-		has_preference: false,
-	}
-	const submitted = { ...unsubmitted, has_preference: true }
+test("home lists every month that is collecting preferences", () => {
+	const october = { period: "Office-2044-10", status: "Collecting", has_preference: false }
+	const december = { period: "Office-2044-12", status: "Collecting", has_preference: true }
+	assert.deepEqual(
+		resolveHomePreferenceNotices({
+			preference_notice: october,
+			preference_notices: [october, december],
+		}),
+		[october, december]
+	)
+})
 
-	assert.equal(resolveHomePreferenceNotice(null), null)
-	assert.equal(resolveHomePreferenceNotice({ ...unsubmitted, status: "Scheduling" }), null)
-	assert.equal(
-		resolveHomePreferenceNotice({
-			status: "Collecting",
-			has_preference: false,
+test("home preference reminders skip months that are not collecting or have no period", () => {
+	const october = { period: "Office-2044-10", status: "Collecting", has_preference: false }
+	assert.deepEqual(
+		resolveHomePreferenceNotices({
+			preference_notices: [
+				october,
+				{ ...october, period: "Office-2044-11", status: "Scheduling" },
+				{ ...october, period: "Office-2044-12", status: "Published" },
+				{ ...october, period: "" },
+				{ status: "Collecting", has_preference: false },
+				null,
+			],
 		}),
-		null
+		[october]
 	)
-	assert.equal(
-		resolveHomePreferenceNotice({
-			period: "",
-			status: "Collecting",
-			has_preference: false,
-		}),
-		null
+	assert.deepEqual(resolveHomePreferenceNotices(null), [])
+	assert.deepEqual(resolveHomePreferenceNotices({ preference_notices: [] }), [])
+})
+
+test("an older server that sends a single notice still shows it", () => {
+	const october = { period: "Office-2044-10", status: "Collecting", has_preference: false }
+	assert.deepEqual(resolveHomePreferenceNotices({ preference_notice: october }), [october])
+	assert.deepEqual(
+		resolveHomePreferenceNotices({ preference_notice: { ...october, status: "Scheduling" } }),
+		[]
 	)
-	assert.equal(
-		resolveHomePreferenceNotice({
-			period: "Office-2044-10",
-			status: "Published",
-			has_preference: false,
-		}),
-		null
-	)
-	assert.equal(resolveHomePreferenceNotice(unsubmitted), unsubmitted)
-	assert.equal(resolveHomePreferenceNotice(submitted), submitted)
 })
 
 test("localizes the home preference reminder title from structured period data", () => {

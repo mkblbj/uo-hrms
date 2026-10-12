@@ -22,7 +22,14 @@
 			</div>
 		</section>
 
-		<RosterPreferenceBanner :notice="homePreferenceNotice" :labels="preferenceLabels" />
+		<div v-if="homePreferenceNotices.length" class="home-preference-list">
+			<RosterPreferenceBanner
+				v-for="notice in homePreferenceNotices"
+				:key="notice.period"
+				:notice="notice"
+				:labels="preferenceLabels"
+			/>
+		</div>
 
 		<HomeHeroCard
 			ref="heroCardRef"
@@ -224,7 +231,7 @@ import {
 import {
 	formatRosterPreferenceTitle,
 	getRosterCopy,
-	resolveHomePreferenceNotice,
+	resolveHomePreferenceNotices,
 } from "@/utils/rosterCalendar"
 
 const props = defineProps({
@@ -295,14 +302,12 @@ const weatherSummary = computed(() => {
 	return `${icon} ${temp}°`.trim()
 })
 const todaySaleEvent = computed(() => homeScheduleSummary.data?.today_event || null)
-const homePreferenceNotice = computed(() => {
-	const notice = resolveHomePreferenceNotice(homeScheduleSummary.data?.preference_notice)
-	if (!notice) return null
-	return {
+const homePreferenceNotices = computed(() =>
+	resolveHomePreferenceNotices(homeScheduleSummary.data).map((notice) => ({
 		...notice,
 		title: formatRosterPreferenceTitle(notice, currentLanguage),
-	}
-})
+	}))
+)
 
 const openQRScanner = () => {
 	if (
@@ -732,6 +737,12 @@ function formatDate() {
 </script>
 
 <style scoped>
+.home-preference-list {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+
 .checkin-panel {
 	display: flex;
 	flex-direction: column;

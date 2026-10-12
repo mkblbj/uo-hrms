@@ -222,8 +222,14 @@ export function resolveRosterInitialState({ now = new Date(), query = {} }) {
 	}
 }
 
-export function resolveHomePreferenceNotice(notice) {
-	return notice?.status === "Collecting" && String(notice.period || "").trim() ? notice : null
+// 首页希望提醒：每个正在收集希望的月份都提示；旧版服务器只给一条 preference_notice
+export function resolveHomePreferenceNotices(summary) {
+	const notices = Array.isArray(summary?.preference_notices)
+		? summary.preference_notices
+		: [summary?.preference_notice]
+	return notices.filter(
+		(notice) => notice?.status === "Collecting" && String(notice.period || "").trim()
+	)
 }
 
 export function getRosterCacheKey(scope, year, month, departmentCategory = "") {
