@@ -614,6 +614,104 @@ def get_attendance_calendar_events(from_date: str, to_date: str, employee: str |
 	return events
 
 
+@frappe.whitelist()
+def get_attendance_day_details(date: str, employee: str | None = None) -> dict:
+	from hrms.api.attendance_correction import (
+		get_current_employee as get_employee_for_user,
+	)
+	from hrms.api.attendance_correction import (
+		get_employee_shift_for_date,
+		validate_employee_context_access,
+	)
+	from hrms.hr.doctype.shift_type.shift_type import get_working_period_details
+
+	employee = employee or get_employee_for_user()
+	validate_employee_context_access(employee)
+	day = getdate(date)
+	attendance_rows = frappe.get_all(
+		"Attendance",
+		filters={
+			"employee": employee,
+			"attendance_date": ["between", [add_days(day, -1), add_days(day, 1)]],
+			"docstatus": 1,
+		},
+		fields=["name", "attendance_date", "working_hours", "shift"],
+	)
+	day_attendance = [row for row in attendance_rows if row.attendance_date == day]
+	date_by_name = {row.name: row.attendance_date for row in attendance_rows}
+	fields = [
+		"name",
+		"time",
+		"log_type",
+		"attendance",
+		"shift_start",
+		"shift",
+		"skip_auto_attendance",
+		"offshift",
+		"checkin_method",
+	]
+	checkins = frappe.get_all(
+		"Employee Checkin",
+		filters={
+			"employee": employee,
+			"time": ["between", [f"{add_days(day, -1)} 00:00:00", f"{add_days(day, 1)} 23:59:59"]],
+		},
+		fields=fields,
+	)
+	if day_attendance:
+		checkins.extend(
+			frappe.get_all(
+				"Employee Checkin",
+				filters={"employee": employee, "attendance": ["in", [row.name for row in day_attendance]]},
+				fields=fields,
+			)
+		)
+	checkins = list({row.name: row for row in checkins}.values())
+	checkins = group_pwa_checkins_by_attendance_date(checkins, date_by_name, day, day).get(day, [])
+
+	eligible = [row for row in checkins if not row.skip_auto_attendance and not row.offshift]
+	fallback_shift = None
+	if any(not row.shift for row in eligible):
+		fallback_shift = next((row.shift for row in day_attendance if row.shift), None)
+		fallback_shift = fallback_shift or get_employee_shift_for_date(employee, day)
+		fallback_shift = fallback_shift or frappe.db.get_value("Employee", employee, "default_shift")
+	by_shift = {}
+	for row in eligible:
+		if shift_name := row.shift or fallback_shift:
+			by_shift.setdefault(shift_name, []).append(row)
+	periods = []
+	for shift_name, logs in by_shift.items():
+		periods.extend(get_working_period_details(frappe.get_cached_doc("Shift Type", shift_name), logs))
+	periods.sort(key=lambda row: row["in_time"])
+	working_hours = (
+		round(sum(float(row.working_hours or 0) for row in day_attendance), 2) if day_attendance else None
+	)
+	completed_hours = round(sum(row["working_hours"] for row in periods), 2)
+	last = eligible[-1] if eligible else None
+	return {
+		"employee": employee,
+		"attendance_date": str(day),
+		"checkins": [
+			{
+				"name": row.name,
+				"time": row.time,
+				"log_type": row.log_type,
+				"checkin_method": row.checkin_method,
+				"included_in_calculation": not bool(row.skip_auto_attendance or row.offshift),
+			}
+			for row in checkins
+		],
+		"periods": periods,
+		"open_period": {"in_time": last.time} if last and last.log_type == "IN" else None,
+		"working_hours": working_hours,
+		"completed_hours": completed_hours,
+		"is_settled": bool(day_attendance),
+		"has_total_difference": working_hours is not None
+		and bool(periods)
+		and abs(working_hours - completed_hours) > 0.01,
+	}
+
+
 def get_attendance_for_calendar(employee: str, from_date: str, to_date: str) -> dict:
 	attendance = frappe.get_all(
 		"Attendance",

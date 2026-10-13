@@ -113,6 +113,47 @@ from hrms.utils.holiday_list import get_holiday_dates_between
 EMPLOYEE_CHUNK_SIZE = 50
 
 
+def get_working_period_details(shift, logs) -> list[dict]:
+	"""Expose the same period calculations used for attendance and the PWA detail view."""
+	if shift.working_hours_calculation_based_on == "Every Valid Check-in and Check-out":
+		periods = get_working_periods(logs, shift.determine_check_in_and_check_out)
+	else:
+		_, in_time, out_time = calculate_working_hours(
+			logs, shift.determine_check_in_and_check_out, shift.working_hours_calculation_based_on
+		)
+		periods = [(in_time, out_time)] if in_time and out_time else []
+
+	round_times = cint(shift.enable_time_rounding) and shift.rounding_precision
+	details = []
+	for in_time, out_time in periods:
+		check_in, check_out = in_time, out_time
+		if round_times:
+			check_in = round_time_to_precision(check_in, shift.rounding_precision, "up")
+			check_out = round_time_to_precision(check_out, shift.rounding_precision, "down")
+		period_hours = max(0, time_diff_in_hours(check_in, check_out))
+		lunch_deduction = 0
+		if cint(shift.enable_lunch_deduction) and shift.lunch_start and shift.lunch_end:
+			lunch_deduction = calculate_lunch_overlap_hours(
+				check_in, check_out, shift.lunch_start, shift.lunch_end
+			)
+			period_hours = max(0, period_hours - lunch_deduction)
+		if round_times:
+			precision_hours = int(shift.rounding_precision) / 60
+			period_hours = int(period_hours / precision_hours) * precision_hours
+		details.append(
+			{
+				"in_time": in_time,
+				"out_time": out_time,
+				"counted_in_time": check_in,
+				"counted_out_time": check_out,
+				"counted_time_empty": check_out <= check_in,
+				"lunch_deduction": lunch_deduction,
+				"working_hours": period_hours,
+			}
+		)
+	return details
+
+
 class ShiftType(Document):
 	# begin: auto-generated types
 	# This code is auto-generated. Do not modify anything in this block.
@@ -353,30 +394,11 @@ class ShiftType(Document):
 			logs, self.determine_check_in_and_check_out, self.working_hours_calculation_based_on
 		)
 
-		if self.working_hours_calculation_based_on == "Every Valid Check-in and Check-out":
-			periods = get_working_periods(logs, self.determine_check_in_and_check_out)
-			if periods:
-				in_time, out_time = periods[0][0], periods[-1][1]
-		else:
-			periods = [(in_time, out_time)] if in_time and out_time else []
-
+		periods = get_working_period_details(self, logs)
+		if self.working_hours_calculation_based_on == "Every Valid Check-in and Check-out" and periods:
+			in_time, out_time = periods[0]["in_time"], periods[-1]["out_time"]
 		round_times = cint(self.enable_time_rounding) and self.rounding_precision
-		total_working_hours = 0
-		for check_in, check_out in periods:
-			if round_times:
-				check_in = round_time_to_precision(check_in, self.rounding_precision, "up")
-				check_out = round_time_to_precision(check_out, self.rounding_precision, "down")
-			period_hours = max(0, time_diff_in_hours(check_in, check_out))
-			if cint(self.enable_lunch_deduction) and self.lunch_start and self.lunch_end:
-				period_hours = max(
-					0,
-					period_hours
-					- calculate_lunch_overlap_hours(check_in, check_out, self.lunch_start, self.lunch_end),
-				)
-			if round_times:
-				precision_hours = int(self.rounding_precision) / 60
-				period_hours = int(period_hours / precision_hours) * precision_hours
-			total_working_hours += period_hours
+		total_working_hours = sum(period["working_hours"] for period in periods)
 
 		in_time_for_check, out_time_for_check = in_time, out_time
 		if round_times and in_time and out_time:
