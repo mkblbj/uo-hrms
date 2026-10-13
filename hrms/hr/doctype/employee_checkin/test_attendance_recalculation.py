@@ -172,3 +172,54 @@ class TestAttendanceRecalculation(HRMSTestSuite):
 		self.assertEqual(old_attendance.reload().docstatus, 2)
 		self.assertEqual(ignored.reload().skip_auto_attendance, 1)
 		self.assertFalse(ignored.attendance)
+
+	def make_split_shift_logs(self, suffix):
+		employee, shift = self.make_worker(
+			suffix,
+			working_hours_calculation_based_on="Every Valid Check-in and Check-out",
+			enable_time_rounding=1,
+			rounding_precision="30",
+			enable_lunch_deduction=1,
+			lunch_start="12:00:00",
+			lunch_end="13:00:00",
+		)
+		logs = [
+			make_checkin(employee, datetime(2026, 5, 20, hour, minute), log_type=log_type)
+			for hour, minute, log_type in (
+				(8, 55, "IN"),
+				(12, 12, "OUT"),
+				(14, 27, "IN"),
+				(18, 1, "OUT"),
+			)
+		]
+		return employee, shift, logs
+
+	def test_split_shift_auto_attendance_adds_rounded_work_periods(self):
+		employee, shift, logs = self.make_split_shift_logs("split-auto")
+
+		shift.process_auto_attendance()
+
+		attendance = frappe.get_doc("Attendance", {"employee": employee, "docstatus": 1})
+		self.assertEqual(attendance.working_hours, 6.5)
+		self.assertEqual(attendance.in_time, datetime(2026, 5, 20, 8, 55))
+		self.assertEqual(attendance.out_time, datetime(2026, 5, 20, 18, 1))
+		self.assertTrue(all(log.reload().attendance == attendance.name for log in logs))
+
+	def test_split_shift_recalculation_replaces_old_hours_and_relinks_punches(self):
+		employee, shift, logs = self.make_split_shift_logs("split-recalculate")
+		old_attendance = mark_attendance_and_link_log(
+			logs,
+			"Present",
+			"2026-05-20",
+			8,
+			in_time=logs[0].time,
+			out_time=logs[-1].time,
+			shift=shift.name,
+		)
+
+		result = recalculate_attendance(employee, "2026-05-20", commit=False, ignore_permissions=True)
+
+		self.assertEqual(result["status"], "success")
+		self.assertEqual(result["working_hours"], 6.5)
+		self.assertEqual(old_attendance.reload().docstatus, 2)
+		self.assertTrue(all(log.reload().attendance == result["attendance"] for log in logs))

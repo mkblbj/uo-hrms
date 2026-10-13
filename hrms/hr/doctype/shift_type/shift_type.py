@@ -83,22 +83,17 @@ def calculate_lunch_overlap_hours(
 	if not in_time or not out_time or not lunch_start or not lunch_end:
 		return 0
 
-	# Convert lunch times to datetime on the same date as in_time
 	work_date = in_time.date()
-	lunch_start_dt = datetime.combine(work_date, get_time(lunch_start))
-	lunch_end_dt = datetime.combine(work_date, get_time(lunch_end))
-
-	# If out_time is before lunch starts or in_time is after lunch ends, no overlap
-	if out_time <= lunch_start_dt or in_time >= lunch_end_dt:
-		return 0
-
-	# Calculate actual overlap
-	overlap_start = max(in_time, lunch_start_dt)
-	overlap_end = min(out_time, lunch_end_dt)
-
-	if overlap_end > overlap_start:
-		return (overlap_end - overlap_start).total_seconds() / 3600
-	return 0
+	overlap_seconds = 0
+	while work_date <= out_time.date():
+		lunch_start_dt = datetime.combine(work_date, get_time(lunch_start))
+		lunch_end_dt = datetime.combine(work_date, get_time(lunch_end))
+		overlap_start = max(in_time, lunch_start_dt)
+		overlap_end = min(out_time, lunch_end_dt)
+		if overlap_end > overlap_start:
+			overlap_seconds += (overlap_end - overlap_start).total_seconds()
+		work_date += timedelta(days=1)
+	return overlap_seconds / 3600
 
 
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
@@ -107,7 +102,9 @@ from erpnext.setup.doctype.holiday_list.holiday_list import is_half_holiday, is_
 from hrms.hr.doctype.attendance.attendance import mark_attendance
 from hrms.hr.doctype.employee_checkin.employee_checkin import (
 	calculate_working_hours,
+	get_working_periods,
 	mark_attendance_and_link_log,
+	time_diff_in_hours,
 )
 from hrms.hr.doctype.shift_assignment.shift_assignment import get_employee_shift, get_shift_details
 from hrms.utils import get_date_range
@@ -227,7 +224,7 @@ class ShiftType(Document):
 		)
 
 	@frappe.whitelist()
-	def process_auto_attendance(self, is_manually_triggered: int | bool = False) -> None | str:
+	def process_auto_attendance(self, is_manually_triggered: int | bool = False) -> str | None:
 		if self.has_incorrect_shift_config():
 			return
 
@@ -236,14 +233,14 @@ class ShiftType(Document):
 			if len(logs) > 1000 or frappe.flags.test_bg_job:
 				job_id = "process_auto_attendance_" + self.name
 				job = frappe.enqueue(self._process, logs=logs, timeout=1200, job_id=job_id, deduplicate=True)
-				return f"Attendance marking has been queued. It may take a few minutes. You can monitor the job status {get_link_to_form('RQ Job',job.id,label='here')}"
+				return f"Attendance marking has been queued. It may take a few minutes. You can monitor the job status {get_link_to_form('RQ Job', job.id, label='here')}"
 			else:
 				try:
 					self._process(logs)
 					return "Attendance has been marked as per employee check-ins."
 				except Exception as e:
 					error_log = frappe.log_error(e)
-					return f"An error occured during marking attendance. Refer the full error log {get_link_to_form('Error Log',error_log.name,label='here')}"
+					return f"An error occured during marking attendance. Refer the full error log {get_link_to_form('Error Log', error_log.name, label='here')}"
 		else:
 			self._process(logs)
 
@@ -356,44 +353,35 @@ class ShiftType(Document):
 			logs, self.determine_check_in_and_check_out, self.working_hours_calculation_based_on
 		)
 
-		# Apply time rounding if enabled
-		if cint(self.enable_time_rounding) and self.rounding_precision and in_time and out_time:
-			rounded_in_time = round_time_to_precision(in_time, self.rounding_precision, "up")
-			rounded_out_time = round_time_to_precision(out_time, self.rounding_precision, "down")
-
-			# Recalculate working hours with rounded times
-			if rounded_out_time > rounded_in_time:
-				total_working_hours = (rounded_out_time - rounded_in_time).total_seconds() / 3600
-			else:
-				total_working_hours = 0
-
-			# Use rounded times for late_entry/early_exit check
-			in_time_for_check = rounded_in_time
-			out_time_for_check = rounded_out_time
+		if self.working_hours_calculation_based_on == "Every Valid Check-in and Check-out":
+			periods = get_working_periods(logs, self.determine_check_in_and_check_out)
+			if periods:
+				in_time, out_time = periods[0][0], periods[-1][1]
 		else:
-			in_time_for_check = in_time
-			out_time_for_check = out_time
+			periods = [(in_time, out_time)] if in_time and out_time else []
 
-		# Apply lunch break deduction if enabled
-		if cint(self.enable_lunch_deduction) and self.lunch_start and self.lunch_end and in_time and out_time:
-			# Use rounded times if rounding is enabled
-			check_in = (
-				rounded_in_time if cint(self.enable_time_rounding) and self.rounding_precision else in_time
-			)
-			check_out = (
-				rounded_out_time if cint(self.enable_time_rounding) and self.rounding_precision else out_time
-			)
+		round_times = cint(self.enable_time_rounding) and self.rounding_precision
+		total_working_hours = 0
+		for check_in, check_out in periods:
+			if round_times:
+				check_in = round_time_to_precision(check_in, self.rounding_precision, "up")
+				check_out = round_time_to_precision(check_out, self.rounding_precision, "down")
+			period_hours = max(0, time_diff_in_hours(check_in, check_out))
+			if cint(self.enable_lunch_deduction) and self.lunch_start and self.lunch_end:
+				period_hours = max(
+					0,
+					period_hours
+					- calculate_lunch_overlap_hours(check_in, check_out, self.lunch_start, self.lunch_end),
+				)
+			if round_times:
+				precision_hours = int(self.rounding_precision) / 60
+				period_hours = int(period_hours / precision_hours) * precision_hours
+			total_working_hours += period_hours
 
-			lunch_overlap = calculate_lunch_overlap_hours(
-				check_in, check_out, self.lunch_start, self.lunch_end
-			)
-			total_working_hours = max(0, total_working_hours - lunch_overlap)
-
-		# Final rounding: ensure working hours is a multiple of precision (in hours)
-		if cint(self.enable_time_rounding) and self.rounding_precision:
-			precision_hours = int(self.rounding_precision) / 60  # e.g., 15 min = 0.25 hours
-			# Round down to nearest precision unit
-			total_working_hours = int(total_working_hours / precision_hours) * precision_hours
+		in_time_for_check, out_time_for_check = in_time, out_time
+		if round_times and in_time and out_time:
+			in_time_for_check = round_time_to_precision(in_time, self.rounding_precision, "up")
+			out_time_for_check = round_time_to_precision(out_time, self.rounding_precision, "down")
 
 		# Round working hours to 2 decimal places
 		total_working_hours = round(total_working_hours, 2)

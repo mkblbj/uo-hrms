@@ -490,6 +490,23 @@ def get_existing_half_day_attendance(employee, attendance_date):
 	return None
 
 
+def get_working_periods(logs, check_in_out_type) -> list[tuple[datetime, datetime]]:
+	"""Return complete work periods using the shift's configured punch pairing."""
+	if check_in_out_type == "Alternating entries as IN and OUT during the same shift":
+		return [(entry.time, exit.time) for entry, exit in zip(logs[::2], logs[1::2], strict=False)]
+
+	periods = []
+	if check_in_out_type == "Strictly based on Log Type in Employee Checkin":
+		in_time = None
+		for log in logs:
+			if log.log_type == "IN" and in_time is None:
+				in_time = log.time
+			elif log.log_type == "OUT" and in_time is not None:
+				periods.append((in_time, log.time))
+				in_time = None
+	return periods
+
+
 def calculate_working_hours(logs, check_in_out_type, working_hours_calc_type):
 	"""Given a set of logs in chronological order calculates the total working hours based on the parameters.
 	Zero is returned for all invalid cases.

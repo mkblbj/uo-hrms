@@ -27,7 +27,7 @@ def create_unified_shift():
 	# Auto attendance settings
 	shift.enable_auto_attendance = 1
 	shift.determine_check_in_and_check_out = "Alternating entries as IN and OUT during the same shift"
-	shift.working_hours_calculation_based_on = "First Check-in and Last Check-out"
+	shift.working_hours_calculation_based_on = "Every Valid Check-in and Check-out"
 	# Allow check-in 2 hours before (from 04:00) and check-out 2 hours after (until 00:00)
 	shift.begin_check_in_before_shift_start_time = 120  # 2 hours before 06:00 = 04:00
 	shift.allow_check_out_after_shift_end_time = 120  # 2 hours after 22:00 = 00:00
@@ -36,7 +36,7 @@ def create_unified_shift():
 
 	# Flexible working hours settings
 	shift.enable_time_rounding = 1
-	shift.rounding_precision = "15"
+	shift.rounding_precision = "30"
 	shift.enable_lunch_deduction = 1
 	shift.lunch_start = "12:00:00"
 	shift.lunch_end = "13:00:00"
