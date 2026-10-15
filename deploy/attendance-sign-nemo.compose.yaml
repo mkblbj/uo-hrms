@@ -1,0 +1,39 @@
+# Start only while preparing greetings, then `docker compose ... down`.
+name: hrms-attendance-sign
+x-nemo: &nemo
+  restart: "no"
+  cpus: 1.0
+  pids_limit: 128
+  ports:
+    - "127.0.0.1:50121:50121"
+  environment:
+    VV_CPU_NUM_THREADS: "1"
+  networks:
+    default:
+      aliases:
+        - attendance-sign-nemo
+services:
+  nemo-gpu:
+    <<: *nemo
+    profiles: [gpu]
+    image: voicevox/voicevox_nemo_engine@sha256:0499a5d442074aff1d2bfcd592f789514ff3b5640b81b154d245288329af380b
+    mem_limit: 2g
+    environment:
+      VV_USE_GPU: "1"
+      VV_CPU_NUM_THREADS: "1"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+  nemo-cpu:
+    <<: *nemo
+    profiles: [cpu]
+    image: voicevox/voicevox_nemo_engine@sha256:db46324269c3307e1a74acf7d4c1c926ee429567e8af90c8d497ff978bfbeecc
+    mem_limit: 1g
+networks:
+  default:
+    name: ${NEMO_NETWORK:-docker_default}
+    external: true

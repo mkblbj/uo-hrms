@@ -13,7 +13,7 @@
         "created_at": 1792022520,
         "action_label": "退勤完了",
         "greeting": "お疲れさまでした。",
-        "audio_url": null
+        "audio_url": "/api/method/hrms.api.attendance_sign.get_audio?location=example-door&asset_id=0000000000000000000000000000000000000000000000000000000000000000"
       }
     ]
   }
