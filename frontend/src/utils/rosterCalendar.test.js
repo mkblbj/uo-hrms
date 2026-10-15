@@ -217,7 +217,7 @@ const collecting = (period, year, month, has_preference, preference_deadline = n
 	preference_deadline,
 })
 
-test("home preference group shows one row per month with its own state", () => {
+test("home preference group shows one entry per month with its own state", () => {
 	const group = buildHomePreferenceGroup(
 		[
 			collecting("Office-2026-11", 2026, 11, false, "2026-10-20"),
@@ -235,6 +235,40 @@ test("home preference group shows one row per month with its own state", () => {
 			["Office-2026-12", "2026年12月 - 事務", true, "提出済み", "", false, "/work-roster/preference/Office-2026-12"],
 			["Office-2027-01", "2027年1月 - 事務", false, "希望を入力", "", false, "/work-roster/preference/Office-2027-01"],
 		]
+	)
+})
+
+test("two or more months sit side by side as short month tiles; one month stays a full row", () => {
+	const group = buildHomePreferenceGroup(
+		[
+			collecting("Office-2026-11", 2026, 11, false, "2026-10-15"),
+			collecting("Office-2026-12", 2026, 12, true, "2026-10-13"),
+			collecting("Office-2027-01", 2027, 1, false),
+			collecting("Office-2027-02", 2027, 2, false, "2026-11-30"),
+		],
+		{ lang: "ja", today: "2026-10-12" }
+	)
+	assert.equal(group.layout, "tiles")
+	assert.deepEqual(
+		group.rows.map((row) => [row.monthText, row.statusText, row.tone]),
+		[
+			["11月", "締切 10/15", "urgent"],
+			["12月", "提出済み", "done"],
+			["1月", "未提出", "pending"],
+			["2月", "締切 11/30", "pending"],
+		]
+	)
+	const en = buildHomePreferenceGroup(
+		[collecting("A", 2026, 12, true), collecting("B", 2027, 1, false)],
+		{ lang: "en", today: "2026-10-12" }
+	)
+	assert.deepEqual(
+		en.rows.map((row) => [row.monthText, row.statusText]),
+		[["Dec", "Submitted"], ["Jan", "Not yet"]]
+	)
+	assert.equal(
+		buildHomePreferenceGroup([collecting("A", 2026, 11, false)], { lang: "zh", today: "2026-10-12" }).layout,
+		"list"
 	)
 })
 

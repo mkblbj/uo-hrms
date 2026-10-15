@@ -7,25 +7,43 @@
 			</span>
 		</header>
 
-		<router-link
-			v-for="row in group.rows"
-			:key="row.period"
-			:to="row.to"
-			class="pref-row"
-			:class="{ 'is-done': row.done }"
-		>
-			<span class="pref-row-text">
-				<span class="pref-row-title">{{ row.title }}</span>
-				<span v-if="row.deadlineText" class="pref-row-sub" :class="{ 'is-urgent': row.urgent }">
-					{{ row.deadlineText }}
+		<div v-if="group.layout === 'tiles'" class="pref-tiles">
+			<router-link
+				v-for="row in group.rows"
+				:key="row.period"
+				:to="row.to"
+				class="pref-tile"
+				:class="`is-${row.tone}`"
+			>
+				<span class="pref-tile-month">{{ row.monthText }}</span>
+				<span class="pref-tile-status">
+					<Icon v-if="row.done" icon="lucide-check" class="pref-check" aria-hidden="true" />
+					<span>{{ row.statusText }}</span>
 				</span>
-			</span>
-			<span class="pref-row-end">
-				<Icon v-if="row.done" icon="lucide-check" class="pref-check" aria-hidden="true" />
-				<span>{{ row.actionText }}</span>
-				<Icon icon="lucide-chevron-right" class="pref-chev" aria-hidden="true" />
-			</span>
-		</router-link>
+			</router-link>
+		</div>
+
+		<template v-else>
+			<router-link
+				v-for="row in group.rows"
+				:key="row.period"
+				:to="row.to"
+				class="pref-row"
+				:class="{ 'is-done': row.done }"
+			>
+				<span class="pref-row-text">
+					<span class="pref-row-title">{{ row.title }}</span>
+					<span v-if="row.deadlineText" class="pref-row-sub" :class="{ 'is-urgent': row.urgent }">
+						{{ row.deadlineText }}
+					</span>
+				</span>
+				<span class="pref-row-end">
+					<Icon v-if="row.done" icon="lucide-check" class="pref-check" aria-hidden="true" />
+					<span>{{ row.actionText }}</span>
+					<Icon icon="lucide-chevron-right" class="pref-chev" aria-hidden="true" />
+				</span>
+			</router-link>
+		</template>
 	</section>
 </template>
 
@@ -90,7 +108,81 @@ const group = computed(() =>
 	color: var(--h-chip-working-fg);
 }
 
-/* 整行就是点击区，行高 44px */
+/* 两个月以上并排成小格，卡片高度固定；格子放不下时可以横向滑 */
+.pref-tiles {
+	display: flex;
+	gap: 8px;
+	padding: 6px 12px 12px;
+	overflow-x: auto;
+	scrollbar-width: none;
+}
+
+.pref-tiles::-webkit-scrollbar {
+	display: none;
+}
+
+.pref-tile {
+	display: grid;
+	flex: 1 1 0;
+	min-width: 84px;
+	min-height: 50px;
+	align-content: center;
+	justify-items: center;
+	gap: 2px;
+	padding: 7px 6px;
+	border-radius: 12px;
+	background: var(--h-bg-card-inner);
+	color: inherit;
+	text-align: center;
+	text-decoration: none;
+}
+
+.pref-tile:active {
+	opacity: 0.72;
+}
+
+.pref-tile:focus-visible {
+	outline: 2px solid var(--h-tab-active);
+	outline-offset: 2px;
+}
+
+.pref-tile-month {
+	font-size: 15px;
+	line-height: 18px;
+	font-weight: 800;
+	color: var(--h-fg-primary);
+	white-space: nowrap;
+}
+
+/* 没交的是蓝字，截止一周内整格变琥珀，交过的变绿 */
+.pref-tile-status {
+	display: inline-flex;
+	align-items: center;
+	gap: 3px;
+	font-size: 11px;
+	line-height: 14px;
+	font-weight: 800;
+	color: var(--h-tab-active);
+	white-space: nowrap;
+}
+
+.pref-tile.is-urgent {
+	background: var(--h-chip-pending-bg);
+}
+
+.pref-tile.is-urgent .pref-tile-status {
+	color: var(--h-chip-pending-fg);
+}
+
+.pref-tile.is-done .pref-tile-month {
+	color: var(--h-fg-secondary);
+}
+
+.pref-tile.is-done .pref-tile-status {
+	color: var(--h-chip-working-fg);
+}
+
+/* 只有一个月时还是一整行，整行就是点击区，行高 44px */
 .pref-row {
 	position: relative;
 	display: flex;

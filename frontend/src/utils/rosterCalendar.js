@@ -74,6 +74,11 @@ const ROSTER_COPY = {
 		ja: "希望を入力",
 		en: "Submit",
 	},
+	homePreferenceNotSubmitted: {
+		zh: "未提交",
+		ja: "未提出",
+		en: "Not yet",
+	},
 	previousMonth: {
 		zh: "上个月",
 		ja: "前の月",
@@ -263,22 +268,45 @@ function daysUntil(deadline, today) {
 	return Math.round(span / 86400000)
 }
 
-// 首页「シフト希望」卡片：一个表头加每月一行，整行可点；截止日一周内才标醒目色
+function formatShortMonth(notice, language) {
+	const month = Number(notice?.month)
+	if (!Number.isInteger(month) || month < 1 || month > 12) {
+		return formatRosterPreferenceTitle(notice, language)
+	}
+	if (language !== "en") return `${month}月`
+	return new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" }).format(
+		new Date(Date.UTC(2000, month - 1, 1))
+	)
+}
+
+// 首页「シフト希望」卡片：一个月时是一整行；两个月以上并排成小格，月份再多卡片也不变高。
+// 截止日一周内才标醒目色
 export function buildHomePreferenceGroup(notices, { lang = "zh", today = "" } = {}) {
 	const language = normalizeRosterLanguage(lang)
 	const rows = (notices || []).map((notice) => {
 		const done = Boolean(notice.has_preference)
 		const deadline = parseIsoDate(notice.preference_deadline)
 		const remaining = done ? null : daysUntil(notice.preference_deadline, today)
+		const deadlineText = deadline
+			? getRosterCopy("deadline", language, { date: `${deadline.month}/${deadline.day}` })
+			: ""
+		const urgent = remaining !== null && remaining <= URGENT_DEADLINE_DAYS
+		let statusText = deadlineText || getRosterCopy("homePreferenceNotSubmitted", language)
+		let tone = urgent ? "urgent" : "pending"
+		if (done) {
+			statusText = getRosterCopy("submitted", language)
+			tone = "done"
+		}
 		return {
 			period: notice.period,
 			title: formatRosterPreferenceTitle(notice, language),
+			monthText: formatShortMonth(notice, language),
 			done,
 			actionText: getRosterCopy(done ? "submitted" : "homePreferenceSubmit", language),
-			deadlineText: deadline
-				? getRosterCopy("deadline", language, { date: `${deadline.month}/${deadline.day}` })
-				: "",
-			urgent: remaining !== null && remaining <= URGENT_DEADLINE_DAYS,
+			deadlineText,
+			statusText,
+			tone,
+			urgent,
 			to: `/work-roster/preference/${notice.period}`,
 		}
 	})
@@ -298,7 +326,13 @@ export function buildHomePreferenceGroup(notices, { lang = "zh", today = "" } = 
 			countTone = "pending"
 		}
 	}
-	return { title: getRosterCopy("homePreferenceTitle", language), countText, countTone, rows }
+	return {
+		title: getRosterCopy("homePreferenceTitle", language),
+		layout: rows.length > 1 ? "tiles" : "list",
+		countText,
+		countTone,
+		rows,
+	}
 }
 
 // 首页希望提醒：每个正在收集希望的月份都提示；旧版服务器只给一条 preference_notice
