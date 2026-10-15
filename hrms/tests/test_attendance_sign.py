@@ -105,7 +105,7 @@ class TestAttendanceSign(unittest.TestCase):
 					"time_label": "09:01",
 					"created_at": self.clock.timestamp() - 1,
 					"action_label": "出勤完了",
-					"greeting": "出勤を記録しました。",
+					"greeting": "おはようございます。",
 					"audio_url": None,
 				}
 			],

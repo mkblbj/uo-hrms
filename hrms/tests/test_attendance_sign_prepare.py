@@ -90,7 +90,7 @@ class TestAttendanceSignPrepare(unittest.TestCase):
 		self.csv.write_text("employee_id,employee_name,spoken_name\nHR-EMP-example,山田太郎,ヤマダさん\n")
 		self._prepare()
 		texts = [query["text"][0] for path, query, _ in self.requests if path == "/audio_query"]
-		self.assertEqual(texts, ["ヤマダさん、出勤を記録しました。", "ヤマダさん、お疲れさまでした。"])
+		self.assertEqual(texts, ["ヤマダさん、おはようございます。", "ヤマダさん、お疲れさまでした。"])
 
 	def test_invalid_rows_rejected_before_any_synthesis(self):
 		for rows in (

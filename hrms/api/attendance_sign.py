@@ -58,7 +58,7 @@ def get_events(location: str) -> dict:
 				"time_label": get_datetime(row.time).strftime("%H:%M"),
 				"created_at": get_datetime(row.creation).replace(tzinfo=timezone).timestamp(),
 				"action_label": "出勤完了" if row.log_type == "IN" else "退勤完了",
-				"greeting": "出勤を記録しました。" if row.log_type == "IN" else "お疲れさまでした。",
+				"greeting": "おはようございます。" if row.log_type == "IN" else "お疲れさまでした。",
 				"audio_url": (
 					"/api/method/hrms.api.attendance_sign.get_audio?"
 					+ urlencode({"location": location, "asset_id": asset_id})

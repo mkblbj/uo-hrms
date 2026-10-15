@@ -64,7 +64,7 @@ def prepare_bundle(csv_path, output_dir, engine_url: str, speaker_id: int, speed
 		if spoken.endswith("さん"):
 			spoken = spoken[:-2]
 		clips = {}
-		for kind, greeting in (("IN", "出勤を記録しました。"), ("OUT", "お疲れさまでした。")):
+		for kind, greeting in (("IN", "おはようございます。"), ("OUT", "お疲れさまでした。")):
 			text = f"{spoken}さん、{greeting}"
 			query = json.loads(
 				_request(
