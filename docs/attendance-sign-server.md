@@ -1,6 +1,6 @@
 # 会回应的签到牌：服务器端操作与交接
 
-状态：开发分支 `feat/attendance-sign-server`；接口与生成工具已实现。生产站点尚未部署，本机固件及真屏播放仍由本机完成。
+状态：2026-10-15 已合并并部署到正式 HRMS；公网入口、地点鉴权与 WAV 下载验证通过。全部 28 名在职员工已配置 56 段语音映射。本机固件及真屏播放仍由本机完成。
 
 ## 运行方式
 
@@ -36,14 +36,14 @@ curl --fail --silent http://127.0.0.1:50121/supported_devices
 
 ## 2. 准备员工 CSV
 
-由 HR 管理员从当前员工信息中整理目标人员，在服务器私有目录保存 UTF-8 CSV，不提交到 Git。`employee_id` 使用真实 Employee 文档 ID；`employee_name` 与 HRMS 显示名一致；`spoken_name` 是经员工确认的日语假名呼叫名，不根据汉字自动猜读音。
+由 HR 管理员从当前员工信息中整理目标人员，在服务器私有目录保存 UTF-8 CSV，不提交到 Git。`employee_id` 使用真实 Employee 文档 ID；`employee_name` 与 HRMS 显示名一致；`spoken_name` 是经员工确认的日语假名呼叫名，日常维护优先使用确认过的假名。本次按用户要求全部启用，首批直接使用当前姓名的 Nemo 默认日语读法，之后可逐人修正。
 
 ```csv
 employee_id,employee_name,spoken_name
 HR-EMP-example,山田太郎,ヤマダ
 ```
 
-上述为虚构示例。工具自动添加一次“さん”；姓名字段末尾已有“さん”也不会重复。固定文本：签到“ヤマダさん、出勤を記録しました。”，签退“ヤマダさん、お疲れさまでした。”。
+上述为虚构示例。工具自动添加一次“さん”；姓名字段末尾已有“さん”也不会重复。固定文本：签到“ヤマダさん、おはようございます。”，签退“ヤマダさん、お疲れさまでした。”。
 
 ## 3. 生成并导入
 
@@ -111,3 +111,7 @@ env/bin/python -m unittest hrms.tests.test_attendance_sign_prepare
 音声合成：VOICEVOX Nemo。本次样音为女声1。正式使用在设备或旁边标注“音声：VOICEVOX Nemo”，按所选声音的适用条款保留署名；生成清单也记录来源。
 
 参考：[Nemo Engine](https://github.com/VOICEVOX/voicevox_nemo_engine)、[Nemo 使用条款](https://voicevox.hiroshiba.jp/nemo/term/)。
+
+## 正式接入
+
+已部署地址 `https://erphr.toiroworld.com`，地点 `uo-2f-door`。直接发给本机 Codex 的说明见 [本机接入说明](attendance-sign-local-connection.md)。密钥通过单独的私有配置交付，不写入文档或 Git。
