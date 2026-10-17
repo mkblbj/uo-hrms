@@ -119,3 +119,10 @@ env/bin/python -m unittest hrms.tests.test_attendance_sign_prepare
 ## 正式接入
 
 已部署地址 `https://erphr.toiroworld.com`，地点 `uo-2f-door`。直接发给本机 Codex 的说明见 [本机接入说明](attendance-sign-local-connection.md)。密钥通过单独的私有配置交付，不写入文档或 Git。
+
+
+## 板端二维码服务升级（2026-10-17）
+
+已新增设备密钥鉴权的get_qr接口，网页首屏、原取码API和设备取码共用签名及地点周期。正式uo-2f-door已从30秒设置为120秒，签名密钥/展示密钥未更换；仍接受当前及上一时槽，单码最长约240秒，设备按refresh_at/expires_at处理。
+
+79项相关测试通过，gpt-6-luna medium独立审查未发现重要问题。正式公网新接口正确密钥200、缺失/错误密钥403，原网页/取码API均已使用120秒，事件及现有WAV接口保持200且WAV哈希正确。原语音草稿及已发布manifest未改变；没有在正式站点创建虚构考勤。板子绘码、扫码距离和真板反馈由本机验证，见[可转发接入说明](attendance-sign-qr-display-handoff.md)。

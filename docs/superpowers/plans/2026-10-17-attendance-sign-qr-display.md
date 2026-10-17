@@ -26,4 +26,6 @@ Files: 新hrms/utils/attendance_qr.py，hrms/api/qr_attendance.py，hrms/www/qr_
 Files: hrms/api/attendance_sign.py，hrms/tests/test_attendance_sign.py；新增docs/attendance-sign-qr-display-handoff.md及虚构示例JSON。
 - [x] RED→GREEN: 设备GET get_qr(location)，始终校验真实设备密钥、地点和启用状态，返回version/locale/token/location/description/server_time/expires_in/refresh_at/expires_at，不缓存。
 - [x] 文档明确300×400常驻码、QR原始内容/白边/整数像素、计时/断线/过期隐藏、原事件队列和24k播报并行，以及真实扫码验收；样包不含签名密钥/展示密钥/真实员工记录。
-- [ ] 最终review、相关测试、限定文件合入部署；仅目标地点更新120并验证正式网页/旧API/新API一致，原配置及音频不变；交付可直接转发的ZIP。
+- [x] 最终review、相关测试、限定文件合入部署；仅目标地点更新120并验证正式网页/旧API/新API一致，原配置及音频不变；交付可直接转发的ZIP。
+
+验收：79项相关测试通过，独立review通过；正式目标地点120秒且密钥不变；新API鉴权/绝对截止时间、旧网页及取码API120、旧事件/WAV200均已验证；原语音及无关文件保持。ZIP含7个文件，可直接交给本机。
