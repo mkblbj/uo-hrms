@@ -29,5 +29,7 @@ Files: hrms/utils/attendance_sign_audio.py, attendance_sign_prepare.py, attendan
 Files: docs/attendance-sign-{design,local,local-connection,server,validation}.md, docs/attendance-voice-settings.md；新增docs/attendance-sign-24khz-firmware-handoff.md。
 - [x] 当前操作文档和管理页说明同步24k，历史16k验证记录明确标注历史。
 - [x] 写可转发给本机Codex的说明：接口不变、24k/PCM16/mono、5秒/256KiB、WAV解析、I2S/ES8311、旧16k过渡、提示音、缓存和实机验收。
-- [ ] 最终独立审查和必要修正，限定文件提交并部署；正式GPU试听24k/无降采样、设备旧资源可读、设置和正式manifest未被覆盖。
-- [ ] 提供24k虚构测试WAV和SHA256及可转发说明，最终报告服务端/本机分工。
+- [x] 最终独立审查和必要修正，限定文件提交并部署；正式GPU试听24k/无降采样、设备旧资源可读、设置和正式manifest未被覆盖。
+- [x] 提供24k虚构测试WAV和SHA256及可转发说明，最终报告服务端/本机分工。
+
+结果：43项测试通过；两种引擎实际GPU输出24k；gpt-6-luna medium审查复核通过；正式API试听24k及默认队列56段/44文件24k待发布验证通过，原manifest和48项其他文件保持不变。附件ZIP含说明、3段WAV、样音SHA256清单，可直接转发。
