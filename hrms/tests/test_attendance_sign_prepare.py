@@ -13,13 +13,13 @@ from urllib.parse import parse_qs, urlparse
 from hrms.utils import attendance_sign_prepare as prepare
 
 
-def make_wav(*, channels=1, rate=16000, seconds=1):
+def make_wav(*, channels=1, rate=24000, seconds=1, frames=None):
 	buffer = io.BytesIO()
 	with wave.open(buffer, "wb") as stream:
 		stream.setnchannels(channels)
 		stream.setsampwidth(2)
 		stream.setframerate(rate)
-		stream.writeframes(b"\0\0" * channels * rate * seconds)
+		stream.writeframes(b"\0\0" * channels * (rate * seconds if frames is None else frames))
 	return buffer.getvalue()
 
 
@@ -83,7 +83,7 @@ class TestAttendanceSignPrepare(unittest.TestCase):
 		self.assertEqual((self.root / "bundle/audio" / (clip["asset_id"] + ".wav")).read_bytes(), self.audio)
 		queries = [json.loads(body) for path, _, body in self.requests if path == "/synthesis"]
 		self.assertEqual(
-			[(q["outputSamplingRate"], q["outputStereo"]) for q in queries], [(16000, False)] * 2
+			[(q["outputSamplingRate"], q["outputStereo"]) for q in queries], [(24000, False)] * 2
 		)
 
 	def test_spoken_name_override_keeps_display_name(self):
@@ -108,7 +108,7 @@ class TestAttendanceSignPrepare(unittest.TestCase):
 		bundle.mkdir()
 		manifest_path = bundle / "manifest.json"
 		manifest_path.write_text('{"old":"keep"}')
-		for audio in (b"not wav", make_wav(seconds=6), make_wav(channels=2), make_wav(rate=24000)):
+		for audio in (b"not wav", make_wav(seconds=6), make_wav(channels=2), make_wav(rate=16000)):
 			with self.subTest(length=len(audio)):
 				self.audio = audio
 				with self.assertRaises(ValueError):
@@ -119,3 +119,20 @@ class TestAttendanceSignPrepare(unittest.TestCase):
 		with self.assertRaises(ValueError):
 			prepare.prepare_bundle(self.csv, self.root / "bundle", self.url, 999)
 		self.assertEqual(self.requests, [])
+
+
+class TestGreetingWavFormat(unittest.TestCase):
+	def test_accepts_full_five_seconds_at_24khz(self):
+		prepare.validate_wav(make_wav(seconds=5))
+
+	def test_rejects_one_frame_beyond_five_seconds(self):
+		with self.assertRaises(ValueError):
+			prepare.validate_wav(make_wav(frames=120001))
+
+	def test_rejects_16khz_for_new_resources(self):
+		with self.assertRaises(ValueError):
+			prepare.validate_wav(make_wav(rate=16000))
+
+	def test_rejects_truncated_24khz_audio(self):
+		with self.assertRaises(ValueError):
+			prepare.validate_wav(make_wav()[:-2])

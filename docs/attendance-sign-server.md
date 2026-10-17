@@ -2,6 +2,8 @@
 
 状态：2026-10-15 已合并并部署到正式 HRMS；公网入口、地点鉴权与 WAV 下载验证通过。全部 28 名在职员工已配置 56 段语音映射。本机固件及真屏播放仍由本机完成。
 
+当前试听及新生成资源统一24kHz、PCM16、单声道、最长5秒，完整WAV上限256KiB。升级前的正式16k资源保留到用户单独发布新资源；本机调整见[24k固件交接](attendance-sign-24khz-firmware-handoff.md)。
+
 ## 运行方式
 
 服务器提前生成日语问候，支持 VOICEVOX Nemo 和普通 VOICEVOX 角色音色。优先 NVIDIA GPU，不可用时手动选 CPU。合成完成关闭引擎，日常打卡只读取已保存音频，不运行 TTS。
@@ -57,7 +59,7 @@ env/bin/python -m hrms.utils.attendance_sign_prepare \
   --speaker-id 10005
 ```
 
-工具先校验所有 CSV 行，再顺序合成；输出版本 1 的 `manifest.json` 和按 SHA-256 命名的 WAV。每段必须是 16 kHz、单声道、16-bit PCM 且不超过 5 秒。姓名较长导致超时时，调整 `--speed 1.1` 等参数后重做并试听；不裁掉未播完的名字。全部片段通过后才替换清单，失败保留之前的有效清单。
+工具先校验所有 CSV 行，再顺序合成；输出版本 1 的 `manifest.json` 和按 SHA-256 命名的 WAV。每段必须是 24 kHz、单声道、16-bit PCM 且不超过 5 秒。姓名较长导致超时时，调整 `--speed 1.1` 等参数后重做并试听；不裁掉未播完的名字。全部片段通过后才替换清单，失败保留之前的有效清单。
 
 以 System Manager / bench 管理员导入目标站点：
 

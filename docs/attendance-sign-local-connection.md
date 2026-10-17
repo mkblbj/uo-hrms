@@ -1,6 +1,6 @@
 # 直接交给本机 Codex：实现会回应的签到牌
 
-服务端已于 2026-10-15 合并并部署到正式 HRMS。请在连接 ESP32-S3-RLCD-4.2 的本机直接实施固件；服务器端已完成，不需要在本机部署 HRMS 或 TTS。
+服务端已于 2026-10-15 合并并部署到正式 HRMS；2026-10-17 的24kHz调整以[本机固件调整说明](attendance-sign-24khz-firmware-handoff.md)为准。请在连接 ESP32-S3-RLCD-4.2 的本机直接实施固件；服务器端已完成，不需要在本机部署 HRMS 或 TTS。
 
 ## 已上线的服务
 
@@ -73,7 +73,7 @@ User-Agent: UO-Attendance-Sign/1.0 (ESP32-S3)
 
 把 `audio_url` 作为相对地址拼接到上述 HTTPS 基础地址，继续带同样的密钥请求头和 User-Agent。响应为实际 WAV 文件字节，`Content-Type: audio/wav`，不套 JSON。
 
-格式：WAV / PCM signed 16-bit little-endian / 16000 Hz / 单声道 / 最长 5 秒。下载到 PSRAM 后通过板载 ES8311 扬声器路径播放；本机不运行 Nemo、不使用 SD 卡、不调用云端 TTS。
+格式：WAV / PCM signed 16-bit little-endian / 24000 Hz / 单声道 / 最长 5 秒。下载到 PSRAM 后通过板载 ES8311 扬声器路径播放；本机不运行 Nemo、不使用 SD 卡、不调用云端 TTS。
 
 `audio_url=null` 或下载失败时照常显示姓名、动作和时间，播放固件内置短提示音并继续下一人。正式音频已经生成，空值主要用于新入职、改名或音频尚未更新的情况。
 
@@ -81,7 +81,7 @@ User-Agent: UO-Attendance-Sign/1.0 (ESP32-S3)
 
 ## 固件实施范围
 
-1. 检查本机现有工程、ESP-IDF 与实际串口；若无现成工程，新建独立 `attendance-sign` 工程。使用 ESP-IDF 5.5.2，复用微雪显示/I2C/音频例程。不要照搬服务器文件路径或旧串口名。
+1. 检查本机现有工程、ESP-IDF 与实际串口；若无现成工程，新建独立 `attendance-sign` 工程。沿用目标工程已固定的 ESP-IDF/LVGL 版本，复用目标板的显示/I2C/音频驱动；不要因24k调整升降级工具链。不要照搬服务器文件路径或旧串口名。
 2. 用包内虚构 JSON 和两段虚构样音，先验证屏幕、中文/日文字形与扬声器。
 3. 用私有配置中的 `test_audio_urls` 验证正式 HTTPS 音频下载与播放。这是接入测试，不代表有人打卡，也不创建考勤记录。
 4. 连接正式 `get_events`：屏幕显示员工姓名、`action_label`、`time_label`、`greeting`，同时播放对应音频；每条反馈显示 5 秒，然后下一条或回待机。网络轮询与显示播放分开执行。

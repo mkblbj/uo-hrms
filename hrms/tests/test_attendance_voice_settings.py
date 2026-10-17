@@ -19,8 +19,8 @@ def wav(seconds=1):
 	with wave.open(out, "wb") as f:
 		f.setnchannels(1)
 		f.setsampwidth(2)
-		f.setframerate(16000)
-		f.writeframes(b"\0\0" * 16000 * seconds)
+		f.setframerate(24000)
+		f.writeframes(b"\0\0" * 24000 * seconds)
 	return out.getvalue()
 
 
@@ -133,6 +133,20 @@ class TestAttendanceVoiceSettings(unittest.TestCase):
 		with self.assertRaises(frappe.ValidationError):
 			api.publish(job)
 		self.assertFalse((self.root / "active/manifest.json").exists())
+
+	def test_pre_upgrade_generation_is_not_publishable_at_new_sample_rate(self):
+		import hashlib
+
+		self.save()
+		state = service._read()
+		legacy_fingerprint = hashlib.sha256(
+			json.dumps([state["draft"], service._employees()], ensure_ascii=False, sort_keys=True).encode()
+		).hexdigest()
+		state["generation"] = {"id": "a" * 32, "status": "ready", "fingerprint": legacy_fingerprint}
+		service._write(state)
+		self.assertFalse(api.get_settings()["generation"]["can_publish"])
+		with self.assertRaisesRegex(frappe.ValidationError, "重新生成"):
+			api.publish("a" * 32)
 
 	def test_renamed_employee_cannot_publish_stale_generation(self):
 		job = self.run_generation()

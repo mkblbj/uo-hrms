@@ -10,7 +10,7 @@ from pathlib import Path
 
 import frappe
 
-from hrms.utils.attendance_sign_audio import _atomic_write, validate_wav, write_bundle
+from hrms.utils.attendance_sign_audio import SAMPLE_RATE, _atomic_write, validate_wav, write_bundle
 
 
 def _root():
@@ -145,7 +145,7 @@ def _normal(config):
 
 def _fingerprint(config, employees):
 	return hashlib.sha256(
-		json.dumps([config, employees], ensure_ascii=False, sort_keys=True).encode()
+		json.dumps([config, employees, SAMPLE_RATE], ensure_ascii=False, sort_keys=True).encode()
 	).hexdigest()
 
 
@@ -326,6 +326,7 @@ def generate_job(request_id):
 					"speaker_id": config["speaker_id"],
 					"voice": result["voice"],
 					"credit": result["credit"],
+					"sample_rate": SAMPLE_RATE,
 					"name_readings": "surname-only administrator draft",
 					"checkin_greeting": "おはようございます。",
 					"checkout_greeting": "お疲れさまでした。",
@@ -348,7 +349,7 @@ def publish(request_id):
 		if not generation or generation["id"] != request_id or generation["status"] != "ready":
 			frappe.throw("请先完成生成，再发布")
 		if generation["fingerprint"] != _fingerprint(state["draft"], employees):
-			frappe.throw("草稿或员工资料已变化，请重新生成后发布")
+			frappe.throw("草稿、员工资料或音频规格已变化，请重新生成后发布")
 		# Validated bundle publication is shared with the existing admin CLI.
 		from hrms.utils.attendance_sign_audio import publish_bundle
 

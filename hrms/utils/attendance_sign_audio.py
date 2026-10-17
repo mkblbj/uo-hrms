@@ -12,7 +12,8 @@ from pathlib import Path
 import frappe
 
 ASSET_PATTERN = re.compile(r"[0-9a-f]{64}\Z")
-MAX_WAV_BYTES = 192000
+SAMPLE_RATE = 24000
+MAX_WAV_BYTES = 256 * 1024
 
 
 def validate_wav(data: bytes) -> None:
@@ -26,9 +27,9 @@ def validate_wav(data: bytes) -> None:
 				stream.getsampwidth(),
 				stream.getframerate(),
 				stream.getcomptype(),
-			) != (1, 2, 16000, "NONE"):
-				raise ValueError("Greeting must be mono 16-bit PCM WAV at 16000 Hz")
-			if not 0 < frames <= 80000 or len(stream.readframes(frames)) != frames * 2:
+			) != (1, 2, SAMPLE_RATE, "NONE"):
+				raise ValueError("Greeting must be mono 16-bit PCM WAV at 24000 Hz")
+			if not 0 < frames <= SAMPLE_RATE * 5 or len(stream.readframes(frames)) != frames * 2:
 				raise ValueError("Greeting WAV must contain at most 5 seconds of complete audio")
 	except (wave.Error, EOFError) as exc:
 		raise ValueError("Invalid greeting WAV") from exc

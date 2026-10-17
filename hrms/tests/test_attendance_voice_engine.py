@@ -63,7 +63,7 @@ class TestAttendanceVoiceEngine(unittest.TestCase):
 		self.assertEqual(result["audio"], wav())
 		body = json.loads(next(x[1] for x in calls if "/synthesis" in x[0]))
 		self.assertEqual(
-			(body["outputSamplingRate"], body["outputStereo"], body["speedScale"]), (16000, False, 1.1)
+			(body["outputSamplingRate"], body["outputStereo"], body["speedScale"]), (24000, False, 1.1)
 		)
 
 	def test_overlong_speech_has_actionable_chinese_error(self):

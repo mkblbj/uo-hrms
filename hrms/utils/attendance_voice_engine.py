@@ -10,7 +10,7 @@ from urllib.request import Request, urlopen
 
 import frappe
 
-from hrms.utils.attendance_sign_audio import _atomic_write, validate_wav
+from hrms.utils.attendance_sign_audio import SAMPLE_RATE, _atomic_write, validate_wav
 
 ENGINES = {"nemo": "http://attendance-sign-nemo:50121", "voicevox": "http://attendance-sign-voicevox:50021"}
 
@@ -117,7 +117,7 @@ def render(engine, speaker_id, text, speed):
 				post=True,
 			)
 		)
-		query.update(outputSamplingRate=16000, outputStereo=False, speedScale=speed)
+		query.update(outputSamplingRate=SAMPLE_RATE, outputStereo=False, speedScale=speed)
 		audio = _request(
 			_endpoint(engine) + "/synthesis?" + urlencode({"speaker": speaker_id}),
 			json.dumps(query).encode(),

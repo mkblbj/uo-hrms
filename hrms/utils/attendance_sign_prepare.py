@@ -9,7 +9,7 @@ from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
-from hrms.utils.attendance_sign_audio import validate_wav, write_bundle
+from hrms.utils.attendance_sign_audio import SAMPLE_RATE, validate_wav, write_bundle
 
 
 def _request(url: str, payload: bytes | None = None, *, post: bool = False) -> bytes:
@@ -55,6 +55,7 @@ def prepare_bundle(csv_path, output_dir, engine_url: str, speaker_id: int, speed
 			"speaker_id": speaker_id,
 			"voice": " / ".join(voice),
 			"credit": "VOICEVOX Nemo",
+			"sample_rate": SAMPLE_RATE,
 		},
 		"clips": {},
 	}
@@ -71,7 +72,7 @@ def prepare_bundle(csv_path, output_dir, engine_url: str, speaker_id: int, speed
 					engine_url + "/audio_query?" + urlencode({"speaker": speaker_id, "text": text}), post=True
 				)
 			)
-			query.update(outputSamplingRate=16000, outputStereo=False, speedScale=speed)
+			query.update(outputSamplingRate=SAMPLE_RATE, outputStereo=False, speedScale=speed)
 			data = _request(
 				engine_url + "/synthesis?" + urlencode({"speaker": speaker_id}),
 				json.dumps(query).encode(),

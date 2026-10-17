@@ -1,5 +1,7 @@
 # 服务器验证记录
 
+以下为2026-10-15旧16k版本的历史实测，不代表当前新生成规格。2026-10-17起新试听/生成/导入统一24kHz；当前升级说明见[24k固件交接](attendance-sign-24khz-firmware-handoff.md)。
+
 日期：2026-10-15（Asia/Tokyo）。开发基线：`c71a4c45f`，分支：`feat/attendance-sign-server`。
 
 ## 功能与回归

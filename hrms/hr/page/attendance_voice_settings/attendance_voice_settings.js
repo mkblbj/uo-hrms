@@ -56,7 +56,7 @@ frappe.AttendanceVoiceSettings = class {
     <div class="vs-actions"><button class="btn btn-default" data-action="save">保存草稿</button><button class="btn btn-primary" data-action="generate">生成全员语音</button><button class="btn btn-primary" data-action="publish" disabled>发布到签到牌</button></div>
     <div class="vs-status" data-id="job" role="status">尚未生成新的语音。保存或试听不会更改当前声音。</div><progress data-id="progress" value="0" max="1" hidden aria-label="语音生成进度"></progress>
    </section>
-   <section class="vs-card" aria-label="试听"><h3>试听</h3><p class="vs-preview-text" data-id="preview-text">在下方选择员工，点击“试听签到”或“试听签退”。</p>
+   <section class="vs-card" aria-label="试听"><h3>试听</h3><p class="vs-muted">试听及新生成语音均为 24 kHz 原始音质。</p><p class="vs-preview-text" data-id="preview-text">在下方选择员工，点击“试听签到”或“试听签退”。</p>
     <audio controls preload="none" data-id="audio" aria-label="语音试听播放器"></audio><p class="vs-muted" data-id="preview-credit"></p>
     <div class="vs-status">签到：姓氏さん、おはようございます。<br>签退：姓氏さん、お疲れさまでした。</div>
    </section>
@@ -132,7 +132,7 @@ frappe.AttendanceVoiceSettings = class {
 			: generation?.status === "ready"
 			  ? generation.can_publish && !this.dirty
 					? "语音已生成，点击“发布到签到牌”后生效。"
-					: "草稿或员工资料已变化，请保存并重新生成。"
+					: "草稿、员工资料或音质规格已变化，请保存并重新生成。"
 			  : generation?.status === "published"
 			    ? "已发布，签到牌下次打卡会使用新语音。"
 			    : generation?.status === "error"

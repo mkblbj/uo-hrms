@@ -140,7 +140,7 @@ class TestAttendanceSign(unittest.TestCase):
 		process_response(response)
 		self.assertIn("no-store", response.headers["Cache-Control"])
 
-	def _bundle(self):
+	def _bundle(self, rate=24000):
 		import hashlib
 		import json
 		import wave
@@ -159,8 +159,8 @@ class TestAttendanceSign(unittest.TestCase):
 		with wave.open(buffer, "wb") as stream:
 			stream.setnchannels(1)
 			stream.setsampwidth(2)
-			stream.setframerate(16000)
-			stream.writeframes(b"\0\0" * 16000)
+			stream.setframerate(rate)
+			stream.writeframes(b"\0\0" * rate)
 		self.wav = buffer.getvalue()
 		self.asset_id = hashlib.sha256(self.wav).hexdigest()
 		(self.source / "audio" / (self.asset_id + ".wav")).write_bytes(self.wav)
@@ -211,6 +211,12 @@ class TestAttendanceSign(unittest.TestCase):
 		response = build_response()
 		self.assertEqual(response.mimetype, "audio/wav")
 		self.assertEqual(response.data, self.wav)
+
+	def test_legacy_published_16khz_remains_downloadable_during_firmware_upgrade(self):
+		audio = self._bundle(rate=16000)
+		audio.write_bundle(self.store, self.manifest, {self.asset_id: self.wav})
+		attendance_sign.get_audio(self.location, self.asset_id)
+		self.assertEqual(build_response().data, self.wav)
 
 	def test_rejects_asset_paths(self):
 		audio = self._bundle()
