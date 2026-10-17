@@ -4,7 +4,7 @@
 
 ## 产品
 
-- 入口 `/app/attendance-voice-settings`，中文界面，HR Manager 和 System Manager 可用。使用 Frappe Desk Page，不修改当前正在开发的 PWA、员工资料或 HR 工作区。
+- 入口 `/desk/attendance-voice-settings`，中文界面，HR Manager 和 System Manager 可用。使用 Frappe Desk Page，不修改当前正在开发的 PWA、员工资料或 HR 工作区。
 - 每人独立读音，全员统一音色/语速。空读音使用员工姓氏（优先员工 last_name，否则推断常见中文姓氏）；输入姓氏假名可纠正自动日语读音；页面仍显示完整姓名。员工姓名本身不修改。
 - 草稿保存后仍使用当前已发布声音；预览按钮使用当前输入，分别试听签到或签退，不发布。
 - 支持 Nemo 通用声音与普通 VOICEVOX 角色及风格；角色名保留原名，操作及常见风格用中文。展示声音来源署名。

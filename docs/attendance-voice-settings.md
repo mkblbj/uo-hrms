@@ -52,3 +52,9 @@ docker compose -f deploy/attendance-voice.compose.yaml --profile gpu ps -a
 草稿、预览和待发布资源位于 `sites/hrms.localhost/private/attendance-voice-settings/`；正式资源仍位于 `private/attendance-sign/`，设备接口保持 v1。备份这两个私有目录即可保留设置与发布内容，不要把员工读音或站点凭据提交到 Git。
 
 2026-10-17 上线管理页时保留原正式发布内容，不自动替换全名语音。用户在页面填写姓氏假名、试听满意后，自行生成和发布首个姓氏版本。
+
+## 上线验证记录
+
+2026-10-17：37 项相关测试通过，隔离站点真实浏览器走通修改姓氏假名、试听、后台生成及手动发布；桌面和 375px 布局检查通过。独立代码审查使用 `gpt-6-luna / medium`，无剩余重要问题。
+
+正式站点管理员页面可打开，显示全部 28 名在职员工；普通 VOICEVOX 提供 43 个角色、127 种说话风格。真实 GPU 试听为 mono PCM16 / 16kHz，样音约 2.07 秒；引擎日志确认使用 CUDA，空闲后容器自动停止。访客访问设置及预览音频均返回 403。原设备事件与现有 WAV 接口返回 200，WAV 哈希校验通过。正式草稿仍为初始 revision 0，已发布 manifest 与上线前一致。
