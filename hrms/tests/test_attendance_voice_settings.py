@@ -176,3 +176,103 @@ class TestAttendanceVoiceSettings(unittest.TestCase):
 			api.preview(json.dumps(self.config), "EMP-voice", "DELETE")
 		with self.assertRaises(frappe.DoesNotExistError):
 			api.get_preview_audio("../../site_config.json")
+
+	def profiles(self):
+		return {
+			"male": {"engine": "voicevox", "speaker_id": 13, "speed": 0.9, "intonation": 0.0},
+			"female": {"engine": "nemo", "speaker_id": 10005, "speed": 1.1, "intonation": 1.4},
+		}
+
+	def staff(self, gender):
+		return [{"name": "EMP-voice", "employee_name": "王小明", "surname": "王", "gender": gender}]
+
+	def test_legacy_draft_expands_independent_profiles_without_writing(self):
+		service._write({"revision": 3, "draft": self.config, "generation": None, "published_revision": None})
+		path = self.root / "settings/settings.json"
+		before = path.read_bytes()
+		draft = api.get_settings()["draft"]
+		self.assertEqual(draft["profiles"]["male"]["speaker_id"], 10005)
+		self.assertEqual(draft["profiles"]["female"]["intonation"], 1.0)
+		draft["profiles"]["male"]["speaker_id"] = 13
+		self.assertEqual(draft["profiles"]["female"]["speaker_id"], 10005)
+		self.assertEqual(path.read_bytes(), before)
+
+	def test_profiles_and_intonation_persist_independently(self):
+		self.config["profiles"] = self.profiles()
+		self.save()
+		draft = api.get_settings()["draft"]
+		self.assertEqual(draft["profiles"], self.profiles())
+		self.assertEqual(draft["readings"], {"EMP-voice": "ワン"})
+
+	def test_preview_routes_by_staff_gender_including_other_default(self):
+		self.config["profiles"] = self.profiles()
+		for gender, speaker, intonation in [
+			("Male", 13, 0.0),
+			("Female", 10005, 1.4),
+			("Genderqueer", 10005, 1.0),
+			("", 10005, 1.0),
+		]:
+			with (
+				self.subTest(gender=gender),
+				patch.object(service, "_employees", return_value=self.staff(gender)),
+				patch.object(service, "_render", side_effect=self.fake_render) as render,
+			):
+				api.preview(json.dumps(self.config), "EMP-voice", "IN")
+				voice = render.call_args.args[0]
+				self.assertEqual((voice["speaker_id"], voice["intonation"]), (speaker, intonation))
+
+	def test_invalid_intonation_is_rejected_for_every_profile(self):
+		for group in ("default", "male", "female"):
+			for value in (-0.1, 2.01, float("nan"), float("inf"), "bad"):
+				config = {**self.config, "profiles": self.profiles()}
+				if group == "default":
+					config["intonation"] = value
+				else:
+					config["profiles"][group]["intonation"] = value
+				with self.subTest(group=group, value=value), self.assertRaises(frappe.ValidationError):
+					api.save_settings(json.dumps(config), 0)
+
+	def test_gender_change_blocks_old_generation(self):
+		with patch.object(service, "_employees", return_value=self.staff("Male")):
+			job = self.run_generation()
+		with patch.object(service, "_employees", return_value=self.staff("Female")):
+			with self.assertRaises(frappe.ValidationError):
+				api.publish(job)
+
+	def test_generation_records_voice_group_and_attribution(self):
+		self.config["profiles"] = self.profiles()
+		with patch.object(service, "_employees", return_value=self.staff("Male")):
+			job = self.run_generation()
+		manifest = json.loads((self.root / "settings/generations" / job / "manifest.json").read_text())
+		self.assertEqual(manifest["source"]["profiles"]["male"]["speaker_id"], 13)
+		self.assertEqual(manifest["source"]["profiles"]["male"]["intonation"], 0.0)
+		self.assertEqual(manifest["clips"]["EMP-voice"]["IN"]["voice_group"], "male")
+
+	def test_manual_voice_group_overrides_gender_and_persists(self):
+		self.config["profiles"] = self.profiles()
+		self.config["voice_groups"] = {"EMP-voice": "male"}
+		with patch.object(service, "_employees", return_value=self.staff("Female")):
+			self.save()
+			self.assertEqual(api.get_settings()["draft"]["voice_groups"], {"EMP-voice": "male"})
+			with patch.object(service, "_render", side_effect=self.fake_render) as render:
+				api.preview(json.dumps(self.config), "EMP-voice", "IN")
+			self.assertEqual(render.call_args.args[0]["speaker_id"], 13)
+
+	def test_invalid_manual_group_is_rejected(self):
+		self.config["voice_groups"] = {"EMP-voice": "unknown"}
+		with self.assertRaises(frappe.ValidationError):
+			self.save()
+
+	def test_mixed_generation_keeps_all_used_profile_attributions(self):
+		self.config["profiles"] = self.profiles()
+		staff = [
+			{"name": "EMP-" + str(i), "employee_name": "测试员工" + str(i), "surname": "王", "gender": gender}
+			for i, gender in enumerate(("Male", "Female", "Genderqueer"))
+		]
+		with patch.object(service, "_employees", return_value=staff):
+			job = self.run_generation()
+		manifest = json.loads((self.root / "settings/generations" / job / "manifest.json").read_text())
+		self.assertEqual(set(manifest["source"]["profiles"]), {"male", "female", "default"})
+		self.assertEqual(
+			[manifest["clips"][e["name"]]["IN"]["voice_group"] for e in staff], ["male", "female", "default"]
+		)

@@ -81,11 +81,13 @@ def _employees():
 			"name": e.name,
 			"employee_name": e.employee_name,
 			"surname": _surname(e.employee_name, e.last_name or ""),
+			"gender": e.gender or "",
+			"voice_group": _voice_group(e.gender),
 		}
 		for e in frappe.get_all(
 			"Employee",
 			filters={"status": "Active"},
-			fields=["name", "employee_name", "last_name"],
+			fields=["name", "employee_name", "last_name", "gender"],
 			order_by="employee_name asc, name asc",
 		)
 	]
@@ -106,7 +108,9 @@ def _read():
 		"generation": None,
 		"published_revision": None,
 	}
-	return _json(_root() / "settings.json", default)
+	state = _json(_root() / "settings.json", default)
+	state["draft"] = _expand_draft(state["draft"])
+	return state
 
 
 def _write(state):
@@ -115,18 +119,52 @@ def _write(state):
 	)
 
 
-def _normal(config):
-	if isinstance(config, str):
-		config = json.loads(config)
+def _voice_group(gender):
+	return {"Male": "male", "Female": "female"}.get(gender, "default")
+
+
+def _voice_config(config):
 	if not isinstance(config, dict) or config.get("engine") not in ("nemo", "voicevox"):
 		frappe.throw("请选择有效的语音引擎")
 	try:
 		speaker = int(config["speaker_id"])
 		speed = float(config.get("speed", 1))
+		intonation = float(config.get("intonation", 1))
 	except (KeyError, TypeError, ValueError):
-		frappe.throw("请选择音色并填写有效语速")
+		frappe.throw("请填写有效的音色、语速与抑扬")
 	if not 0 <= speaker <= 1000000 or not 0.5 <= speed <= 2:
 		frappe.throw("语速需在 0.5～2.0 之间")
+	if not 0 <= intonation <= 2:
+		frappe.throw("抑扬需在 0～2.0 之间")
+	return {"engine": config["engine"], "speaker_id": speaker, "speed": speed, "intonation": intonation}
+
+
+def _expand_draft(config):
+	base = _voice_config(config)
+	profiles = config.get("profiles", {})
+	if not isinstance(profiles, dict):
+		frappe.throw("男女声音配置格式不正确")
+	return {
+		**base,
+		"readings": config.get("readings", {}),
+		"voice_groups": config.get("voice_groups", {}),
+		"profiles": {group: _voice_config(profiles.get(group, base)) for group in ("male", "female")},
+	}
+
+
+def _group_for(config, employee):
+	return config.get("voice_groups", {}).get(employee["name"]) or _voice_group(employee.get("gender"))
+
+
+def _voice_for(config, employee):
+	group = _group_for(config, employee)
+	return _voice_config(config.get("profiles", {}).get(group, config))
+
+
+def _normal(config):
+	if isinstance(config, str):
+		config = json.loads(config)
+	expanded = _expand_draft(config)
 	readings = config.get("readings", {})
 	if not isinstance(readings, dict):
 		frappe.throw("姓氏读音格式不正确")
@@ -140,7 +178,19 @@ def _normal(config):
 			frappe.throw("姓氏读音需为80字以内的单行文字")
 		if text.strip():
 			cleaned[employee] = text.strip()
-	return {"engine": config["engine"], "speaker_id": speaker, "speed": speed, "readings": cleaned}
+	voice_groups = config.get("voice_groups", {})
+	if not isinstance(voice_groups, dict):
+		frappe.throw("员工声音组格式不正确")
+	assigned = {}
+	for employee, group in voice_groups.items():
+		if employee not in valid:
+			continue
+		if group not in ("male", "female", "default"):
+			frappe.throw("请选择有效的员工声音组")
+		assigned[employee] = group
+	expanded["voice_groups"] = assigned
+	expanded["readings"] = cleaned
+	return expanded
 
 
 def _fingerprint(config, employees):
@@ -192,7 +242,7 @@ def save_settings(config, revision):
 def _render(config, text):
 	from hrms.utils.attendance_voice_engine import render
 
-	return render(config["engine"], config["speaker_id"], text, config["speed"])
+	return render(config["engine"], config["speaker_id"], text, config["speed"], config.get("intonation", 1))
 
 
 def _text(config, employee, kind):
@@ -204,7 +254,7 @@ def _text(config, employee, kind):
 
 def _render_for(config, employee, kind):
 	text = _text(config, employee, kind)
-	result = _render(config, text)
+	result = _render(_voice_for(config, employee), text)
 	try:
 		validate_wav(result["audio"])
 	except ValueError as exc:
@@ -310,7 +360,15 @@ def generate_job(request_id):
 		assets = {}
 		clips = {}
 		done = 0
-		source = {}
+		source = {
+			"engine": "VOICEVOX grouped voices",
+			"voice": "按员工性别分组",
+			"profiles": {},
+			"sample_rate": SAMPLE_RATE,
+			"name_readings": "surname-only administrator draft",
+			"checkin_greeting": "おはようございます。",
+			"checkout_greeting": "お疲れさまでした。",
+		}
 		for employee in generation["employees"]:
 			clips[employee["name"]] = {}
 			for kind in ("IN", "OUT"):
@@ -320,17 +378,15 @@ def generate_job(request_id):
 				clips[employee["name"]][kind] = {
 					"asset_id": asset,
 					"employee_name": employee["employee_name"],
+					"voice_group": _group_for(config, employee),
 				}
-				source = {
-					"engine": "VOICEVOX Nemo" if config["engine"] == "nemo" else "VOICEVOX",
-					"speaker_id": config["speaker_id"],
+				group = _group_for(config, employee)
+				source["profiles"][group] = {
+					**_voice_for(config, employee),
 					"voice": result["voice"],
 					"credit": result["credit"],
-					"sample_rate": SAMPLE_RATE,
-					"name_readings": "surname-only administrator draft",
-					"checkin_greeting": "おはようございます。",
-					"checkout_greeting": "お疲れさまでした。",
 				}
+				source["credit"] = " / ".join(sorted({v["credit"] for v in source["profiles"].values()}))
 				done += 1
 				if not _progress(request_id, done=done):
 					return

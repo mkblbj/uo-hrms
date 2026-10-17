@@ -17,7 +17,9 @@ frappe.AttendanceVoiceSettings = class {
 		this.root.className = "voice-settings";
 		page.main.append(this.root);
 		this.catalog = [];
-		this.busy = false;
+		this.catalogs = {};
+		this.profile = "male";
+		this.busy = true;
 		this.dirty = false;
 		this.root.innerHTML = `<style>
    .voice-settings{padding:24px;max-width:1440px;margin:auto;color:var(--text-color)}
@@ -26,6 +28,7 @@ frappe.AttendanceVoiceSettings = class {
    .voice-settings .vs-card{background:var(--fg-color);border:1px solid var(--border-color);border-radius:12px;padding:20px}
    .voice-settings .vs-card h3{font-size:16px;margin:0 0 16px}.voice-settings .vs-fields{display:grid;grid-template-columns:1fr 1fr;gap:16px}
    .voice-settings label{display:block;font-weight:500;font-size:13px;margin-bottom:6px}.voice-settings .form-control{height:40px}
+   .voice-settings .vs-intonation{display:flex;gap:12px;align-items:center}.voice-settings .vs-intonation input[type=range]{flex:1;min-width:0}.voice-settings .vs-intonation input[type=number]{width:85px}
    .voice-settings .vs-full{grid-column:1/-1}.voice-settings .vs-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px}
    .voice-settings button{min-height:38px}.voice-settings button:focus-visible,.voice-settings input:focus-visible,.voice-settings select:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
    .voice-settings .vs-status{border-left:3px solid var(--primary);padding:8px 12px;background:var(--subtle-fg);margin-top:14px;font-size:13px;line-height:1.6}
@@ -47,8 +50,10 @@ frappe.AttendanceVoiceSettings = class {
   <div class="vs-grid">
    <section class="vs-card" aria-label="声音设置"><h3>声音设置</h3>
     <div class="vs-fields">
+     <div class="vs-full"><label for="vs-profile">正在调整哪组声音</label><select id="vs-profile" class="form-control"><option value="male">男声配置</option><option value="female">女声配置</option><option value="default">默认声音（其他 / 未填）</option></select><p class="vs-muted">默认按员工性别选组，也可在员工行手动指定。各组参数独立保存。</p></div>
      <div><label for="vs-engine">声音类型</label><select id="vs-engine" class="form-control"><option value="voicevox">VOICEVOX · 角色音色</option><option value="nemo">Nemo · 通用音色</option></select></div>
      <div><label for="vs-speed">语速</label><input id="vs-speed" class="form-control" type="number" min="0.5" max="2" step="0.05" value="1"></div>
+     <div class="vs-full"><label for="vs-intonation">抑扬（语调起伏）</label><div class="vs-intonation"><input id="vs-intonation-range" type="range" min="0" max="2" step="0.05" value="1" aria-label="抑扬滑块"><input id="vs-intonation" class="form-control" type="number" min="0" max="2" step="0.05" value="1"></div><p class="vs-muted">0 更平直 · 1 自然 · 2 起伏更明显</p></div>
      <div><label for="vs-speaker">角色 / 说话人</label><select id="vs-speaker" class="form-control" disabled><option>请先加载音色</option></select></div>
      <div><label for="vs-style">说话风格</label><select id="vs-style" class="form-control" disabled><option>请先加载音色</option></select></div>
      <div class="vs-full"><button class="btn btn-default btn-sm" data-action="voices">加载音色</button><span class="vs-muted" data-id="voice-credit" style="margin-left:10px">首次加载可能需要一点时间</span></div>
@@ -62,7 +67,7 @@ frappe.AttendanceVoiceSettings = class {
    </section>
   </div>
   <section class="vs-card"><div class="vs-toolbar"><div><h3 style="margin-bottom:4px">员工姓氏读音</h3><p class="vs-muted">只填姓的假名，例如 ワン；不填名字或“さん”。留空时按自动姓氏读音生成。</p></div><input class="form-control" data-id="search" aria-label="搜索员工" placeholder="搜索姓名或员工编号"></div>
-   <table><thead><tr><th>员工</th><th>自动姓氏</th><th>姓氏读音（假名）</th><th>试听</th></tr></thead><tbody data-id="employees"></tbody></table>
+   <table><thead><tr><th>员工</th><th>声音组</th><th>自动姓氏</th><th>姓氏读音（假名）</th><th>试听</th></tr></thead><tbody data-id="employees"></tbody></table>
   </section>`;
 		this.root.addEventListener("click", (e) => {
 			const b = e.target.closest("[data-action]");
@@ -73,23 +78,61 @@ frappe.AttendanceVoiceSettings = class {
 				this.draft.readings[e.target.dataset.employee] = e.target.value;
 				this.changed();
 			} else if (e.target.id === "vs-speed") {
-				this.draft.speed = Number(e.target.value);
+				this.voice().speed = Number(e.target.value);
+				this.changed();
+			} else if (["vs-intonation", "vs-intonation-range"].includes(e.target.id)) {
+				this.voice().intonation = Number(e.target.value);
+				this.root.querySelector("#vs-intonation").value = e.target.value;
+				this.root.querySelector("#vs-intonation-range").value = e.target.value;
 				this.changed();
 			} else if (e.target === this.el("search")) this.rows();
 		});
 		this.root.querySelector("#vs-engine").addEventListener("change", (e) => {
-			this.draft.engine = e.target.value;
+			this.voice().engine = e.target.value;
 			this.catalog = [];
 			this.changed();
 			this.voices();
 		});
 		this.root.querySelector("#vs-speaker").addEventListener("change", () => this.styles(true));
 		this.root.querySelector("#vs-style").addEventListener("change", (e) => {
-			this.draft.speaker_id = Number(e.target.value);
+			this.voice().speaker_id = Number(e.target.value);
 			this.changed();
 			this.credit();
 		});
+		this.root.querySelector("#vs-profile").addEventListener("change", (e) => {
+			this.profile = e.target.value;
+			this.controls();
+		});
+		this.root.addEventListener("change", (e) => {
+			if (!e.target.matches("[data-voice-person]")) return;
+			if (e.target.value)
+				this.draft.voice_groups[e.target.dataset.voicePerson] = e.target.value;
+			else delete this.draft.voice_groups[e.target.dataset.voicePerson];
+			this.changed();
+		});
+		this.status();
 		this.load();
+	}
+	voice() {
+		return this.profile === "default" ? this.draft : this.draft.profiles[this.profile];
+	}
+	controls() {
+		const voice = this.voice();
+		for (const [id, value] of [
+			["engine", voice.engine],
+			["speed", voice.speed],
+			["intonation", voice.intonation],
+			["intonation-range", voice.intonation],
+		])
+			this.root.querySelector("#vs-" + id).value = value;
+		this.catalog = this.catalogs[voice.engine] || [];
+		if (this.catalog.length) this.populateVoices();
+		else {
+			for (const id of ["speaker", "style"])
+				this.root.querySelector("#vs-" + id).innerHTML = "<option>请先加载音色</option>";
+			this.el("voice-credit").textContent = "首次加载可能需要一点时间";
+		}
+		this.status();
 	}
 	el(id) {
 		return this.root.querySelector(`[data-id="${id}"]`);
@@ -143,15 +186,21 @@ frappe.AttendanceVoiceSettings = class {
 		this.el("progress").value = generation?.done || 0;
 		this.root.querySelectorAll("button[data-action]").forEach((b) => {
 			b.disabled =
-				this.busy || (running && ["generate", "preview"].includes(b.dataset.action));
+				this.busy ||
+				!this.state ||
+				(running && ["generate", "preview"].includes(b.dataset.action));
 		});
 		this.root.querySelector('[data-action="publish"]').disabled =
 			this.busy || this.dirty || !generation?.can_publish;
-		this.root.querySelectorAll("#vs-engine,#vs-speed,[data-employee]").forEach((input) => {
-			input.disabled = this.busy;
-		});
+		this.root
+			.querySelectorAll(
+				"#vs-profile,#vs-engine,#vs-speed,#vs-intonation,#vs-intonation-range,[data-employee],[data-voice-person]",
+			)
+			.forEach((input) => {
+				input.disabled = this.busy || !this.state;
+			});
 		this.root.querySelectorAll("#vs-speaker,#vs-style").forEach((select) => {
-			select.disabled = this.busy || !this.catalog.length;
+			select.disabled = this.busy || !this.state || !this.catalog.length;
 		});
 	}
 	async load() {
@@ -159,13 +208,15 @@ frappe.AttendanceVoiceSettings = class {
 			this.state = await this.call("get_settings");
 			this.draft = JSON.parse(JSON.stringify(this.state.draft));
 			this.dirty = false;
-			this.root.querySelector("#vs-engine").value = this.draft.engine;
-			this.root.querySelector("#vs-speed").value = this.draft.speed;
+			this.controls();
 			this.rows();
 			this.status();
 			this.resume();
 		} catch (e) {
 			this.error(e);
+		} finally {
+			this.busy = false;
+			this.status();
 		}
 	}
 	rows() {
@@ -182,7 +233,9 @@ frappe.AttendanceVoiceSettings = class {
 							e.employee_name,
 						)}</div><div class="vs-id">${this.escape(
 							e.name,
-						)}</div></td><td data-label="自动姓氏">${this.escape(
+						)}</div></td><td data-label="声音组">${this.groupSelect(
+							e,
+						)}</td><td data-label="自动姓氏">${this.escape(
 							e.surname,
 						)}</td><td data-label="姓氏读音（假名）"><input class="form-control" data-employee="${this.escape(
 							e.name,
@@ -198,8 +251,28 @@ frappe.AttendanceVoiceSettings = class {
 							e.name,
 						)}" data-kind="OUT">试听签退</button></div></td></tr>`,
 				)
-				.join("") || '<tr><td class="vs-empty" colspan="4">没有匹配的员工</td></tr>';
+				.join("") || '<tr><td class="vs-empty" colspan="5">没有匹配的员工</td></tr>';
 		this.status();
+	}
+	groupSelect(employee) {
+		const assigned = this.draft.voice_groups[employee.name] || "";
+		const names = { male: "男声", female: "女声", default: "默认" };
+		const automatic = names[employee.voice_group] || "默认";
+		return `<select class="form-control" data-voice-person="${this.escape(
+			employee.name,
+		)}" aria-label="${this.escape(employee.employee_name)}的声音组">${[
+			["", "自动（" + automatic + "）"],
+			["male", "男声配置"],
+			["female", "女声配置"],
+			["default", "默认声音"],
+		]
+			.map(
+				([value, label]) =>
+					`<option value="${value}" ${
+						assigned === value ? "selected" : ""
+					}>${label}</option>`,
+			)
+			.join("")}</select>`;
 	}
 	styleName(name) {
 		return (
@@ -222,15 +295,9 @@ frappe.AttendanceVoiceSettings = class {
 			this.busy = true;
 			this.status();
 			this.el("voice-credit").textContent = "正在准备音色，请稍候…";
-			this.catalog = await this.call("get_voices", { engine: this.draft.engine });
-			const speaker = this.root.querySelector("#vs-speaker");
-			speaker.innerHTML = [...new Set(this.catalog.map((v) => v.name))]
-				.map((n) => `<option value="${this.escape(n)}">${this.escape(n)}</option>`)
-				.join("");
-			speaker.disabled = false;
-			const current = this.catalog.find((v) => v.id === Number(this.draft.speaker_id));
-			speaker.value = current?.name || this.catalog[0]?.name;
-			this.styles(!current);
+			this.catalog = await this.call("get_voices", { engine: this.voice().engine });
+			this.catalogs[this.voice().engine] = this.catalog;
+			this.populateVoices();
 		} catch (e) {
 			this.el("voice-credit").textContent = "音色加载未完成，可稍后重试";
 			this.error(e);
@@ -238,6 +305,16 @@ frappe.AttendanceVoiceSettings = class {
 			this.busy = false;
 			this.status();
 		}
+	}
+	populateVoices() {
+		const speaker = this.root.querySelector("#vs-speaker");
+		speaker.innerHTML = [...new Set(this.catalog.map((v) => v.name))]
+			.map((n) => `<option value="${this.escape(n)}">${this.escape(n)}</option>`)
+			.join("");
+		speaker.disabled = false;
+		const current = this.catalog.find((v) => v.id === Number(this.voice().speaker_id));
+		speaker.value = current?.name || this.catalog[0]?.name;
+		this.styles(!current);
 	}
 	styles(change) {
 		const selected = this.root.querySelector("#vs-speaker").value;
@@ -247,17 +324,17 @@ frappe.AttendanceVoiceSettings = class {
 			.map((v) => `<option value="${v.id}">${this.escape(this.styleName(v.style))}</option>`)
 			.join("");
 		style.disabled = false;
-		if (options.some((v) => v.id === Number(this.draft.speaker_id)))
-			style.value = this.draft.speaker_id;
-		else this.draft.speaker_id = Number(style.value);
+		if (options.some((v) => v.id === Number(this.voice().speaker_id)))
+			style.value = this.voice().speaker_id;
+		else this.voice().speaker_id = Number(style.value);
 		if (change) {
-			this.draft.speaker_id = Number(style.value);
+			this.voice().speaker_id = Number(style.value);
 			this.changed();
 		}
 		this.credit();
 	}
 	credit() {
-		const voice = this.catalog.find((v) => v.id === Number(this.draft.speaker_id));
+		const voice = this.catalog.find((v) => v.id === Number(this.voice().speaker_id));
 		this.el("voice-credit").textContent = voice ? "音声来源：" + voice.credit : "请选择音色";
 	}
 	async save() {

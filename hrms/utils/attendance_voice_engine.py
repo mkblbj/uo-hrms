@@ -105,7 +105,7 @@ def get_catalog(engine):
 	return catalog
 
 
-def render(engine, speaker_id, text, speed):
+def render(engine, speaker_id, text, speed, intonation=1.0):
 	with _session(engine):
 		catalog = _catalog(engine)
 		voice = next((v for v in catalog if v["id"] == speaker_id), None)
@@ -117,7 +117,9 @@ def render(engine, speaker_id, text, speed):
 				post=True,
 			)
 		)
-		query.update(outputSamplingRate=SAMPLE_RATE, outputStereo=False, speedScale=speed)
+		query.update(
+			outputSamplingRate=SAMPLE_RATE, outputStereo=False, speedScale=speed, intonationScale=intonation
+		)
 		audio = _request(
 			_endpoint(engine) + "/synthesis?" + urlencode({"speaker": speaker_id}),
 			json.dumps(query).encode(),
