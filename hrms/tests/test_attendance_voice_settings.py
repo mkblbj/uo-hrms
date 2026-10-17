@@ -276,3 +276,20 @@ class TestAttendanceVoiceSettings(unittest.TestCase):
 		self.assertEqual(
 			[manifest["clips"][e["name"]]["IN"]["voice_group"] for e in staff], ["male", "female", "default"]
 		)
+
+	def test_generation_batches_engines_without_invalidating_employee_snapshot(self):
+		self.config["profiles"] = self.profiles()
+		staff = [
+			{"name": "EMP-" + str(i), "employee_name": "测试" + str(i), "surname": "王", "gender": gender}
+			for i, gender in enumerate(("Male", "Female", "Male", "Genderqueer"))
+		]
+		with patch.object(service, "_employees", return_value=staff):
+			self.save()
+			with patch.object(service, "_enqueue"):
+				job = api.start_generation(1)
+			with patch.object(service, "_render", side_effect=self.fake_render) as render:
+				service.generate_job(job["id"])
+			self.assertEqual(
+				[call.args[0]["engine"] for call in render.call_args_list], ["nemo"] * 4 + ["voicevox"] * 4
+			)
+			self.assertTrue(api.get_settings()["generation"]["can_publish"])

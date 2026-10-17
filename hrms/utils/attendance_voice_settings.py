@@ -369,7 +369,9 @@ def generate_job(request_id):
 			"checkin_greeting": "おはようございます。",
 			"checkout_greeting": "お疲れさまでした。",
 		}
-		for employee in generation["employees"]:
+		# Switching engines replaces the site lease; batch to avoid reloading models per employee.
+		ordered = sorted(generation["employees"], key=lambda e: _voice_for(config, e)["engine"])
+		for employee in ordered:
 			clips[employee["name"]] = {}
 			for kind in ("IN", "OUT"):
 				_, result = _render_for(config, employee, kind)
