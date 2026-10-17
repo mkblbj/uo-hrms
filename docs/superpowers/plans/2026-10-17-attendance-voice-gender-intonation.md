@@ -18,12 +18,14 @@
 ### Task 1: 服务与参数
 
 Files: hrms/utils/attendance_voice_settings.py, attendance_voice_engine.py；对应test_attendance_voice_settings.py/test_attendance_voice_engine.py。
-- [ ] RED: 旧设置迁移不写磁盘、男女/其他路由、独立参数保存、抑扬0及非法值、性别改变阻止发布、混合来源元数据、真实HTTP边界intonationScale。
-- [ ] 实现voice参数规范化、旧格式迁移、gender读取、按员工选配置、参数下传和来源快照；相关43项基线及新增测试GREEN。
+- [x] RED: 旧设置迁移不写磁盘、男女/其他路由、独立参数保存、抑扬0及非法值、性别改变阻止发布、混合来源元数据、真实HTTP边界intonationScale。
+- [x] 实现voice参数规范化、旧格式迁移、gender读取、按员工选配置、参数下传和来源快照；相关43项基线及新增测试GREEN。
 
 ### Task 2: 中文页面与上线
 
 Files: hrms/hr/page/attendance_voice_settings/attendance_voice_settings.js, docs/attendance-voice-settings.md。
-- [ ] 设置组切换（男/女/默认）、独立声音控件、抑扬slider+数字及含义、员工表标当前声音组；保持现有试听/生成/发布。
-- [ ] 隔离浏览器验证切换保留参数、按行试听正确组、24k音频、窄屏；真实GPU不同抑扬合成；最终review并限定文件部署。
-- [ ] 正式只读及试听验证，保存的原草稿和manifest保持不变，用户自行设置并生成发布。
+- [x] 设置组切换（男/女/默认）、独立声音控件、抑扬slider+数字及含义、员工表标当前声音组；保持现有试听/生成/发布。
+- [x] 隔离浏览器验证切换保留参数、按行试听正确组、24k音频、窄屏；真实GPU不同抑扬合成；最终review并限定文件部署。
+- [x] 正式只读及试听验证，保存的原草稿和manifest保持不变，用户自行设置并生成发布。
+
+验收：53项相关测试通过（23设置+6引擎+9旧生成+15设备）。真实GPU双引擎抑扬0/1.4音频不同且为24k；隔离浏览器自动/手动、组独立、保存重开和375px通过。gpt-6-luna medium审查及按引擎分批补查均无重要问题。正式API/页面和试听通过，草稿及manifest字节不变。
