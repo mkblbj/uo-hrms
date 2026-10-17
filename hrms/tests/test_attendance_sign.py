@@ -89,6 +89,46 @@ class TestAttendanceSign(unittest.TestCase):
 		with self.assertRaises(frappe.PermissionError):
 			attendance_sign.get_events(self.location)
 
+	def test_qr_requires_actual_key_even_when_web_key_is_optional(self):
+		frappe.set_user("Guest")
+		for key in (None, "wrong"):
+			self._headers(key)
+			with self.assertRaises(frappe.PermissionError):
+				attendance_sign.get_qr(self.location)
+		self._headers(self.key)
+		frappe.db.set_value("QR Checkin Location", self.location, "qr_refresh_interval", 120)
+		before = frappe.db.count("Employee Checkin")
+		result = attendance_sign.get_qr(self.location)
+		self.assertEqual((result["version"], result["locale"], result["expires_in"]), (1, "ja-JP", 120))
+		self.assertEqual(result["location"], self.location)
+		self.assertEqual(result["server_time"], int(self.clock.timestamp()))
+		self.assertTrue(0 < result["refresh_at"] - result["server_time"] <= 120)
+		self.assertEqual(result["expires_at"] - result["refresh_at"], 120)
+		self.assertEqual(frappe.db.count("Employee Checkin"), before)
+		self.assertNotIn("secret", result)
+		self.assertNotIn("display_key", result)
+		frappe.local.response["message"] = result
+		from frappe.app import process_response
+
+		response = build_response("json")
+		process_response(response)
+		self.assertIn("no-store", response.headers["Cache-Control"])
+
+	def test_qr_rejects_cross_location_key_and_disabled_location(self):
+		other = frappe.get_doc(
+			{
+				"doctype": "QR Checkin Location",
+				"location_name": "other-" + frappe.generate_hash(length=8),
+				"secret": "x" * 32,
+				"enabled": 1,
+			}
+		).insert()
+		with self.assertRaises(frappe.PermissionError):
+			attendance_sign.get_qr(other.name)
+		frappe.db.set_value("QR Checkin Location", self.location, "enabled", 0)
+		with self.assertRaises(frappe.PermissionError):
+			attendance_sign.get_qr(self.location)
+
 	def test_events_are_recent_committed_checkin_shape(self):
 		self._row("sign-example")
 		result = attendance_sign.get_events(self.location)

@@ -12,7 +12,7 @@ from frappe.utils import get_datetime, get_system_timezone
 from hrms.utils.attendance_sign_audio import find_clip, read_asset
 
 
-def _require_sign_key(location: str) -> None:
+def _require_sign_key(location: str):
 	if not location or not frappe.db.exists("QR Checkin Location", location):
 		raise frappe.PermissionError("Invalid attendance sign configuration")
 	doc = frappe.get_doc("QR Checkin Location", location)
@@ -25,6 +25,17 @@ def _require_sign_key(location: str) -> None:
 		or not hmac.compare_digest(str(expected).encode(), str(supplied).encode())
 	):
 		raise frappe.PermissionError("Invalid attendance sign configuration")
+	return doc
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def get_qr(location: str) -> dict:
+	"""Return the server-signed QR payload for a key-authenticated display."""
+	from hrms.utils.attendance_qr import build_qr_payload
+
+	doc = _require_sign_key(location)
+	frappe.local.response_headers["Cache-Control"] = "no-store"
+	return {"version": 1, "locale": "ja-JP", **build_qr_payload(doc)}
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET"])

@@ -78,6 +78,8 @@ docker compose -f deploy/attendance-sign-nemo.compose.yaml down
 
 ## 4. 板端接口
 
+动态二维码新增 `GET /api/method/hrms.api.attendance_sign.get_qr?location=地点ID`，同样必须带设备密钥请求头。uo-2f-door配置为120秒换码，网页、公开API和板端共用签名逻辑；服务器仍接受当前和上一时槽。具体字段、硬过期及本机显示方案见[二维码常驻接入说明](attendance-sign-qr-display-handoff.md)。
+
 板子通过可从其 Wi-Fi 网络访问的 HRMS HTTPS 入口连接，不使用服务器 localhost 或 Docker 容器名。
 
 - `GET /api/method/hrms.api.attendance_sign.get_events?location=地点ID`
