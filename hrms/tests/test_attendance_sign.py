@@ -129,6 +129,45 @@ class TestAttendanceSign(unittest.TestCase):
 		with self.assertRaises(frappe.PermissionError):
 			attendance_sign.get_qr(self.location)
 
+	def test_weather_requires_key_before_fetching_and_wraps_snapshot(self):
+		from hrms.utils import attendance_sign_weather
+
+		packet = {
+			"status": "ok",
+			"weather": {"temp_c": 0},
+			"fetched_at": 1000,
+			"refresh_after": 600,
+			"date": "2026-10-17",
+		}
+		with patch.object(attendance_sign_weather, "get_snapshot", return_value=packet) as source:
+			frappe.set_user("Guest")
+			for key in (None, "wrong"):
+				self._headers(key)
+				with self.assertRaises(frappe.PermissionError):
+					attendance_sign.get_weather(self.location)
+			source.assert_not_called()
+			self._headers(self.key)
+			before = frappe.db.count("Employee Checkin")
+			result = attendance_sign.get_weather(self.location, lang="zh")
+			self.assertEqual(
+				(result["version"], result["locale"], result["location"]), (1, "zh-CN", self.location)
+			)
+			self.assertEqual(result["weather"]["temp_c"], 0)
+			self.assertEqual(frappe.db.count("Employee Checkin"), before)
+			source.assert_called_once_with("zh")
+			self.assertIn("no-store", frappe.local.response_headers["Cache-Control"])
+
+	def test_weather_disabled_or_unknown_location_does_not_fetch(self):
+		from hrms.utils import attendance_sign_weather
+
+		with patch.object(attendance_sign_weather, "get_snapshot") as source:
+			with self.assertRaises(frappe.PermissionError):
+				attendance_sign.get_weather("unknown-weather-door")
+			frappe.db.set_value("QR Checkin Location", self.location, "enabled", 0)
+			with self.assertRaises(frappe.PermissionError):
+				attendance_sign.get_weather(self.location)
+			source.assert_not_called()
+
 	def test_events_are_recent_committed_checkin_shape(self):
 		self._row("sign-example")
 		result = attendance_sign.get_events(self.location)
