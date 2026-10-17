@@ -12,7 +12,7 @@ class TestAttendanceSignWeather(unittest.TestCase):
 	def setUp(self):
 		self.prefix = "test-sign-weather-" + uuid.uuid4().hex
 		self.patches = [
-			patch.object(weather, "_cache_key", side_effect=lambda lang, day: f"{self.prefix}:{lang}:{day}"),
+			patch.object(weather, "_cache_key", side_effect=lambda day: f"{self.prefix}:ja:{day}"),
 			patch.object(weather.time, "time", return_value=1000),
 			patch.object(weather, "nowdate", return_value="2026-10-17"),
 		]
@@ -26,18 +26,17 @@ class TestAttendanceSignWeather(unittest.TestCase):
 		}
 
 	def tearDown(self):
-		for lang in ("ja", "zh", "en"):
-			for day in ("2026-10-17", "2026-10-18"):
-				key = f"{self.prefix}:{lang}:{day}"
-				frappe.cache.delete_value(key)
-				frappe.cache.delete_value(key + ":last-good")
+		for day in ("2026-10-17", "2026-10-18"):
+			key = f"{self.prefix}:ja:{day}"
+			frappe.cache.delete_value(key)
+			frappe.cache.delete_value(key + ":last-good")
 		for p in reversed(self.patches):
 			p.stop()
 
 	def test_zero_negative_temperatures_and_success_cache(self):
 		with patch.object(weather, "_source", return_value=self.data) as source:
-			first = weather.get_snapshot("ja")
-			second = weather.get_snapshot("ja")
+			first = weather.get_snapshot()
+			second = weather.get_snapshot()
 		self.assertEqual(
 			first["weather"],
 			{
@@ -51,35 +50,34 @@ class TestAttendanceSignWeather(unittest.TestCase):
 		)
 		self.assertEqual((first["status"], first["fetched_at"], first["refresh_after"]), ("ok", 1000, 600))
 		self.assertEqual(first, second)
-		source.assert_called_once_with("ja")
+		source.assert_called_once_with()
 
-	def test_cache_language_and_date_are_isolated(self):
+	def test_cache_dates_are_isolated(self):
 		with patch.object(weather, "_source", return_value=self.data) as source:
-			weather.get_snapshot("ja")
-			weather.get_snapshot("zh")
+			weather.get_snapshot()
 			with patch.object(weather, "nowdate", return_value="2026-10-18"):
-				weather.get_snapshot("ja")
-		self.assertEqual(source.call_count, 3)
+				weather.get_snapshot()
+		self.assertEqual(source.call_count, 2)
 
 	def test_cached_refresh_hint_counts_down(self):
 		with patch.object(weather, "_source", return_value=self.data):
-			weather.get_snapshot("ja")
+			weather.get_snapshot()
 		with (
 			patch.object(weather.time, "time", return_value=1599),
 			patch.object(weather, "_source") as source,
 		):
-			self.assertEqual(weather.get_snapshot("ja")["refresh_after"], 1)
+			self.assertEqual(weather.get_snapshot()["refresh_after"], 1)
 			source.assert_not_called()
 
 	def test_source_failure_returns_stale_and_backs_off(self):
 		with patch.object(weather, "_source", return_value=self.data):
-			weather.get_snapshot("ja")
+			weather.get_snapshot()
 		with (
 			patch.object(weather.time, "time", return_value=1601),
 			patch.object(weather, "_source", return_value=None) as source,
 		):
-			first = weather.get_snapshot("ja")
-			second = weather.get_snapshot("ja")
+			first = weather.get_snapshot()
+			second = weather.get_snapshot()
 		self.assertEqual((first["status"], first["fetched_at"], first["refresh_after"]), ("stale", 1000, 60))
 		self.assertEqual(first["weather"]["temp_c"], 0)
 		self.assertEqual(first, second)
@@ -87,44 +85,44 @@ class TestAttendanceSignWeather(unittest.TestCase):
 
 	def test_no_history_or_old_history_is_unavailable(self):
 		with patch.object(weather, "_source", return_value=None):
-			cold = weather.get_snapshot("ja")
+			cold = weather.get_snapshot()
 		self.assertEqual((cold["status"], cold["weather"], cold["fetched_at"]), ("unavailable", None, None))
 		with (
 			patch.object(weather.time, "time", return_value=1061),
 			patch.object(weather, "_source", return_value=self.data),
 		):
-			weather.get_snapshot("ja")
+			weather.get_snapshot()
 		with (
 			patch.object(weather.time, "time", return_value=4662),
 			patch.object(weather, "_source", return_value=None),
 		):
-			old = weather.get_snapshot("ja")
+			old = weather.get_snapshot()
 		self.assertEqual(old["status"], "unavailable")
 		self.assertIsNone(old["weather"])
 
 	def test_yesterday_is_not_reused_as_today(self):
 		with patch.object(weather, "_source", return_value=self.data):
-			weather.get_snapshot("ja")
+			weather.get_snapshot()
 		with (
 			patch.object(weather, "nowdate", return_value="2026-10-18"),
 			patch.object(weather, "_source", return_value=None),
 		):
-			result = weather.get_snapshot("ja")
+			result = weather.get_snapshot()
 		self.assertEqual((result["status"], result["date"]), ("unavailable", "2026-10-18"))
 
 	def test_stale_history_expires_even_during_retry_backoff(self):
 		with patch.object(weather, "_source", return_value=self.data):
-			weather.get_snapshot("ja")
+			weather.get_snapshot()
 		with (
 			patch.object(weather.time, "time", return_value=4599),
 			patch.object(weather, "_source", return_value=None),
 		):
-			self.assertEqual(weather.get_snapshot("ja")["status"], "stale")
+			self.assertEqual(weather.get_snapshot()["status"], "stale")
 		with (
 			patch.object(weather.time, "time", return_value=4601),
 			patch.object(weather, "_source") as source,
 		):
-			result = weather.get_snapshot("ja")
+			result = weather.get_snapshot()
 			self.assertEqual(result["status"], "unavailable")
 			self.assertIsNone(result["weather"])
 			source.assert_not_called()
@@ -173,26 +171,20 @@ class TestAttendanceSignWeather(unittest.TestCase):
 	def test_provider_language_context_is_restored(self):
 		previous = frappe.local.lang
 		try:
-			frappe.local.lang = "en"
+			frappe.local.lang = "zh"
 
 			def source():
-				self.assertEqual(frappe.local.lang, "zh")
+				self.assertEqual(frappe.local.lang, "ja")
 				return self.data
 
 			with patch("hrms.api.get_weather_data", side_effect=source):
-				self.assertEqual(weather._source("zh"), self.data)
-			self.assertEqual(frappe.local.lang, "en")
+				self.assertEqual(weather._source(), self.data)
+			self.assertEqual(frappe.local.lang, "zh")
 			with (
 				patch("hrms.api.get_weather_data", side_effect=RuntimeError("private-provider-url")),
 				patch.object(frappe, "log_error"),
 			):
-				self.assertIsNone(weather._source("zh"))
-			self.assertEqual(frappe.local.lang, "en")
+				self.assertIsNone(weather._source())
+			self.assertEqual(frappe.local.lang, "zh")
 		finally:
 			frappe.local.lang = previous
-
-	def test_unsupported_language_is_rejected_before_source(self):
-		with patch.object(weather, "_source") as source:
-			with self.assertRaises(frappe.ValidationError):
-				weather.get_snapshot("xx")
-			source.assert_not_called()

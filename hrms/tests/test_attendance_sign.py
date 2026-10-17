@@ -148,13 +148,13 @@ class TestAttendanceSign(unittest.TestCase):
 			source.assert_not_called()
 			self._headers(self.key)
 			before = frappe.db.count("Employee Checkin")
-			result = attendance_sign.get_weather(self.location, lang="zh")
+			result = frappe.call(attendance_sign.get_weather, location=self.location, lang="zh")
 			self.assertEqual(
-				(result["version"], result["locale"], result["location"]), (1, "zh-CN", self.location)
+				(result["version"], result["locale"], result["location"]), (1, "ja-JP", self.location)
 			)
 			self.assertEqual(result["weather"]["temp_c"], 0)
 			self.assertEqual(frappe.db.count("Employee Checkin"), before)
-			source.assert_called_once_with("zh")
+			source.assert_called_once_with()
 			self.assertIn("no-store", frappe.local.response_headers["Cache-Control"])
 
 	def test_weather_disabled_or_unknown_location_does_not_fetch(self):

@@ -39,16 +39,16 @@ def get_qr(location: str) -> dict:
 
 
 @frappe.whitelist(allow_guest=True, methods=["GET"])
-def get_weather(location: str, lang: str = "ja") -> dict:
+def get_weather(location: str) -> dict:
 	"""Read the PWA weather source without exposing provider credentials to the sign."""
 	_require_sign_key(location)
-	from hrms.utils.attendance_sign_weather import LOCALES, get_snapshot
+	from hrms.utils.attendance_sign_weather import get_snapshot
 
-	packet = get_snapshot(lang)
+	packet = get_snapshot()
 	frappe.local.response_headers["Cache-Control"] = "no-store"
 	return {
 		"version": 1,
-		"locale": LOCALES[lang],
+		"locale": "ja-JP",
 		"location": location,
 		"server_time": int(time.time()),
 		"timezone": get_system_timezone(),

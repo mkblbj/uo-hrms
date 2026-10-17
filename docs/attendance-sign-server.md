@@ -8,7 +8,7 @@
 
 服务器提前生成日语问候，支持 VOICEVOX Nemo 和普通 VOICEVOX 角色音色。优先 NVIDIA GPU，不可用时手动选 CPU。合成完成关闭引擎，日常打卡只读取已保存音频，不运行 TTS。
 
-日常维护使用[中文考勤语音设置页面](attendance-voice-settings.md)：管理员可改每人姓氏假名、选音色、试听，生成后单独发布。以下命令行流程继续可用。设备只有两个只读接口，PWA、打卡校验、工时计算均无修改。
+日常维护使用[中文考勤语音设置页面](attendance-voice-settings.md)：管理员可改每人姓氏假名、选音色、试听，生成后单独发布。以下命令行流程继续可用。设备接口均为只读，PWA、打卡校验、工时计算均无修改。
 
 ## 1. 按需启动 Nemo
 
@@ -126,3 +126,11 @@ env/bin/python -m unittest hrms.tests.test_attendance_sign_prepare
 已新增设备密钥鉴权的get_qr接口，网页首屏、原取码API和设备取码共用签名及地点周期。正式uo-2f-door已从30秒设置为120秒，签名密钥/展示密钥未更换；仍接受当前及上一时槽，单码最长约240秒，设备按refresh_at/expires_at处理。
 
 79项相关测试通过，gpt-6-luna medium独立审查未发现重要问题。正式公网新接口正确密钥200、缺失/错误密钥403，原网页/取码API均已使用120秒，事件及现有WAV接口保持200且WAV哈希正确。原语音草稿及已发布manifest未改变；没有在正式站点创建虚构考勤。板子绘码、扫码距离和真板反馈由本机验证，见[可转发接入说明](attendance-sign-qr-display-handoff.md)。
+
+## 板端天气服务（2026-10-17）
+
+已部署 `GET /api/method/hrms.api.attendance_sign.get_weather?location=uo-2f-door`，沿用 `X-Attendance-Sign-Key`。复用PWA既有WeatherAPI.com天气源及固定坐标34.66497,135.15820，返回当前温度、今日高低温、天气文字、本地图标代号和昼夜。天气描述统一日语，locale固定ja-JP，无需语言参数；设备不持有第三方密钥。
+
+服务端成功缓存10分钟，响应的 `refresh_after` 为剩余秒数。天气源暂不可用时最多复用同日1小时内数据并标为 `stale`，每分钟重试；无可用数据返回 `unavailable` 和 `weather=null`。天气获取独立于二维码与语音任务，完整字段和本机验收要求见[天气接入说明](attendance-sign-weather-handoff.md)。
+
+41项相关测试通过，gpt-6-luna medium独立审查未发现重要问题。正式公网日语天气200、缺失/错误密钥403、缓存复用通过；二维码120秒、事件读取和现有24kHz WAV下载及哈希通过。原有48个未提交文件、语音设置和已发布manifest哈希未变。测试及部署记录见[实施与验证记录](superpowers/plans/2026-10-17-attendance-sign-weather.md)。

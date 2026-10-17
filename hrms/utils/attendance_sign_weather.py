@@ -7,7 +7,6 @@ import time
 import frappe
 from frappe.utils import nowdate
 
-LOCALES = {"ja": "ja-JP", "zh": "zh-CN", "en": "en"}
 FRESH_SECONDS = 600
 RETRY_SECONDS = 60
 HISTORY_SECONDS = 3600
@@ -26,12 +25,12 @@ ICON_GROUPS = {
 }
 
 
-def _source(lang):
+def _source():
 	from hrms.api import get_weather_data
 
 	previous = getattr(frappe.local, "lang", None)
 	try:
-		frappe.local.lang = lang
+		frappe.local.lang = "ja"
 		return get_weather_data()
 	except Exception as exc:
 		# Do not include upstream URLs, credentials or exception text in the device response/log.
@@ -78,19 +77,17 @@ def _normalize(data):
 	}
 
 
-def _cache_key(lang, day):
-	return f"attendance-sign:weather:v1:{lang}:{day}"
+def _cache_key(day):
+	return f"attendance-sign:weather:v1:ja:{day}"
 
 
-def get_snapshot(lang="ja"):
-	if lang not in LOCALES:
-		frappe.throw("天气语言仅支持 ja、zh 或 en")
+def get_snapshot():
 	day = nowdate()
-	key = _cache_key(lang, day)
+	key = _cache_key(day)
 	now = int(time.time())
 	record = frappe.cache.get_value(key, use_local_cache=False)
 	if not record or record["retry_at"] <= now:
-		current = _normalize(_source(lang))
+		current = _normalize(_source())
 		now = int(time.time())
 		if current is not None:
 			record = {"status": "ok", "weather": current, "fetched_at": now, "retry_at": now + FRESH_SECONDS}
