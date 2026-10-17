@@ -78,6 +78,11 @@ def write_bundle(root: Path, manifest: dict, assets: dict[str, bytes]) -> None:
 
 def install_bundle(source_dir: str) -> dict:
 	frappe.only_for("System Manager")
+	return publish_bundle(source_dir)
+
+
+def publish_bundle(source_dir: str, *, destination: Path | None = None) -> dict:
+	"""Internal validated publisher; callers must enforce administrator access."""
 	source = Path(source_dir)
 	manifest = _read_manifest(source)
 	if not manifest["clips"]:
@@ -111,7 +116,7 @@ def install_bundle(source_dir: str) -> dict:
 				raise ValueError("Greeting WAV hash does not match manifest")
 			assets[asset_id] = data
 			count += 1
-	write_bundle(_store_path(), manifest, assets)
+	write_bundle(destination or _store_path(), manifest, assets)
 	return {"clips": count, "assets": len(assets), "locale": "ja-JP"}
 
 

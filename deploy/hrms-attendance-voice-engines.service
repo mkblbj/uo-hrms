@@ -1,0 +1,12 @@
+[Unit]
+Description=HRMS attendance voice engines on demand
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 %h/dev/hrms/docker/frappe-bench/apps/hrms/deploy/attendance_voice_engine_worker.py --sites-root %h/dev/hrms/docker/frappe-bench/sites --compose %h/dev/hrms/docker/frappe-bench/apps/hrms/deploy/attendance-voice.compose.yaml
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=150
+
+[Install]
+WantedBy=default.target
