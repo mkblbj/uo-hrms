@@ -26,7 +26,7 @@ frappe.AttendanceVoiceSettings = class {
    .voice-settings h2{font-size:20px;margin:0 0 8px}.voice-settings p{margin:0;line-height:1.6}
    .voice-settings .vs-muted{color:var(--text-muted);font-size:13px}.voice-settings .vs-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:20px;margin:20px 0}
    .voice-settings .vs-card{background:var(--fg-color);border:1px solid var(--border-color);border-radius:12px;padding:20px}
-   .voice-settings .vs-card h3{font-size:16px;margin:0 0 16px}.voice-settings .vs-fields{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+   .voice-settings .vs-card h3{font-size:16px;margin:0 0 16px}.voice-settings .vs-fields{display:grid;grid-template-columns:1fr 1fr;gap:16px}.voice-settings .vs-fields>div{min-width:0}
    .voice-settings label{display:block;font-weight:500;font-size:13px;margin-bottom:6px}.voice-settings .form-control{height:40px}
    .voice-settings .vs-intonation{display:flex;gap:12px;align-items:center}.voice-settings .vs-intonation input[type=range]{flex:1;min-width:0}.voice-settings .vs-intonation input[type=number]{width:85px}
    .voice-settings .vs-full{grid-column:1/-1}.voice-settings .vs-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px}
@@ -38,7 +38,7 @@ frappe.AttendanceVoiceSettings = class {
    .voice-settings th{text-align:left;background:var(--subtle-fg);font-size:13px;padding:12px;font-weight:500}
    .voice-settings td{padding:12px;border-bottom:1px solid var(--border-color);vertical-align:middle}
    .voice-settings .vs-employee{font-weight:500}.voice-settings .vs-id{font-size:12px;color:var(--text-muted);margin-top:4px}
-   .voice-settings .vs-preview-buttons{display:flex;gap:8px}.voice-settings audio{width:100%;margin:12px 0}
+   .voice-settings .vs-preview-buttons{display:flex;gap:8px;flex-wrap:wrap}.voice-settings .vs-edit-personal{margin-top:8px}.voice-settings audio{width:100%;margin:12px 0}
    .voice-settings .vs-preview-text{font-size:15px;line-height:1.7;min-height:56px;word-break:break-word}
    .voice-settings progress{width:100%;height:10px;accent-color:var(--primary);margin-top:12px}
    .voice-settings [hidden]{display:none!important}.voice-settings .vs-empty{text-align:center;padding:28px;color:var(--text-muted)}
@@ -50,9 +50,10 @@ frappe.AttendanceVoiceSettings = class {
   <div class="vs-grid">
    <section class="vs-card" aria-label="声音设置"><h3>声音设置</h3>
     <div class="vs-fields">
-     <div class="vs-full"><label for="vs-profile">正在调整哪组声音</label><select id="vs-profile" class="form-control"><option value="male">男声配置</option><option value="female">女声配置</option><option value="default">默认声音（其他 / 未填）</option></select><p class="vs-muted">默认按员工性别选组，也可在员工行手动指定。各组参数独立保存。</p></div>
+     <div class="vs-full"><label for="vs-profile">正在调整的声音</label><select id="vs-profile" class="form-control"><option value="male">男声配置</option><option value="female">女声配置</option><option value="default">默认声音（其他 / 未填）</option></select><p class="vs-muted" data-id="profile-help">按员工性别选组，也可在下方选择声音组或启用专属声音。</p></div>
      <div><label for="vs-engine">声音类型</label><select id="vs-engine" class="form-control"><option value="voicevox">VOICEVOX · 角色音色</option><option value="nemo">Nemo · 通用音色</option></select></div>
      <div><label for="vs-speed">语速</label><input id="vs-speed" class="form-control" type="number" min="0.5" max="2" step="0.05" value="1"></div>
+     <div class="vs-full"><label for="vs-pitch">音高（声音高低）</label><div class="vs-intonation"><input id="vs-pitch-range" type="range" min="-0.15" max="0.15" step="0.01" value="0" aria-label="音高滑块"><input id="vs-pitch" class="form-control" type="number" min="-0.15" max="0.15" step="0.01" value="0"></div><p class="vs-muted">负数更低沉 · 0 原始音高 · 正数更高</p></div>
      <div class="vs-full"><label for="vs-intonation">抑扬（语调起伏）</label><div class="vs-intonation"><input id="vs-intonation-range" type="range" min="0" max="2" step="0.05" value="1" aria-label="抑扬滑块"><input id="vs-intonation" class="form-control" type="number" min="0" max="2" step="0.05" value="1"></div><p class="vs-muted">0 更平直 · 1 自然 · 2 起伏更明显</p></div>
      <div><label for="vs-speaker">角色 / 说话人</label><select id="vs-speaker" class="form-control" disabled><option>请先加载音色</option></select></div>
      <div><label for="vs-style">说话风格</label><select id="vs-style" class="form-control" disabled><option>请先加载音色</option></select></div>
@@ -66,8 +67,8 @@ frappe.AttendanceVoiceSettings = class {
     <div class="vs-status">签到：姓氏さん、おはようございます。<br>签退：姓氏さん、お疲れさまでした。</div>
    </section>
   </div>
-  <section class="vs-card"><div class="vs-toolbar"><div><h3 style="margin-bottom:4px">员工姓氏读音</h3><p class="vs-muted">只填姓的假名，例如 ワン；不填名字或“さん”。留空时按自动姓氏读音生成。</p></div><input class="form-control" data-id="search" aria-label="搜索员工" placeholder="搜索姓名或员工编号"></div>
-   <table><thead><tr><th>员工</th><th>声音组</th><th>自动姓氏</th><th>姓氏读音（假名）</th><th>试听</th></tr></thead><tbody data-id="employees"></tbody></table>
+  <section class="vs-card"><div class="vs-toolbar"><div><h3 style="margin-bottom:4px">员工读音与专属声音</h3><p class="vs-muted">选择“专属声音”可单独调整该员工。读音只填姓的假名，例如 ワン；留空时使用自动姓氏。</p></div><input class="form-control" data-id="search" aria-label="搜索员工" placeholder="搜索姓名或员工编号"></div>
+   <table><thead><tr><th>员工</th><th>声音配置</th><th>自动姓氏</th><th>姓氏读音（假名）</th><th>试听</th></tr></thead><tbody data-id="employees"></tbody></table>
   </section>`;
 		this.root.addEventListener("click", (e) => {
 			const b = e.target.closest("[data-action]");
@@ -84,6 +85,11 @@ frappe.AttendanceVoiceSettings = class {
 				this.voice().intonation = Number(e.target.value);
 				this.root.querySelector("#vs-intonation").value = e.target.value;
 				this.root.querySelector("#vs-intonation-range").value = e.target.value;
+				this.changed();
+			} else if (["vs-pitch", "vs-pitch-range"].includes(e.target.id)) {
+				this.voice().pitch = Number(e.target.value);
+				this.root.querySelector("#vs-pitch").value = e.target.value;
+				this.root.querySelector("#vs-pitch-range").value = e.target.value;
 				this.changed();
 			} else if (e.target === this.el("search")) this.rows();
 		});
@@ -105,24 +111,94 @@ frappe.AttendanceVoiceSettings = class {
 		});
 		this.root.addEventListener("change", (e) => {
 			if (!e.target.matches("[data-voice-person]")) return;
-			if (e.target.value)
-				this.draft.voice_groups[e.target.dataset.voicePerson] = e.target.value;
-			else delete this.draft.voice_groups[e.target.dataset.voicePerson];
+			const employeeId = e.target.dataset.voicePerson;
+			if (e.target.value === "personal") return this.editPersonal(employeeId);
+			delete this.draft.employee_voices[employeeId];
+			if (e.target.value) this.draft.voice_groups[employeeId] = e.target.value;
+			else delete this.draft.voice_groups[employeeId];
+			if (this.profile === "employee:" + employeeId) {
+				const employee = this.state.employees.find((person) => person.name === employeeId);
+				this.profile = this.groupFor(employee);
+			}
+			this.controls();
+			this.rows();
 			this.changed();
 		});
 		this.status();
 		this.load();
 	}
 	voice() {
+		if (this.profile.startsWith("employee:"))
+			return this.draft.employee_voices[this.profile.slice("employee:".length)];
 		return this.profile === "default" ? this.draft : this.draft.profiles[this.profile];
 	}
+	groupFor(employee) {
+		return this.draft.voice_groups[employee.name] || employee.voice_group || "default";
+	}
+	profileOptions() {
+		const select = this.root.querySelector("#vs-profile");
+		const choices = [
+			["male", "男声配置"],
+			["female", "女声配置"],
+			["default", "默认声音（其他 / 未填）"],
+			...this.state.employees
+				.filter((employee) => this.draft.employee_voices[employee.name])
+				.map((employee) => [
+					"employee:" + employee.name,
+					"专属 · " + employee.employee_name,
+				]),
+		];
+		if (!choices.some(([value]) => value === this.profile)) this.profile = "male";
+		select.innerHTML = choices
+			.map(
+				([value, label]) =>
+					`<option value="${this.escape(value)}">${this.escape(label)}</option>`,
+			)
+			.join("");
+		select.value = this.profile;
+		const employee = this.state.employees.find(
+			(person) => "employee:" + person.name === this.profile,
+		);
+		this.el("profile-help").textContent = employee
+			? `正在编辑 ${employee.employee_name} 的专属声音，参数独立保存。请在该员工行试听确认。`
+			: "按员工性别选组，也可在下方指定声音组；启用专属的员工使用自己的声音配置。";
+	}
+	editPersonal(employeeId) {
+		const employee = this.state.employees.find((person) => person.name === employeeId);
+		if (!employee) return;
+		if (!this.draft.employee_voices[employeeId]) {
+			const group = this.groupFor(employee);
+			const {
+				engine,
+				speaker_id,
+				speed,
+				intonation,
+				pitch = 0,
+			} = group === "default" ? this.draft : this.draft.profiles[group];
+			this.draft.employee_voices[employeeId] = {
+				engine,
+				speaker_id,
+				speed,
+				intonation,
+				pitch,
+			};
+			this.changed();
+		}
+		this.profile = "employee:" + employeeId;
+		this.controls();
+		this.rows();
+		this.root.querySelector("#vs-profile").focus();
+	}
 	controls() {
+		this.profileOptions();
 		const voice = this.voice();
 		for (const [id, value] of [
 			["engine", voice.engine],
 			["speed", voice.speed],
 			["intonation", voice.intonation],
 			["intonation-range", voice.intonation],
+			["pitch", voice.pitch ?? 0],
+			["pitch-range", voice.pitch ?? 0],
 		])
 			this.root.querySelector("#vs-" + id).value = value;
 		this.catalog = this.catalogs[voice.engine] || [];
@@ -171,16 +247,16 @@ frappe.AttendanceVoiceSettings = class {
 		this.el("job").textContent = running
 			? `正在生成 ${generation.done || 0} / ${
 					generation.total
-			  } 段，请稍候。当前签到牌继续使用原有声音。`
+				} 段，请稍候。当前签到牌继续使用原有声音。`
 			: generation?.status === "ready"
-			  ? generation.can_publish && !this.dirty
+				? generation.can_publish && !this.dirty
 					? "语音已生成，点击“发布到签到牌”后生效。"
 					: "草稿、员工资料或音质规格已变化，请保存并重新生成。"
-			  : generation?.status === "published"
-			    ? "已发布，签到牌下次打卡会使用新语音。"
-			    : generation?.status === "error"
-			      ? generation.error
-			      : "尚未生成新的语音。保存或试听不会更改当前声音。";
+				: generation?.status === "published"
+					? "已发布，签到牌下次打卡会使用新语音。"
+					: generation?.status === "error"
+						? generation.error
+						: "尚未生成新的语音。保存或试听不会更改当前声音。";
 		this.el("progress").hidden = !running;
 		this.el("progress").max = generation?.total || 1;
 		this.el("progress").value = generation?.done || 0;
@@ -194,7 +270,7 @@ frappe.AttendanceVoiceSettings = class {
 			this.busy || this.dirty || !generation?.can_publish;
 		this.root
 			.querySelectorAll(
-				"#vs-profile,#vs-engine,#vs-speed,#vs-intonation,#vs-intonation-range,[data-employee],[data-voice-person]",
+				"#vs-profile,#vs-engine,#vs-speed,#vs-intonation,#vs-intonation-range,#vs-pitch,#vs-pitch-range,[data-employee],[data-voice-person]",
 			)
 			.forEach((input) => {
 				input.disabled = this.busy || !this.state;
@@ -233,7 +309,7 @@ frappe.AttendanceVoiceSettings = class {
 							e.employee_name,
 						)}</div><div class="vs-id">${this.escape(
 							e.name,
-						)}</div></td><td data-label="声音组">${this.groupSelect(
+						)}</div></td><td data-label="声音配置">${this.groupSelect(
 							e,
 						)}</td><td data-label="自动姓氏">${this.escape(
 							e.surname,
@@ -255,16 +331,18 @@ frappe.AttendanceVoiceSettings = class {
 		this.status();
 	}
 	groupSelect(employee) {
-		const assigned = this.draft.voice_groups[employee.name] || "";
+		const personal = !!this.draft.employee_voices[employee.name];
+		const assigned = personal ? "personal" : this.draft.voice_groups[employee.name] || "";
 		const names = { male: "男声", female: "女声", default: "默认" };
 		const automatic = names[employee.voice_group] || "默认";
 		return `<select class="form-control" data-voice-person="${this.escape(
 			employee.name,
-		)}" aria-label="${this.escape(employee.employee_name)}的声音组">${[
+		)}" aria-label="${this.escape(employee.employee_name)}的声音配置">${[
 			["", "自动（" + automatic + "）"],
 			["male", "男声配置"],
 			["female", "女声配置"],
 			["default", "默认声音"],
+			["personal", "专属声音"],
 		]
 			.map(
 				([value, label]) =>
@@ -272,7 +350,9 @@ frappe.AttendanceVoiceSettings = class {
 						assigned === value ? "selected" : ""
 					}>${label}</option>`,
 			)
-			.join("")}</select>`;
+			.join(
+				"",
+			)}</select>${personal ? `<button class="btn btn-default btn-sm vs-edit-personal" data-action="personal" data-person="${this.escape(employee.name)}" aria-label="编辑${this.escape(employee.employee_name)}的专属声音">编辑专属声音</button>` : ""}`;
 	}
 	styleName(name) {
 		return (
@@ -349,6 +429,7 @@ frappe.AttendanceVoiceSettings = class {
 		if (this.busy || !this.state) return;
 		this.el("error").hidden = true;
 		if (action === "voices") return this.voices();
+		if (action === "personal") return this.editPersonal(button.dataset.person);
 		try {
 			this.busy = true;
 			this.status();

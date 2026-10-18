@@ -36,7 +36,7 @@ Interfaces: draft.employee_voices为{Employee.name: {engine,speaker_id,speed,int
 - [x] 隔离站点运行hrms.tests.test_attendance_voice_settings及test_attendance_voice_engine，确认新行为缺失导致失败。
 - [x] 实现employee_voices校验、旧配置扩展、优先路由、空表fingerprint兼容及生成元数据，以及可选音高透传，不新增端点。
 - [x] 同模块GREEN；相邻engine、prepare及设备API模块回归，Ruff通过。
-- [ ] 提交服务与测试。
+- [x] 提交服务与测试：2c06f16f2。
 
 ### Task 2: 中文界面、验证和部署
 
@@ -44,9 +44,9 @@ Files: 修改hrms/hr/page/attendance_voice_settings/attendance_voice_settings.js
 
 Interfaces: 复用Task1的employee_voices及既有管理API；员工行选择“专属声音”时复制该员工当前有效组配置，顶端编辑器切到该员工；退出专属时删除对应覆盖表项。
 
-- [ ] 在员工行增加专属选项和编辑入口，顶端选择器列出已启用专属的员工，明确当前编辑对象；继续使用既有角色/风格、语速、抑扬和试听播放器。
-- [ ] 保存、重开、生成及发布沿用原流程；保留选择、输入和未保存提示，控件具备可读标签，移动端无水平溢出。
-- [ ] 隔离站点真实浏览器验证两名员工不同专属声音、试听路由、恢复分组、切换不串值、保存重开、生成及发布；用已有GPU引擎验证实际24k输出。
-- [ ] 按gpt-6-luna / medium做一次独立代码审查；修复重要问题后提交。
+- [x] 在员工行增加专属选项和编辑入口，顶端选择器列出已启用专属的员工，明确当前编辑对象；继续使用既有角色/风格、语速、抑扬和试听播放器，补充音高控制。
+- [x] 保存、重开、生成及发布沿用原流程；保留选择、输入和未保存提示，控件具备可读标签，移动端无水平溢出。
+- [x] 隔离站点真实浏览器验证两名员工不同专属声音、试听路由、恢复分组、切换不串值、保存重开、生成及发布；用已有GPU引擎验证实际24k输出。
+- [x] 按gpt-6-luna / medium做一次独立代码审查；无发现。
 - [ ] 快进合入正式HRMS并clear-cache；核对正式页面及只读设备回归，旧文件/草稿/manifest哈希相同；停止临时web/引擎worker并恢复正式服务。
 - [ ] 文档同步使用步骤和实际验证结果，向用户交付正式页面入口。
