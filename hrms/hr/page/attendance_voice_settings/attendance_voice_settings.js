@@ -30,7 +30,8 @@ frappe.AttendanceVoiceSettings = class {
    .voice-settings label{display:block;font-weight:500;font-size:13px;margin-bottom:6px}.voice-settings .form-control{height:40px}
    .voice-settings .vs-intonation{display:flex;gap:12px;align-items:center}.voice-settings .vs-intonation input[type=range]{flex:1;min-width:0}.voice-settings .vs-intonation input[type=number]{width:85px}
    .voice-settings .vs-full{grid-column:1/-1}.voice-settings .vs-actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:18px}
-   .voice-settings button{min-height:38px}.voice-settings button:focus-visible,.voice-settings input:focus-visible,.voice-settings select:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+   .voice-settings button{min-height:38px}.voice-settings button:focus-visible,.voice-settings input:focus-visible,.voice-settings select:focus-visible,.voice-settings summary:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+   .voice-settings .vs-texts{margin-top:8px}.voice-settings .vs-texts summary{cursor:pointer;font-size:13px;min-height:44px;padding:10px 0}.voice-settings .vs-text-fields label{margin-bottom:12px}.voice-settings .vs-text-fields input{margin-top:6px}
    .voice-settings .vs-status{border-left:3px solid var(--primary);padding:8px 12px;background:var(--subtle-fg);margin-top:14px;font-size:13px;line-height:1.6}
    .voice-settings .vs-error{color:var(--red-600);background:var(--red-50);border-radius:8px;padding:12px;margin-top:14px;white-space:pre-wrap}
    .voice-settings .vs-toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:14px}
@@ -44,7 +45,7 @@ frappe.AttendanceVoiceSettings = class {
    .voice-settings [hidden]{display:none!important}.voice-settings .vs-empty{text-align:center;padding:28px;color:var(--text-muted)}
    @media(max-width:767px){.voice-settings{padding:12px}.voice-settings .vs-grid{grid-template-columns:1fr;gap:12px;margin:14px 0}.voice-settings .vs-card{padding:16px}.voice-settings .vs-fields{grid-template-columns:1fr}.voice-settings .vs-toolbar{align-items:stretch;flex-direction:column}.voice-settings .vs-toolbar input{max-width:none}.voice-settings table,.voice-settings tbody,.voice-settings tr,.voice-settings td{display:block}.voice-settings thead{display:none}.voice-settings tr{padding:12px 0;border-bottom:1px solid var(--border-color)}.voice-settings td{border:0;padding:6px 0}.voice-settings td[data-label]:before{content:attr(data-label);display:block;font-size:12px;color:var(--text-muted);margin-bottom:5px}.voice-settings button{min-height:44px}.voice-settings .vs-actions button{flex:1}}
   </style>
-  <h2>让签到牌叫对每个人的姓</h2><p class="vs-muted">改好姓氏读音，选一个喜欢的声音。试听满意后生成，最后发布到签到牌。</p>
+  <h2>让签到牌叫对每个人的姓</h2><p class="vs-muted">改好读音、选择声音，也可为每人填写出勤和退勤语句。试听满意后生成，再发布到签到牌。</p>
   <div class="vs-status" data-id="published" role="status">正在读取已发布语音…</div>
   <div class="vs-error" data-id="error" role="alert" hidden></div>
   <div class="vs-grid">
@@ -64,7 +65,7 @@ frappe.AttendanceVoiceSettings = class {
    </section>
    <section class="vs-card" aria-label="试听"><h3>试听</h3><p class="vs-muted">试听及新生成语音均为 24 kHz 原始音质。</p><p class="vs-preview-text" data-id="preview-text">在下方选择员工，点击“试听签到”或“试听签退”。</p>
     <audio controls preload="none" data-id="audio" aria-label="语音试听播放器"></audio><p class="vs-muted" data-id="preview-credit"></p>
-    <div class="vs-status">签到：姓氏さん、おはようございます。<br>签退：姓氏さん、お疲れさまでした。</div>
+    <div class="vs-status">默认出勤：姓氏さん、おはようございます。<br>默认退勤：姓氏さん、お疲れさまでした。<br>自定义后按填写的完整语句朗读。</div>
    </section>
   </div>
   <section class="vs-card"><div class="vs-toolbar"><div><h3 style="margin-bottom:4px">员工读音与专属声音</h3><p class="vs-muted">选择“专属声音”可单独调整该员工。改一人时点击“仅生成本人”，完成后“发布本人”。读音只填姓的假名，例如 ワン。</p></div><input class="form-control" data-id="search" aria-label="搜索员工" placeholder="搜索姓名或员工编号"></div>
@@ -75,7 +76,12 @@ frappe.AttendanceVoiceSettings = class {
 			if (b) this.action(b.dataset.action, b);
 		});
 		this.root.addEventListener("input", (e) => {
-			if (e.target.matches("[data-employee]")) {
+			if (e.target.matches("[data-text-person]")) {
+				const employee = e.target.dataset.textPerson;
+				this.draft.employee_texts[employee] ||= {};
+				this.draft.employee_texts[employee][e.target.dataset.kind] = e.target.value;
+				this.changed();
+			} else if (e.target.matches("[data-employee]")) {
 				this.draft.readings[e.target.dataset.employee] = e.target.value;
 				this.changed();
 			} else if (e.target.id === "vs-speed") {
@@ -280,7 +286,7 @@ frappe.AttendanceVoiceSettings = class {
 		});
 		this.root
 			.querySelectorAll(
-				"#vs-profile,#vs-engine,#vs-speed,#vs-intonation,#vs-intonation-range,#vs-pitch,#vs-pitch-range,[data-employee],[data-voice-person]",
+				"#vs-profile,#vs-engine,#vs-speed,#vs-intonation,#vs-intonation-range,#vs-pitch,#vs-pitch-range,[data-employee],[data-voice-person],[data-text-person]",
 			)
 			.forEach((input) => {
 				input.disabled = this.busy || !this.state;
@@ -331,7 +337,7 @@ frappe.AttendanceVoiceSettings = class {
 							this.draft.readings[e.name] || "",
 						)}" placeholder="默认：${this.escape(
 							e.surname,
-						)}"></td><td><div class="vs-preview-buttons"><button class="btn btn-default btn-sm" data-action="preview" data-person="${this.escape(
+						)}">${this.textFields(e)}</td><td><div class="vs-preview-buttons"><button class="btn btn-default btn-sm" data-action="preview" data-person="${this.escape(
 							e.name,
 						)}" data-kind="IN">试听签到</button><button class="btn btn-default btn-sm" data-action="preview" data-person="${this.escape(
 							e.name,
@@ -339,6 +345,22 @@ frappe.AttendanceVoiceSettings = class {
 				)
 				.join("") || '<tr><td class="vs-empty" colspan="5">没有匹配的员工</td></tr>';
 		this.status();
+	}
+	textFields(employee) {
+		const texts = this.draft.employee_texts[employee.name] || {};
+		return `<details class="vs-texts" ${texts.IN || texts.OUT ? "open" : ""}>
+      <summary>自定义出勤 / 退勤</summary><div class="vs-text-fields">
+      ${[
+			["IN", "出勤", "おはよう、ワンさん。"],
+			["OUT", "退勤", "また明日、ワンさん。"],
+		]
+			.map(
+				([kind, label, example]) =>
+					`<label>自定义${label}语句<input type="text" class="form-control" maxlength="120" data-text-person="${this.escape(employee.name)}" data-kind="${kind}" aria-label="${this.escape(employee.employee_name)}的${label}语句" value="${this.escape(texts[kind] || "")}" placeholder="例如：${example}"></label>`,
+			)
+			.join("")}
+      <p class="vs-muted">填写完整日语朗读内容，不会自动加称呼或问候。每项留空恢复默认；最多120字，每段仍需在5秒内。</p>
+      </div></details>`;
 	}
 	groupSelect(employee) {
 		const personal = !!this.draft.employee_voices[employee.name];

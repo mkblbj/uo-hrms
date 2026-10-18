@@ -36,7 +36,7 @@ Files: hrms/utils/attendance_voice_settings.py、hrms/utils/attendance_voice_eng
 
 Files: hrms/hr/page/attendance_voice_settings/attendance_voice_settings.js、docs/attendance-voice-settings.md及本计划。
 
-- [ ] 员工行可展开“自定义出勤/退勤”，独立输入、标签/示例/默认与5秒说明；保存、试听、仅生成本人/发布本人沿用原流程。
-- [ ] 隔离浏览器/GPU验证不同IN/OUT原句、保存重开、空项回退、仅两段生成发布及其他人映射/文件不变；375px可用。
+- [x] 员工行可展开“自定义出勤/退勤”，独立输入、标签/示例/默认与5秒说明；保存、试听、仅生成本人/发布本人沿用原流程。
+- [x] 隔离浏览器/GPU验证不同IN/OUT原句、特殊符号保存重开、OUT空项回退、本人两段生成发布及其他7人映射/文件不变；375px可用。
 - [ ] gpt-6-luna / medium独立审查；合入正式，验证页面/权限和设备回归，保持正式草稿/manifest及其他文件SHA。
 - [ ] 恢复测试站点配置、停测试web/worker并恢复正式引擎服务，文档记录并交付页面入口。
