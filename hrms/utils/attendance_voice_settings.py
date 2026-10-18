@@ -130,13 +130,19 @@ def _voice_config(config):
 		speaker = int(config["speaker_id"])
 		speed = float(config.get("speed", 1))
 		intonation = float(config.get("intonation", 1))
+		pitch = float(config.get("pitch", 0))
 	except (KeyError, TypeError, ValueError):
-		frappe.throw("请填写有效的音色、语速与抑扬")
+		frappe.throw("请填写有效的音色、语速、音高与抑扬")
 	if not 0 <= speaker <= 1000000 or not 0.5 <= speed <= 2:
 		frappe.throw("语速需在 0.5～2.0 之间")
 	if not 0 <= intonation <= 2:
 		frappe.throw("抑扬需在 0～2.0 之间")
-	return {"engine": config["engine"], "speaker_id": speaker, "speed": speed, "intonation": intonation}
+	if not -0.15 <= pitch <= 0.15:
+		frappe.throw("音高需在 -0.15～0.15 之间")
+	voice = {"engine": config["engine"], "speaker_id": speaker, "speed": speed, "intonation": intonation}
+	if "pitch" in config:
+		voice["pitch"] = pitch
+	return voice
 
 
 def _expand_draft(config):
@@ -148,6 +154,7 @@ def _expand_draft(config):
 		**base,
 		"readings": config.get("readings", {}),
 		"voice_groups": config.get("voice_groups", {}),
+		"employee_voices": config.get("employee_voices", {}),
 		"profiles": {group: _voice_config(profiles.get(group, base)) for group in ("male", "female")},
 	}
 
@@ -157,6 +164,9 @@ def _group_for(config, employee):
 
 
 def _voice_for(config, employee):
+	personal = config.get("employee_voices", {}).get(employee["name"])
+	if personal is not None:
+		return _voice_config(personal)
 	group = _group_for(config, employee)
 	return _voice_config(config.get("profiles", {}).get(group, config))
 
@@ -190,10 +200,20 @@ def _normal(config):
 		assigned[employee] = group
 	expanded["voice_groups"] = assigned
 	expanded["readings"] = cleaned
+	personal = config.get("employee_voices", {})
+	if not isinstance(personal, dict):
+		frappe.throw("员工专属声音格式不正确")
+	expanded["employee_voices"] = {
+		employee: _voice_config(voice) for employee, voice in personal.items() if employee in valid
+	}
 	return expanded
 
 
 def _fingerprint(config, employees):
+	# Expanding an old draft with an empty table must not invalidate its ready audio.
+	config = dict(config)
+	if not config.get("employee_voices"):
+		config.pop("employee_voices", None)
 	return hashlib.sha256(
 		json.dumps([config, employees, SAMPLE_RATE], ensure_ascii=False, sort_keys=True).encode()
 	).hexdigest()
@@ -242,7 +262,14 @@ def save_settings(config, revision):
 def _render(config, text):
 	from hrms.utils.attendance_voice_engine import render
 
-	return render(config["engine"], config["speaker_id"], text, config["speed"], config.get("intonation", 1))
+	return render(
+		config["engine"],
+		config["speaker_id"],
+		text,
+		config["speed"],
+		config.get("intonation", 1),
+		config.get("pitch", 0),
+	)
 
 
 def _text(config, employee, kind):
@@ -364,6 +391,7 @@ def generate_job(request_id):
 			"engine": "VOICEVOX grouped voices",
 			"voice": "按员工性别分组",
 			"profiles": {},
+			"employee_voices": {},
 			"sample_rate": SAMPLE_RATE,
 			"name_readings": "surname-only administrator draft",
 			"checkin_greeting": "おはようございます。",
@@ -373,6 +401,7 @@ def generate_job(request_id):
 		ordered = sorted(generation["employees"], key=lambda e: _voice_for(config, e)["engine"])
 		for employee in ordered:
 			clips[employee["name"]] = {}
+			personal = employee["name"] in config.get("employee_voices", {})
 			for kind in ("IN", "OUT"):
 				_, result = _render_for(config, employee, kind)
 				asset = hashlib.sha256(result["audio"]).hexdigest()
@@ -380,18 +409,22 @@ def generate_job(request_id):
 				clips[employee["name"]][kind] = {
 					"asset_id": asset,
 					"employee_name": employee["employee_name"],
-					"voice_group": _group_for(config, employee),
+					"voice_group": "personal" if personal else _group_for(config, employee),
 				}
-				group = _group_for(config, employee)
-				source["profiles"][group] = {
+				profiles = source["employee_voices"] if personal else source["profiles"]
+				profile_id = employee["name"] if personal else _group_for(config, employee)
+				profiles[profile_id] = {
 					**_voice_for(config, employee),
 					"voice": result["voice"],
 					"credit": result["credit"],
 				}
-				source["credit"] = " / ".join(sorted({v["credit"] for v in source["profiles"].values()}))
+				used = [*source["profiles"].values(), *source["employee_voices"].values()]
+				source["credit"] = " / ".join(sorted({v["credit"] for v in used}))
 				done += 1
 				if not _progress(request_id, done=done):
 					return
+		if source["employee_voices"]:
+			source["voice"] = "分组及员工专属声音"
 		manifest = {"version": 1, "locale": "ja-JP", "source": source, "clips": clips}
 		write_bundle(_root() / "generations" / request_id, manifest, assets)
 		_progress(request_id, status="ready", error=None)

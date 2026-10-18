@@ -293,3 +293,156 @@ class TestAttendanceVoiceSettings(unittest.TestCase):
 				[call.args[0]["engine"] for call in render.call_args_list], ["nemo"] * 4 + ["voicevox"] * 4
 			)
 			self.assertTrue(api.get_settings()["generation"]["can_publish"])
+
+	def personal(self, speaker=29):
+		return {"engine": "voicevox", "speaker_id": speaker, "speed": 1.2, "intonation": 0.3}
+
+	def test_personal_voice_persists_and_overrides_manual_group_for_both_greetings(self):
+		self.config.update(
+			profiles=self.profiles(),
+			voice_groups={"EMP-voice": "female"},
+			employee_voices={"EMP-voice": self.personal()},
+		)
+		with patch.object(service, "_employees", return_value=self.staff("Male")):
+			self.save()
+			draft = api.get_settings()["draft"]
+			self.assertEqual(draft["employee_voices"], {"EMP-voice": self.personal()})
+			self.config["profiles"]["female"]["speaker_id"] = 10001
+			for kind, greeting in [("IN", "おはようございます。"), ("OUT", "お疲れさまでした。")]:
+				with patch.object(service, "_render", side_effect=self.fake_render) as render:
+					api.preview(json.dumps(self.config), "EMP-voice", kind)
+				self.assertEqual(render.call_args.args, (self.personal(), "ワンさん、" + greeting))
+		self.assertFalse((self.root / "active/manifest.json").exists())
+
+	def test_removing_personal_voice_restores_group_without_changing_colleague(self):
+		self.config.update(
+			profiles=self.profiles(),
+			voice_groups={"EMP-voice": "female"},
+			employee_voices={"EMP-voice": self.personal()},
+		)
+		staff = [
+			*self.staff("Male"),
+			{"name": "EMP-colleague", "employee_name": "李小雨", "surname": "李", "gender": "Male"},
+		]
+		with patch.object(service, "_employees", return_value=staff):
+			for employee, expected in [("EMP-voice", 29), ("EMP-colleague", 13)]:
+				with patch.object(service, "_render", side_effect=self.fake_render) as render:
+					api.preview(json.dumps(self.config), employee, "IN")
+				self.assertEqual(render.call_args.args[0]["speaker_id"], expected)
+			self.config["employee_voices"] = {}
+			for employee, expected in [("EMP-voice", 10005), ("EMP-colleague", 13)]:
+				with patch.object(service, "_render", side_effect=self.fake_render) as render:
+					api.preview(json.dumps(self.config), employee, "IN")
+				self.assertEqual(render.call_args.args[0]["speaker_id"], expected)
+
+	def test_invalid_personal_voice_is_rejected_without_saving(self):
+		for override in (
+			[],
+			{"EMP-voice": None},
+			{"EMP-voice": {**self.personal(), "engine": "unknown"}},
+			{"EMP-voice": {**self.personal(), "speaker_id": "bad"}},
+			{"EMP-voice": {**self.personal(), "speed": 0}},
+			{"EMP-voice": {**self.personal(), "intonation": float("nan")}},
+		):
+			with self.subTest(override=override), self.assertRaises(frappe.ValidationError):
+				api.save_settings(json.dumps({**self.config, "employee_voices": override}), 0)
+		self.assertEqual(api.get_settings()["revision"], 0)
+
+	def test_departed_personal_voice_does_not_block_remaining_staff(self):
+		self.config["employee_voices"] = {"EMP-voice": self.personal(), "EMP-departed": None}
+		self.save()
+		self.assertEqual(api.get_settings()["draft"]["employee_voices"], {"EMP-voice": self.personal()})
+
+	def test_generation_preserves_each_personal_voice_and_all_group_credits(self):
+		staff = [
+			{"name": "EMP-" + str(i), "employee_name": "测试" + str(i), "surname": "王", "gender": gender}
+			for i, gender in enumerate(("Male", "Male", "Male", "Female"))
+		]
+		self.config.update(
+			profiles=self.profiles(),
+			employee_voices={"EMP-0": self.personal(29), "EMP-1": self.personal(42)},
+		)
+
+		def render(voice, text):
+			return {
+				"audio": wav(),
+				"voice": "角色" + str(voice["speaker_id"]),
+				"credit": "来源" + str(voice["speaker_id"]),
+			}
+
+		with patch.object(service, "_employees", return_value=staff):
+			self.save()
+			with patch.object(service, "_enqueue"):
+				job = api.start_generation(1)
+			with patch.object(service, "_render", side_effect=render):
+				service.generate_job(job["id"])
+			self.assertTrue(api.get_settings()["generation"]["can_publish"])
+		manifest = json.loads((self.root / "settings/generations" / job["id"] / "manifest.json").read_text())
+		source = manifest["source"]
+		self.assertEqual(source["profiles"]["male"]["speaker_id"], 13)
+		self.assertEqual(source["profiles"]["female"]["speaker_id"], 10005)
+		for employee, speaker in [("EMP-0", 29), ("EMP-1", 42)]:
+			self.assertEqual(source["employee_voices"][employee]["speaker_id"], speaker)
+			self.assertEqual(manifest["clips"][employee]["IN"]["voice_group"], "personal")
+		self.assertEqual(set(source["credit"].split(" / ")), {"来源13", "来源29", "来源42", "来源10005"})
+
+	def test_personal_voice_change_blocks_old_generation(self):
+		self.config["employee_voices"] = {"EMP-voice": self.personal()}
+		job = self.run_generation()
+		self.config["employee_voices"]["EMP-voice"]["speaker_id"] = 42
+		api.save_settings(json.dumps(self.config), 1)
+		self.assertFalse(api.get_settings()["generation"]["can_publish"])
+		with self.assertRaises(frappe.ValidationError):
+			api.publish(job)
+
+	def test_empty_personal_upgrade_keeps_legacy_ready_generation_and_file_unchanged(self):
+		import hashlib
+
+		legacy = service._expand_draft(self.config)
+		legacy.pop("employee_voices", None)
+		fingerprint = hashlib.sha256(
+			json.dumps([legacy, service._employees(), 24000], ensure_ascii=False, sort_keys=True).encode()
+		).hexdigest()
+		service._write(
+			{
+				"revision": 3,
+				"draft": legacy,
+				"generation": {
+					"id": "a" * 32,
+					"status": "ready",
+					"done": 2,
+					"total": 2,
+					"fingerprint": fingerprint,
+				},
+				"published_revision": None,
+			}
+		)
+		path = self.root / "settings/settings.json"
+		before = path.read_bytes()
+		settings = api.get_settings()
+		self.assertEqual(settings["draft"]["employee_voices"], {})
+		self.assertTrue(settings["generation"]["can_publish"])
+		self.assertEqual(path.read_bytes(), before)
+
+	def test_personal_pitch_is_persisted_and_sent_to_engine(self):
+		from hrms.utils import attendance_voice_engine
+
+		personal = {**self.personal(), "pitch": 0.08}
+		self.config["employee_voices"] = {"EMP-voice": personal}
+		self.save()
+		self.assertEqual(api.get_settings()["draft"]["employee_voices"]["EMP-voice"], personal)
+		with patch.object(attendance_voice_engine, "render", side_effect=self.fake_render) as render:
+			api.preview(json.dumps(self.config), "EMP-voice", "IN")
+		self.assertEqual(
+			render.call_args.args, ("voicevox", 29, "ワンさん、おはようございます。", 1.2, 0.3, 0.08)
+		)
+
+	def test_invalid_pitch_is_rejected_before_render(self):
+		for value in (-0.16, 0.16, float("nan"), float("inf"), "bad"):
+			self.config["employee_voices"] = {"EMP-voice": {**self.personal(), "pitch": value}}
+			with (
+				self.subTest(pitch=value),
+				patch.object(service, "_render", side_effect=self.fake_render),
+				self.assertRaises(frappe.ValidationError),
+			):
+				api.preview(json.dumps(self.config), "EMP-voice", "IN")

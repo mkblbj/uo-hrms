@@ -59,13 +59,14 @@ class TestAttendanceVoiceEngine(unittest.TestCase):
 			return wav()
 
 		with patch.object(engine, "_wait"), patch.object(engine, "_request", side_effect=request):
-			result = engine.render("voicevox", 2, "ワンさん、おはようございます。", 1.1, 0.0)
+			result = engine.render("voicevox", 2, "ワンさん、おはようございます。", 1.1, 0.0, pitch=0.08)
 		self.assertEqual(result["audio"], wav())
 		body = json.loads(next(x[1] for x in calls if "/synthesis" in x[0]))
 		self.assertEqual(
 			(body["outputSamplingRate"], body["outputStereo"], body["speedScale"]), (24000, False, 1.1)
 		)
 		self.assertEqual(body["intonationScale"], 0.0)
+		self.assertEqual(body["pitchScale"], 0.08)
 
 	def test_overlong_speech_has_actionable_chinese_error(self):
 		with (
