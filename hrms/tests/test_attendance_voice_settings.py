@@ -400,6 +400,7 @@ class TestAttendanceVoiceSettings(unittest.TestCase):
 
 		legacy = service._expand_draft(self.config)
 		legacy.pop("employee_voices", None)
+		legacy.pop("employee_texts", None)
 		fingerprint = hashlib.sha256(
 			json.dumps([legacy, service._employees(), 24000], ensure_ascii=False, sort_keys=True).encode()
 		).hexdigest()
@@ -554,6 +555,124 @@ class TestAttendanceVoiceSettings(unittest.TestCase):
 		self.assertEqual(manifest["clips"]["EMP-other"], old["clips"]["EMP-other"])
 		self.assertEqual((self.root / "active/audio" / (asset + ".wav")).read_bytes(), legacy)
 		self.assertIn("VOICEVOX Nemo", manifest["source"]["credit"])
+
+	def custom_texts(self):
+		return {"EMP-voice": {"IN": "おはよう、ワンさん。", "OUT": "また明日、ワンさん。"}}
+
+	def test_custom_greetings_persist_and_preview_as_complete_text(self):
+		self.config["employee_texts"] = self.custom_texts()
+		self.save()
+		self.assertEqual(api.get_settings()["draft"]["employee_texts"], self.custom_texts())
+		for kind, text in self.custom_texts()["EMP-voice"].items():
+			with patch.object(service, "_render", side_effect=self.fake_render) as render:
+				result = api.preview(json.dumps(self.config), "EMP-voice", kind)
+			self.assertEqual(result["text"], text)
+			self.assertEqual(render.call_args.args[1], text)
+		self.assertFalse((self.root / "active/manifest.json").exists())
+
+	def test_empty_custom_action_restores_default_independently(self):
+		self.config["employee_texts"] = {"EMP-voice": {"IN": "  ", "OUT": "  また明日。  "}}
+		self.save()
+		self.assertEqual(api.get_settings()["draft"]["employee_texts"], {"EMP-voice": {"OUT": "また明日。"}})
+		for kind, text in [("IN", "ワンさん、おはようございます。"), ("OUT", "また明日。")]:
+			with patch.object(service, "_render", side_effect=self.fake_render):
+				self.assertEqual(api.preview(json.dumps(self.config), "EMP-voice", kind)["text"], text)
+
+	def test_custom_text_validation_and_departed_cleanup(self):
+		for texts in (
+			[],
+			{"EMP-voice": None},
+			{"EMP-voice": {"IN": 123}},
+			{"EMP-voice": {"IN": "あ" * 121}},
+			{"EMP-voice": {"IN": "おはよう\nございます"}},
+			{"EMP-voice": {"IN": "おはよう\0"}},
+			{"EMP-voice": {"BREAK": "休憩"}},
+		):
+			with self.subTest(texts=texts), self.assertRaises(frappe.ValidationError):
+				api.save_settings(json.dumps({**self.config, "employee_texts": texts}), 0)
+		expected = {"EMP-voice": {"IN": "あ" * 120, "OUT": "また明日、ワンさん。"}}
+		self.config["employee_texts"] = {**expected, "EMP-departed": None}
+		self.save()
+		self.assertEqual(api.get_settings()["draft"]["employee_texts"], expected)
+
+	def test_custom_text_changes_invalidate_only_the_target_job(self):
+		with patch.object(service, "_employees", return_value=self.single_staff()):
+			self.save()
+			job = self.single_job(1)
+			self.config["employee_texts"] = {"EMP-other": {"IN": "今日もよろしく。"}}
+			api.save_settings(json.dumps(self.config), 1)
+			self.assertTrue(api.get_settings()["generation"]["can_publish"])
+			self.config["employee_texts"].update(self.custom_texts())
+			api.save_settings(json.dumps(self.config), 2)
+			self.assertFalse(api.get_settings()["generation"]["can_publish"])
+			with self.assertRaises(frappe.ValidationError):
+				api.publish(job)
+
+	def test_generation_and_single_publish_record_actual_custom_text(self):
+		self.config["employee_texts"] = self.custom_texts()
+		self.save()
+		job = self.single_job(1)
+		generated = json.loads((self.root / "settings/generations" / job / "manifest.json").read_text())
+		for kind, text in self.custom_texts()["EMP-voice"].items():
+			self.assertEqual(generated["clips"]["EMP-voice"][kind]["text"], text)
+		api.publish(job)
+		published = json.loads((self.root / "active/manifest.json").read_text())
+		for kind, text in self.custom_texts()["EMP-voice"].items():
+			self.assertEqual(published["clips"]["EMP-voice"][kind]["text"], text)
+
+	def test_old_single_task_without_text_table_is_still_publishable(self):
+		import hashlib
+
+		legacy = service._expand_draft(self.config)
+		legacy.pop("employee_texts", None)
+		fingerprint = hashlib.sha256(
+			json.dumps(
+				[
+					"EMP-voice",
+					"王小明",
+					{"engine": "nemo", "speaker_id": 10005, "speed": 1.0, "intonation": 1.0},
+					["ワンさん、おはようございます。", "ワンさん、お疲れさまでした。"],
+					24000,
+				],
+				ensure_ascii=False,
+				sort_keys=True,
+			).encode()
+		).hexdigest()
+		service._write(
+			{
+				"revision": 1,
+				"draft": legacy,
+				"published_revision": None,
+				"generation": {
+					"id": "a" * 32,
+					"employee_id": "EMP-voice",
+					"employees": self.staff(""),
+					"status": "ready",
+					"done": 2,
+					"total": 2,
+					"fingerprint": fingerprint,
+				},
+			}
+		)
+		p = self.root / "settings/settings.json"
+		before = p.read_bytes()
+		settings = api.get_settings()
+		self.assertEqual(settings["draft"]["employee_texts"], {})
+		self.assertTrue(settings["generation"]["can_publish"])
+		self.assertEqual(p.read_bytes(), before)
+
+	def test_full_generation_expires_when_another_employee_text_changes(self):
+		with patch.object(service, "_employees", return_value=self.single_staff()):
+			self.save()
+			with patch.object(service, "_enqueue"):
+				job = api.start_generation(1)
+			with patch.object(service, "_render", side_effect=self.fake_render):
+				service.generate_job(job["id"])
+			self.config["employee_texts"] = {"EMP-other": {"OUT": "また明日。"}}
+			api.save_settings(json.dumps(self.config), 1)
+			self.assertFalse(api.get_settings()["generation"]["can_publish"])
+			with self.assertRaises(frappe.ValidationError):
+				api.publish(job["id"])
 
 	def test_personal_pitch_is_persisted_and_sent_to_engine(self):
 		from hrms.utils import attendance_voice_engine

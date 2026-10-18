@@ -132,5 +132,5 @@ def render(engine, speaker_id, text, speed, intonation=1.0, pitch=0.0):
 		try:
 			validate_wav(audio)
 		except ValueError as exc:
-			raise frappe.ValidationError("语音需为5秒内的完整音频，请提高语速或缩短姓氏读音") from exc
+			raise frappe.ValidationError("语音需为5秒内的完整音频，请提高语速或缩短朗读内容") from exc
 		return {"audio": audio, "voice": voice["name"] + " / " + voice["style"], "credit": voice["credit"]}

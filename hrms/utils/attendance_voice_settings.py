@@ -155,6 +155,7 @@ def _expand_draft(config):
 		"readings": config.get("readings", {}),
 		"voice_groups": config.get("voice_groups", {}),
 		"employee_voices": config.get("employee_voices", {}),
+		"employee_texts": config.get("employee_texts", {}),
 		"profiles": {group: _voice_config(profiles.get(group, base)) for group in ("male", "female")},
 	}
 
@@ -206,14 +207,33 @@ def _normal(config):
 	expanded["employee_voices"] = {
 		employee: _voice_config(voice) for employee, voice in personal.items() if employee in valid
 	}
+	texts = config.get("employee_texts", {})
+	if not isinstance(texts, dict):
+		frappe.throw("员工出勤、退勤语句格式不正确")
+	cleaned_texts = {}
+	for employee, actions in texts.items():
+		if employee not in valid:
+			continue
+		if not isinstance(actions, dict) or any(kind not in ("IN", "OUT") for kind in actions):
+			frappe.throw("请分别填写出勤和退勤语句")
+		phrases = {}
+		for kind, text in actions.items():
+			if not isinstance(text, str) or len(text) > 120 or any(c in text for c in "\r\n\0"):
+				frappe.throw("自定义语句需为120字以内的单行文字")
+			if text.strip():
+				phrases[kind] = text.strip()
+		if phrases:
+			cleaned_texts[employee] = phrases
+	expanded["employee_texts"] = cleaned_texts
 	return expanded
 
 
 def _fingerprint(config, employees):
-	# Expanding an old draft with an empty table must not invalidate its ready audio.
+	# Empty optional tables must not invalidate audio generated from a legacy draft.
 	config = dict(config)
-	if not config.get("employee_voices"):
-		config.pop("employee_voices", None)
+	for key in ("employee_voices", "employee_texts"):
+		if not config.get(key):
+			config.pop(key, None)
 	return hashlib.sha256(
 		json.dumps([config, employees, SAMPLE_RATE], ensure_ascii=False, sort_keys=True).encode()
 	).hexdigest()
@@ -298,6 +318,9 @@ def _render(config, text):
 
 
 def _text(config, employee, kind):
+	custom = config.get("employee_texts", {}).get(employee["name"], {}).get(kind)
+	if custom:
+		return custom
 	spoken = config["readings"].get(employee["name"]) or employee["surname"]
 	if spoken.endswith("さん"):
 		spoken = spoken[:-2]
@@ -311,7 +334,7 @@ def _render_for(config, employee, kind):
 		validate_wav(result["audio"])
 	except ValueError as exc:
 		raise frappe.ValidationError(
-			f"{employee['employee_name']} 的语音需在5秒内，请提高语速或缩短姓氏读音"
+			f"{employee['employee_name']} 的语音需在5秒内，请提高语速或缩短朗读内容"
 		) from exc
 	return text, result
 
@@ -423,7 +446,7 @@ def generate_job(request_id):
 			"profiles": {},
 			"employee_voices": {},
 			"sample_rate": SAMPLE_RATE,
-			"name_readings": "surname-only administrator draft",
+			"name_readings": "surname-only fallback or per-employee administrator text",
 			"checkin_greeting": "おはようございます。",
 			"checkout_greeting": "お疲れさまでした。",
 		}
@@ -433,12 +456,13 @@ def generate_job(request_id):
 			clips[employee["name"]] = {}
 			personal = employee["name"] in config.get("employee_voices", {})
 			for kind in ("IN", "OUT"):
-				_, result = _render_for(config, employee, kind)
+				text, result = _render_for(config, employee, kind)
 				asset = hashlib.sha256(result["audio"]).hexdigest()
 				assets[asset] = result["audio"]
 				clips[employee["name"]][kind] = {
 					"asset_id": asset,
 					"employee_name": employee["employee_name"],
+					"text": text,
 					"voice_group": "personal" if personal else _group_for(config, employee),
 				}
 				profiles = source["employee_voices"] if personal else source["profiles"]
