@@ -35,7 +35,7 @@ Files: hrms/utils/attendance_voice_settings.py、hrms/api/attendance_voice_setti
 
 Files: hrms/hr/page/attendance_voice_settings/attendance_voice_settings.js、docs/attendance-voice-settings.md及本计划。
 
-- [ ] 员工行新增“仅生成本人”及待生成完成后的“发布本人”；顶部显示明确的员工姓名、两段进度和发布范围；保留全员入口。
-- [ ] 隔离真实浏览器/GPU验证只合成两段并手动发布，核对其他人的清单和音频SHA完全不变，375px操作可用。
+- [x] 员工行新增“仅生成本人”及待生成完成后的“发布本人”；顶部显示明确的员工姓名、两段进度和发布范围；保留全员入口。
+- [x] 隔离真实浏览器/GPU验证只合成两段并手动发布，映射人数保持8、其余7人清单和音频SHA完全不变，375px操作可用。
 - [ ] gpt-6-luna / medium独立审查，提交、快进部署；正式页面/权限及设备回归、正式草稿与清单保留。
 - [ ] 停止测试web和临时worker、恢复正式租约服务及隔离配置，交付页面入口和使用步骤。

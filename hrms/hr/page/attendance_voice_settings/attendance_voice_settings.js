@@ -67,8 +67,8 @@ frappe.AttendanceVoiceSettings = class {
     <div class="vs-status">签到：姓氏さん、おはようございます。<br>签退：姓氏さん、お疲れさまでした。</div>
    </section>
   </div>
-  <section class="vs-card"><div class="vs-toolbar"><div><h3 style="margin-bottom:4px">员工读音与专属声音</h3><p class="vs-muted">选择“专属声音”可单独调整该员工。读音只填姓的假名，例如 ワン；留空时使用自动姓氏。</p></div><input class="form-control" data-id="search" aria-label="搜索员工" placeholder="搜索姓名或员工编号"></div>
-   <table><thead><tr><th>员工</th><th>声音配置</th><th>自动姓氏</th><th>姓氏读音（假名）</th><th>试听</th></tr></thead><tbody data-id="employees"></tbody></table>
+  <section class="vs-card"><div class="vs-toolbar"><div><h3 style="margin-bottom:4px">员工读音与专属声音</h3><p class="vs-muted">选择“专属声音”可单独调整该员工。改一人时点击“仅生成本人”，完成后“发布本人”。读音只填姓的假名，例如 ワン。</p></div><input class="form-control" data-id="search" aria-label="搜索员工" placeholder="搜索姓名或员工编号"></div>
+   <table><thead><tr><th>员工</th><th>声音配置</th><th>自动姓氏</th><th>姓氏读音（假名）</th><th>试听与发布</th></tr></thead><tbody data-id="employees"></tbody></table>
   </section>`;
 		this.root.addEventListener("click", (e) => {
 			const b = e.target.closest("[data-action]");
@@ -240,20 +240,23 @@ frappe.AttendanceVoiceSettings = class {
 	status() {
 		const generation = this.state?.generation;
 		const running = ["queued", "running"].includes(generation?.status);
+		const target = generation?.employee_id ? generation.employee_name : "全员";
 		const source = this.state?.published?.source || {};
 		this.el("published").textContent = `当前已发布：${source.voice || "暂无语音"} · ${
 			this.state?.published?.employees || 0
 		} 人${this.dirty ? "　｜　有未保存的修改" : ""}`;
 		this.el("job").textContent = running
-			? `正在生成 ${generation.done || 0} / ${
+			? `正在为${target}生成 ${generation.done || 0} / ${
 					generation.total
 				} 段，请稍候。当前签到牌继续使用原有声音。`
 			: generation?.status === "ready"
 				? generation.can_publish && !this.dirty
-					? "语音已生成，点击“发布到签到牌”后生效。"
+					? generation.employee_id
+						? `${target}的签到、签退语音已生成，发布后仅更新该员工。`
+						: "全员语音已生成，点击“发布到签到牌”后生效。"
 					: "草稿、员工资料或音质规格已变化，请保存并重新生成。"
 				: generation?.status === "published"
-					? "已发布，签到牌下次打卡会使用新语音。"
+					? `${target}语音已发布，签到牌下次打卡会使用新语音。`
 					: generation?.status === "error"
 						? generation.error
 						: "尚未生成新的语音。保存或试听不会更改当前声音。";
@@ -264,10 +267,17 @@ frappe.AttendanceVoiceSettings = class {
 			b.disabled =
 				this.busy ||
 				!this.state ||
-				(running && ["generate", "preview"].includes(b.dataset.action));
+				(running && ["generate", "generate-one", "preview"].includes(b.dataset.action));
 		});
-		this.root.querySelector('[data-action="publish"]').disabled =
-			this.busy || this.dirty || !generation?.can_publish;
+		const publish = this.root.querySelector('[data-action="publish"]');
+		publish.textContent = generation?.employee_id ? `发布${target}的语音` : "发布到签到牌";
+		publish.disabled = this.busy || this.dirty || !generation?.can_publish;
+		this.root.querySelectorAll('[data-action="publish-one"]').forEach((button) => {
+			button.hidden =
+				generation?.employee_id !== button.dataset.person ||
+				generation?.status !== "ready";
+			button.disabled = this.busy || this.dirty || !generation?.can_publish;
+		});
 		this.root
 			.querySelectorAll(
 				"#vs-profile,#vs-engine,#vs-speed,#vs-intonation,#vs-intonation-range,#vs-pitch,#vs-pitch-range,[data-employee],[data-voice-person]",
@@ -325,7 +335,7 @@ frappe.AttendanceVoiceSettings = class {
 							e.name,
 						)}" data-kind="IN">试听签到</button><button class="btn btn-default btn-sm" data-action="preview" data-person="${this.escape(
 							e.name,
-						)}" data-kind="OUT">试听签退</button></div></td></tr>`,
+						)}" data-kind="OUT">试听签退</button><button class="btn btn-default btn-sm" data-action="generate-one" data-person="${this.escape(e.name)}" aria-label="仅生成${this.escape(e.employee_name)}的语音">仅生成本人</button><button class="btn btn-primary btn-sm" data-action="publish-one" data-person="${this.escape(e.name)}" aria-label="仅发布${this.escape(e.employee_name)}的语音" hidden>发布本人</button></div></td></tr>`,
 				)
 				.join("") || '<tr><td class="vs-empty" colspan="5">没有匹配的员工</td></tr>';
 		this.status();
@@ -453,14 +463,20 @@ frappe.AttendanceVoiceSettings = class {
 						this.el("preview-credit").textContent += " · 请点击播放器播放";
 					});
 			}
-			if (action === "generate") {
+			if (["generate", "generate-one"].includes(action)) {
 				if (this.dirty) await this.save();
-				await this.call("start_generation", { revision: this.state.revision });
+				const args = { revision: this.state.revision };
+				if (action === "generate-one") args.employee_id = button.dataset.person;
+				await this.call("start_generation", args);
 				await this.poll();
 			}
-			if (action === "publish") {
+			if (["publish", "publish-one"].includes(action)) {
 				this.state = await this.call("publish", { request_id: this.state.generation.id });
-				frappe.show_alert({ message: "已发布到签到牌", indicator: "green" });
+				const target = this.state.generation.employee_name;
+				frappe.show_alert({
+					message: target ? `${target}的语音已发布` : "已发布全员语音",
+					indicator: "green",
+				});
 			}
 		} catch (e) {
 			this.error(e);
