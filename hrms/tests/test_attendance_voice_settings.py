@@ -424,6 +424,137 @@ class TestAttendanceVoiceSettings(unittest.TestCase):
 		self.assertTrue(settings["generation"]["can_publish"])
 		self.assertEqual(path.read_bytes(), before)
 
+	def single_staff(self):
+		return [
+			*self.staff("Male"),
+			{"name": "EMP-other", "employee_name": "李小雨", "surname": "李", "gender": "Male"},
+			{"name": "EMP-third", "employee_name": "陈小月", "surname": "陈", "gender": "Female"},
+		]
+
+	def distinct_render(self, voice, text):
+		audio = bytearray(wav())
+		audio[-2:] = voice["speaker_id"].to_bytes(2, "little")
+		return {
+			"audio": bytes(audio),
+			"voice": str(voice["speaker_id"]),
+			"credit": "来源" + str(voice["speaker_id"]),
+		}
+
+	def single_job(self, revision):
+		with patch.object(service, "_enqueue"):
+			job = api.start_generation(revision, employee_id="EMP-voice")
+		with patch.object(service, "_render", side_effect=self.distinct_render) as render:
+			service.generate_job(job["id"])
+		self.assertEqual(len(render.call_args_list), 2)
+		return job["id"]
+
+	def test_single_generation_only_renders_selected_staff_and_reports_scope(self):
+		with patch.object(service, "_employees", return_value=self.single_staff()):
+			self.save()
+			job = self.single_job(1)
+			generation = api.get_settings()["generation"]
+		self.assertEqual(
+			(generation["employee_id"], generation["employee_name"], generation["total"]),
+			("EMP-voice", "王小明", 2),
+		)
+		manifest = json.loads((self.root / "settings/generations" / job / "manifest.json").read_text())
+		self.assertEqual(set(manifest["clips"]), {"EMP-voice"})
+
+	def test_single_publish_merges_latest_clips_and_preserves_other_assets_and_credits(self):
+		self.config.update(profiles=self.profiles(), employee_voices={"EMP-third": self.personal(29)})
+		with patch.object(service, "_employees", return_value=self.single_staff()):
+			self.save()
+			with patch.object(service, "_enqueue"):
+				full = api.start_generation(1)
+			with patch.object(service, "_render", side_effect=self.distinct_render):
+				service.generate_job(full["id"])
+			api.publish(full["id"])
+			before = json.loads((self.root / "active/manifest.json").read_text())
+			old_assets = {
+				c["asset_id"]: (self.root / "active/audio" / (c["asset_id"] + ".wav")).read_bytes()
+				for e in ("EMP-other", "EMP-third")
+				for c in before["clips"][e].values()
+			}
+			self.config["employee_voices"]["EMP-voice"] = self.personal(42)
+			api.save_settings(json.dumps(self.config), 1)
+			job = self.single_job(2)
+			# An unrelated employee change does not require re-synthesizing this employee.
+			self.config["readings"]["EMP-other"] = "リー"
+			api.save_settings(json.dumps(self.config), 2)
+			self.assertTrue(api.get_settings()["generation"]["can_publish"])
+			api.publish(job)
+			self.assertEqual(api.get_settings()["published"]["revision"], 1)
+		after = json.loads((self.root / "active/manifest.json").read_text())
+		self.assertNotEqual(after["clips"]["EMP-voice"], before["clips"]["EMP-voice"])
+		for employee in ("EMP-other", "EMP-third"):
+			self.assertEqual(after["clips"][employee], before["clips"][employee])
+		for asset, data in old_assets.items():
+			self.assertEqual((self.root / "active/audio" / (asset + ".wav")).read_bytes(), data)
+		self.assertEqual(after["source"]["profiles"]["male"]["speaker_id"], 13)
+		self.assertEqual(after["source"]["employee_voices"]["EMP-voice"]["speaker_id"], 42)
+		self.assertEqual(set(after["source"]["credit"].split(" / ")), {"来源13", "来源29", "来源42"})
+
+	def test_single_publish_rejects_target_change_or_departure(self):
+		self.save()
+		job = self.single_job(1)
+		for staff in ([], [{"name": "EMP-voice", "employee_name": "王新名", "surname": "王"}]):
+			with patch.object(service, "_employees", return_value=staff):
+				self.assertFalse(api.get_settings()["generation"]["can_publish"])
+				with self.assertRaises(frappe.ValidationError):
+					api.publish(job)
+		self.config["readings"]["EMP-voice"] = "オウ"
+		api.save_settings(json.dumps(self.config), 1)
+		with self.assertRaises(frappe.ValidationError):
+			api.publish(job)
+		self.assertFalse((self.root / "active/manifest.json").exists())
+
+	def test_unknown_single_employee_does_not_enqueue_or_write_state(self):
+		self.save()
+		before = (self.root / "settings/settings.json").read_bytes()
+		with patch.object(service, "_enqueue") as enqueue:
+			with self.assertRaises(frappe.ValidationError):
+				api.start_generation(1, employee_id="unknown")
+			enqueue.assert_not_called()
+		self.assertEqual((self.root / "settings/settings.json").read_bytes(), before)
+
+	def test_single_publish_can_start_without_previous_bundle(self):
+		self.save()
+		job = self.single_job(1)
+		api.publish(job)
+		manifest = json.loads((self.root / "active/manifest.json").read_text())
+		self.assertEqual(set(manifest["clips"]), {"EMP-voice"})
+		self.assertEqual(set(manifest["clips"]["EMP-voice"]), {"IN", "OUT"})
+
+	def test_single_publish_keeps_other_legacy_16k_audio_and_attribution(self):
+		import hashlib
+
+		from hrms.utils.attendance_sign_audio import write_bundle
+
+		out = io.BytesIO()
+		with wave.open(out, "wb") as stream:
+			stream.setnchannels(1)
+			stream.setsampwidth(2)
+			stream.setframerate(16000)
+			stream.writeframes(b"\0\0" * 16000)
+		legacy = out.getvalue()
+		asset = hashlib.sha256(legacy).hexdigest()
+		old = {
+			"version": 1,
+			"locale": "ja-JP",
+			"source": {"engine": "VOICEVOX Nemo", "credit": "VOICEVOX Nemo", "sample_rate": 16000},
+			"clips": {
+				"EMP-other": {kind: {"asset_id": asset, "employee_name": "李小雨"} for kind in ("IN", "OUT")}
+			},
+		}
+		write_bundle(self.root / "active", old, {asset: legacy})
+		self.save()
+		job = self.single_job(1)
+		api.publish(job)
+		manifest = json.loads((self.root / "active/manifest.json").read_text())
+		self.assertEqual(manifest["clips"]["EMP-other"], old["clips"]["EMP-other"])
+		self.assertEqual((self.root / "active/audio" / (asset + ".wav")).read_bytes(), legacy)
+		self.assertIn("VOICEVOX Nemo", manifest["source"]["credit"])
+
 	def test_personal_pitch_is_persisted_and_sent_to_engine(self):
 		from hrms.utils import attendance_voice_engine
 

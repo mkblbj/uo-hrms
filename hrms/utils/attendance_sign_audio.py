@@ -82,7 +82,68 @@ def install_bundle(source_dir: str) -> dict:
 	return publish_bundle(source_dir)
 
 
-def publish_bundle(source_dir: str, *, destination: Path | None = None) -> dict:
+def _merge_employee(manifest: dict, destination: Path, employee_id: str) -> dict:
+	if set(manifest["clips"]) != {employee_id}:
+		raise ValueError("A single-employee bundle must contain exactly that employee")
+	current = _read_manifest(destination)
+	old_source = current.get("source", {})
+	new_source = manifest.get("source", {})
+	profiles = dict(old_source.get("profiles", {}))
+	personal = dict(old_source.get("employee_voices", {}))
+	if current["clips"] and not profiles and not personal:
+		# Preserve a legacy single-voice bundle's attribution, including old 16k assets.
+		profiles["default"] = {
+			k: old_source[k]
+			for k in (
+				"engine",
+				"speaker_id",
+				"speed",
+				"intonation",
+				"pitch",
+				"voice",
+				"credit",
+				"sample_rate",
+			)
+			if k in old_source
+		}
+	for voice in [*profiles.values(), *personal.values()]:
+		voice.setdefault("sample_rate", old_source.get("sample_rate"))
+	group = manifest["clips"][employee_id]["IN"].get("voice_group", "default")
+	voice = new_source.get("employee_voices", {}).get(employee_id) or new_source.get("profiles", {}).get(
+		group
+	)
+	if not voice:
+		raise ValueError("Selected employee voice metadata is missing")
+	personal[employee_id] = {**voice, "sample_rate": new_source.get("sample_rate")}
+	current["clips"][employee_id] = {
+		kind: {**clip, "voice_group": "personal"} for kind, clip in manifest["clips"][employee_id].items()
+	}
+	used_groups = {
+		clip.get("voice_group", "default") for clips in current["clips"].values() for clip in clips.values()
+	}
+	profiles = {group: voice for group, voice in profiles.items() if group in used_groups}
+	personal = {
+		employee: voice
+		for employee, voice in personal.items()
+		if any(c.get("voice_group") == "personal" for c in current["clips"].get(employee, {}).values())
+	}
+	used = [*profiles.values(), *personal.values()]
+	rates = {v.get("sample_rate") for v in used}
+	current["source"] = {
+		**new_source,
+		**old_source,
+		"voice": "员工分别发布",
+		"profiles": profiles,
+		"employee_voices": personal,
+		"credit": " / ".join(sorted({v["credit"] for v in used if v.get("credit")})),
+		"sample_rate": rates.pop() if len(rates) == 1 else None,
+	}
+	return current
+
+
+def publish_bundle(
+	source_dir: str, *, destination: Path | None = None, employee_id: str | None = None
+) -> dict:
 	"""Internal validated publisher; callers must enforce administrator access."""
 	source = Path(source_dir)
 	manifest = _read_manifest(source)
@@ -117,7 +178,10 @@ def publish_bundle(source_dir: str, *, destination: Path | None = None) -> dict:
 				raise ValueError("Greeting WAV hash does not match manifest")
 			assets[asset_id] = data
 			count += 1
-	write_bundle(destination or _store_path(), manifest, assets)
+	destination = destination or _store_path()
+	if employee_id:
+		manifest = _merge_employee(manifest, destination, employee_id)
+	write_bundle(destination, manifest, assets)
 	return {"clips": count, "assets": len(assets), "locale": "ja-JP"}
 
 

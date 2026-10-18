@@ -50,9 +50,9 @@ def get_preview_audio(asset_id: str):
 
 
 @frappe.whitelist(methods=["POST"])
-def start_generation(revision: int):
+def start_generation(revision: int, employee_id: str | None = None):
 	_require_manager()
-	return service.start_generation(revision)
+	return service.start_generation(revision, employee_id)
 
 
 @frappe.whitelist(methods=["POST"])

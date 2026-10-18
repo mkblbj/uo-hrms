@@ -219,6 +219,27 @@ def _fingerprint(config, employees):
 	).hexdigest()
 
 
+def _generation_fingerprint(config, employees, employee_id=None):
+	if not employee_id:
+		return _fingerprint(config, employees)
+	employee = next((e for e in employees if e["name"] == employee_id), None)
+	if employee is None:
+		return None
+	return hashlib.sha256(
+		json.dumps(
+			[
+				employee["name"],
+				employee["employee_name"],
+				_voice_for(config, employee),
+				[_text(config, employee, kind) for kind in ("IN", "OUT")],
+				SAMPLE_RATE,
+			],
+			ensure_ascii=False,
+			sort_keys=True,
+		).encode()
+	).hexdigest()
+
+
 def get_settings():
 	with _lock():
 		state = _read()
@@ -227,12 +248,16 @@ def get_settings():
 	public = None
 	if generation:
 		public = {k: generation.get(k) for k in ("id", "status", "done", "total", "error")}
+		public["employee_id"] = generation.get("employee_id")
+		public["employee_name"] = (
+			generation["employees"][0]["employee_name"] if public["employee_id"] else None
+		)
 		if public["status"] in ("queued", "running") and time.time() - generation.get("started_at", 0) > 600:
 			public["status"] = "error"
 			public["error"] = "生成任务已超时，请重新生成"
-		public["can_publish"] = public["status"] == "ready" and generation["fingerprint"] == _fingerprint(
-			state["draft"], employees
-		)
+		public["can_publish"] = public["status"] == "ready" and generation[
+			"fingerprint"
+		] == _generation_fingerprint(state["draft"], employees, public["employee_id"])
 	active = _json(_active_root() / "manifest.json", {})
 	return {
 		"revision": state["revision"],
@@ -328,8 +353,12 @@ def _enqueue(request_id):
 	)
 
 
-def start_generation(revision):
+def start_generation(revision, employee_id=None):
 	employees = _employees()
+	if employee_id:
+		employees = [e for e in employees if e["name"] == employee_id]
+		if not employees:
+			frappe.throw("请选择有效的在职员工")
 	if not employees:
 		frappe.throw("没有在职员工可生成语音")
 	with _lock():
@@ -342,12 +371,13 @@ def start_generation(revision):
 		request_id = uuid.uuid4().hex
 		generation = {
 			"id": request_id,
+			"employee_id": employee_id,
 			"status": "queued",
 			"done": 0,
 			"total": len(employees) * 2,
 			"error": None,
 			"started_at": time.time(),
-			"fingerprint": _fingerprint(state["draft"], employees),
+			"fingerprint": _generation_fingerprint(state["draft"], employees, employee_id),
 			"config": state["draft"],
 			"employees": employees,
 		}
@@ -439,13 +469,17 @@ def publish(request_id):
 		generation = state.get("generation")
 		if not generation or generation["id"] != request_id or generation["status"] != "ready":
 			frappe.throw("请先完成生成，再发布")
-		if generation["fingerprint"] != _fingerprint(state["draft"], employees):
+		employee_id = generation.get("employee_id")
+		if generation["fingerprint"] != _generation_fingerprint(state["draft"], employees, employee_id):
 			frappe.throw("草稿、员工资料或音频规格已变化，请重新生成后发布")
 		# Validated bundle publication is shared with the existing admin CLI.
 		from hrms.utils.attendance_sign_audio import publish_bundle
 
-		publish_bundle(str(_root() / "generations" / request_id), destination=_active_root())
+		publish_bundle(
+			str(_root() / "generations" / request_id), destination=_active_root(), employee_id=employee_id
+		)
 		generation["status"] = "published"
-		state["published_revision"] = state["revision"]
+		if not employee_id:
+			state["published_revision"] = state["revision"]
 		_write(state)
 	return get_settings()
