@@ -5,10 +5,20 @@
 
 import frappe
 from frappe import _
-from frappe.utils import cint, get_system_timezone, now_datetime
+from frappe.utils import cint, flt, get_system_timezone, now_datetime
 
-from hrms.api import get_current_user_info, get_unread_notifications_count
-from hrms.api.passkey import _passkey_checkin_enabled_for, _passkey_checkin_location
+from hrms.api import (
+	get_attendance_calendar_events,
+	get_current_user_info,
+	get_employee_dashboard_stats,
+	get_employee_work_status,
+	get_unread_notifications_count,
+	get_weather_data,
+)
+from hrms.api.checkin_location import get_location_requirement
+from hrms.api.passkey import _passkey_checkin_enabled_for, _passkey_checkin_location, get_checkin_context
+from hrms.api.profile_photo import get_profile_photo_status
+from hrms.utils import mobile_home
 
 API_VERSION = 1
 _TIME_FMT = "%Y-%m-%d %H:%M:%S"
@@ -104,4 +114,135 @@ def get_boot() -> dict:
 		if passkey_enabled
 		else None,
 		"unread_notifications": cint(get_unread_notifications_count()),
+	}
+
+
+WEATHER_CACHE_SECONDS = 600
+
+
+def _schedule_summary() -> dict:
+	"""work_roster 的今日 / 下次班次、大促和排班希望；没装 work_roster 时为空。"""
+	if "work_roster" not in frappe.get_installed_apps():
+		return {}
+	from work_roster.api.schedule import get_home_schedule_summary
+
+	summary = get_home_schedule_summary() or {}
+	return {} if summary.get("error") else summary
+
+
+def _scheduled_days(today) -> int | None:
+	"""本人本月已发布的排班天数。"""
+	if "work_roster" not in frappe.get_installed_apps():
+		return None
+	from work_roster.api.schedule import get_my_schedule
+
+	return len(get_my_schedule(month=today.month, year=today.year) or [])
+
+
+def _shift(entry: dict | None) -> dict | None:
+	if not entry:
+		return None
+	start = entry.get("start_time") or mobile_home._clock(entry.get("custom_start_time")) or None
+	end = entry.get("end_time") or mobile_home._clock(entry.get("custom_end_time")) or None
+	return {
+		"date": entry.get("date"),
+		"start_time": start,
+		"end_time": end,
+		"hours": flt(entry.get("hours")),
+		"slot": entry.get("wr_shift_slot") or entry.get("shift_label"),
+	}
+
+
+def _weather() -> dict | None:
+	key = f"mobile:weather:{frappe.local.lang}"
+	data = frappe.cache.get_value(key)
+	if data is None:
+		try:
+			data = get_weather_data()
+		except Exception:
+			data = None
+		if data:
+			frappe.cache.set_value(key, data, expires_in_sec=WEATHER_CACHE_SECONDS)
+	if not data:
+		return None
+	condition = data.get("condition") or {}
+	icon = condition.get("icon") or ""
+	return {
+		"temp_c": flt(data.get("temp_c")),
+		"condition": condition.get("text"),
+		"icon_url": f"https:{icon}" if icon.startswith("//") else icon or None,
+		"max_c": data.get("maxtemp_c"),
+		"min_c": data.get("mintemp_c"),
+	}
+
+
+def _profile_photo_reminder() -> dict:
+	try:
+		status = get_profile_photo_status() or {}
+	except frappe.PermissionError:
+		return {"show": False, "temporary": False}
+	has_photo = bool(status.get("has_photo"))
+	temporary = status.get("temporary")
+	if temporary is None:
+		temporary = bool(status.get("photo")) and not has_photo
+	return {"show": bool(status.get("required")) and not has_photo, "temporary": bool(temporary)}
+
+
+@frappe.whitelist(methods=["GET"])
+def get_home_snapshot() -> dict:
+	"""主页一次取齐：今日卡、热力图、本月统计、班次、希望提醒、天气、打卡入口、提醒卡。"""
+	user = _require_login()
+	employee = _active_employee(user)
+	if not employee:
+		frappe.throw(_("No active employee record found for your account"), frappe.PermissionError)
+
+	now = now_datetime()
+	today = now.date()
+	work_status = get_employee_work_status() or {}
+	stats = get_employee_dashboard_stats() or {}
+	summary = _schedule_summary()
+
+	first_day, last_day = mobile_home.heatmap_range(today)
+	events = get_attendance_calendar_events(first_day.isoformat(), last_day.isoformat()) or {}
+	cells = mobile_home.heatmap_cells(events, today)
+
+	present_days = flt(stats.get("month_present")) + flt(stats.get("month_half_days")) * 0.5
+	month_hours = flt(stats.get("month_hours"))
+	event = summary.get("today_event")
+	context = get_checkin_context()
+	requirement = get_location_requirement()
+
+	return {
+		"api_version": API_VERSION,
+		"today": today.isoformat(),
+		"now": now.strftime(_TIME_FMT),
+		"first_name": employee.first_name or employee.employee_name,
+		"work_status": {
+			"status": work_status.get("status") or "no_checkin_today",
+			"last_checkin": work_status.get("last_checkin"),
+			"first_checkin_today": stats.get("first_checkin_today"),
+			"last_checkin_today": stats.get("last_checkin_today"),
+		},
+		"today_shift": _shift(summary.get("today_entry")),
+		"next_shift": _shift(summary.get("next_entry")),
+		"progress": mobile_home.today_progress(summary.get("today_entry"), stats, work_status, now),
+		"sale_event": {k: event.get(k) for k in ("title", "event_type", "color")} if event else None,
+		"heatmap": {
+			"weeks": mobile_home.HEATMAP_WEEKS,
+			"cells": cells,
+			"month_markers": mobile_home.heatmap_month_markers(cells),
+		},
+		"month": {
+			"hours": month_hours,
+			"present_days": present_days,
+			"scheduled_days": _scheduled_days(today),
+			"average_hours": round(month_hours / present_days, 2) if present_days else 0,
+		},
+		"preference_notices": mobile_home.preference_notices(summary, today),
+		"weather": _weather(),
+		"checkin": {**context, "location_required": bool(requirement.get("location_required"))},
+		"reminders": {
+			"profile_photo": _profile_photo_reminder(),
+			"passkey_setup": _mobile_checkin_allowed() and bool(context.get("enabled")) and not context.get("has_passkey"),
+		},
 	}

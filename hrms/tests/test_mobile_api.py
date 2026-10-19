@@ -103,3 +103,97 @@ class TestBoot(MobileApiTestCase):
 
 		with patch.object(mobile.frappe, "get_attr", side_effect=get_attr):
 			self.assertFalse(mobile.get_boot()["features"]["profile_collection"])
+
+
+SUMMARY_WITH_SHIFT = {
+	"employee": None,
+	"today_entry": {
+		"date": None,
+		"start_time": "09:00",
+		"end_time": "18:00",
+		"scheduled_time": "09:00-18:00",
+		"hours": 8.0,
+		"wr_shift_slot": "9-18",
+		"shift_label": "9-18",
+		"is_custom": 0,
+		"custom_start_time": None,
+		"custom_end_time": None,
+	},
+	"next_entry": None,
+	"today_event": {"title": "大促日", "event_type": "Sale", "color": "#F59E0B", "description": "x"},
+	"preference_notices": [],
+}
+WEATHER = {"temp_c": 23.0, "condition": {"text": "晴れ", "icon": "//cdn.weatherapi.com/x.png"}, "maxtemp_c": 25.0, "mintemp_c": 17.0}
+
+
+class TestHomeSnapshot(MobileApiTestCase):
+	def setUp(self):
+		super().setUp()
+		frappe.cache.delete_keys("mobile:weather:")
+
+	def _snapshot(self, summary=None, weather=WEATHER, **patches):
+		summary = summary if summary is not None else SUMMARY_WITH_SHIFT
+		if summary.get("today_entry"):
+			summary = {**summary, "today_entry": {**summary["today_entry"], "date": frappe.utils.nowdate()}}
+		with (
+			patch.object(mobile, "_schedule_summary", return_value=summary),
+			patch.object(mobile, "_scheduled_days", return_value=21),
+			patch.object(mobile, "get_weather_data", **({"return_value": weather} if not isinstance(weather, Exception) else {"side_effect": weather})),
+		):
+			if "calendar" in patches:
+				with patch.object(mobile, "get_attendance_calendar_events", patches["calendar"]):
+					return mobile.get_home_snapshot()
+			return mobile.get_home_snapshot()
+
+	def test_snapshot_shape(self):
+		frappe.set_user(USER)
+		snap = self._snapshot()
+		self.assertEqual(
+			set(snap),
+			{
+				"api_version", "today", "now", "first_name", "work_status", "today_shift", "next_shift", "progress",
+				"sale_event", "heatmap", "month", "preference_notices", "weather", "checkin", "reminders",
+			},
+		)
+		self.assertEqual(len(snap["heatmap"]["cells"]), 140)
+		self.assertEqual(snap["heatmap"]["weeks"], 20)
+		self.assertEqual(snap["today_shift"], {"date": frappe.utils.nowdate(), "start_time": "09:00", "end_time": "18:00", "hours": 8.0, "slot": "9-18"})
+		self.assertEqual(snap["sale_event"], {"title": "大促日", "event_type": "Sale", "color": "#F59E0B"})
+		self.assertEqual(snap["weather"], {"temp_c": 23.0, "condition": "晴れ", "icon_url": "https://cdn.weatherapi.com/x.png", "max_c": 25.0, "min_c": 17.0})
+		self.assertEqual(snap["month"]["scheduled_days"], 21)
+		self.assertIsNotNone(snap["progress"])
+		self.assertEqual(set(snap["checkin"]) >= {"enabled", "has_passkey", "on_office_network", "location_required", "location"}, True)
+
+	def test_snapshot_without_shift_or_checkin(self):
+		frappe.set_user(USER)
+		snap = self._snapshot(summary={"today_entry": None, "next_entry": None, "today_event": None, "preference_notices": []})
+		self.assertIsNone(snap["progress"])
+		self.assertIsNone(snap["today_shift"])
+		self.assertIsNone(snap["sale_event"])
+		self.assertEqual(snap["work_status"]["status"], "no_checkin_today")
+
+	def test_snapshot_survives_weather_failure(self):
+		frappe.set_user(USER)
+		self.assertIsNone(self._snapshot(weather=RuntimeError("weather down"))["weather"])
+
+	def test_snapshot_requires_employee(self):
+		frappe.set_user(NO_EMPLOYEE_USER)
+		with self.assertRaises(frappe.PermissionError):
+			mobile.get_home_snapshot()
+
+	def test_snapshot_uses_own_calendar(self):
+		frappe.set_user(USER)
+		from unittest.mock import MagicMock
+
+		calendar = MagicMock(return_value={})
+		self._snapshot(calendar=calendar)
+		args, kwargs = calendar.call_args
+		self.assertEqual(len(args) + len(kwargs), 2)
+		self.assertNotIn("employee", kwargs)
+
+	def test_snapshot_month_counts_half_days(self):
+		frappe.set_user(USER)
+		stats = {"month_hours": 20.0, "month_present": 2.0, "month_half_days": 1.0}
+		with patch.object(mobile, "get_employee_dashboard_stats", return_value=stats):
+			month = self._snapshot()["month"]
+		self.assertEqual((month["hours"], month["present_days"], month["average_hours"]), (20.0, 2.5, 8.0))
