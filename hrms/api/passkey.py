@@ -21,6 +21,7 @@ from hrms.api.passkey_webauthn import (
 	PasskeyVerificationError,
 	b64url_encode,
 	build_authentication_options,
+	dev_bypass_enabled,
 	build_registration_options,
 	extract_client_challenge,
 	pop_challenge,
@@ -192,6 +193,7 @@ def get_checkin_context():
 		"enabled": enabled,
 		"has_passkey": bool(_user_credential_ids(user)),
 		"on_office_network": is_office_network(get_client_ip()) if enabled else False,
+		"dev_bypass": dev_bypass_enabled(),
 		"location": {
 			"name": location,
 			"description": frappe.db.get_value("QR Checkin Location", location, "description") or location,
@@ -221,7 +223,7 @@ def begin_checkin(
 		return {"status": presence.status, "reason": presence.reason}
 
 	credential_ids = _user_credential_ids(user)
-	if not credential_ids:
+	if not credential_ids and not dev_bypass_enabled():
 		return {"status": "no_passkey"}
 
 	validate_checkin_timing(employee.name, log_type)
@@ -243,19 +245,39 @@ def begin_checkin(
 	return {"status": "ok", "options": options, "evidence": presence.evidence}
 
 
+def _dev_bypass_challenge(credential) -> str | None:
+	"""开发站点跳过面容时，凭证是 {"dev_bypass": true, "challenge": …}；其他情况返回 None。"""
+	if not dev_bypass_enabled():
+		return None
+	try:
+		data = json.loads(credential) if isinstance(credential, str) else credential
+	except ValueError:
+		return None
+	if isinstance(data, dict) and data.get("dev_bypass") is True:
+		return str(data.get("challenge") or "")
+	return None
+
+
 @frappe.whitelist(methods=["POST"])
 def complete_checkin(credential: str):
 	user, employee = _require_employee_user()
-	data = _parse_credential(credential)
-	cred_doc = _get_credential_doc(data["id"])
-	if not cred_doc or cred_doc.user != user:
-		frappe.throw(_("This device isn't set up for your account. Please set it up again."))
+	bypass_challenge = _dev_bypass_challenge(credential)
+	if bypass_challenge is None:
+		data = _parse_credential(credential)
+		cred_doc = _get_credential_doc(data["id"])
+		if not cred_doc or cred_doc.user != user:
+			frappe.throw(_("This device isn't set up for your account. Please set it up again."))
+		challenge_b64 = extract_client_challenge(data)
+	else:
+		challenge_b64 = bypass_challenge
 
-	challenge_b64 = extract_client_challenge(data)
 	record = pop_challenge(PURPOSE_CHECKIN, challenge_b64)
 	if not record or record.get("user") != user:
 		frappe.throw(_("Check-in timed out. Please try again."))
-	_verify_or_throw(data, challenge_b64, cred_doc)
+	if bypass_challenge is None:
+		_verify_or_throw(data, challenge_b64, cred_doc)
+	else:
+		frappe.logger().info(f"Passkey dev bypass check-in: {user} {record['log_type']}")
 
 	validate_checkin_timing(employee.name, record["log_type"])
 	checkin = create_checkin(

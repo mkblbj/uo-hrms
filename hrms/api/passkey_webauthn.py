@@ -46,6 +46,11 @@ def get_rp_id() -> str:
 	return frappe.conf.get("passkey_rp_id") or DEFAULT_RP_ID
 
 
+def dev_bypass_enabled() -> bool:
+	"""只有开发站点（rp_id 为 localhost）并且显式开了 passkey_dev_bypass 才能跳过面容；正式域名永远不行。"""
+	return bool(frappe.conf.get("passkey_dev_bypass")) and get_rp_id() == "localhost"
+
+
 def get_rp_name() -> str:
 	return frappe.conf.get("passkey_rp_name") or DEFAULT_RP_NAME
 
