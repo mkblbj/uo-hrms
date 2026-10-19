@@ -21,8 +21,10 @@ class PasskeyApiTestCase(HRMSTestSuite):
 
 	def setUp(self):
 		frappe.set_user("Administrator")
+		# passkey_dev_bypass 固定为关：开发站点自己开着跳过时，测试也不受影响
 		self.conf = patch.dict(
-			frappe.local.conf, {"passkey_rp_id": self.rp_id, "passkey_origins": [self.origin]}
+			frappe.local.conf,
+			{"passkey_rp_id": self.rp_id, "passkey_origins": [self.origin], "passkey_dev_bypass": 0},
 		)
 		self.conf.start()
 		frappe.db.set_single_value("HR Settings", "allow_geolocation_tracking", 0)
@@ -337,8 +339,16 @@ class TestDevBypass(PasskeyApiTestCase):
 			with patch.object(passkey, "get_client_ip", return_value=self.OFFICE_IP):
 				self.assertFalse(passkey.get_checkin_context()["dev_bypass"])
 			self.assertEqual(self._begin(ip=self.OFFICE_IP)["status"], "no_passkey")
+			self.assertIsNone(passkey._dev_bypass_challenge(json.dumps({"dev_bypass": True, "challenge": "x"})))
+			# 登记一台真实设备，拿到服务器真正发出的挑战，再用跳过凭证提交：必须被拒
+			self.register_device(
+				authenticator=SoftAuthenticator(production["passkey_rp_id"], production["passkey_origins"][0], API_USER.encode())
+			)
+			frappe.set_user(API_USER)
+			begin = self._begin(ip=self.OFFICE_IP)
+			self.assertEqual(begin["status"], "ok")
 			with self.assertRaises(frappe.ValidationError):
-				self._bypass("any-challenge")
+				self._bypass(begin["options"]["challenge"])
 		self.assertEqual(self._checkins(), 0)
 
 	def test_dev_bypass_challenge_is_single_use(self):

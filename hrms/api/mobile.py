@@ -118,6 +118,8 @@ def get_boot() -> dict:
 
 
 WEATHER_CACHE_SECONDS = 600
+WEATHER_FAILURE_CACHE_SECONDS = 300
+_WEATHER_FAILED = {"_failed": True}
 
 
 def _schedule_summary() -> dict:
@@ -161,9 +163,13 @@ def _weather() -> dict | None:
 			data = get_weather_data()
 		except Exception:
 			data = None
-		if data:
-			frappe.cache.set_value(key, data, expires_in_sec=WEATHER_CACHE_SECONDS)
-	if not data:
+		# 失败也记 5 分钟：天气服务挂掉时不让每次打开主页都等满超时
+		frappe.cache.set_value(
+			key,
+			data or _WEATHER_FAILED,
+			expires_in_sec=WEATHER_CACHE_SECONDS if data else WEATHER_FAILURE_CACHE_SECONDS,
+		)
+	if not data or data == _WEATHER_FAILED:
 		return None
 	condition = data.get("condition") or {}
 	icon = condition.get("icon") or ""
@@ -206,7 +212,8 @@ def get_home_snapshot() -> dict:
 	events = get_attendance_calendar_events(first_day.isoformat(), last_day.isoformat()) or {}
 	cells = mobile_home.heatmap_cells(events, today)
 
-	present_days = flt(stats.get("month_present")) + flt(stats.get("month_half_days")) * 0.5
+	# month_half_days 已经按每个半天 0.5 天计
+	present_days = flt(stats.get("month_present")) + flt(stats.get("month_half_days"))
 	month_hours = flt(stats.get("month_hours"))
 	event = summary.get("today_event")
 	context = get_checkin_context()

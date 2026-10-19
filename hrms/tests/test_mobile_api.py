@@ -193,7 +193,25 @@ class TestHomeSnapshot(MobileApiTestCase):
 
 	def test_snapshot_month_counts_half_days(self):
 		frappe.set_user(USER)
-		stats = {"month_hours": 20.0, "month_present": 2.0, "month_half_days": 1.0}
+		# month_half_days 已经按每个半天 0.5 计（get_employee_dashboard_stats 的 SQL），这里是一个半天
+		stats = {"month_hours": 20.0, "month_present": 2.0, "month_half_days": 0.5}
 		with patch.object(mobile, "get_employee_dashboard_stats", return_value=stats):
 			month = self._snapshot()["month"]
 		self.assertEqual((month["hours"], month["present_days"], month["average_hours"]), (20.0, 2.5, 8.0))
+
+	def test_snapshot_caches_weather_failure(self):
+		# 天气服务挂掉时 get_weather_data 返回 None；短时间内不能每次打开主页都再等一遍
+		frappe.set_user(USER)
+		from unittest.mock import MagicMock
+
+		weather = MagicMock(return_value=None)
+		with (
+			patch.object(mobile, "_schedule_summary", return_value={}),
+			patch.object(mobile, "_scheduled_days", return_value=0),
+			patch.object(mobile, "get_weather_data", weather),
+		):
+			first = mobile.get_home_snapshot()
+			second = mobile.get_home_snapshot()
+		self.assertIsNone(first["weather"])
+		self.assertIsNone(second["weather"])
+		self.assertEqual(weather.call_count, 1)
