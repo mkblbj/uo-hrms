@@ -146,6 +146,7 @@ class TestPwaTodayAttendanceStatus(unittest.TestCase):
 
 	def calendar_events(self, logs=(), attendance=None, holidays=()):
 		with (
+			patch("hrms.api.get_current_employee", return_value="_Test Employee"),
 			patch("hrms.api.getdate", side_effect=lambda value=None: getdate(value) if value else self.today),
 			patch("hrms.api.get_holidays_for_calendar", return_value=list(holidays)),
 			patch("hrms.api.get_attendance_for_calendar", return_value=attendance or {}),
