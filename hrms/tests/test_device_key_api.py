@@ -273,6 +273,51 @@ class TestDeviceKeyRegistration(DeviceKeyTestCase):
 			).insert(ignore_permissions=True)
 		self.register()
 
+	def test_limit_is_checked_again_when_completing(self):
+		self.register()
+		self.register()
+		frappe.set_user(API_USER)
+		starts = [device_key.register_options(password=PASSWORD) for _ in range(2)]
+		keys = [PhoneKey(), PhoneKey()]
+		args = [
+			{
+				"challenge": start["challenge"],
+				"public_key": key.public_key,
+				"signature": key.sign("register", start["challenge"]),
+				"device_name": "iPhone",
+			}
+			for start, key in zip(starts, keys, strict=True)
+		]
+		device_key.register_complete(**args[0])
+		with self.assertRaisesRegex(frappe.ValidationError, "3 devices"):
+			device_key.register_complete(**args[1])
+		frappe.set_user("Administrator")
+		self.assertEqual(len(self.key_ids()), 3)
+
+	def test_same_public_key_cannot_be_registered_twice(self):
+		key = self.register()
+		for user in (API_USER, OTHER_USER):
+			frappe.set_user(user)
+			start = device_key.register_options(password=PASSWORD)
+			with self.assertRaises(frappe.ValidationError):
+				device_key.register_complete(
+					challenge=start["challenge"],
+					public_key=key.public_key,
+					signature=key.sign("register", start["challenge"]),
+					device_name="iPhone",
+				)
+		frappe.set_user("Administrator")
+		self.assertEqual((self.key_ids(), self.key_ids(OTHER_USER)), ([key.key_id], []))
+
+	def test_password_checks_are_claimed_before_checking(self):
+		# 模拟并发：5 次尝试已经占了名额、还没核对完，第 6 个请求不再核对密码
+		for _ in range(5):
+			device_key._claim_password_attempt(API_USER)
+		frappe.set_user(API_USER)
+		with patch.object(device_key, "check_password") as check:
+			self.assertEqual(device_key.register_options(password=PASSWORD), {"status": "too_many_attempts"})
+		check.assert_not_called()
+
 	def test_replacement_does_not_use_a_slot(self):
 		keys = [self.register() for _ in range(3)]
 		new_key = self.register(replaces=keys[0].key_id)

@@ -114,17 +114,19 @@ def _password_locked(user: str) -> bool:
 	return bool(frappe.cache.exists(_lock_key(user)))
 
 
-def _record_password_failure(user: str) -> bool:
-	"""记一次密码错误；满 5 次时开始暂停并返回 True。窗口从第一次错误算起 10 分钟。"""
+def _claim_password_attempt(user: str) -> int:
+	"""核对密码之前先占一次尝试，返回这是窗口内的第几次。先占后核对，同时发很多请求也只能核对 5 次。
+	窗口从第一次尝试算起 10 分钟；输对一次就清零，所以实际数的是连续输错的次数。"""
 	key = frappe.cache.make_key(_failure_key(user))
-	failures = frappe.cache.incr(key)
-	if failures == 1:
+	attempt = frappe.cache.incr(key)
+	if attempt == 1:
 		frappe.cache.expire(key, PASSWORD_FAILURE_WINDOW_SECONDS)
-	if failures < PASSWORD_MAX_FAILURES:
-		return False
+	return attempt
+
+
+def _lock_password(user: str) -> None:
 	frappe.cache.set_value(_lock_key(user), 1, expires_in_sec=PASSWORD_LOCK_SECONDS)
 	frappe.cache.delete_value(_failure_key(user))
-	return True
 
 
 def _password_ok(user: str, password: str) -> bool:
@@ -162,8 +164,14 @@ def register_options(password: str, replaces_key_id: str | None = None) -> dict:
 	user, employee = _require_employee_user()
 	if _password_locked(user):
 		return {"status": "too_many_attempts"}
+	attempt = _claim_password_attempt(user)
+	if attempt > PASSWORD_MAX_FAILURES:
+		return {"status": "too_many_attempts"}
 	if not _password_ok(user, password):
-		return {"status": "too_many_attempts" if _record_password_failure(user) else "wrong_password"}
+		if attempt < PASSWORD_MAX_FAILURES:
+			return {"status": "wrong_password"}
+		_lock_password(user)
+		return {"status": "too_many_attempts"}
 	frappe.cache.delete_value(_failure_key(user))
 
 	replaces = replaces_key_id if _own_key(user, replaces_key_id) else None
@@ -206,7 +214,10 @@ def register_complete(
 	replaced = _own_key(user, record.get("replaces_key_id"))
 	if replaced:
 		frappe.delete_doc(DOCTYPE, replaced.name, ignore_permissions=True)
-	if _key_count(user) >= MAX_DEVICE_KEYS_PER_EMPLOYEE:
+	# 同一账号同时登记几台时在这里排队，用加锁读数到已提交的最新钥匙数，不会超过 3 把
+	frappe.db.get_value("User", user, "name", for_update=True)
+	keys = frappe.db.get_values(DOCTYPE, {"user": user}, "name", for_update=True)
+	if len(keys) >= MAX_DEVICE_KEYS_PER_EMPLOYEE:
 		frappe.throw(
 			_("You already have {0} devices set up.").format(MAX_DEVICE_KEYS_PER_EMPLOYEE), DeviceKeyError
 		)
