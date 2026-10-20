@@ -302,6 +302,17 @@ class TestMyRoster(MobileRosterTestCase):
 			with self.assertRaises(frappe.ValidationError):
 				self.call("get_my_roster", year=year, month=month)
 
+	def test_my_roster_rejects_missing_params(self):
+		# 缺参数不能变成 500
+		for kwargs in ({"year": YEAR}, {"month": 10}, {}):
+			with self.assertRaises(frappe.ValidationError, msg=str(kwargs)):
+				self.call("get_my_roster", **kwargs)
+
+	def test_my_roster_ignores_cancelled_entries(self):
+		entry = self.entry(USER, self.office_oct, "2031-10-06", slot="mr-9-18")
+		frappe.db.set_value("WR Schedule Entry", entry.name, "status", "Cancelled")
+		self.assertIsNone(self.day_of(self.my_roster()["days"], "2031-10-06")["shift"])
+
 	def test_my_roster_requires_employee(self):
 		with self.assertRaises(frappe.PermissionError):
 			self.my_roster(user=NO_EMPLOYEE_USER)
@@ -392,9 +403,26 @@ class TestDepartmentRoster(MobileRosterTestCase):
 		self.assertEqual(self.day_of(production["days"], "2031-10-14")["sale_event"]["title"], "Factory")
 
 	def test_department_rejects_bad_params(self):
-		for kwargs in ({"department_category": "Both"}, {"date": "2031-02-30"}, {"date": ""}):
+		for kwargs in (
+			{"department_category": "Both"},
+			{"date": "2031-02-30"},
+			{"date": ""},
+			{"date": None},
+			{"date": "9999-12-31"},
+			{"date": "1999-12-31"},
+		):
 			with self.assertRaises(frappe.ValidationError, msg=str(kwargs)):
 				self.department(**{"date": "2031-10-15", **kwargs})
+
+	def test_department_rejects_missing_date(self):
+		with self.assertRaises(frappe.ValidationError):
+			self.call("get_department_roster")
+
+	def test_department_ignores_cancelled_entries(self):
+		entry = self.entry(OTHER_USER, self.office_oct, "2031-10-14", slot="mr-9-18")
+		frappe.db.set_value("WR Schedule Entry", entry.name, "status", "Cancelled")
+		day = self.day_of(self.department()["days"], "2031-10-14")
+		self.assertEqual((day["headcount"], day["employees"]), (0, []))
 
 	def test_department_requires_employee(self):
 		with self.assertRaises(frappe.PermissionError):
@@ -539,6 +567,14 @@ class TestPreferenceForm(MobileRosterTestCase):
 				continue
 			self.fail(f"{period}: 应当 417")
 
+	def test_form_rejects_missing_period(self):
+		frappe.set_user(USER)
+		try:
+			with self.assertRaises(frappe.ValidationError):
+				frappe.call("hrms.api.mobile.get_preference_form")
+		finally:
+			frappe.set_user("Administrator")
+
 	def test_form_requires_employee(self):
 		with self.assertRaises(frappe.PermissionError):
 			self.form(self.office_nov, user=NO_EMPLOYEE_USER)
@@ -553,6 +589,35 @@ class TestRosterReadOnly(MobileRosterTestCase):
 			self.call("get_preference_form", period=self.office_nov)
 		commit.assert_not_called()
 		self.assertFalse(frappe.db.exists("Holiday List", "Japan Holidays 2031"))
+
+	def test_boolean_fields_are_json_booleans(self):
+		self.entry(USER, self.office_oct, "2031-10-06", slot="mr-9-18")
+		self.entry(USER, self.office_oct, "2031-10-08", custom=("09:30:00", "15:00:00"))
+		frappe.get_doc(
+			{
+				"doctype": "WR Preference",
+				"employee": self.employee,
+				"wr_period": self.office_nov,
+				"details": [{"date": "2031-11-03", "wr_shift_slot": "mr-9-18"}],
+			}
+		).insert(ignore_permissions=True)
+		roster = self.my_roster()
+		department = self.call("get_department_roster", date="2031-10-08")
+		form = self.call("get_preference_form", period=self.office_nov)
+		values = [roster["published"]]
+		for day in roster["days"] + roster["week"]["days"]:
+			values += [day["is_weekly_off"], day["is_today"], day["is_future"]]
+			values += [day["shift"]["is_custom"]] if day["shift"] else []
+		for day in department["days"]:
+			values += [day["is_weekly_off"], day["is_today"], day["published"]]
+			values += [flag for row in day["employees"] for flag in (row["is_me"], row["shift"]["is_custom"])]
+		values += [form["period"][key] for key in ("editable", "urgent", "auto_schedule_notice")]
+		values += [day["is_weekly_off"] for day in form["days"]]
+		values += [row["is_custom"] for row in form["preference"]["details"]]
+		values += [row["has_preference"] for row in roster["preference_notices"]]
+		self.assertTrue(values)
+		for value in values:
+			self.assertIs(type(value), bool, value)
 
 	def test_get_only(self):
 		for fn in (mobile.get_my_roster, mobile.get_department_roster, mobile.get_preference_form):

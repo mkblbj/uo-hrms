@@ -538,6 +538,7 @@ def get_attendance_day(date: str) -> dict:
 
 # ---- 排班（M3）----
 # 只读：直接读排班表，不调用 work_roster 的 get_holidays（它会新建「Japan Holidays 年」并提交）。
+# 必填参数也给默认值 None：缺参时 Frappe 抛的是普通 TypeError（500），这里自己报 417。
 
 _ROSTER_CATEGORIES = ("Office", "Production")
 _ENTRY_FIELDS = [
@@ -724,7 +725,7 @@ def _my_days(employee: str, category: str, first: date, last: date, today: date)
 
 
 @frappe.whitelist(methods=["GET"])
-def get_my_roster(year: int, month: int) -> dict:
+def get_my_roster(year: int | None = None, month: int | None = None) -> dict:
 	"""我的班表：这个月每天的班次和合计，加上包含今天的那一周（可能跨月）。"""
 	employee = _require_employee()
 	year, month = cint(year), cint(month)
@@ -767,13 +768,13 @@ def _net_seconds(entry: dict, slot_map: dict) -> int:
 
 
 @frappe.whitelist(methods=["GET"])
-def get_department_roster(date: str, department_category: str | None = None) -> dict:
+def get_department_roster(date: str | None = None, department_category: str | None = None) -> dict:
 	"""部门班表：包含这一天的那一周，每天谁上什么班（只给姓名）。"""
 	from work_roster.utils.work_hours import calculate_equivalent_headcount
 
 	employee = _require_employee()
 	day = getdate(date) if date else None
-	if not day:
+	if not day or not 2000 <= day.year <= 2100:
 		frappe.throw(_("Invalid date"))
 	roster = _roster()
 	mine = roster._get_employee_department_category(employee.name)
@@ -866,7 +867,7 @@ def _my_preference(employee: str, period: str) -> dict | None:
 
 
 @frappe.whitelist(methods=["GET"])
-def get_preference_form(period: str) -> dict:
+def get_preference_form(period: str | None = None) -> dict:
 	"""排班希望表单：排班期、能选的班次、这个月每天的假日和大促、本人已提交的希望。
 
 	排班期不能看时一律 417（不用 403：App 收到 403 会回登录页）。
