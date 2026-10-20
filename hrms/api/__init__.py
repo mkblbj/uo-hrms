@@ -566,9 +566,18 @@ def are_push_notifications_enabled() -> bool:
 
 
 # Attendance
+ATTENDANCE_CALENDAR_MAX_DAYS = 400
+
+
 @frappe.whitelist()
 def get_attendance_calendar_events(from_date: str, to_date: str, employee: str | None = None) -> dict:
-	employee = employee or get_current_employee()
+	current_employee = get_current_employee()
+	if employee and employee != current_employee:
+		frappe.throw(_("You can only view your own attendance."), frappe.PermissionError)
+	employee = current_employee
+	if date_diff(to_date, from_date) + 1 > ATTENDANCE_CALENDAR_MAX_DAYS:
+		frappe.throw(_("Date range cannot exceed {0} days.").format(ATTENDANCE_CALENDAR_MAX_DAYS))
+
 	holidays = get_holidays_for_calendar(employee, from_date, to_date)
 	attendance = get_attendance_for_calendar(employee, from_date, to_date)
 	attendance_date_by_name = {
