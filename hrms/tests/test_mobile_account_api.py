@@ -176,6 +176,7 @@ class TestChangePassword(HRMSTestSuite):
 		frappe.cache.delete_value(
 			[device_key._failure_key(USER, scope), device_key._lock_key(USER, scope), device_key._failure_key(USER)]
 		)
+		frappe.db.delete("Mobile App Device", {"user": USER})
 		self.settings = {"enable_password_policy": 1, "minimum_password_score": 2, "logout_on_password_reset": 1}
 		settings = patch.object(frappe, "get_system_settings", side_effect=lambda key: self.settings.get(key))
 		settings.start()
@@ -198,6 +199,42 @@ class TestChangePassword(HRMSTestSuite):
 		clear_sessions.assert_called_once_with(user=USER, keep_current=True, force=True)
 		self.assertEqual(frappe.session.user, USER)
 		self.assertEqual(str(frappe.db.get_value("User", USER, "last_password_reset_date")), frappe.utils.today())
+
+	def test_other_phones_stop_getting_pushes(self):
+		for seed in (1, 2):
+			frappe.get_doc(
+				{
+					"doctype": "Mobile App Device", "user": USER, "device_token": f"{seed:064x}", "environment": "sandbox",
+					"bundle_id": "com.toiroworld.hrms", "installation_id": f"00000000-0000-4000-8000-00000000000{seed}",
+				}
+			).insert(ignore_permissions=True)
+		with patch("frappe.sessions.clear_sessions"):
+			self.assertEqual(
+				mobile.change_password(old_password=PASSWORD, new_password=NEW_PASSWORD, device_token=f"{2:064X}"),
+				{"status": "ok"},
+			)
+		self.assertEqual(frappe.get_all("Mobile App Device", {"user": USER}, pluck="device_token"), [f"{2:064x}"])
+
+		self.settings["logout_on_password_reset"] = 0
+		frappe.get_doc(
+			{
+				"doctype": "Mobile App Device", "user": USER, "device_token": f"{3:064x}", "environment": "sandbox",
+				"bundle_id": "com.toiroworld.hrms", "installation_id": "00000000-0000-4000-8000-000000000003",
+			}
+		).insert(ignore_permissions=True)
+		self.assertEqual(self.change(old=NEW_PASSWORD, new=PASSWORD), {"status": "ok"})
+		self.assertEqual(frappe.db.count("Mobile App Device", {"user": USER}), 2)
+
+	def test_without_device_token_all_phones_are_removed(self):
+		frappe.get_doc(
+			{
+				"doctype": "Mobile App Device", "user": USER, "device_token": f"{1:064x}", "environment": "sandbox",
+				"bundle_id": "com.toiroworld.hrms", "installation_id": "00000000-0000-4000-8000-000000000001",
+			}
+		).insert(ignore_permissions=True)
+		with patch("frappe.sessions.clear_sessions"):
+			self.assertEqual(self.change(), {"status": "ok"})
+		self.assertEqual(frappe.db.count("Mobile App Device", {"user": USER}), 0)
 
 	def test_other_sessions_kept_when_site_does_not_log_out(self):
 		self.settings["logout_on_password_reset"] = 0

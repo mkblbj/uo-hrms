@@ -1275,10 +1275,14 @@ def get_my_page() -> dict:
 
 
 @frappe.whitelist(methods=["POST"])
-def change_password(old_password: str | None = None, new_password: str | None = None) -> dict:
+def change_password(
+	old_password: str | None = None, new_password: str | None = None, device_token: str | None = None
+) -> dict:
 	"""App 里改密码。包这一层是因为 Frappe 的 update_password 旧密码错时返回 401，App 会当成会话过期。
 
 	都用 HTTP 200 + status。改完后发起请求的会话保持登录；其他会话按 logout_on_password_reset 处理（同 PWA）。
+	其他会话被退出时，其他手机的推送登记也一起删掉（丢了手机改密码后，那部手机不该再收到通知）；
+	device_token 是发起请求的这部手机的令牌，带上就保留。
 	"""
 	from frappe.core.doctype.user.user import test_password_strength
 	from frappe.utils.password import update_password
@@ -1308,11 +1312,11 @@ def change_password(old_password: str | None = None, new_password: str | None = 
 	if weakness:
 		return {"status": "weak_password", "message": weakness}
 
-	update_password(
-		user,
-		new_password,
-		logout_all_sessions=cint(frappe.get_system_settings("logout_on_password_reset")),
-	)
+	logout_others = cint(frappe.get_system_settings("logout_on_password_reset"))
+	update_password(user, new_password, logout_all_sessions=logout_others)
+	if logout_others:
+		keep = (device_token or "").strip().lower() if isinstance(device_token, str) else ""
+		frappe.db.delete(PUSH_DEVICE_DOCTYPE, {"user": user, "device_token": ["!=", keep]})
 	frappe.db.set_value(
 		"User", user, {"last_password_reset_date": frappe.utils.today(), "reset_password_key": ""}
 	)
