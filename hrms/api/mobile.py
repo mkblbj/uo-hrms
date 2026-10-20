@@ -7,12 +7,22 @@ from datetime import date, timedelta
 
 import frappe
 from frappe import _
-from frappe.utils import cint, flt, get_last_day, get_system_timezone, now_datetime, strip_html_tags
+from frappe.utils import (
+	cint,
+	flt,
+	get_datetime,
+	get_last_day,
+	get_system_timezone,
+	getdate,
+	now_datetime,
+	strip_html_tags,
+)
 
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 
 from hrms.api import (
 	get_attendance_calendar_events,
+	get_attendance_day_details,
 	get_current_user_info,
 	get_employee_dashboard_stats,
 	get_employee_work_status,
@@ -375,4 +385,106 @@ def get_attendance_month(year: int, month: int) -> dict:
 		"today": today.isoformat(),
 		"days": days,
 		"summary": summary,
+	}
+
+
+def _sale_event(events: list | None, key: str) -> dict | None:
+	"""同一天有多个时 Major Sale 优先（和 PWA 月历一致）。"""
+	picked = None
+	for event in events or []:
+		if str(event.get("event_date"))[:10] != key:
+			continue
+		if picked is None or event.get("event_type") == "Major Sale":
+			picked = event
+	return {k: picked.get(k) for k in ("title", "event_type", "color")} if picked else None
+
+
+def _lunch_window(employee: str, day: date) -> tuple:
+	"""当天用于计算的 Shift Type 的午休（取法同 get_attendance_day_details）；没开午休扣除时为 (None, None)。"""
+	from hrms.api.attendance_correction import get_employee_shift_for_date
+
+	shift = (
+		frappe.db.get_value("Attendance", {"employee": employee, "attendance_date": day, "docstatus": 1}, "shift")
+		or get_employee_shift_for_date(employee, day)
+		or frappe.db.get_value("Employee", employee, "default_shift")
+	)
+	values = shift and frappe.db.get_value(
+		"Shift Type", shift, ["enable_lunch_deduction", "lunch_start", "lunch_end"], as_dict=True
+	)
+	if not values or not cint(values.enable_lunch_deduction):
+		return None, None
+	return values.lunch_start, values.lunch_end
+
+
+def _punches(checkins: list[dict]) -> list[dict]:
+	names = [row["name"] for row in checkins]
+	extra = {
+		row.name: row
+		for row in frappe.get_all(
+			"Employee Checkin",
+			filters={"name": ["in", names or [""]]},
+			fields=["name", "device_id", "latitude", "longitude"],
+		)
+	}
+	device_ids = {row.device_id for row in extra.values() if row.device_id}
+	locations = {
+		row.name: strip_html_tags(row.description or "").strip() or row.name
+		for row in frappe.get_all(
+			"QR Checkin Location",
+			filters={"name": ["in", list(device_ids) or [""]]},
+			fields=["name", "description"],
+		)
+	}
+	punches = []
+	for row in checkins:
+		info = extra.get(row["name"]) or frappe._dict()
+		method = mobile_attendance.punch_method(row.get("checkin_method"))
+		punches.append(
+			{
+				"time": get_datetime(row["time"]).strftime(_TIME_FMT),
+				"log_type": row.get("log_type"),
+				"method": method,
+				"evidence": mobile_attendance.punch_evidence(method, info.latitude, info.longitude),
+				"location_name": locations.get(info.device_id),
+				"included": bool(row.get("included_in_calculation")),
+			}
+		)
+	return punches
+
+
+@frappe.whitelist(methods=["GET"])
+def get_attendance_day(date: str) -> dict:
+	"""勤怠日详情：班次、工时、计入的时段、午休和每条打卡。"""
+	employee = _require_employee()
+	day = getdate(date)
+	key = day.isoformat()
+
+	schedule = _month_schedule(day.year, day.month) or {}
+	entry = next((row for row in schedule.get("entries") or [] if str(row.get("date"))[:10] == key), None)
+	details = get_attendance_day_details(key)
+	worked = details.get("working_hours") if details.get("is_settled") else None
+	worked_hours = mobile_attendance.round1(worked if worked is not None else details.get("completed_hours") or 0)
+	scheduled_hours = flt((entry or {}).get("hours")) or float(mobile_home.STANDARD_DAY_HOURS)
+	periods = details.get("periods") or []
+	open_period = details.get("open_period")
+	events = get_attendance_calendar_events(key, key) or {}
+
+	return {
+		"api_version": API_VERSION,
+		"date": key,
+		"shift": mobile_attendance.shift_window(entry, day),
+		"sale_event": _sale_event(schedule.get("events"), key),
+		"worked_hours": worked_hours,
+		"scheduled_hours": scheduled_hours,
+		"overtime_hours": mobile_attendance.day_overtime(worked_hours, scheduled_hours),
+		"break_hours": round(sum(flt(row.get("lunch_deduction")) for row in periods), 2),
+		"periods": [
+			{"start": get_datetime(row["in_time"]).strftime(_TIME_FMT), "end": get_datetime(row["out_time"]).strftime(_TIME_FMT)}
+			for row in periods
+		],
+		"open_period": {"start": get_datetime(open_period["in_time"]).strftime(_TIME_FMT)} if open_period else None,
+		"breaks": mobile_attendance.lunch_segments(periods, *_lunch_window(employee.name, day)),
+		"punches": _punches(details.get("checkins") or []),
+		"anomaly_codes": _anomaly_codes(events.get(key)),
+		"has_pending_correction": key in _pending_correction_dates(employee.name, day, day),
 	}

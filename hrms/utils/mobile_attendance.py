@@ -4,9 +4,12 @@
 """
 
 import math
-from datetime import date
+from datetime import date, datetime, timedelta
 
-from hrms.utils.mobile_home import OVERTIME_THRESHOLD_HOURS, STANDARD_DAY_HOURS
+from frappe.utils import flt, get_time
+
+from hrms.api.checkin_presence import normalize_coordinates
+from hrms.utils.mobile_home import OVERTIME_THRESHOLD_HOURS, STANDARD_DAY_HOURS, _clock
 
 STATES = (
 	"work",
@@ -103,3 +106,58 @@ def summarize_month(days: list[dict], scheduled_days: int | None, remaining_days
 		"leave_days": round1(sum(row["_leave"] for row in days)),
 		"issue_count": sum(1 for row in days if row["state"] == "anomaly"),
 	}
+
+
+# ---- 日详情 ----
+
+_FMT = "%Y-%m-%d %H:%M:%S"
+_PUNCH_METHODS = {"QR": "qr", "Passkey": "passkey", "Attendance Correction": "correction"}
+
+
+def shift_window(roster: dict | None, day: date) -> dict | None:
+	"""排班条目 → {start, end, slot, hours}（时间点）；结束早于开始时按跨夜，结束在第二天。"""
+	start_text = _clock((roster or {}).get("start_time"))
+	end_text = _clock((roster or {}).get("end_time"))
+	if not start_text or not end_text:
+		return None
+	start = datetime.fromisoformat(f"{day.isoformat()} {start_text}:00")
+	end = datetime.fromisoformat(f"{day.isoformat()} {end_text}:00")
+	if end < start:
+		end += timedelta(days=1)
+	return {
+		"start": start.strftime(_FMT),
+		"end": end.strftime(_FMT),
+		"slot": roster.get("shift_label") or roster.get("wr_shift_slot"),
+		"hours": flt(roster.get("hours")),
+	}
+
+
+def punch_method(checkin_method: str | None) -> str:
+	return _PUNCH_METHODS.get(checkin_method or "", "other")
+
+
+def punch_evidence(method: str, latitude, longitude) -> str | None:
+	"""打卡记录里不存在场证明，只能推断：有定位算 gps；面容打卡必须先证明在场，没有定位就只能是公司网络。"""
+	if normalize_coordinates(latitude, longitude):
+		return "gps"
+	return "office_network" if method == "passkey" else None
+
+
+def lunch_segments(periods: list[dict], lunch_start, lunch_end) -> list[dict]:
+	"""各工作时段（计入的起止）和每天午休窗口的重叠段，算法同 shift_type.calculate_lunch_overlap_hours。"""
+	if not lunch_start or not lunch_end:
+		return []
+	start_time, end_time = get_time(lunch_start), get_time(lunch_end)
+	segments = []
+	for period in periods:
+		in_time, out_time = period.get("counted_in_time"), period.get("counted_out_time")
+		if not in_time or not out_time:
+			continue
+		work_date = in_time.date()
+		while work_date <= out_time.date():
+			overlap_start = max(in_time, datetime.combine(work_date, start_time))
+			overlap_end = min(out_time, datetime.combine(work_date, end_time))
+			if overlap_end > overlap_start:
+				segments.append({"start": overlap_start.strftime(_FMT), "end": overlap_end.strftime(_FMT)})
+			work_date += timedelta(days=1)
+	return segments

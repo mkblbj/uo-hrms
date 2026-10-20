@@ -6,8 +6,10 @@ import frappe
 from erpnext.setup.doctype.employee.test_employee import make_employee
 
 from hrms.api import mobile
+from hrms.hr.doctype.employee_checkin import test_attendance_recalculation as fixtures
 from hrms.hr.doctype.employee_checkin.test_employee_checkin import make_checkin
 from hrms.tests.test_mobile_api import NO_EMPLOYEE_USER, ensure_user
+from hrms.tests.test_passkey_api import ensure_location
 from hrms.tests.utils import HRMSTestSuite
 
 USER = "mobile-attendance@example.com"
@@ -219,3 +221,109 @@ class TestAttendanceMonth(MobileAttendanceTestCase):
 		frappe.set_user(NO_EMPLOYEE_USER)
 		with self.assertRaises(frappe.PermissionError):
 			self.month({"entries": [], "holidays": []})
+
+
+DAY = "2026-05-20"
+SALE = {"event_date": DAY, "title": "楽天スーパーSALE", "event_type": "Major Sale", "color": "#F59E0B"}
+
+
+def punch(employee, time, log_type, method=None, location=None, latitude=None, longitude=None):
+	return frappe.get_doc(
+		{
+			"doctype": "Employee Checkin",
+			"employee": employee,
+			"time": time,
+			"log_type": log_type,
+			"checkin_method": method,
+			"device_id": location,
+			"latitude": latitude,
+			"longitude": longitude,
+		}
+	).insert(ignore_permissions=True)
+
+
+class TestAttendanceDay(MobileAttendanceTestCase):
+	make_worker = fixtures.TestAttendanceRecalculation.make_worker
+
+	def day(self, user, schedule=None, date=DAY, **kwargs):
+		frappe.set_user(user)
+		with (
+			patch.object(mobile, "_month_schedule", return_value=schedule),
+			patch.object(mobile, "now_datetime", return_value=NOW),
+		):
+			return frappe.call("hrms.api.mobile.get_attendance_day", date=date, **kwargs)
+
+	def test_day_normal_with_overtime(self):
+		employee, shift = self.make_worker(
+			"mobile-day",
+			working_hours_calculation_based_on="Every Valid Check-in and Check-out",
+			enable_lunch_deduction=1,
+			lunch_start="12:00:00",
+			lunch_end="13:00:00",
+			allow_check_out_after_shift_end_time=180,
+		)
+		location = ensure_location()
+		frappe.db.set_value("QR Checkin Location", location, "description", "2F 入口")
+		punch(employee, datetime(2026, 5, 20, 8, 55), "IN", "QR", location)
+		punch(employee, datetime(2026, 5, 20, 19, 10), "OUT", "Passkey", location)
+		shift.process_auto_attendance()
+
+		result = self.day(
+			"attendance-settlement-mobile-day@example.com",
+			{"entries": [roster(DAY)], "holidays": [], "events": [SALE]},
+		)
+		self.assertEqual(
+			set(result),
+			{
+				"api_version", "date", "shift", "sale_event", "worked_hours", "scheduled_hours", "overtime_hours",
+				"break_hours", "periods", "open_period", "breaks", "punches", "anomaly_codes", "has_pending_correction",
+			},
+		)
+		self.assertEqual(result["shift"], {"start": "2026-05-20 09:00:00", "end": "2026-05-20 18:00:00", "slot": "9-18", "hours": 8.0})
+		self.assertEqual(result["sale_event"], {"title": "楽天スーパーSALE", "event_type": "Major Sale", "color": "#F59E0B"})
+		self.assertEqual(result["periods"], [{"start": "2026-05-20 08:55:00", "end": "2026-05-20 19:10:00"}])
+		self.assertIsNone(result["open_period"])
+		self.assertEqual(result["breaks"], [{"start": "2026-05-20 12:00:00", "end": "2026-05-20 13:00:00"}])
+		self.assertEqual(result["break_hours"], 1.0)
+		self.assertEqual((result["worked_hours"], result["scheduled_hours"], result["overtime_hours"]), (9.3, 8.0, 1.3))
+		self.assertEqual(
+			result["punches"],
+			[
+				{"time": "2026-05-20 08:55:00", "log_type": "IN", "method": "qr", "evidence": None, "location_name": "2F 入口", "included": True},
+				{"time": "2026-05-20 19:10:00", "log_type": "OUT", "method": "passkey", "evidence": "office_network", "location_name": "2F 入口", "included": True},
+			],
+		)
+		self.assertEqual((result["anomaly_codes"], result["has_pending_correction"]), ([], False))
+
+	def test_day_overnight_shift_and_punch(self):
+		employee, _shift = self.make_worker("mobile-night", start_time="22:00:00", end_time="06:00:00")
+		punch(employee, datetime(2026, 5, 20, 21, 58), "IN")
+		punch(employee, datetime(2026, 5, 21, 6, 5), "OUT")
+		night = roster(DAY, hours=7.0, start="22:00", end="06:00", label="22-6")
+
+		result = self.day("attendance-settlement-mobile-night@example.com", {"entries": [night], "holidays": [], "events": []})
+		self.assertEqual(result["shift"]["end"], "2026-05-21 06:00:00")
+		self.assertEqual([row["time"] for row in result["punches"]], ["2026-05-20 21:58:00", "2026-05-21 06:05:00"])
+		self.assertEqual(result["periods"], [{"start": "2026-05-20 21:58:00", "end": "2026-05-21 06:05:00"}])
+		self.assertEqual(result["scheduled_hours"], 7.0)
+		self.assertGreater(result["overtime_hours"], 0)
+
+	def test_day_only_checkin(self):
+		employee, _shift = self.make_worker("mobile-open")
+		punch(employee, datetime(2026, 5, 20, 9, 0), "IN")
+		result = self.day("attendance-settlement-mobile-open@example.com", {"entries": [], "holidays": [], "events": []})
+		self.assertEqual(result["anomaly_codes"], ["missing_checkout"])
+		self.assertEqual(result["open_period"], {"start": "2026-05-20 09:00:00"})
+		self.assertEqual(result["periods"], [])
+		self.assertIsNone(result["shift"])
+		self.assertEqual((result["scheduled_hours"], result["worked_hours"]), (8.0, 0))
+
+	def test_day_ignores_employee_param(self):
+		employee, _shift = self.make_worker("mobile-other")
+		punch(employee, datetime(2026, 5, 20, 9, 0), "IN")
+		result = self.day(USER, {"entries": [], "holidays": [], "events": []}, employee=employee)
+		self.assertEqual(result["punches"], [])
+
+	def test_day_rejects_bad_date(self):
+		with self.assertRaises(frappe.ValidationError):
+			self.day(USER, None, date="2026-02-30")

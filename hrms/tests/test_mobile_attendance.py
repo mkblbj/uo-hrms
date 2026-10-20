@@ -5,7 +5,7 @@ PWA attendanceCalendarState.test.js 里仍适用的用例逐条翻译过来，�
 """
 
 import unittest
-from datetime import date
+from datetime import date, datetime, timedelta
 
 from hrms.utils import mobile_attendance as rules
 
@@ -136,3 +136,45 @@ class TestSummary(unittest.TestCase):
 				"issue_count": 0,
 			},
 		)
+
+
+class TestDayDetailRules(unittest.TestCase):
+	def test_shift_window_overnight(self):
+		self.assertEqual(
+			rules.shift_window({"start_time": "22:00", "end_time": "06:00", "hours": 7.0, "shift_label": "22-6"}, TODAY),
+			{"start": "2026-10-20 22:00:00", "end": "2026-10-21 06:00:00", "slot": "22-6", "hours": 7.0},
+		)
+		self.assertEqual(
+			rules.shift_window({"start_time": "09:00", "end_time": "18:00", "hours": 8, "shift_label": "9-18"}, TODAY),
+			{"start": "2026-10-20 09:00:00", "end": "2026-10-20 18:00:00", "slot": "9-18", "hours": 8.0},
+		)
+
+	def test_shift_window_missing_time(self):
+		self.assertIsNone(rules.shift_window(None, TODAY))
+		self.assertIsNone(rules.shift_window({"start_time": "09:00", "end_time": None, "hours": 8}, TODAY))
+
+	def test_punch_method_and_evidence(self):
+		self.assertEqual(
+			[rules.punch_method(m) for m in ("QR", "Passkey", "Attendance Correction", None, "Biometric")],
+			["qr", "passkey", "correction", "other", "other"],
+		)
+		self.assertEqual(rules.punch_evidence("qr", 35.68, 139.76), "gps")
+		self.assertEqual(rules.punch_evidence("passkey", None, None), "office_network")
+		self.assertEqual(rules.punch_evidence("passkey", 35.68, 139.76), "gps")
+		self.assertIsNone(rules.punch_evidence("qr", None, None))
+		self.assertIsNone(rules.punch_evidence("other", 0, 0))
+
+	def test_lunch_segments(self):
+		def period(start, end):
+			return {"counted_in_time": datetime(2026, 10, 20, *start), "counted_out_time": datetime(2026, 10, 20, *end)}
+
+		self.assertEqual(
+			rules.lunch_segments([period((9, 0), (18, 0))], "12:00:00", "13:00:00"),
+			[{"start": "2026-10-20 12:00:00", "end": "2026-10-20 13:00:00"}],
+		)
+		self.assertEqual(
+			rules.lunch_segments([period((11, 30), (12, 30))], timedelta(hours=12), timedelta(hours=13)),
+			[{"start": "2026-10-20 12:00:00", "end": "2026-10-20 12:30:00"}],
+		)
+		self.assertEqual(rules.lunch_segments([period((9, 0), (11, 0))], "12:00:00", "13:00:00"), [])
+		self.assertEqual(rules.lunch_segments([period((9, 0), (18, 0))], None, None), [])
