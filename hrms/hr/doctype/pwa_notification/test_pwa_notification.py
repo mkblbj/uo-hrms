@@ -264,11 +264,16 @@ class TestPWANotificationType(IntegrationTestCase):
 		}
 		names = {}
 		for expected, rows in cases.items():
-			for values in rows:
+			for index, values in enumerate(rows):
 				doc = self.insert(message="x", **values)
-				frappe.db.set_value("PWA Notification", doc.name, "notification_type", None, update_modified=False)
+				# 加列时已有的通知会被填成默认值 Other；也覆盖空值
+				old_value = None if index % 2 else "Other"
+				frappe.db.set_value("PWA Notification", doc.name, "notification_type", old_value, update_modified=False)
 				names[doc.name] = expected
 		kept = self.insert(message="x", notification_title="明日の勤務予定", notification_type="Announcement")
+		device_notice = self.insert(
+			message="x", notification_title="顔認証打刻の端末が登録されました", notification_type="Other"
+		)
 
 		execute()
 		execute()
@@ -276,3 +281,4 @@ class TestPWANotificationType(IntegrationTestCase):
 		for name, expected in names.items():
 			self.assertEqual(frappe.db.get_value("PWA Notification", name, "notification_type"), expected, name)
 		self.assertEqual(frappe.db.get_value("PWA Notification", kept.name, "notification_type"), "Announcement")
+		self.assertEqual(frappe.db.get_value("PWA Notification", device_notice.name, "notification_type"), "Other")

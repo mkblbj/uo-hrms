@@ -157,7 +157,7 @@ class PWANotification(Document):
 
 			queue_push(self)
 		except Exception:
-			self.log_error(f"Error queueing app push notification: {self.name}")
+			self.log_error(f"Error queueing app push notification: {self.name}", frappe.get_traceback())
 
 	def get_notification_link(self):
 		base_url = f"{frappe.utils.get_url()}/hrms"

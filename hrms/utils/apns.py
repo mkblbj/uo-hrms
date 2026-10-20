@@ -7,6 +7,7 @@
 
 import json
 import time
+import traceback
 
 import frappe
 
@@ -103,7 +104,20 @@ def _devices(user: str, names: list[str] | None = None) -> list:
 	return frappe.get_all(DEVICE_DOCTYPE, filters=filters, fields=["name", "device_token", "environment", "bundle_id"])
 
 
+def _log_job_failure(notification: str, error: Exception) -> None:
+	"""只记代码位置和异常类型：异常文字和局部变量里可能有设备令牌。"""
+	frames = "".join(traceback.format_tb(error.__traceback__))
+	frappe.log_error("APNs push job failed", f"Notification {notification}: {type(error).__name__}\n{frames}")
+
+
 def send_notification(notification: str) -> None:
+	try:
+		_send_notification(notification)
+	except Exception as error:
+		_log_job_failure(notification, error)
+
+
+def _send_notification(notification: str) -> None:
 	config = get_config()
 	prepared = _prepare(notification) if config else None
 	if not prepared:
@@ -114,6 +128,13 @@ def send_notification(notification: str) -> None:
 
 def retry_notification(notification: str, devices: list[str], not_before: float) -> None:
 	"""429 / 5xx / 网络错误之后再发一次。同一批失败一起入队：第一个任务等到时间，后面的到点就不用再等。"""
+	try:
+		_retry_notification(notification, devices, not_before)
+	except Exception as error:
+		_log_job_failure(notification, error)
+
+
+def _retry_notification(notification: str, devices: list[str], not_before: float) -> None:
 	wait = not_before - time.time()
 	if wait > 0:
 		time.sleep(min(wait, RETRY_DELAY_SECONDS))

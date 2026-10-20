@@ -72,15 +72,30 @@ class TestCorrectionNotifications(HRMSTestSuite):
 		self.assertEqual(row.from_user, USER)
 		self.assertEqual(row.target_route, f"/attendance-corrections/{name}")
 		self.assertNotIn("病院", row.message)
+		self.assertEqual(notifications(USER), [])
 		# 插入时不推，提交后才推
 		push.assert_not_called()
-		self.assertIn(push, frappe.db.after_commit._functions)
-		self.assertEqual(notifications(USER), [])
+		frappe.db.after_commit.run()
+		push.assert_called_once_with()
 
 	def test_rollback_drops_the_push(self, push):
 		self.submit()
 		frappe.db.rollback()
-		self.assertNotIn(push, frappe.db.after_commit._functions)
+		frappe.db.after_commit.run()
+		push.assert_not_called()
+
+	def test_savepoint_rollback_drops_the_push(self, push):
+		# 批准时保存失败会回滚到保存点：通知没写进去，提交后也不能推
+		name = self.submit()
+		frappe.db.after_commit.reset()
+		frappe.db.savepoint("approve")
+		frappe.set_user(APPROVER)
+		with patch.object(AttendanceCorrectionRequest, "apply_correction"):
+			api.approve_attendance_correction_request(name)
+		frappe.set_user("Administrator")
+		self.assertEqual(len(notifications(USER)), 1)
+		frappe.db.rollback(save_point="approve")
+		frappe.db.after_commit.run()
 		push.assert_not_called()
 
 	def test_approve_notifies_applicant(self, push):
@@ -136,3 +151,5 @@ class TestCorrectionNotifications(HRMSTestSuite):
 			name = self.submit()
 		self.assertEqual(frappe.db.get_value("Attendance Correction Request", name, "status"), "Pending")
 		log_error.assert_called_once()
+		# 日志带的是不含局部变量的堆栈（显式传了 message），不会把通知正文写进去
+		self.assertEqual(len(log_error.call_args.args), 2)

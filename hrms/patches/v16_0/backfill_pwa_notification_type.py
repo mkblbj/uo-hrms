@@ -5,9 +5,17 @@ APPROVAL_DOCTYPES = ("Leave Application", "Expense Claim", "Shift Request")
 
 
 def execute():
-	"""给加类型之前的通知补上类型（只补空的，可重复执行）；对象日期不补。"""
+	"""给加类型之前的通知补上类型（可重复执行）；对象日期不补。
+
+	加列时数据库会把已有的通知都填成默认值 Other，所以 Other 也当作还没分类、按规则重新判断；
+	新代码写的 Other（端末登记等）不会命中下面任何一条规则，结果不变。
+	"""
 	notification = frappe.qb.DocType("PWA Notification")
-	untyped = (notification.notification_type.isnull()) | (notification.notification_type == "")
+	untyped = (
+		notification.notification_type.isnull()
+		| (notification.notification_type == "")
+		| (notification.notification_type == "Other")
+	)
 
 	def fill(notification_type, condition):
 		(

@@ -25,7 +25,8 @@ def notify_status_change(doc) -> None:
 	except Exception:
 		# 通知失败不能挡住提交和审批
 		frappe.db.rollback(save_point=SAVEPOINT)
-		frappe.log_error(f"Attendance correction notification failed: {doc.name}")
+		# 只记堆栈，不带局部变量（里面有通知正文）
+		frappe.log_error(f"Attendance correction notification failed: {doc.name}", frappe.get_traceback())
 	finally:
 		frappe.db.release_savepoint(SAVEPOINT)
 
@@ -73,7 +74,13 @@ def _create(doc, *, to_user: str, from_user: str, title: str, message: str) -> N
 	)
 	notification.flags.defer_push_notification = True
 	notification.insert(ignore_permissions=True)
-	frappe.db.after_commit.add(notification.send_push_notification)
+	frappe.db.after_commit.add(lambda: _push_if_kept(notification))
+
+
+def _push_if_kept(notification) -> None:
+	"""提交后再推。批准时保存失败会回滚到保存点，通知没写进去，这时不能推「承認」。"""
+	if frappe.db.exists("PWA Notification", notification.name):
+		notification.send_push_notification()
 
 
 def _applicant_user(doc) -> str | None:

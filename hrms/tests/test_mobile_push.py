@@ -460,6 +460,21 @@ class TestAPNsSending(APNsTestCase):
 		self.assertEqual(fake.requests, [])
 
 
+	def test_job_errors_are_logged_without_token(self):
+		self.register(seed=0xBAD)
+		doc = self.notify()
+
+		def explode(*args, **kwargs):
+			raise RuntimeError(f"https://api.push.apple.com/3/device/{token(0xBAD)}")
+
+		with patch("httpx.Client", side_effect=explode), patch.object(frappe, "log_error") as log_error:
+			apns.send_notification(str(doc.name))
+			apns.retry_notification(str(doc.name), [], 0)
+		log_error.assert_called_once()
+		self.assertIn("RuntimeError", str(log_error.call_args))
+		self.assertNotIn(token(0xBAD), str(log_error.call_args))
+
+
 class TestQueueing(APNsTestCase):
 	def test_queued_after_commit_and_dropped_on_rollback(self):
 		self.register()
