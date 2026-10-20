@@ -38,15 +38,21 @@ def _status(event: dict | None) -> str:
 	return (event or {}).get("attendance") or ""
 
 
-def day_hours(event: dict | None) -> float | None:
-	"""有考勤记录且工时大于 0 时，返回取到一位小数的工时。"""
+def raw_day_hours(event: dict | None) -> float | None:
+	"""有考勤记录且工时大于 0 时，返回考勤记录的原始工时（不取整）。"""
 	if _status(event) not in _RECORD_STATUSES:
 		return None
 	try:
 		hours = float((event or {}).get("working_hours") or 0)
 	except (TypeError, ValueError):
 		return None
-	return round1(hours) if hours > 0 else None
+	return hours if hours > 0 else None
+
+
+def day_hours(event: dict | None) -> float | None:
+	"""每天格子里显示的工时：原始工时取到一位小数。"""
+	hours = raw_day_hours(event)
+	return round1(hours) if hours is not None else None
 
 
 def day_weight(event: dict | None) -> float:
@@ -95,10 +101,14 @@ def derive_day_state(event: dict | None, holiday: dict | None, roster: dict | No
 
 
 def summarize_month(days: list[dict], scheduled_days: int | None, remaining_days: int | None) -> dict:
-	"""days 里每天带内部字段 _weight、_leave、_overtime；工时和出勤只算已结算的工作日。"""
+	"""days 里每天带内部字段 _raw_hours、_weight、_leave、_overtime；工时和出勤只算已结算的工作日。
+
+	工时用原始值相加、最后取一次一位小数，和主页的「本月実働」一致；按每天显示的值相加，
+	每天的进位会累积（每天 8.17 显示 8.2，一个月能多出 0.3 小时以上）。
+	"""
 	settled = [row for row in days if row["state"] in _SETTLED_WORK]
 	return {
-		"hours": round1(sum(row["hours"] or 0 for row in settled)),
+		"hours": round1(sum(row["_raw_hours"] or 0 for row in settled)),
 		"present_days": round1(sum(row["_weight"] for row in settled)),
 		"scheduled_days": scheduled_days,
 		"remaining_days": remaining_days,

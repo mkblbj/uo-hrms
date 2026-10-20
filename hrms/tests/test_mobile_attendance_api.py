@@ -106,6 +106,16 @@ class TestAttendanceMonth(MobileAttendanceTestCase):
 		)
 		self.assertNotIn("_weight", first)
 
+	def test_month_summary_adds_unrounded_hours(self):
+		# 格子里各显示 8.2，但合计按原始工时 8.17 + 8.15 = 16.32 → 16.3（同主页「本月実働」）
+		submit_attendance(self.employee, "2026-05-12", hours=8.17)
+		submit_attendance(self.employee, "2026-05-13", hours=8.15)
+		frappe.set_user(USER)
+		result = self.month({"entries": [roster("2026-05-12"), roster("2026-05-13")], "holidays": []})
+		self.assertEqual([self.day_of(result, day)["hours"] for day in ("2026-05-12", "2026-05-13")], [8.2, 8.2])
+		self.assertEqual(result["summary"]["hours"], 16.3)
+		self.assertNotIn("_raw_hours", self.day_of(result, "2026-05-12"))
+
 	def test_month_states_from_records(self):
 		submit_attendance(self.employee, "2026-05-12", hours=9.6)
 		submit_attendance(self.employee, "2026-05-13", status="Half Day", hours=4)

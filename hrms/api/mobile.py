@@ -409,6 +409,7 @@ def get_attendance_month(year: int, month: int) -> dict:
 				"anomaly_codes": _anomaly_codes(event),
 				"has_pending_correction": key in pending,
 				"holiday_name": _holiday_name(holiday),
+				"_raw_hours": mobile_attendance.raw_day_hours(event),
 				"_weight": mobile_attendance.day_weight(event),
 				"_leave": mobile_attendance.leave_weight(event),
 				"_overtime": mobile_attendance.day_overtime(hours, (entry or {}).get("hours")),
@@ -422,7 +423,7 @@ def get_attendance_month(year: int, month: int) -> dict:
 		remaining_days = sum(1 for key in roster_by_date if today.isoformat() < key <= last.isoformat())
 	summary = mobile_attendance.summarize_month(days, scheduled_days, remaining_days)
 	for row in days:
-		for key in ("_weight", "_leave", "_overtime"):
+		for key in ("_raw_hours", "_weight", "_leave", "_overtime"):
 			del row[key]
 	return {
 		"api_version": API_VERSION,

@@ -89,8 +89,15 @@ class TestDayNumbers(unittest.TestCase):
 		self.assertEqual(rules.day_weight(None), 0)
 
 
-def day(state, hours=None, weight=0, leave=0, overtime=0):
-	return {"state": state, "hours": hours, "_weight": weight, "_leave": leave, "_overtime": overtime}
+def day(state, hours=None, weight=0, leave=0, overtime=0, raw=None):
+	return {
+		"state": state,
+		"hours": hours,
+		"_raw_hours": hours if raw is None else raw,
+		"_weight": weight,
+		"_leave": leave,
+		"_overtime": overtime,
+	}
 
 
 class TestSummary(unittest.TestCase):
@@ -118,10 +125,23 @@ class TestSummary(unittest.TestCase):
 			},
 		)
 
-	def test_summary_rounds_each_day_first(self):
-		# 新规则 4：每天 2.04 先取成 2.0；先合计再取整会得到 6.1
-		days = [day("work", rules.day_hours(present(2.04)), 1) for _ in range(3)]
-		self.assertEqual(rules.summarize_month(days, None, None)["hours"], 6.0)
+	def test_summary_sums_unrounded_hours(self):
+		# 每天的格子显示 2.0，但月度合计用原始工时相加再取一次（和主页的「本月実働」一致）
+		days = [day("work", rules.day_hours(present(2.04)), 1, raw=rules.raw_day_hours(present(2.04))) for _ in range(3)]
+		self.assertEqual([row["hours"] for row in days], [2.0, 2.0, 2.0])
+		self.assertEqual(rules.summarize_month(days, None, None)["hours"], 6.1)
+
+	def test_summary_matches_home_total_on_dev_data(self):
+		# 2026-10-20 开发站点 ios-dev 的 10 月：主页 99.79（显示 99.8），按天取整再加是 100.1
+		raw = [8.17, 8.17, 8.17, 9.88, 8.15, 8.17, 8.38, 8.17, 8.07, 8.17, 8.12, 8.17]
+		days = [day("work", rules.day_hours(present(hours)), 1, raw=rules.raw_day_hours(present(hours))) for hours in raw]
+		self.assertEqual(rules.summarize_month(days, None, None)["hours"], 99.8)
+
+	def test_raw_day_hours(self):
+		self.assertEqual(rules.raw_day_hours(present(8.17)), 8.17)
+		self.assertIsNone(rules.raw_day_hours(present(0)))
+		self.assertIsNone(rules.raw_day_hours({"attendance": "Holiday", "working_hours": 8}))
+		self.assertIsNone(rules.raw_day_hours(None))
 
 	def test_summary_empty(self):
 		self.assertEqual(
