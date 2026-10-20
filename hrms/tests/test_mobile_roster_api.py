@@ -227,15 +227,86 @@ class TestMyRoster(MobileRosterTestCase):
 			self.my_roster(user=NO_EMPLOYEE_USER)
 
 
+class TestDepartmentRoster(MobileRosterTestCase):
+	def department(self, date="2031-10-15", user=USER, **kwargs):
+		return self.call("get_department_roster", user=user, date=date, **kwargs)
+
+	def test_department_week_shape(self):
+		result = self.department()
+		self.assertEqual(
+			set(result),
+			{"api_version", "today", "department_category", "my_department_category", "week_start", "week_end", "days"},
+		)
+		self.assertEqual((result["week_start"], result["week_end"], len(result["days"])), ("2031-10-13", "2031-10-19", 7))
+		self.assertEqual((result["department_category"], result["my_department_category"]), ("Office", "Office"))
+		self.assertEqual(
+			set(result["days"][0]),
+			{
+				"date", "weekday", "holiday_name", "is_weekly_off", "sale_event", "is_today", "published", "headcount",
+				"equivalent_headcount", "employees",
+			},
+		)
+
+	def test_department_employees_sorted(self):
+		self.entry(USER, self.office_oct, "2031-10-14", slot="mr-10-16")
+		self.entry(OTHER_USER, self.office_oct, "2031-10-14", slot="mr-9-18")
+		self.entry(THIRD_USER, self.office_oct, "2031-10-14", slot="mr-9-18")
+		employees = self.day_of(self.department()["days"], "2031-10-14")["employees"]
+		self.assertEqual([row["employee_name"] for row in employees], ["Roster A", "Roster B", "Roster C"])
+		self.assertEqual([row["is_me"] for row in employees], [False, False, True])
+		self.assertEqual(set(employees[0]), {"employee", "employee_name", "is_me", "shift"})
+		self.assertEqual(employees[2]["shift"]["slot"], "mr-10-16")
+
+	def test_department_office_headcount(self):
+		for user in (USER, OTHER_USER, THIRD_USER):
+			self.entry(user, self.office_oct, "2031-10-14", slot="mr-9-18")
+		days = self.department()["days"]
+		busy = self.day_of(days, "2031-10-14")
+		self.assertEqual((busy["headcount"], busy["equivalent_headcount"]), (3, None))
+		empty = self.day_of(days, "2031-10-15")
+		self.assertEqual((empty["headcount"], empty["employees"], empty["equivalent_headcount"]), (0, [], None))
+
+	def test_department_production_equivalent(self):
+		self.entry(PROD_USER, self.production_oct, "2031-10-14", slot="mr-6-15")
+		self.entry(OTHER_USER, self.production_oct, "2031-10-14", slot="mr-9-18")
+		self.entry(THIRD_USER, self.production_oct, "2031-10-14", slot="mr-10-16")
+		result = self.department(department_category="Production")
+		self.assertEqual((result["department_category"], result["my_department_category"]), ("Production", "Office"))
+		day = self.day_of(result["days"], "2031-10-14")
+		self.assertEqual((day["headcount"], day["equivalent_headcount"]), (3, 2.6))
+		self.assertEqual(self.day_of(result["days"], "2031-10-15")["equivalent_headcount"], 0.0)
+		self.assertEqual(self.department(user=PROD_USER)["department_category"], "Production")
+
+	def test_department_published_per_day(self):
+		days = self.department(date="2031-10-29")["days"]
+		self.assertEqual([row["published"] for row in days], [True] * 5 + [False] * 2)
+
+	def test_department_sales_follow_category(self):
+		self.event("2031-10-14", "Factory", category="Production")
+		self.assertIsNone(self.day_of(self.department()["days"], "2031-10-14")["sale_event"])
+		production = self.department(department_category="Production")
+		self.assertEqual(self.day_of(production["days"], "2031-10-14")["sale_event"]["title"], "Factory")
+
+	def test_department_rejects_bad_params(self):
+		for kwargs in ({"department_category": "Both"}, {"date": "2031-02-30"}, {"date": ""}):
+			with self.assertRaises(frappe.ValidationError, msg=str(kwargs)):
+				self.department(**{"date": "2031-10-15", **kwargs})
+
+	def test_department_requires_employee(self):
+		with self.assertRaises(frappe.PermissionError):
+			self.department(user=NO_EMPLOYEE_USER)
+
+
 class TestRosterReadOnly(MobileRosterTestCase):
 	def test_reads_do_not_write(self):
 		with patch.object(frappe.local.db, "commit") as commit:
 			self.my_roster(month=8)
+			self.call("get_department_roster", date="2031-08-06")
 		commit.assert_not_called()
 		self.assertFalse(frappe.db.exists("Holiday List", "Japan Holidays 2031"))
 
 	def test_get_only(self):
-		for fn in (mobile.get_my_roster,):
+		for fn in (mobile.get_my_roster, mobile.get_department_roster):
 			methods = frappe.allowed_http_methods_for_whitelisted_func[fn]
 			self.assertIn("GET", methods, fn.__name__)
 			self.assertNotIn("POST", methods, fn.__name__)

@@ -743,3 +743,68 @@ def get_my_roster(year: int, month: int) -> dict:
 		"week": {"start": week_start.isoformat(), "end": week_end.isoformat(), "days": week, **mobile_roster.totals(week)},
 		"preference_notices": mobile_home.preference_notices({"preference_notices": notices}, today),
 	}
+
+
+def _net_seconds(entry: dict, slot_map: dict) -> int:
+	from work_roster.utils.work_hours import calculate_net_work_seconds
+
+	start, end = _shift_clocks(entry, slot_map)
+	return calculate_net_work_seconds(start, end, entry.date) if start and end else 0
+
+
+@frappe.whitelist(methods=["GET"])
+def get_department_roster(date: str, department_category: str | None = None) -> dict:
+	"""部门班表：包含这一天的那一周，每天谁上什么班（只给姓名）。"""
+	from work_roster.utils.work_hours import calculate_equivalent_headcount
+
+	employee = _require_employee()
+	day = getdate(date) if date else None
+	if not day:
+		frappe.throw(_("Invalid date"))
+	roster = _roster()
+	mine = roster._get_employee_department_category(employee.name)
+	category = department_category or mine
+	if category not in _ROSTER_CATEGORIES:
+		frappe.throw(_("Unsupported department category: {0}").format(category))
+
+	today = now_datetime().date()
+	first, last = mobile_roster.week_bounds(day)
+	published = _published_months(category, first, last)
+	entries = _entries(published, first, last)
+	slot_map = _slot_map(entry.wr_shift_slot for entry in entries)
+	by_date = {}
+	for entry in entries:
+		by_date.setdefault(str(entry.date), []).append(entry)
+
+	days = _day_rows(category, first, last, today)
+	for row in days:
+		day_entries = by_date.get(row["date"], [])
+		row["published"] = (cint(row["date"][:4]), cint(row["date"][5:7])) in published
+		row["headcount"] = len(day_entries)
+		# 8 小时换算人数只有生产算（和 PWA 一样）
+		row["equivalent_headcount"] = (
+			calculate_equivalent_headcount(sum(_net_seconds(entry, slot_map) for entry in day_entries))
+			if category == "Production"
+			else None
+		)
+		row["employees"] = sorted(
+			(
+				{
+					"employee": entry.employee,
+					"employee_name": entry.employee_name or entry.employee,
+					"is_me": entry.employee == employee.name,
+					"shift": _roster_shift(entry, slot_map),
+				}
+				for entry in day_entries
+			),
+			key=mobile_roster.employee_sort_key,
+		)
+	return {
+		"api_version": API_VERSION,
+		"today": today.isoformat(),
+		"department_category": category,
+		"my_department_category": mine,
+		"week_start": first.isoformat(),
+		"week_end": last.isoformat(),
+		"days": days,
+	}
