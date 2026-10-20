@@ -644,13 +644,13 @@ class TestEmployeeCheckin(HRMSTestSuite):
 	def test_recalculate_attendance_creates_attendance_from_checkins(self):
 		shift = setup_shift_type(shift_type="Recalculate Attendance Shift")
 		employee = make_employee("recalculate_attendance@example.com", company="_Test Company")
-		date = getdate()
+		date = add_days(getdate(), -1)
 		make_shift_assignment(shift.name, employee, date)
 
 		in_log = make_checkin(employee, datetime.combine(date, get_time("08:30:00")), log_type="IN")
 		out_log = make_checkin(employee, datetime.combine(date, get_time("12:15:00")), log_type="OUT")
 
-		result = recalculate_attendance(employee, str(date))
+		result = recalculate_attendance(employee, str(date), commit=False)
 
 		self.assertEqual(result["status"], "success")
 		attendance = frappe.db.get_value(
