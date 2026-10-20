@@ -69,6 +69,8 @@ class DeviceKeyTestCase(HRMSTestSuite):
 
 	def tearDown(self):
 		frappe.set_user("Administrator")
+		# 回滚这条用例的改动：测试跑完 Frappe 会提交一次，不回滚的话 HR 设置等会留在共用的开发站点上
+		super().tearDown()
 
 	def register(self, user=API_USER, key=None, replaces=None, device_name="iPhone (iPhone16,2)"):
 		key = key or PhoneKey()
