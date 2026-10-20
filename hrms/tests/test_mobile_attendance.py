@@ -165,10 +165,12 @@ class TestDayDetailRules(unittest.TestCase):
 			[rules.punch_method(m) for m in ("QR", "Passkey", "Attendance Correction", None, "Biometric")],
 			["qr", "passkey", "correction", "other", "other"],
 		)
-		self.assertEqual(rules.punch_evidence("qr", 35.68, 139.76), "gps")
 		self.assertEqual(rules.punch_evidence("passkey", None, None), "office_network")
 		self.assertEqual(rules.punch_evidence("passkey", 35.68, 139.76), "gps")
+		# 扫码带了定位也不一定核对过距离（只在开了地理位置追踪且不在公司网络时才核对），不推断
+		self.assertIsNone(rules.punch_evidence("qr", 35.68, 139.76))
 		self.assertIsNone(rules.punch_evidence("qr", None, None))
+		self.assertIsNone(rules.punch_evidence("correction", 35.68, 139.76))
 		self.assertIsNone(rules.punch_evidence("other", 0, 0))
 
 	def test_lunch_segments(self):

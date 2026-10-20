@@ -142,10 +142,11 @@ def punch_method(checkin_method: str | None) -> str:
 
 
 def punch_evidence(method: str, latitude, longitude) -> str | None:
-	"""打卡记录里不存在场证明，只能推断：有定位算 gps；面容打卡必须先证明在场，没有定位就只能是公司网络。"""
-	if normalize_coordinates(latitude, longitude):
-		return "gps"
-	return "office_network" if method == "passkey" else None
+	"""打卡记录里不存在场证明，只能推断，而且只对面容打卡推断：面容打卡必须先证明在场，
+	带定位说明是定位在半径内，不带定位就只能是公司网络。扫码带了定位也不一定核对过距离，不推断。"""
+	if method != "passkey":
+		return None
+	return "gps" if normalize_coordinates(latitude, longitude) else "office_network"
 
 
 def lunch_segments(periods: list[dict], lunch_start, lunch_end) -> list[dict]:
