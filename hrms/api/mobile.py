@@ -3,9 +3,13 @@
 只做汇总：数据仍由现有接口和 hrms.utils.mobile_home 的规则算出，PWA 不受影响。
 """
 
+from datetime import date, timedelta
+
 import frappe
 from frappe import _
-from frappe.utils import cint, flt, get_system_timezone, now_datetime
+from frappe.utils import cint, flt, get_last_day, get_system_timezone, now_datetime, strip_html_tags
+
+from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 
 from hrms.api import (
 	get_attendance_calendar_events,
@@ -18,7 +22,7 @@ from hrms.api import (
 from hrms.api.checkin_location import get_location_requirement
 from hrms.api.passkey import _passkey_checkin_enabled_for, _passkey_checkin_location, get_checkin_context
 from hrms.api.profile_photo import get_profile_photo_status
-from hrms.utils import mobile_home
+from hrms.utils import mobile_attendance, mobile_home
 
 API_VERSION = 1
 _TIME_FMT = "%Y-%m-%d %H:%M:%S"
@@ -252,4 +256,123 @@ def get_home_snapshot() -> dict:
 			"profile_photo": _profile_photo_reminder(),
 			"passkey_setup": _mobile_checkin_allowed() and bool(context.get("enabled")) and not context.get("has_passkey"),
 		},
+	}
+
+
+# ---- 勤怠（M2）----
+
+
+def _require_employee() -> dict:
+	employee = _active_employee(_require_login())
+	if not employee:
+		frappe.throw(_("No active employee record found for your account"), frappe.PermissionError)
+	return employee
+
+
+def _month_schedule(year: int, month: int) -> dict | None:
+	"""work_roster 的本人月排班（已发布）和假日；没装 work_roster 时为 None。"""
+	if "work_roster" not in frappe.get_installed_apps():
+		return None
+	from work_roster.api.schedule import get_my_schedule_calendar_data
+
+	return get_my_schedule_calendar_data(month=month, year=year) or {}
+
+
+def _holiday_map(employee: str, roster_holidays: list | None, first: date, last: date) -> dict[str, dict]:
+	"""日期 → {description, weekly_off}：先放 hrms 员工假日表，再用排班模块的假日覆盖（PWA 月历用的就是后者）。"""
+	holidays = {}
+	if holiday_list := get_holiday_list_for_employee(employee, raise_exception=False):
+		for row in frappe.get_all(
+			"Holiday",
+			filters={"parent": holiday_list, "holiday_date": ["between", [first, last]]},
+			fields=["holiday_date", "description", "weekly_off"],
+		):
+			holidays[str(row.holiday_date)] = {"description": row.description, "weekly_off": cint(row.weekly_off)}
+	for row in roster_holidays or []:
+		holidays[str(row.get("holiday_date"))[:10]] = {
+			"description": row.get("description"),
+			"weekly_off": cint(row.get("weekly_off")),
+		}
+	return holidays
+
+
+def _pending_correction_dates(employee: str, first: date, last: date) -> set[str]:
+	return {
+		str(day)
+		for day in frappe.get_all(
+			"Attendance Correction Request",
+			filters={"employee": employee, "status": "Pending", "attendance_date": ["between", [first, last]]},
+			pluck="attendance_date",
+		)
+	}
+
+
+def _anomaly_codes(event: dict | None) -> list[str]:
+	anomaly = (event or {}).get("anomaly") or {}
+	return list(anomaly.get("codes") or []) if anomaly.get("has_issue") else []
+
+
+def _holiday_name(holiday: dict | None) -> str | None:
+	if not holiday or holiday.get("weekly_off"):
+		return None
+	return strip_html_tags(holiday.get("description") or "").strip() or None
+
+
+@frappe.whitelist(methods=["GET"])
+def get_attendance_month(year: int, month: int) -> dict:
+	"""勤怠月历：这个月每一天的状态、工时，以及月度汇总。"""
+	employee = _require_employee()
+	year, month = cint(year), cint(month)
+	if not 1 <= month <= 12 or not 2000 <= year <= 2100:
+		frappe.throw(_("Invalid year or month"))
+
+	first = date(year, month, 1)
+	last = get_last_day(first)
+	today = now_datetime().date()
+	schedule = _month_schedule(year, month)
+	roster_by_date = {str(entry.get("date"))[:10]: entry for entry in (schedule or {}).get("entries") or []}
+	holidays = _holiday_map(employee.name, (schedule or {}).get("holidays"), first, last)
+	events = get_attendance_calendar_events(first.isoformat(), last.isoformat()) or {}
+	pending = _pending_correction_dates(employee.name, first, last)
+
+	days = []
+	for offset in range((last - first).days + 1):
+		day = first + timedelta(days=offset)
+		key = day.isoformat()
+		event, holiday, entry = events.get(key), holidays.get(key), roster_by_date.get(key)
+		hours = mobile_attendance.day_hours(event)
+		days.append(
+			{
+				"date": key,
+				"weekday": day.isoweekday(),
+				"is_today": day == today,
+				"is_future": day > today,
+				"state": mobile_attendance.derive_day_state(event, holiday, entry, day, today),
+				"hours": hours,
+				"is_half_day": (event or {}).get("attendance") == "Half Day",
+				"anomaly_codes": _anomaly_codes(event),
+				"has_pending_correction": key in pending,
+				"holiday_name": _holiday_name(holiday),
+				"_weight": mobile_attendance.day_weight(event),
+				"_leave": mobile_attendance.leave_weight(event),
+				"_overtime": mobile_attendance.day_overtime(hours, (entry or {}).get("hours")),
+			}
+		)
+
+	if schedule is None:
+		scheduled_days = remaining_days = None
+	else:
+		scheduled_days = sum(1 for key in roster_by_date if first.isoformat() <= key <= last.isoformat())
+		remaining_days = sum(1 for key in roster_by_date if today.isoformat() < key <= last.isoformat())
+	summary = mobile_attendance.summarize_month(days, scheduled_days, remaining_days)
+	for row in days:
+		for key in ("_weight", "_leave", "_overtime"):
+			del row[key]
+	return {
+		"api_version": API_VERSION,
+		"year": year,
+		"month": month,
+		"today": today.isoformat(),
+		"days": days,
+		"summary": summary,
 	}
