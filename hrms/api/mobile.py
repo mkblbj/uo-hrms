@@ -280,23 +280,58 @@ def _require_employee() -> dict:
 
 
 def _month_schedule(year: int, month: int) -> dict | None:
-	"""work_roster 的本人月排班（已发布）和假日；没装 work_roster 时为 None。"""
-	if "work_roster" not in frappe.get_installed_apps():
-		return None
-	from work_roster.api.schedule import get_my_schedule_calendar_data
+	"""本人这个月的已发布排班、假日和大促（同 work_roster get_my_schedule_calendar_data，但只读）。
 
-	return get_my_schedule_calendar_data(month=month, year=year) or {}
-
-
-def _roster_entry(employee: str, day: date) -> dict | None:
-	"""某个员工某一天的已发布排班条目（work_roster 的格式）；没有时 None。"""
+	没有发布排班期时，work_roster 的 get_holidays 会重写「Japan Holidays 年」并提交；这里只读已有的那张表。
+	没装 work_roster 时为 None。
+	"""
 	if "work_roster" not in frappe.get_installed_apps():
 		return None
 	from work_roster.api import schedule as roster
 
-	entries, period_map, slot_map = roster._get_published_schedule_entries_for_employee(employee, day.isoformat())
-	entry = next((row for row in entries if str(row.date) == day.isoformat()), None)
-	return roster._serialize_schedule_entry(entry, period_map, slot_map) if entry else None
+	employee = roster._get_current_employee()
+	period = roster._get_period_for_employee_month(employee, month, year)
+	category = period.department_category if period else roster._get_employee_department_category(employee)
+	holiday_list = period.holiday_list if period and period.holiday_list else None
+	if not holiday_list or not frappe.db.exists("Holiday List", holiday_list):
+		holiday_list = f"Japan Holidays {year}"
+	first = date(year, month, 1)
+	holidays = (
+		frappe.get_all(
+			"Holiday",
+			filters={"parent": holiday_list, "holiday_date": ["between", [first, get_last_day(first)]]},
+			fields=["holiday_date", "description", "weekly_off"],
+			order_by="holiday_date",
+		)
+		if frappe.db.exists("Holiday List", holiday_list)
+		else []
+	)
+	return {
+		"entries": roster.get_my_schedule(wr_period=period.name) if period else [],
+		"holidays": holidays,
+		"events": roster.get_calendar_events(month, year, department_category=category),
+	}
+
+
+def _roster_entry(employee: str, day: date) -> dict | None:
+	"""某个员工某一天的已发布排班条目（work_roster 的格式）；没有时 None。只查这一天。"""
+	if "work_roster" not in frappe.get_installed_apps():
+		return None
+	from work_roster.api import schedule as roster
+
+	entry = frappe.db.get_value(
+		"WR Schedule Entry",
+		{"employee": employee, "date": day, "status": "Scheduled"},
+		["name", "date", "wr_period", "wr_shift_slot", "custom_start_time", "custom_end_time", "is_custom", "hours"],
+		as_dict=True,
+	)
+	if not entry:
+		return None
+	period = frappe.db.get_value("WR Period", entry.wr_period, ["name", "title", "department_category", "status"], as_dict=True)
+	if not period or not roster._period_is_published_for_employee(period, employee):
+		return None
+	slot_map = roster._get_shift_slot_map([entry.wr_shift_slot] if entry.wr_shift_slot else [])
+	return roster._serialize_schedule_entry(entry, {period.name: period}, slot_map)
 
 
 def _holiday_map(employee: str, roster_holidays: list | None, first: date, last: date) -> dict[str, dict]:

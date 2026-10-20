@@ -57,6 +57,8 @@ class MobileAttendanceTestCase(HRMSTestSuite):
 			).insert(ignore_permissions=True)
 		frappe.db.delete("Holiday", {"parent": self.holiday_list})
 		for employee in (self.employee, self.other_employee):
+			if frappe.db.exists("Holiday List Assignment", {"assigned_to": employee, "holiday_list": self.holiday_list, "docstatus": ["<", 2]}):
+				continue
 			assignment = frappe.get_doc(
 				{
 					"doctype": "Holiday List Assignment",
@@ -327,3 +329,49 @@ class TestAttendanceDay(MobileAttendanceTestCase):
 	def test_day_rejects_bad_date(self):
 		with self.assertRaises(frappe.ValidationError):
 			self.day(USER, None, date="2026-02-30")
+
+
+class TestRosterReads(MobileAttendanceTestCase):
+	def test_month_schedule_reads_holidays_without_writing(self):
+		# 没有发布排班期的月份：排班模块的 get_holidays 会重写「Japan Holidays 年」并提交；这里只能读
+		name = "Japan Holidays 2026"
+		if not frappe.db.exists("Holiday List", name):
+			frappe.get_doc(
+				{
+					"doctype": "Holiday List", "holiday_list_name": name, "from_date": "2026-01-01", "to_date": "2026-12-31",
+					"holidays": [{"holiday_date": "2026-05-05", "description": "こどもの日"}],
+				}
+			).insert(ignore_permissions=True)
+		before = frappe.db.get_value("Holiday List", name, "modified")
+		frappe.set_user(USER)
+		result = mobile._month_schedule(2026, 5)
+		frappe.set_user("Administrator")
+		self.assertEqual(frappe.db.get_value("Holiday List", name, "modified"), before)
+		self.assertIn("2026-05-05", [str(row["holiday_date"]) for row in result["holidays"]])
+		self.assertEqual(result["entries"], [])
+
+	def test_roster_entry_reads_one_day(self):
+		slot = "mobile-test-9-18"
+		if not frappe.db.exists("WR Shift Slot", slot):
+			frappe.get_doc(
+				{"doctype": "WR Shift Slot", "slot_name": slot, "start_time": "09:00:00", "end_time": "18:00:00", "department_category": "Both", "hours": 8}
+			).insert(ignore_permissions=True)
+		period = frappe.db.get_value("WR Period", {"year": 2026, "month": 5, "department_category": "Office"})
+		if not period:
+			# 不指定假日表时排班模块会自动生成「Japan Holidays 年」并提交数据库，测试数据会留在库里
+			period = frappe.get_doc(
+				{
+					"doctype": "WR Period", "title": "2026年5月", "year": 2026, "month": 5, "department_category": "Office",
+					"status": "Published", "holiday_list": self.holiday_list,
+				}
+			).insert(ignore_permissions=True).name
+		frappe.db.set_value("WR Period", period, "status", "Published")
+		# 这里不需要排班模块的班次变更提醒
+		with patch("work_roster.shift_reminders.on_schedule_entry_change"):
+			for day in ("2026-05-20", "2026-05-21"):
+				frappe.get_doc(
+					{"doctype": "WR Schedule Entry", "employee": self.employee, "wr_period": period, "date": day, "status": "Scheduled", "wr_shift_slot": slot}
+				).insert(ignore_permissions=True)
+		entry = mobile._roster_entry(self.employee, frappe.utils.getdate("2026-05-21"))
+		self.assertEqual((str(entry["date"]), entry["start_time"], entry["end_time"], entry["shift_label"]), ("2026-05-21", "09:00", "18:00", slot))
+		self.assertIsNone(mobile._roster_entry(self.employee, frappe.utils.getdate("2026-05-22")))

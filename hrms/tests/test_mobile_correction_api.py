@@ -77,6 +77,15 @@ class TestMobileCorrectionApi(HRMSTestSuite):
 		self.assertIsNone(context["approver"])
 		self.assertIsNone(context["scheduled_shift"])
 
+	def test_context_survives_roster_errors(self):
+		# 新字段出错不能拖垮 PWA 在用的上下文接口：只让 scheduled_shift 为 null
+		frappe.set_user(USER)
+		with patch.object(mobile, "_roster_entry", side_effect=RuntimeError("roster down")), patch.object(frappe, "log_error"):
+			context = api.get_attendance_correction_context(DAY)
+		self.assertIsNone(context["scheduled_shift"])
+		self.assertEqual(context["approver"]["user"], APPROVER)
+		self.assertEqual(context["attendance_date"], DAY)
+
 	def test_processed_lists_only_mine(self):
 		approved = make_request(self.employee, "2026-05-18")
 		rejected = make_request(self.employee, "2026-05-19")

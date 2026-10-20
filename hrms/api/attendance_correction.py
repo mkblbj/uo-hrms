@@ -100,7 +100,12 @@ def _scheduled_shift(employee: str, attendance_date) -> dict | None:
 	from hrms.api.mobile import _roster_entry
 	from hrms.utils.mobile_attendance import shift_window
 
-	return shift_window(_roster_entry(employee, attendance_date), attendance_date)
+	try:
+		return shift_window(_roster_entry(employee, getdate(attendance_date)), getdate(attendance_date))
+	except Exception:
+		# 新字段出错时只让它为空，不能拖垮 PWA 在用的上下文和详情接口
+		frappe.log_error(title="Attendance correction scheduled shift")
+		return None
 
 
 def validate_employee_context_access(employee: str):
