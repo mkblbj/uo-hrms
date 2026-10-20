@@ -614,7 +614,10 @@ def _holidays(category: str, first: date, last: date) -> dict[str, dict]:
 			},
 			fields=["holiday_date", "description", "weekly_off"],
 		):
-			holidays[str(row.holiday_date)] = {"description": row.description, "weekly_off": cint(row.weekly_off)}
+			holidays[str(row.holiday_date)] = {
+				"description": row.description,
+				"weekly_off": cint(row.weekly_off),
+			}
 	return holidays
 
 
@@ -649,7 +652,11 @@ def _entries(published: dict, first: date, last: date, employee: str | None = No
 	"""已发布排班期里 Scheduled 的条目。"""
 	if not published:
 		return []
-	filters = {"wr_period": ["in", list(published.values())], "status": "Scheduled", "date": ["between", [first, last]]}
+	filters = {
+		"wr_period": ["in", list(published.values())],
+		"status": "Scheduled",
+		"date": ["between", [first, last]],
+	}
 	if employee:
 		filters["employee"] = employee
 	return frappe.get_all(
@@ -676,7 +683,9 @@ def _roster_shift(entry: dict, slot_map: dict) -> dict | None:
 	if not window:
 		return None
 	# 和 work_roster 的 _get_shift_time 一样：两个自定义时刻都在才算自定义时间
-	is_custom = bool(entry.is_custom and entry.custom_start_time is not None and entry.custom_end_time is not None)
+	is_custom = bool(
+		entry.is_custom and entry.custom_start_time is not None and entry.custom_end_time is not None
+	)
 	slot = None if is_custom else slot_map.get(entry.wr_shift_slot)
 	return {
 		"slot": None if is_custom else entry.wr_shift_slot,
@@ -740,7 +749,12 @@ def get_my_roster(year: int, month: int) -> dict:
 		"published": (year, month) in _published_months(category, first, last),
 		"days": days,
 		"summary": mobile_roster.totals(days),
-		"week": {"start": week_start.isoformat(), "end": week_end.isoformat(), "days": week, **mobile_roster.totals(week)},
+		"week": {
+			"start": week_start.isoformat(),
+			"end": week_end.isoformat(),
+			"days": week,
+			**mobile_roster.totals(week),
+		},
 		"preference_notices": mobile_home.preference_notices({"preference_notices": notices}, today),
 	}
 
@@ -807,4 +821,102 @@ def get_department_roster(date: str, department_category: str | None = None) -> 
 		"week_start": first.isoformat(),
 		"week_end": last.isoformat(),
 		"days": days,
+	}
+
+
+def _preference_slots(category: str) -> list[dict]:
+	"""能选的班次：同 PWA 用的 get_shift_slots（启用的、类别相同或 Both，按开始时间）。"""
+	from work_roster.api.preference import get_shift_slots
+
+	return [
+		{
+			"name": row.name,
+			"start_time": mobile_roster.clock(row.start_time),
+			"end_time": mobile_roster.clock(row.end_time),
+			"hours": flt(row.hours),
+			"color": mobile_roster.normalize_color(row.color),
+		}
+		for row in get_shift_slots(category)
+	]
+
+
+def _my_preference(employee: str, period: str) -> dict | None:
+	name = frappe.db.get_value("WR Preference", {"employee": employee, "wr_period": period}, "name")
+	if not name:
+		return None
+	doc = frappe.get_doc("WR Preference", name)
+	return {
+		"submitted_at": get_datetime(doc.submitted_at).strftime(_TIME_FMT) if doc.submitted_at else None,
+		"notes": doc.notes or "",
+		"details": [
+			{
+				"date": getdate(row.date).isoformat(),
+				"wr_shift_slot": row.wr_shift_slot or None,
+				"custom_start_time": mobile_roster.clock(row.custom_start_time),
+				"custom_end_time": mobile_roster.clock(row.custom_end_time),
+				"is_custom": bool(row.is_custom),
+			}
+			for row in sorted(doc.details, key=lambda row: str(row.date))
+		],
+	}
+
+
+@frappe.whitelist(methods=["GET"])
+def get_preference_form(period: str) -> dict:
+	"""排班希望表单：排班期、能选的班次、这个月每天的假日和大促、本人已提交的希望。
+
+	排班期不能看时一律 417（不用 403：App 收到 403 会回登录页）。
+	"""
+	from work_roster.utils.work_hours import COMPANY_LUNCH_END, COMPANY_LUNCH_START
+
+	employee = _require_employee()
+	roster = _roster()
+	doc = (
+		frappe.db.get_value(
+			"WR Period",
+			period,
+			["name", "year", "month", "department_category", "status", "preference_deadline"],
+			as_dict=True,
+		)
+		if period
+		else None
+	)
+	if not doc:
+		frappe.throw(_("Roster period not found"))
+	if doc.status == "Draft":
+		frappe.throw(_("This roster period is not open yet"))
+	if doc.department_category != roster._get_employee_department_category(employee.name):
+		frappe.throw(_("Employee department category must match period"))
+
+	today = now_datetime().date()
+	first = date(cint(doc.year), cint(doc.month), 1)
+	deadline = getdate(doc.preference_deadline) if doc.preference_deadline else None
+	remaining_days, urgent = mobile_roster.deadline_status(deadline, today)
+	days = _day_rows(doc.department_category, first, get_last_day(first), today)
+	for row in days:
+		del row["is_today"]
+	return {
+		"api_version": API_VERSION,
+		"today": today.isoformat(),
+		"period": {
+			"name": doc.name,
+			"year": cint(doc.year),
+			"month": cint(doc.month),
+			"department_category": doc.department_category,
+			"status": doc.status,
+			"editable": doc.status == "Collecting",
+			"deadline": deadline.isoformat() if deadline else None,
+			# 已提交也照算（主页快照那边已提交时为 null）
+			"remaining_days": remaining_days,
+			"urgent": urgent,
+			# PWA 在生产部门显示「自動シフトは選択した日付とシフトのみを使用します…」
+			"auto_schedule_notice": doc.department_category == "Production",
+		},
+		"slots": _preference_slots(doc.department_category),
+		"days": days,
+		"lunch_break": {
+			"start": mobile_roster.clock(COMPANY_LUNCH_START),
+			"end": mobile_roster.clock(COMPANY_LUNCH_END),
+		},
+		"preference": _my_preference(employee.name, doc.name),
 	}

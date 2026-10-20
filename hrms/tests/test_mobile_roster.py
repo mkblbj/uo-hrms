@@ -44,14 +44,24 @@ class TestWeekAndClock(unittest.TestCase):
 
 class TestDayFields(unittest.TestCase):
 	def test_day_fields(self):
-		holiday = rules.day_fields(date(2026, 11, 3), {"description": "<b>文化の日</b>", "weekly_off": 0}, None)
+		holiday = rules.day_fields(
+			date(2026, 11, 3), {"description": "<b>文化の日</b>", "weekly_off": 0}, None
+		)
 		self.assertEqual(
 			holiday,
-			{"date": "2026-11-03", "weekday": 2, "holiday_name": "文化の日", "is_weekly_off": False, "sale_event": None},
+			{
+				"date": "2026-11-03",
+				"weekday": 2,
+				"holiday_name": "文化の日",
+				"is_weekly_off": False,
+				"sale_event": None,
+			},
 		)
 		sale = {"title": "SALE", "event_type": "Sale", "color": "#F59E0B"}
 		sunday = rules.day_fields(date(2026, 11, 1), {"description": "日曜日", "weekly_off": 1}, sale)
-		self.assertEqual((sunday["weekday"], sunday["holiday_name"], sunday["is_weekly_off"]), (7, None, True))
+		self.assertEqual(
+			(sunday["weekday"], sunday["holiday_name"], sunday["is_weekly_off"]), (7, None, True)
+		)
 		self.assertEqual(sunday["sale_event"], sale)
 		plain = rules.day_fields(date(2026, 11, 2), None, None)
 		self.assertEqual((plain["holiday_name"], plain["is_weekly_off"]), (None, False))
@@ -76,11 +86,31 @@ class TestEmployeeSort(unittest.TestCase):
 	def test_employee_sort_key(self):
 		rows = [
 			{"employee": "E5", "employee_name": "A", "shift": None},
-			{"employee": "E4", "employee_name": "B", "shift": shift("2026-10-14 10:00:00", "2026-10-14 16:00:00")},
-			{"employee": "E3", "employee_name": "B", "shift": shift("2026-10-14 09:00:00", "2026-10-14 18:00:00")},
-			{"employee": "E2", "employee_name": "A", "shift": shift("2026-10-14 09:00:00", "2026-10-14 18:00:00")},
-			{"employee": "E1", "employee_name": "A", "shift": shift("2026-10-14 09:00:00", "2026-10-14 18:00:00")},
-			{"employee": "E6", "employee_name": "C", "shift": shift("2026-10-14 09:00:00", "2026-10-14 12:00:00")},
+			{
+				"employee": "E4",
+				"employee_name": "B",
+				"shift": shift("2026-10-14 10:00:00", "2026-10-14 16:00:00"),
+			},
+			{
+				"employee": "E3",
+				"employee_name": "B",
+				"shift": shift("2026-10-14 09:00:00", "2026-10-14 18:00:00"),
+			},
+			{
+				"employee": "E2",
+				"employee_name": "A",
+				"shift": shift("2026-10-14 09:00:00", "2026-10-14 18:00:00"),
+			},
+			{
+				"employee": "E1",
+				"employee_name": "A",
+				"shift": shift("2026-10-14 09:00:00", "2026-10-14 18:00:00"),
+			},
+			{
+				"employee": "E6",
+				"employee_name": "C",
+				"shift": shift("2026-10-14 09:00:00", "2026-10-14 12:00:00"),
+			},
 		]
 		ordered = [row["employee"] for row in sorted(rows, key=rules.employee_sort_key)]
 		self.assertEqual(ordered, ["E6", "E1", "E2", "E3", "E4", "E5"])
