@@ -288,6 +288,17 @@ def _month_schedule(year: int, month: int) -> dict | None:
 	return get_my_schedule_calendar_data(month=month, year=year) or {}
 
 
+def _roster_entry(employee: str, day: date) -> dict | None:
+	"""某个员工某一天的已发布排班条目（work_roster 的格式）；没有时 None。"""
+	if "work_roster" not in frappe.get_installed_apps():
+		return None
+	from work_roster.api import schedule as roster
+
+	entries, period_map, slot_map = roster._get_published_schedule_entries_for_employee(employee, day.isoformat())
+	entry = next((row for row in entries if str(row.date) == day.isoformat()), None)
+	return roster._serialize_schedule_entry(entry, period_map, slot_map) if entry else None
+
+
 def _holiday_map(employee: str, roster_holidays: list | None, first: date, last: date) -> dict[str, dict]:
 	"""日期 → {description, weekly_off}：先放 hrms 员工假日表，再用排班模块的假日覆盖（PWA 月历用的就是后者）。"""
 	holidays = {}
