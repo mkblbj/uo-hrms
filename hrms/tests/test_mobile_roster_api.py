@@ -1,0 +1,241 @@
+from datetime import datetime
+from unittest.mock import patch
+
+import frappe
+
+from erpnext.setup.doctype.employee.test_employee import make_employee
+
+from hrms.api import mobile
+from hrms.tests.test_mobile_api import NO_EMPLOYEE_USER, ensure_user
+from hrms.tests.utils import HRMSTestSuite
+
+USER = "mobile-roster@example.com"
+OTHER_USER = "mobile-roster-other@example.com"
+THIRD_USER = "mobile-roster-third@example.com"
+PROD_USER = "mobile-roster-prod@example.com"
+COMPANY = "_Test Company"
+# 用 2031 年：开发站点上没有这一年的排班、大促和「Japan Holidays 2031」
+YEAR = 2031
+HOLIDAY_LIST = "Mobile Roster Holidays 2031"
+NOW = datetime(2031, 10, 20, 10, 0)  # 周一
+
+
+def ensure_department(name, category):
+	full_name = f"{name} - _TC"
+	if not frappe.db.exists("Department", full_name):
+		frappe.get_doc(
+			{"doctype": "Department", "department_name": name, "company": COMPANY, "parent_department": "All Departments"}
+		).insert(ignore_permissions=True)
+	frappe.db.set_value("Department", full_name, "department_category", category)
+	return full_name
+
+
+def ensure_slot(name, start, end, category="Both", color=None, active=1):
+	doc = frappe.get_doc("WR Shift Slot", name) if frappe.db.exists("WR Shift Slot", name) else frappe.new_doc("WR Shift Slot")
+	doc.update(
+		{"slot_name": name, "start_time": start, "end_time": end, "department_category": category, "color": color, "is_active": active}
+	)
+	doc.save(ignore_permissions=True)
+
+
+def ensure_period(category, month, status, deadline=None):
+	name = f"{category}-{YEAR}-{month:02d}"
+	doc = frappe.get_doc("WR Period", name) if frappe.db.exists("WR Period", name) else frappe.new_doc("WR Period")
+	doc.update(
+		{
+			"year": YEAR, "month": month, "department_category": category, "status": status, "company": COMPANY,
+			"holiday_list": HOLIDAY_LIST, "preference_deadline": deadline,
+		}
+	)
+	doc.save(ignore_permissions=True)
+	return doc.name
+
+
+class MobileRosterTestCase(HRMSTestSuite):
+	def setUp(self):
+		frappe.set_user("Administrator")
+		ensure_user(NO_EMPLOYEE_USER)
+		self.office = ensure_department("Mobile Roster Office", "Office")
+		self.production = ensure_department("Mobile Roster Production", "Production")
+		self.employees = {}
+		for user, name, department in (
+			(USER, "Roster C", self.office),
+			(OTHER_USER, "Roster B", self.office),
+			(THIRD_USER, "Roster A", self.office),
+			(PROD_USER, "Roster P", self.production),
+		):
+			employee = make_employee(user, company=COMPANY)
+			frappe.db.set_value("Employee", employee, {"employee_name": name, "department": department, "status": "Active"})
+			frappe.get_doc("User", user).add_roles("Employee")
+			self.employees[user] = employee
+		self.employee = self.employees[USER]
+
+		if not frappe.db.exists("Holiday List", HOLIDAY_LIST):
+			holiday_list = frappe.get_doc(
+				{
+					"doctype": "Holiday List", "holiday_list_name": HOLIDAY_LIST, "from_date": f"{YEAR}-01-01",
+					"to_date": f"{YEAR}-12-31", "weekly_off": "Sunday",
+				}
+			)
+			holiday_list.get_weekly_off_dates()
+			holiday_list.append("holidays", {"holiday_date": f"{YEAR}-10-13", "description": "スポーツの日", "weekly_off": 0})
+			holiday_list.insert(ignore_permissions=True)
+
+		ensure_slot("mr-9-18", "09:00:00", "18:00:00", color="#449cf0")
+		ensure_slot("mr-22-6", "22:00:00", "06:00:00")
+		ensure_slot("mr-10-16", "10:00:00", "16:00:00", color="#ED6396")
+		ensure_slot("mr-6-15", "06:00:00", "15:00:00", category="Production", color="#8FAF14")
+		ensure_slot("mr-8-17", "08:00:00", "17:00:00", color="#999999", active=0)
+
+		self.office_oct = ensure_period("Office", 10, "Published")
+		self.production_oct = ensure_period("Production", 10, "Published")
+		self.office_nov = ensure_period("Office", 11, "Collecting", deadline=f"{YEAR}-10-23")
+		self.production_nov = ensure_period("Production", 11, "Collecting", deadline=f"{YEAR}-10-23")
+
+	def tearDown(self):
+		frappe.set_user("Administrator")
+		super().tearDown()
+
+	def entry(self, user, period, day, slot=None, custom=None):
+		values = {"wr_shift_slot": slot} if slot else {"is_custom": 1, "custom_start_time": custom[0], "custom_end_time": custom[1]}
+		# 这里不需要排班模块的班次变更提醒
+		with patch("work_roster.shift_reminders.on_schedule_entry_change"):
+			return frappe.get_doc(
+				{
+					"doctype": "WR Schedule Entry", "employee": self.employees[user], "wr_period": period,
+					"date": day, "status": "Scheduled", **values,
+				}
+			).insert(ignore_permissions=True)
+
+	def event(self, day, title, event_type="Sale", category="Both"):
+		frappe.get_doc(
+			{"doctype": "WR Calendar Event", "event_date": day, "title": title, "event_type": event_type, "department_category": category}
+		).insert(ignore_permissions=True)
+
+	def call(self, method, user=USER, now=NOW, **kwargs):
+		frappe.set_user(user)
+		try:
+			with patch.object(mobile, "now_datetime", return_value=now):
+				return frappe.call(f"hrms.api.mobile.{method}", **kwargs)
+		finally:
+			frappe.set_user("Administrator")
+
+	def my_roster(self, month=10, **kwargs):
+		return self.call("get_my_roster", year=YEAR, month=month, **kwargs)
+
+	def day_of(self, days, day):
+		return next(row for row in days if row["date"] == day)
+
+
+class TestMyRoster(MobileRosterTestCase):
+	def test_my_roster_shape(self):
+		result = self.my_roster()
+		self.assertEqual(
+			set(result),
+			{"api_version", "year", "month", "today", "department_category", "published", "days", "summary", "week", "preference_notices"},
+		)
+		self.assertEqual(len(result["days"]), 31)
+		first = result["days"][0]
+		self.assertEqual(
+			set(first), {"date", "weekday", "holiday_name", "is_weekly_off", "sale_event", "is_today", "is_future", "shift"}
+		)
+		self.assertEqual((first["date"], first["weekday"]), ("2031-10-01", 3))
+		self.assertEqual((result["department_category"], result["published"], result["today"]), ("Office", True, "2031-10-20"))
+		self.assertEqual(set(result["week"]), {"start", "end", "days", "shift_days", "hours"})
+
+	def test_my_roster_shift_variants(self):
+		self.entry(USER, self.office_oct, "2031-10-06", slot="mr-9-18")
+		self.entry(USER, self.office_oct, "2031-10-08", custom=("09:30:00", "15:00:00"))
+		self.entry(USER, self.office_oct, "2031-10-16", slot="mr-22-6")
+		result = self.my_roster()
+		self.assertEqual(
+			self.day_of(result["days"], "2031-10-06")["shift"],
+			{
+				"slot": "mr-9-18", "start": "2031-10-06 09:00:00", "end": "2031-10-06 18:00:00", "hours": 8.0,
+				"color": "#449CF0", "is_custom": False,
+			},
+		)
+		custom = self.day_of(result["days"], "2031-10-08")["shift"]
+		self.assertEqual((custom["slot"], custom["color"], custom["is_custom"], custom["hours"]), (None, None, True, 4.5))
+		self.assertEqual((custom["start"], custom["end"]), ("2031-10-08 09:30:00", "2031-10-08 15:00:00"))
+		overnight = self.day_of(result["days"], "2031-10-16")["shift"]
+		self.assertEqual((overnight["end"], overnight["color"], overnight["hours"]), ("2031-10-17 06:00:00", None, 8.0))
+		self.assertIsNone(self.day_of(result["days"], "2031-10-07")["shift"])
+		self.assertEqual(result["summary"], {"shift_days": 3, "hours": 20.5})
+
+	def test_my_roster_hours_fallback(self):
+		entry = self.entry(USER, self.office_oct, "2031-10-06", slot="mr-9-18")
+		frappe.db.set_value("WR Schedule Entry", entry.name, "hours", 0)
+		self.assertEqual(self.day_of(self.my_roster()["days"], "2031-10-06")["shift"]["hours"], 8.0)
+
+	def test_my_roster_only_mine_and_published(self):
+		self.entry(OTHER_USER, self.office_oct, "2031-10-07", slot="mr-9-18")
+		self.entry(USER, self.office_nov, "2031-11-04", slot="mr-9-18")
+		october = self.my_roster()
+		self.assertIsNone(self.day_of(october["days"], "2031-10-07")["shift"])
+		november = self.my_roster(month=11)
+		self.assertFalse(november["published"])
+		self.assertTrue(all(row["shift"] is None for row in november["days"]))
+		self.assertEqual(november["summary"], {"shift_days": 0, "hours": 0})
+
+	def test_my_roster_days_and_sales(self):
+		self.event("2031-10-22", "Sale A")
+		self.event("2031-10-22", "Big", event_type="Major Sale")
+		self.event("2031-10-14", "Factory", category="Production")
+		days = self.my_roster()["days"]
+		holiday = self.day_of(days, "2031-10-13")
+		self.assertEqual((holiday["holiday_name"], holiday["is_weekly_off"]), ("スポーツの日", False))
+		sunday = self.day_of(days, "2031-10-19")
+		self.assertEqual((sunday["holiday_name"], sunday["is_weekly_off"]), (None, True))
+		today = self.day_of(days, "2031-10-20")
+		self.assertEqual((today["is_today"], today["is_future"]), (True, False))
+		tomorrow = self.day_of(days, "2031-10-21")
+		self.assertEqual((tomorrow["is_today"], tomorrow["is_future"]), (False, True))
+		self.assertEqual(self.day_of(days, "2031-10-22")["sale_event"]["event_type"], "Major Sale")
+		self.assertIsNone(self.day_of(days, "2031-10-14")["sale_event"])
+
+	def test_week_spans_months(self):
+		self.entry(USER, self.office_oct, "2031-10-27", slot="mr-9-18")
+		self.entry(USER, self.office_oct, "2031-10-28", slot="mr-10-16")
+		self.entry(USER, self.office_nov, "2031-11-01", slot="mr-9-18")
+		week = self.my_roster(month=8, now=datetime(2031, 10, 30, 9, 0))["week"]
+		self.assertEqual((week["start"], week["end"], len(week["days"])), ("2031-10-27", "2031-11-02", 7))
+		self.assertIsNone(self.day_of(week["days"], "2031-11-01")["shift"])
+		self.assertEqual((week["shift_days"], week["hours"]), (2, 13.0))
+		self.assertTrue(self.day_of(week["days"], "2031-10-30")["is_today"])
+
+	def test_my_roster_preference_notices(self):
+		notices = self.my_roster()["preference_notices"]
+		notice = next(row for row in notices if row["period"] == self.office_nov)
+		self.assertEqual((notice["remaining_days"], notice["urgent"], notice["has_preference"]), (3, True, False))
+		self.assertNotIn(self.production_nov, [row["period"] for row in notices])
+
+	def test_my_roster_department_defaults_office(self):
+		frappe.db.set_value("Employee", self.employee, "department", None)
+		self.entry(USER, self.office_oct, "2031-10-06", slot="mr-9-18")
+		result = self.my_roster()
+		self.assertEqual(result["department_category"], "Office")
+		self.assertIsNotNone(self.day_of(result["days"], "2031-10-06")["shift"])
+
+	def test_my_roster_rejects_bad_params(self):
+		for year, month in ((YEAR, 13), (YEAR, 0), (1999, 10)):
+			with self.assertRaises(frappe.ValidationError):
+				self.call("get_my_roster", year=year, month=month)
+
+	def test_my_roster_requires_employee(self):
+		with self.assertRaises(frappe.PermissionError):
+			self.my_roster(user=NO_EMPLOYEE_USER)
+
+
+class TestRosterReadOnly(MobileRosterTestCase):
+	def test_reads_do_not_write(self):
+		with patch.object(frappe.local.db, "commit") as commit:
+			self.my_roster(month=8)
+		commit.assert_not_called()
+		self.assertFalse(frappe.db.exists("Holiday List", "Japan Holidays 2031"))
+
+	def test_get_only(self):
+		for fn in (mobile.get_my_roster,):
+			methods = frappe.allowed_http_methods_for_whitelisted_func[fn]
+			self.assertIn("GET", methods, fn.__name__)
+			self.assertNotIn("POST", methods, fn.__name__)

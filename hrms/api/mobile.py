@@ -32,7 +32,7 @@ from hrms.api import (
 from hrms.api.checkin_location import get_location_requirement
 from hrms.api.passkey import _passkey_checkin_enabled_for, _passkey_checkin_location, get_checkin_context
 from hrms.api.profile_photo import get_profile_photo_status
-from hrms.utils import mobile_attendance, mobile_home
+from hrms.utils import mobile_attendance, mobile_home, mobile_roster
 
 API_VERSION = 1
 _TIME_FMT = "%Y-%m-%d %H:%M:%S"
@@ -533,4 +533,213 @@ def get_attendance_day(date: str) -> dict:
 		"punches": _punches(details.get("checkins") or []),
 		"anomaly_codes": _anomaly_codes(events.get(key)),
 		"has_pending_correction": key in _pending_correction_dates(employee.name, day, day),
+	}
+
+
+# ---- 排班（M3）----
+# 只读：直接读排班表，不调用 work_roster 的 get_holidays（它会新建「Japan Holidays 年」并提交）。
+
+_ROSTER_CATEGORIES = ("Office", "Production")
+_ENTRY_FIELDS = [
+	"name",
+	"employee",
+	"employee_name",
+	"date",
+	"wr_shift_slot",
+	"custom_start_time",
+	"custom_end_time",
+	"is_custom",
+	"hours",
+]
+
+
+def _roster():
+	"""work_roster 的排班模块；没装时 417。"""
+	if "work_roster" not in frappe.get_installed_apps():
+		frappe.throw(_("Work roster is not installed"))
+	from work_roster.api import schedule
+
+	return schedule
+
+
+def _months(first: date, last: date) -> list[tuple[int, int]]:
+	months, cursor = [], first.replace(day=1)
+	while cursor <= last:
+		months.append((cursor.year, cursor.month))
+		cursor = get_last_day(cursor) + timedelta(days=1)
+	return months
+
+
+def _periods(category: str, first: date, last: date) -> list[dict]:
+	"""这段日期涉及的各月里、这个类别的排班期（排班期按「类别-年-月」命名，每个类别每月最多一个）。"""
+	months = _months(first, last)
+	rows = frappe.get_all(
+		"WR Period",
+		filters={
+			"department_category": category,
+			"year": ["in", sorted({year for year, month in months})],
+			"month": ["in", sorted({month for year, month in months})],
+		},
+		fields=["name", "year", "month", "status", "holiday_list"],
+	)
+	return [row for row in rows if (cint(row.year), cint(row.month)) in months]
+
+
+def _published_months(category: str, first: date, last: date) -> dict[tuple[int, int], str]:
+	"""(年, 月) → 这个类别已发布的排班期名。"""
+	return {
+		(cint(row.year), cint(row.month)): row.name
+		for row in _periods(category, first, last)
+		if row.status == "Published"
+	}
+
+
+def _holidays(category: str, first: date, last: date) -> dict[str, dict]:
+	"""日期 → {description, weekly_off}：每月用这个类别那个月的排班期的假日表，
+	没有时用已有的「Japan Holidays 年」，那张表也没有就当作没有假日。"""
+	lists = {(cint(row.year), cint(row.month)): row.holiday_list for row in _periods(category, first, last)}
+	holidays = {}
+	for year, month in _months(first, last):
+		name = lists.get((year, month))
+		if not name or not frappe.db.exists("Holiday List", name):
+			name = f"Japan Holidays {year}"
+			if not frappe.db.exists("Holiday List", name):
+				continue
+		month_first = date(year, month, 1)
+		for row in frappe.get_all(
+			"Holiday",
+			filters={
+				"parent": name,
+				"holiday_date": ["between", [max(first, month_first), min(last, get_last_day(month_first))]],
+			},
+			fields=["holiday_date", "description", "weekly_off"],
+		):
+			holidays[str(row.holiday_date)] = {"description": row.description, "weekly_off": cint(row.weekly_off)}
+	return holidays
+
+
+def _sale_events(category: str, first: date, last: date) -> list[dict]:
+	return frappe.get_all(
+		"WR Calendar Event",
+		filters={
+			"event_date": ["between", [first, last]],
+			"is_active": 1,
+			"department_category": ["in", ["Both", category]],
+		},
+		fields=["event_date", "title", "event_type", "color"],
+		order_by="event_date asc, title asc",
+	)
+
+
+def _slot_map(names) -> dict:
+	names = sorted({name for name in names if name})
+	if not names:
+		return {}
+	return {
+		row.name: row
+		for row in frappe.get_all(
+			"WR Shift Slot",
+			filters={"name": ["in", names]},
+			fields=["name", "slot_name", "start_time", "end_time", "color"],
+		)
+	}
+
+
+def _entries(published: dict, first: date, last: date, employee: str | None = None) -> list[dict]:
+	"""已发布排班期里 Scheduled 的条目。"""
+	if not published:
+		return []
+	filters = {"wr_period": ["in", list(published.values())], "status": "Scheduled", "date": ["between", [first, last]]}
+	if employee:
+		filters["employee"] = employee
+	return frappe.get_all(
+		"WR Schedule Entry",
+		filters=filters,
+		fields=_ENTRY_FIELDS,
+		order_by="date asc, employee_name asc, employee asc",
+		limit_page_length=0,
+	)
+
+
+def _shift_clocks(entry: dict, slot_map: dict) -> tuple[str | None, str | None]:
+	roster = _roster()
+	return roster._get_shift_time(entry, slot_map, "start"), roster._get_shift_time(entry, slot_map, "end")
+
+
+def _roster_shift(entry: dict, slot_map: dict) -> dict | None:
+	"""班次对象 {slot, start, end, hours, color, is_custom}；取不到起止时间时为 None。"""
+	from work_roster.utils.work_hours import calculate_net_work_hours
+
+	day = getdate(entry.date)
+	start, end = _shift_clocks(entry, slot_map)
+	window = mobile_roster.shift_window(day, start, end)
+	if not window:
+		return None
+	# 和 work_roster 的 _get_shift_time 一样：两个自定义时刻都在才算自定义时间
+	is_custom = bool(entry.is_custom and entry.custom_start_time is not None and entry.custom_end_time is not None)
+	slot = None if is_custom else slot_map.get(entry.wr_shift_slot)
+	return {
+		"slot": None if is_custom else entry.wr_shift_slot,
+		"start": window[0],
+		"end": window[1],
+		"hours": flt(entry.hours) or calculate_net_work_hours(start, end, day),
+		"color": mobile_roster.normalize_color(slot.color) if slot else None,
+		"is_custom": is_custom,
+	}
+
+
+def _day_rows(category: str, first: date, last: date, today: date) -> list[dict]:
+	"""每天的公共字段加 is_today；大促按这一屏的类别过滤（含 Both）。"""
+	holidays = _holidays(category, first, last)
+	events = _sale_events(category, first, last)
+	rows = []
+	for offset in range((last - first).days + 1):
+		day = first + timedelta(days=offset)
+		key = day.isoformat()
+		row = mobile_roster.day_fields(day, holidays.get(key), _sale_event(events, key))
+		row["is_today"] = day == today
+		rows.append(row)
+	return rows
+
+
+def _my_days(employee: str, category: str, first: date, last: date, today: date) -> list[dict]:
+	published = _published_months(category, first, last)
+	entries = _entries(published, first, last, employee)
+	slot_map = _slot_map(entry.wr_shift_slot for entry in entries)
+	shifts = {str(entry.date): _roster_shift(entry, slot_map) for entry in entries}
+	rows = _day_rows(category, first, last, today)
+	for row in rows:
+		row["is_future"] = row["date"] > today.isoformat()
+		row["shift"] = shifts.get(row["date"])
+	return rows
+
+
+@frappe.whitelist(methods=["GET"])
+def get_my_roster(year: int, month: int) -> dict:
+	"""我的班表：这个月每天的班次和合计，加上包含今天的那一周（可能跨月）。"""
+	employee = _require_employee()
+	year, month = cint(year), cint(month)
+	if not 1 <= month <= 12 or not 2000 <= year <= 2100:
+		frappe.throw(_("Invalid year or month"))
+
+	roster = _roster()
+	today = now_datetime().date()
+	category = roster._get_employee_department_category(employee.name)
+	first = date(year, month, 1)
+	last = get_last_day(first)
+	week_start, week_end = mobile_roster.week_bounds(today)
+	days = _my_days(employee.name, category, first, last, today)
+	week = _my_days(employee.name, category, week_start, week_end, today)
+	notices = roster._get_mobile_preference_notices(employee.name, category)
+	return {
+		"api_version": API_VERSION,
+		"year": year,
+		"month": month,
+		"today": today.isoformat(),
+		"department_category": category,
+		"published": (year, month) in _published_months(category, first, last),
+		"days": days,
+		"summary": mobile_roster.totals(days),
+		"week": {"start": week_start.isoformat(), "end": week_end.isoformat(), "days": week, **mobile_roster.totals(week)},
+		"preference_notices": mobile_home.preference_notices({"preference_notices": notices}, today),
 	}
