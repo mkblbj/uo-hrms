@@ -99,6 +99,7 @@ def _notify_new_device(user: str, device_name: str) -> None:
 			"doctype": "PWA Notification",
 			"from_user": "Administrator",
 			"to_user": user,
+			"notification_type": "Other",
 			"notification_title": _("Face ID / fingerprint check-in was set up on a new device"),
 			"message": _("{0} was added for check-in. If this wasn't you, please contact HR.").format(
 				device_name

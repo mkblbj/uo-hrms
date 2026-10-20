@@ -33,6 +33,7 @@ def send_to_all_employees(message, from_user=None):
 			notification = frappe.new_doc("PWA Notification")
 			notification.from_user = from_user
 			notification.to_user = emp.user_id
+			notification.notification_type = "Announcement"
 			notification.message = message
 			notification.insert(ignore_permissions=True)
 			success_count += 1
@@ -56,6 +57,7 @@ def send_to_user(user, message, from_user=None):
 	notification = frappe.new_doc("PWA Notification")
 	notification.from_user = from_user
 	notification.to_user = user
+	notification.notification_type = "Announcement"
 	notification.message = message
 	notification.insert(ignore_permissions=True)
 	frappe.db.commit()

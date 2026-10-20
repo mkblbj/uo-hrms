@@ -16,6 +16,8 @@
   "message_section",
   "message",
   "notification_title",
+  "notification_type",
+  "reference_date",
   "target_route",
   "html_section",
   "use_html_source",
@@ -91,6 +93,19 @@
    "label": "Notification Title"
   },
   {
+   "default": "Other",
+   "fieldname": "notification_type",
+   "fieldtype": "Select",
+   "label": "Notification Type",
+   "options": "Shift Reminder\nShift Change\nApproval\nAnnouncement\nOther"
+  },
+  {
+   "fieldname": "reference_date",
+   "fieldtype": "Date",
+   "label": "Reference Date",
+   "read_only": 1
+  },
+  {
    "fieldname": "target_route",
    "fieldtype": "Data",
    "label": "Target Route"
@@ -151,7 +166,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2024-03-27 13:10:27.401806",
+ "modified": "2026-10-20 19:00:00.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "PWA Notification",

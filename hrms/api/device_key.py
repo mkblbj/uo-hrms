@@ -243,6 +243,7 @@ def _notify_key_registered(user: str, device_name: str) -> None:
 			"doctype": "PWA Notification",
 			"from_user": "Administrator",
 			"to_user": user,
+			"notification_type": "Other",
 			"notification_title": "顔認証打刻の端末が登録されました",
 			"message": f"{now_datetime().strftime('%Y-%m-%d %H:%M')} に「{escape_html(device_name)}」が登録されました。"
 			"心当たりがない場合は HR に連絡してください。",

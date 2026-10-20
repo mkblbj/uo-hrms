@@ -26,6 +26,7 @@ class PWANotificationsMixin:
 
 			notification.message = f"{bold('Your')} {bold(self.doctype)} {self.name} has been {bold(status)} by {bold(from_user_name)}"
 
+			notification.notification_type = "Approval"
 			notification.reference_document_type = self.doctype
 			notification.reference_document_name = self.name
 			notification.insert(ignore_permissions=True)
@@ -44,6 +45,7 @@ class PWANotificationsMixin:
 		)
 		notification.from_user = from_user
 		notification.to_user = to_user
+		notification.notification_type = "Approval"
 
 		notification.reference_document_type = self.doctype
 		notification.reference_document_name = self.name

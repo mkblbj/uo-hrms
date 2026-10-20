@@ -173,3 +173,106 @@ class TestPWANotification(IntegrationTestCase):
 		doc.target_route = "/..\\logout"
 		with self.assertRaises(frappe.ValidationError):
 			doc.save(ignore_permissions=True)
+
+
+class TestPWANotificationType(IntegrationTestCase):
+	def setUp(self):
+		frappe.set_user("Administrator")
+
+	def tearDown(self):
+		frappe.db.rollback()
+
+	def insert(self, **values):
+		doc = frappe.get_doc({"doctype": "PWA Notification", "to_user": "Administrator", **values})
+		doc.flags.defer_push_notification = True
+		return doc.insert(ignore_permissions=True)
+
+	def test_type_defaults_to_other(self):
+		self.assertEqual(self.insert(message="x").notification_type, "Other")
+		self.assertEqual(self.insert(message="x", notification_type="").notification_type, "Other")
+		doc = self.insert(message="x", notification_type="Approval", reference_date="2026-10-16")
+		self.assertEqual((doc.notification_type, str(doc.reference_date)), ("Approval", "2026-10-16"))
+
+	@patch.object(PWANotification, "send_push_notification")
+	def test_group_copies_carry_title_and_type(self, _push):
+		parent = frappe.new_doc("PWA Notification")
+		parent.notification_title = "健康診断のお知らせ"
+		parent.message = "<p>11月に実施します。</p>"
+		parent.notification_type = "Announcement"
+		parent._create_notification_for_user("Administrator")
+		copy = frappe.get_last_doc("PWA Notification", filters={"to_user": "Administrator"})
+		self.assertEqual(copy.notification_title, "健康診断のお知らせ")
+		self.assertEqual(copy.notification_type, "Announcement")
+
+		parent.notification_type = None
+		parent._create_notification_for_user("Administrator")
+		copy = frappe.get_last_doc("PWA Notification", filters={"to_user": "Administrator"})
+		self.assertEqual(copy.notification_type, "Announcement")
+
+	@patch.object(PWANotification, "send_push_notification")
+	def test_approval_mixin_writes_approval_type(self, _push):
+		from hrms.mixins.pwa_notifications import PWANotificationsMixin
+
+		class FakeLeave(frappe._dict, PWANotificationsMixin):
+			def _get_employee_user(self):
+				return "Administrator"
+
+		FakeLeave(
+			doctype="Leave Application", name="HR-LAP-TEST", employee_name="テスト", leave_approver="Guest"
+		).notify_approver()
+		notification = frappe.get_last_doc("PWA Notification", filters={"to_user": "Guest"})
+		self.assertEqual(notification.notification_type, "Approval")
+		self.assertEqual(notification.reference_document_type, "Leave Application")
+
+	@patch.object(PWANotification, "send_push_notification")
+	def test_device_registration_notices_are_other(self, _push):
+		from hrms.api.device_key import _notify_key_registered
+		from hrms.api.passkey import _notify_new_device
+
+		_notify_new_device("Administrator", "Chrome")
+		self.assertEqual(
+			frappe.get_last_doc("PWA Notification", filters={"to_user": "Administrator"}).notification_type,
+			"Other",
+		)
+		_notify_key_registered("Administrator", "iPhone")
+		self.assertEqual(
+			frappe.get_last_doc("PWA Notification", filters={"to_user": "Administrator"}).notification_type,
+			"Other",
+		)
+
+	@patch.object(PWANotification, "send_push_notification")
+	def test_send_announcement_is_announcement(self, _push):
+		from hrms import send_announcement
+
+		with patch.object(frappe.db, "commit"), patch("builtins.print"):
+			send_announcement.send_to_user("Administrator", "全社停電のお知らせ")
+		notification = frappe.get_last_doc("PWA Notification", filters={"to_user": "Administrator"})
+		self.assertEqual(notification.notification_type, "Announcement")
+
+	def test_backfill_patch_sets_types_by_title_and_reference(self):
+		from hrms.patches.v16_0.backfill_pwa_notification_type import execute
+
+		cases = {
+			"Shift Reminder": [{"notification_title": "明日の勤務予定"}, {"notification_title": "本日の勤務予定"}],
+			"Shift Change": [{"notification_title": "勤務予定が変更されました"}],
+			"Announcement": [{"reference_document_type": "WR Period", "reference_document_name": "Office-2026-11"}],
+			"Approval": [
+				{"reference_document_type": doctype, "reference_document_name": "X"}
+				for doctype in ("Leave Application", "Expense Claim", "Shift Request")
+			],
+			"Other": [{"notification_title": "顔認証打刻の端末が登録されました"}, {}],
+		}
+		names = {}
+		for expected, rows in cases.items():
+			for values in rows:
+				doc = self.insert(message="x", **values)
+				frappe.db.set_value("PWA Notification", doc.name, "notification_type", None, update_modified=False)
+				names[doc.name] = expected
+		kept = self.insert(message="x", notification_title="明日の勤務予定", notification_type="Announcement")
+
+		execute()
+		execute()
+
+		for name, expected in names.items():
+			self.assertEqual(frappe.db.get_value("PWA Notification", name, "notification_type"), expected, name)
+		self.assertEqual(frappe.db.get_value("PWA Notification", kept.name, "notification_type"), "Announcement")
