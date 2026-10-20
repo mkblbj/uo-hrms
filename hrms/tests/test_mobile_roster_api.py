@@ -452,6 +452,13 @@ class TestPreferenceForm(MobileRosterTestCase):
 		self.assertTrue(self.day_of(result["days"], "2031-11-02")["is_weekly_off"])
 		self.assertEqual(result["lunch_break"], {"start": "12:00", "end": "13:00"})
 
+	def test_form_slots_with_same_start_keep_a_stable_order(self):
+		# 名字的顺序和结束时间的顺序相反：开始相同的按结束时间、再按名字排
+		ensure_slot("mr-a-9-18", "09:00:00", "18:00:00")
+		ensure_slot("mr-b-9-11", "09:00:00", "11:00:00")
+		names = [row["name"] for row in self.form(self.office_nov)["slots"] if row["name"].startswith("mr-")]
+		self.assertEqual(names, ["mr-b-9-11", "mr-9-18", "mr-a-9-18", "mr-10-16", "mr-22-6"])
+
 	def test_form_submitted_preference(self):
 		self.preference(
 			USER,

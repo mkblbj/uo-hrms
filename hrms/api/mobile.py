@@ -825,10 +825,13 @@ def get_department_roster(date: str, department_category: str | None = None) -> 
 
 
 def _preference_slots(category: str) -> list[dict]:
-	"""能选的班次：同 PWA 用的 get_shift_slots（启用的、类别相同或 Both，按开始时间）。"""
+	"""能选的班次：同 PWA 用的 get_shift_slots（启用的、类别相同或 Both，按开始时间）。
+
+	开始时间相同的再按结束时间、名字排，App 的列表每次顺序一样。
+	"""
 	from work_roster.api.preference import get_shift_slots
 
-	return [
+	slots = [
 		{
 			"name": row.name,
 			"start_time": mobile_roster.clock(row.start_time),
@@ -838,6 +841,7 @@ def _preference_slots(category: str) -> list[dict]:
 		}
 		for row in get_shift_slots(category)
 	]
+	return sorted(slots, key=lambda row: (row["start_time"] or "", row["end_time"] or "", row["name"]))
 
 
 def _my_preference(employee: str, period: str) -> dict | None:
