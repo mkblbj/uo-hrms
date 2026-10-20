@@ -12562,3 +12562,39 @@ msgstr "无法裁剪这张照片，请重新选择。"
 
 msgid "Back to attendance"
 msgstr "返回考勤"
+
+msgid "Device Key"
+msgstr "App 面容打卡"
+
+msgid "Device Checkin Key"
+msgstr "App 面容打卡钥匙"
+
+msgid "Face ID check-in keys of the native app. Each key lives in one phone's Secure Enclave; delete it here when an employee loses the phone."
+msgstr "App 面容打卡用的钥匙，每台手机一把。员工丢了手机时，在这里删除。"
+
+msgid "Key Details"
+msgstr "钥匙详情"
+
+msgid "Key ID"
+msgstr "钥匙 ID"
+
+msgid "Public Key"
+msgstr "公钥"
+
+msgid "Device Name"
+msgstr "设备名称"
+
+msgid "Last Used"
+msgstr "最近使用时间"
+
+msgid "Face ID check-in could not be set up. Please try again."
+msgstr "面容打卡没能设置成功，请再试一次。"
+
+msgid "Setup timed out. Please try again."
+msgstr "设置超时了，请再试一次。"
+
+msgid "You already have {0} devices set up."
+msgstr "已经设置了 {0} 台设备。"
+
+msgid "Face ID could not be verified. Please try again."
+msgstr "面容没能通过验证，请再试一次。"

@@ -1068,3 +1068,39 @@ msgstr "チャット"
 
 msgid "Back to attendance"
 msgstr "勤怠に戻る"
+
+msgid "Device Key"
+msgstr "アプリ顔認証"
+
+msgid "Device Checkin Key"
+msgstr "アプリ顔認証キー"
+
+msgid "Face ID check-in keys of the native app. Each key lives in one phone's Secure Enclave; delete it here when an employee loses the phone."
+msgstr "アプリの顔認証打刻に使うキーです。キーは端末ごとに 1 つ作られます。従業員が端末をなくしたときは、ここで削除してください。"
+
+msgid "Key Details"
+msgstr "キーの詳細"
+
+msgid "Key ID"
+msgstr "キー ID"
+
+msgid "Public Key"
+msgstr "公開鍵"
+
+msgid "Device Name"
+msgstr "端末名"
+
+msgid "Last Used"
+msgstr "最終使用日時"
+
+msgid "Face ID check-in could not be set up. Please try again."
+msgstr "顔認証打刻を設定できませんでした。もう一度お試しください。"
+
+msgid "Setup timed out. Please try again."
+msgstr "設定がタイムアウトしました。もう一度お試しください。"
+
+msgid "You already have {0} devices set up."
+msgstr "すでに {0} 台の端末が設定されています。"
+
+msgid "Face ID could not be verified. Please try again."
+msgstr "顔認証を確認できませんでした。もう一度お試しください。"
