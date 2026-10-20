@@ -21,6 +21,8 @@ class TestAttendanceCalendarAccess(HRMSTestSuite):
 
 	def tearDown(self):
 		frappe.set_user("Administrator")
+		# 回滚这条用例的改动：测试跑完 Frappe 会提交一次，不回滚的话 HR 设置等会留在共用的开发站点上
+		super().tearDown()
 
 	def test_employee_can_view_own_calendar(self):
 		self.assertIsInstance(get_attendance_calendar_events(FROM_DATE, TO_DATE), dict)

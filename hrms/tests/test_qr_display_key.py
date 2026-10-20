@@ -21,6 +21,8 @@ class TestQRDisplayKey(HRMSTestSuite):
 	def tearDown(self):
 		frappe.set_user("Administrator")
 		frappe.form_dict.clear()
+		# 回滚这条用例的改动：测试跑完 Frappe 会提交一次，不回滚的话 HR 设置等会留在共用的开发站点上
+		super().tearDown()
 
 	def _require(self, value):
 		frappe.db.set_value("QR Checkin Location", LOCATION, "require_display_key", value)

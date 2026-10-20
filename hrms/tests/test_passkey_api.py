@@ -39,6 +39,8 @@ class PasskeyApiTestCase(HRMSTestSuite):
 	def tearDown(self):
 		frappe.set_user("Administrator")
 		self.conf.stop()
+		# 回滚这条用例的改动：测试跑完 Frappe 会提交一次，不回滚的话 HR 设置等会留在共用的开发站点上
+		super().tearDown()
 
 	def register_device(self, user=API_USER, authenticator=None):
 		authenticator = authenticator or SoftAuthenticator(self.rp_id, self.origin, user.encode())
@@ -95,9 +97,11 @@ class TestPasskeyRegistration(PasskeyApiTestCase):
 		mine = passkey.get_my_passkeys()
 		self.assertEqual(len(mine), 1)
 		other_name = frappe.db.get_value("Passkey Credential", {"user": OTHER_USER}, "name")
-		with self.assertRaises(frappe.ValidationError):
-			passkey.delete_passkey(other_name)
-		passkey.delete_passkey(mine[0]["name"])
+		# delete_passkey 自己会提交，不拦住的话这条用例的改动回滚不掉
+		with patch.object(frappe.db, "commit"):
+			with self.assertRaises(frappe.ValidationError):
+				passkey.delete_passkey(other_name)
+			passkey.delete_passkey(mine[0]["name"])
 		self.assertEqual(passkey.get_my_passkeys(), [])
 
 
