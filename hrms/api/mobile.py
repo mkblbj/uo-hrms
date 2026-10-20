@@ -3,6 +3,8 @@
 只做汇总：数据仍由现有接口和 hrms.utils.mobile_home 的规则算出，PWA 不受影响。
 """
 
+import re
+import uuid
 from datetime import date, timedelta
 
 import frappe
@@ -20,6 +22,7 @@ from frappe.utils import (
 
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 
+import hrms
 from hrms.api import (
 	get_attendance_calendar_events,
 	get_attendance_day_details,
@@ -32,7 +35,7 @@ from hrms.api import (
 from hrms.api.checkin_location import get_location_requirement
 from hrms.api.passkey import _passkey_checkin_enabled_for, _passkey_checkin_location, get_checkin_context
 from hrms.api.profile_photo import get_profile_photo_status
-from hrms.utils import mobile_attendance, mobile_home, mobile_roster
+from hrms.utils import mobile_attendance, mobile_home, mobile_notifications, mobile_roster
 
 API_VERSION = 1
 _TIME_FMT = "%Y-%m-%d %H:%M:%S"
@@ -265,6 +268,8 @@ def get_home_snapshot() -> dict:
 		"reminders": {
 			"profile_photo": _profile_photo_reminder(),
 			"passkey_setup": _mobile_checkin_allowed() and bool(context.get("enabled")) and not context.get("has_passkey"),
+			# 资料补全开放了、必填项还没填完（主页提醒卡和マイページ的角标）
+			"profile_collection": _profile_collection_state()["incomplete"],
 		},
 	}
 
@@ -926,3 +931,403 @@ def get_preference_form(period: str | None = None) -> dict:
 		},
 		"preference": _my_preference(employee.name, doc.name),
 	}
+
+
+# ---- マイページ・通知・設定・推送（M4）----
+#
+# 已登录的人调用时不返回 403（App 收到 403 会回登录页）：找不到、不是自己的、参数不对一律 417。
+
+PUSH_DEVICE_DOCTYPE = "Mobile App Device"
+PUSH_TOKEN_PATTERN = re.compile(r"[0-9a-f]{64,200}")
+PUSH_ENVIRONMENTS = ("sandbox", "production")
+PUSH_BUNDLE_IDS = ("com.toiroworld.hrms", "com.toiroworld.hrms.dev")
+MAX_PUSH_DEVICES_PER_USER = 10
+DEVICE_TEXT_LIMIT = 140
+
+NOTIFICATION_CATEGORIES = {
+	"shift": ("Shift Reminder", "Shift Change"),
+	"approval": ("Approval",),
+	"announcement": ("Announcement",),
+}
+NOTIFICATION_PAGE_SIZE = 30
+NOTIFICATION_MAX_PAGE_SIZE = 100
+NOTIFICATION_BODY_LIMIT = 300
+MAX_MARK_READ = 100
+
+# 同 PWA validateProfileForm 的必填项
+PROFILE_REQUIRED_FIELDS = (
+	"cell_number",
+	"current_address",
+	"contact_email",
+	"person_to_be_contacted",
+	"relation",
+	"emergency_phone_number",
+)
+MY_PAGE_EMPLOYEE_FIELDS = (
+	"name",
+	"employee_number",
+	"employee_name",
+	"department",
+	"designation",
+	"reports_to",
+	"date_of_joining",
+	"employment_type",
+	"company",
+	"branch",
+	"cell_number",
+	"company_email",
+	"personal_email",
+	"date_of_birth",
+	"gender",
+)
+CHANGE_PASSWORD_SCOPE = "mobile_change_password"
+
+
+def _device_text(value) -> str | None:
+	if value is None:
+		return None
+	return str(value).strip()[:DEVICE_TEXT_LIMIT] or None
+
+
+@frappe.whitelist(methods=["POST"])
+def register_push_device(
+	device_token: str | None = None,
+	environment: str | None = None,
+	bundle_id: str | None = None,
+	installation_id: str | None = None,
+	app_version: str | None = None,
+	os_version: str | None = None,
+	device_model: str | None = None,
+) -> dict:
+	"""登记（或更新）这部手机的推送令牌。App 每次启动都会调，所以只做几条查询。"""
+	user = _require_login()
+	token = (device_token or "").strip().lower()
+	if not PUSH_TOKEN_PATTERN.fullmatch(token):
+		frappe.throw(_("Invalid device token"))
+	if environment not in PUSH_ENVIRONMENTS:
+		frappe.throw(_("Invalid push environment"))
+	if bundle_id not in PUSH_BUNDLE_IDS:
+		frappe.throw(_("Invalid bundle ID"))
+	try:
+		installation = str(uuid.UUID(str(installation_id or "")))
+	except ValueError:
+		frappe.throw(_("Invalid installation ID"))
+
+	values = {
+		# 同一部手机换账号登录后，令牌归新账号
+		"user": user,
+		"environment": environment,
+		"bundle_id": bundle_id,
+		"installation_id": installation,
+		"app_version": _device_text(app_version),
+		"os_version": _device_text(os_version),
+		"device_model": _device_text(device_model),
+		"last_seen": now_datetime(),
+	}
+	existing = frappe.db.get_value(PUSH_DEVICE_DOCTYPE, {"device_token": token}, "name", for_update=True)
+	if existing:
+		frappe.db.set_value(PUSH_DEVICE_DOCTYPE, existing, values)
+	else:
+		try:
+			frappe.get_doc({"doctype": PUSH_DEVICE_DOCTYPE, "device_token": token, **values}).insert(
+				ignore_permissions=True
+			)
+		except frappe.UniqueValidationError:
+			# 同一个令牌同时登记了两次：后到的改成更新
+			frappe.db.set_value(PUSH_DEVICE_DOCTYPE, {"device_token": token}, values)
+
+	# 重装、恢复备份后令牌会变：同一次安装的旧令牌不再有用
+	frappe.db.delete(PUSH_DEVICE_DOCTYPE, {"installation_id": installation, "device_token": ["!=", token]})
+	extra = frappe.get_all(
+		PUSH_DEVICE_DOCTYPE,
+		filters={"user": user},
+		order_by="last_seen desc, modified desc",
+		pluck="name",
+	)[MAX_PUSH_DEVICES_PER_USER:]
+	if extra:
+		frappe.db.delete(PUSH_DEVICE_DOCTYPE, {"name": ["in", extra]})
+	return {"status": "ok"}
+
+
+@frappe.whitelist(methods=["POST"])
+def unregister_push_device(device_token: str | None = None) -> dict:
+	"""退出登录前调用：令牌属于当前账号就删掉；不存在或属于别人什么都不做。"""
+	user = _require_login()
+	token = (device_token or "").strip().lower()
+	if token:
+		frappe.db.delete(PUSH_DEVICE_DOCTYPE, {"device_token": token, "user": user})
+	return {"status": "ok"}
+
+
+def _push_settings_reply(user: str) -> dict:
+	return {"api_version": API_VERSION, **mobile_notifications.push_settings(user)}
+
+
+@frappe.whitelist(methods=["GET"])
+def get_push_settings() -> dict:
+	"""四类推送开关（只管 App 推送；PWA 的网页推送和通知列表不受影响）。"""
+	return _push_settings_reply(_require_login())
+
+
+@frappe.whitelist(methods=["POST"])
+def update_push_settings(**settings) -> dict:
+	"""改其中几个开关（布尔），没传的不变；别的键或不是布尔 417。返回改完后的全部。"""
+	user = _require_login()
+	settings.pop("cmd", None)
+	if set(settings) - set(mobile_notifications.SWITCH_KEYS) or not all(
+		isinstance(value, bool) for value in settings.values()
+	):
+		frappe.throw(_("Invalid push settings"))
+	if settings:
+		values = {key: int(value) for key, value in settings.items()}
+		if frappe.db.exists(mobile_notifications.SETTINGS_DOCTYPE, user):
+			frappe.db.set_value(mobile_notifications.SETTINGS_DOCTYPE, user, values)
+		else:
+			frappe.get_doc(
+				{"doctype": mobile_notifications.SETTINGS_DOCTYPE, "user": user, **values}
+			).insert(ignore_permissions=True)
+	return _push_settings_reply(user)
+
+
+def _timestamp(value) -> str | None:
+	return get_datetime(value).strftime(_TIME_FMT) if value else None
+
+
+def _notification_item(row, target: dict, body_limit: int | None) -> dict:
+	return {
+		"name": str(row.name),
+		"type": mobile_notifications.type_key(row.notification_type),
+		"title": row.notification_title or None,
+		"body": mobile_notifications.plain_text(mobile_notifications.display_html(row), body_limit),
+		"creation": _timestamp(row.creation),
+		"read": bool(row.read),
+		"target": target,
+	}
+
+
+def _own_notification(user: str, name) -> dict | None:
+	if name is None or not str(name).strip().isdigit():
+		return None
+	return frappe.db.get_value(
+		mobile_notifications.DOCTYPE,
+		{"name": cint(name), "to_user": user},
+		mobile_notifications.FIELDS,
+		as_dict=True,
+	)
+
+
+def _page_size(limit) -> int:
+	if limit in (None, ""):
+		return NOTIFICATION_PAGE_SIZE
+	if isinstance(limit, bool) or not str(limit).strip().isdigit():
+		frappe.throw(_("Invalid limit"))
+	size = int(str(limit).strip())
+	if not 1 <= size <= NOTIFICATION_MAX_PAGE_SIZE:
+		frappe.throw(_("Invalid limit"))
+	return size
+
+
+@frappe.whitelist(methods=["GET"])
+def get_notifications(category: str | None = None, limit: str | None = None, before: str | None = None) -> dict:
+	"""本人的通知，新的在前。category 只筛列表，unread_count 总是全部未读数。"""
+	from frappe.query_builder import Order
+
+	user = _require_login()
+	if category and category not in NOTIFICATION_CATEGORIES:
+		frappe.throw(_("Invalid category"))
+	size = _page_size(limit)
+	anchor = None
+	if before not in (None, ""):
+		anchor = _own_notification(user, before)
+		if not anchor:
+			frappe.throw(_("Notification not found"))
+
+	table = frappe.qb.DocType(mobile_notifications.DOCTYPE)
+	query = (
+		frappe.qb.from_(table)
+		.select(*(table[field] for field in mobile_notifications.FIELDS))
+		.where(table.to_user == user)
+	)
+	if category:
+		query = query.where(table.notification_type.isin(NOTIFICATION_CATEGORIES[category]))
+	if anchor:
+		query = query.where(
+			(table.creation < anchor.creation)
+			| ((table.creation == anchor.creation) & (table.name < cint(anchor.name)))
+		)
+	rows = (
+		query.orderby(table.creation, order=Order.desc)
+		.orderby(table.name, order=Order.desc)
+		.limit(size + 1)
+		.run(as_dict=True)
+	)
+	has_more = len(rows) > size
+	rows = rows[:size]
+	targets = mobile_notifications.targets(rows, user)
+	return {
+		"api_version": API_VERSION,
+		"today": now_datetime().date().isoformat(),
+		"unread_count": mobile_notifications.unread_count(user),
+		"has_more": has_more,
+		"items": [
+			_notification_item(row, target, NOTIFICATION_BODY_LIMIT)
+			for row, target in zip(rows, targets, strict=True)
+		],
+	}
+
+
+@frappe.whitelist(methods=["GET"])
+def get_notification(name: str | None = None) -> dict:
+	"""一条通知的全文和清理过的 HTML。不改已读状态。"""
+	from frappe.utils.html_utils import sanitize_html
+
+	user = _require_login()
+	row = _own_notification(user, name)
+	if not row:
+		frappe.throw(_("Notification not found"))
+	return {
+		"api_version": API_VERSION,
+		**_notification_item(row, mobile_notifications.target(row, user), None),
+		"message_html": sanitize_html(mobile_notifications.display_html(row), always_sanitize=True),
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def mark_notifications_read(names: list | str | None = None, all: bool | None = None) -> dict:  # noqa: A002
+	"""标为已读：names（最多 100 个编号）或 all: true，二选一。只改自己的，不认识的编号跳过。"""
+	user = _require_login()
+	if isinstance(names, str):
+		try:
+			names = frappe.parse_json(names)
+		except ValueError:
+			frappe.throw(_("Invalid notification names"))
+	mark_all = all is True
+	if mark_all == (names is not None):
+		frappe.throw(_("Pass either names or all"))
+	if names is not None and (not isinstance(names, list) or len(names) > MAX_MARK_READ):
+		frappe.throw(_("Invalid notification names"))
+
+	filters = {"to_user": user, "read": 0}
+	if not mark_all:
+		ids = [int(name) for name in names if isinstance(name, str | int) and str(name).strip().isdigit()]
+		filters["name"] = ["in", ids]
+	if mark_all or filters["name"][1]:
+		# 和 mark_all_notifications_as_read 一样不更新 modified
+		frappe.db.set_value(mobile_notifications.DOCTYPE, filters, "read", 1, update_modified=False)
+		hrms.refetch_resource("hrms:notifications", user)
+	return {"unread_count": mobile_notifications.unread_count(user)}
+
+
+def _profile_collection_state() -> dict:
+	"""资料补全：开放了没有、必填项填完没有（同 PWA）。没开放时不调用会 403 的接口。"""
+	if not _profile_collection_enabled():
+		return {"enabled": False, "incomplete": False}
+	try:
+		profile = frappe.get_attr("hrms.api.employee_profile.get_my_profile")() or {}
+	except (ImportError, AttributeError, frappe.PermissionError):
+		return {"enabled": False, "incomplete": False}
+	incomplete = any(not str(profile.get(field) or "").strip() for field in PROFILE_REQUIRED_FIELDS)
+	return {"enabled": True, "incomplete": incomplete}
+
+
+def _blank_to_none(value):
+	if value is None or (isinstance(value, str) and not value.strip()):
+		return None
+	return value.isoformat() if isinstance(value, date) else value
+
+
+@frappe.whitelist(methods=["GET"])
+def get_my_page() -> dict:
+	"""マイページ：员工信息、头像状态、资料补全。没有员工档案的账号也返回 200（employee 为 null）。"""
+	user = _require_login()
+	today = now_datetime().date()
+	row = frappe.db.get_value(
+		"Employee", {"user_id": user, "status": "Active"}, MY_PAGE_EMPLOYEE_FIELDS, as_dict=True
+	)
+	if not row:
+		return {
+			"api_version": API_VERSION,
+			"today": today.isoformat(),
+			"employee": None,
+			"photo": None,
+			"profile_collection": {"enabled": False, "incomplete": False},
+		}
+	employee = {field: _blank_to_none(row.get(field)) for field in MY_PAGE_EMPLOYEE_FIELDS}
+	employee["name"] = row.name
+	employee["employee_number"] = _blank_to_none(row.employee_number) or row.name
+	# 部门显示名，不带公司缩写后缀
+	employee["department"] = (
+		_blank_to_none(frappe.db.get_value("Department", row.department, "department_name") or row.department)
+		if row.department
+		else None
+	)
+	del employee["reports_to"]
+	employee["reports_to_name"] = (
+		_blank_to_none(frappe.db.get_value("Employee", row.reports_to, "employee_name")) if row.reports_to else None
+	)
+	return {
+		"api_version": API_VERSION,
+		"today": today.isoformat(),
+		"employee": employee,
+		"photo": get_profile_photo_status(),
+		"profile_collection": _profile_collection_state(),
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def change_password(old_password: str | None = None, new_password: str | None = None) -> dict:
+	"""App 里改密码。包这一层是因为 Frappe 的 update_password 旧密码错时返回 401，App 会当成会话过期。
+
+	都用 HTTP 200 + status。改完后发起请求的会话保持登录；其他会话按 logout_on_password_reset 处理（同 PWA）。
+	"""
+	from frappe.core.doctype.user.user import test_password_strength
+	from frappe.utils.password import update_password
+
+	from hrms.api import device_key
+
+	user = _require_login()
+	if not isinstance(old_password, str) or not old_password or not isinstance(new_password, str) or not new_password:
+		frappe.throw(_("Invalid password"))
+
+	scope = CHANGE_PASSWORD_SCOPE
+	if device_key._password_locked(user, scope):
+		return {"status": "too_many_attempts"}
+	attempt = device_key._claim_password_attempt(user, scope)
+	if attempt > device_key.PASSWORD_MAX_FAILURES:
+		return {"status": "too_many_attempts"}
+	if not device_key._password_ok(user, old_password):
+		if attempt < device_key.PASSWORD_MAX_FAILURES:
+			return {"status": "wrong_password"}
+		device_key._lock_password(user, scope)
+		return {"status": "too_many_attempts"}
+	frappe.cache.delete_value(device_key._failure_key(user, scope))
+
+	if new_password == old_password:
+		return {"status": "same_password"}
+	weakness = _password_weakness(new_password, test_password_strength)
+	if weakness:
+		return {"status": "weak_password", "message": weakness}
+
+	update_password(
+		user,
+		new_password,
+		logout_all_sessions=cint(frappe.get_system_settings("logout_on_password_reset")),
+	)
+	frappe.db.set_value(
+		"User", user, {"last_password_reset_date": frappe.utils.today(), "reset_password_key": ""}
+	)
+	return {"status": "ok"}
+
+
+def _password_weakness(new_password: str, test_password_strength) -> str | None:
+	"""不符合站点密码规则时返回 Frappe 的提示文字（去掉 HTML）；站点没开密码策略时总是 None。"""
+	from frappe.core.doctype.user.user import MAX_PASSWORD_SIZE
+
+	if len(new_password) > MAX_PASSWORD_SIZE:
+		return _("Password size exceeded the maximum allowed size.")
+	feedback = (test_password_strength(new_password) or {}).get("feedback")
+	if not feedback or feedback.get("password_policy_validation_passed", False):
+		return None
+	parts = [feedback.get("warning") or "", *(feedback.get("suggestions") or [])]
+	message = " ".join(strip_html_tags(part).strip() for part in parts if part and str(part).strip())
+	return message or _("Better add a few more letters or another word")

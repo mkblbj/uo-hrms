@@ -1,0 +1,85 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-20 19:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "in_create": 1,
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-20 19:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "owner": "Administrator",
+ "quick_entry": 0,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "autoname": "field:user",
+ "naming_rule": "By fieldname",
+ "name": "Mobile Push Settings",
+ "description": "Each person's push notification switches in the native app. Only app pushes follow these; the web app and its notification list are not affected.",
+ "field_order": [
+  "user",
+  "column_break_1",
+  "shift_reminder",
+  "shift_change",
+  "approval",
+  "announcement"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "User",
+   "options": "User",
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "shift_reminder",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Tomorrow's Shift"
+  },
+  {
+   "default": "1",
+   "fieldname": "shift_change",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Shift Changes"
+  },
+  {
+   "default": "1",
+   "fieldname": "approval",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Requests and Approvals"
+  },
+  {
+   "default": "1",
+   "fieldname": "announcement",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Company Announcements"
+  }
+ ],
+ "permissions": [
+  {
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "write": 1
+  }
+ ],
+ "search_fields": "user",
+ "title_field": "user"
+}

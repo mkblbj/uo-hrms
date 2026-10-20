@@ -653,3 +653,46 @@ class TestDeviceKeyCheckinMethod(HRMSTestSuite):
 		self.assertEqual(mobile_attendance.punch_method("Device Key"), "device_key")
 		self.assertEqual(mobile_attendance.punch_evidence("device_key", None, None), "office_network")
 		self.assertEqual(mobile_attendance.punch_evidence("device_key", 35.68, 139.76), "gps")
+
+
+class TestDeviceKeyList(DeviceKeyTestCase):
+	def test_lists_my_keys_newest_first(self):
+		old = self.register(device_name="iPhone (iPhone14,8)")
+		new = self.register(device_name="iPhone (iPhone16,2)")
+		self.register(user=OTHER_USER)
+		frappe.db.set_value("Device Checkin Key", {"key_id": old.key_id}, "creation", "2026-10-01 09:00:00.123456")
+		frappe.db.set_value("Device Checkin Key", {"key_id": old.key_id}, "last_used", "2026-10-03 08:58:12.5")
+		frappe.set_user(API_USER)
+		result = device_key.list_my_keys()
+		self.assertEqual(result["max"], 3)
+		self.assertEqual([key["key_id"] for key in result["keys"]], [new.key_id, old.key_id])
+		self.assertEqual(
+			result["keys"][1],
+			{
+				"key_id": old.key_id,
+				"device_name": "iPhone (iPhone14,8)",
+				"registered_at": "2026-10-01 09:00:00",
+				"last_used": "2026-10-03 08:58:12",
+			},
+		)
+		self.assertIsNone(result["keys"][0]["last_used"])
+
+	def test_guest_is_rejected(self):
+		frappe.set_user("Guest")
+		with self.assertRaises(frappe.PermissionError):
+			device_key.list_my_keys()
+
+	def test_delete_my_key(self):
+		mine = self.register()
+		other = self.register(user=OTHER_USER)
+		frappe.set_user(API_USER)
+		self.assertEqual(device_key.delete_my_key(key_id=other.key_id), {"status": "not_found", "key_count": 1})
+		self.assertEqual(device_key.delete_my_key(key_id="missing"), {"status": "not_found", "key_count": 1})
+		notifications = frappe.db.count("PWA Notification", {"to_user": API_USER})
+		self.assertEqual(device_key.delete_my_key(key_id=mine.key_id), {"status": "ok", "key_count": 0})
+		self.assertEqual(frappe.db.count("PWA Notification", {"to_user": API_USER}), notifications)
+		frappe.set_user("Administrator")
+		self.assertEqual(self.key_ids(OTHER_USER), [other.key_id])
+		with self.assertRaises(frappe.ValidationError):
+			frappe.set_user(API_USER)
+			device_key.delete_my_key(key_id="")

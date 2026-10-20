@@ -21,7 +21,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 
 import frappe
 from frappe import _
-from frappe.utils import escape_html, now, now_datetime
+from frappe.utils import escape_html, get_datetime, now, now_datetime
 from frappe.utils.password import check_password
 
 from hrms.api.checkin_presence import evaluate_presence, normalize_coordinates
@@ -102,31 +102,32 @@ def _key_count(user: str, excluding: str | None = None) -> int:
 # ---- 密码限次 ----
 
 
-def _failure_key(user: str) -> str:
-	return f"device_key_password_failures:{user}"
+# scope 区分用途：手机钥匙登记和 App 里改密码各自计数，规则相同
+def _failure_key(user: str, scope: str = "device_key") -> str:
+	return f"{scope}_password_failures:{user}"
 
 
-def _lock_key(user: str) -> str:
-	return f"device_key_password_lock:{user}"
+def _lock_key(user: str, scope: str = "device_key") -> str:
+	return f"{scope}_password_lock:{user}"
 
 
-def _password_locked(user: str) -> bool:
-	return bool(frappe.cache.exists(_lock_key(user)))
+def _password_locked(user: str, scope: str = "device_key") -> bool:
+	return bool(frappe.cache.exists(_lock_key(user, scope)))
 
 
-def _claim_password_attempt(user: str) -> int:
+def _claim_password_attempt(user: str, scope: str = "device_key") -> int:
 	"""核对密码之前先占一次尝试，返回这是窗口内的第几次。先占后核对，同时发很多请求也只能核对 5 次。
 	窗口从第一次尝试算起 10 分钟；输对一次就清零，所以实际数的是连续输错的次数。"""
-	key = frappe.cache.make_key(_failure_key(user))
+	key = frappe.cache.make_key(_failure_key(user, scope))
 	attempt = frappe.cache.incr(key)
 	if attempt == 1:
 		frappe.cache.expire(key, PASSWORD_FAILURE_WINDOW_SECONDS)
 	return attempt
 
 
-def _lock_password(user: str) -> None:
-	frappe.cache.set_value(_lock_key(user), 1, expires_in_sec=PASSWORD_LOCK_SECONDS)
-	frappe.cache.delete_value(_failure_key(user))
+def _lock_password(user: str, scope: str = "device_key") -> None:
+	frappe.cache.set_value(_lock_key(user, scope), 1, expires_in_sec=PASSWORD_LOCK_SECONDS)
+	frappe.cache.delete_value(_failure_key(user, scope))
 
 
 def _password_ok(user: str, password: str) -> bool:
@@ -139,6 +140,53 @@ def _password_ok(user: str, password: str) -> bool:
 
 
 # ---- 接口 ----
+
+
+def _require_login() -> str:
+	user = frappe.session.user
+	if user == "Guest":
+		frappe.throw(_("Please login first"), frappe.PermissionError)
+	return user
+
+
+def _timestamp(value) -> str | None:
+	return get_datetime(value).strftime("%Y-%m-%d %H:%M:%S") if value else None
+
+
+@frappe.whitelist(methods=["GET"])
+def list_my_keys() -> dict:
+	"""本人登记过的手机钥匙（不含网页的通行密钥），新登记的在前。只要登录，不要求员工档案。"""
+	user = _require_login()
+	rows = frappe.get_all(
+		DOCTYPE,
+		filters={"user": user},
+		fields=["key_id", "device_name", "creation", "last_used"],
+		order_by="creation desc",
+	)
+	return {
+		"keys": [
+			{
+				"key_id": row.key_id,
+				"device_name": row.device_name,
+				"registered_at": _timestamp(row.creation),
+				"last_used": _timestamp(row.last_used),
+			}
+			for row in rows
+		],
+		"max": MAX_DEVICE_KEYS_PER_EMPLOYEE,
+	}
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_my_key(key_id: str | None = None) -> dict:
+	"""删掉本人的一把手机钥匙。那台手机下次打卡会得到 no_device_key，要重新设置。不发通知。"""
+	user = _require_login()
+	if not key_id:
+		frappe.throw(_("Invalid key ID"))
+	key = _own_key(user, key_id)
+	if key:
+		frappe.delete_doc(DOCTYPE, key.name, ignore_permissions=True)
+	return {"status": "ok" if key else "not_found", "key_count": _key_count(user)}
 
 
 @frappe.whitelist(methods=["GET"])

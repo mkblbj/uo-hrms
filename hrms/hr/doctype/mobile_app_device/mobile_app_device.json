@@ -1,0 +1,124 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-10-20 19:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "in_create": 1,
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-20 19:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "HR",
+ "owner": "Administrator",
+ "quick_entry": 0,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "autoname": "hash",
+ "naming_rule": "Random",
+ "name": "Mobile App Device",
+ "description": "iPhones that receive push notifications from the native app. One row per app installation; delete a row to stop pushes to that phone.",
+ "field_order": [
+  "user",
+  "device_model",
+  "column_break_1",
+  "last_seen",
+  "app_version",
+  "os_version",
+  "section_break_2",
+  "environment",
+  "bundle_id",
+  "installation_id",
+  "device_token"
+ ],
+ "fields": [
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "User",
+   "options": "User",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "device_model",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Device Model",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "last_seen",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Last Seen",
+   "read_only": 1
+  },
+  {
+   "fieldname": "app_version",
+   "fieldtype": "Data",
+   "label": "App Version",
+   "read_only": 1
+  },
+  {
+   "fieldname": "os_version",
+   "fieldtype": "Data",
+   "label": "OS Version",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "section_break_2",
+   "fieldtype": "Section Break",
+   "label": "Push Details"
+  },
+  {
+   "fieldname": "environment",
+   "fieldtype": "Select",
+   "label": "Environment",
+   "options": "sandbox\nproduction",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "bundle_id",
+   "fieldtype": "Data",
+   "label": "Bundle ID",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "installation_id",
+   "fieldtype": "Data",
+   "label": "Installation ID",
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "device_token",
+   "fieldtype": "Data",
+   "label": "Device Token",
+   "length": 200,
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1
+  }
+ ],
+ "permissions": [
+  {
+   "delete": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager"
+  }
+ ],
+ "search_fields": "user,device_model",
+ "title_field": "device_model"
+}

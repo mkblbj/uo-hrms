@@ -7,7 +7,11 @@ description = "UO人力资源管理系统"
 requires-python = ">=3.10"
 readme = "README.md"
 dynamic = ["version"]
-dependencies = ["webauthn==2.8.0"]
+dependencies = [
+    "webauthn==2.8.0",
+    # APNs 只收 HTTP/2（原生 App 推送）
+    "httpx[http2]>=0.28,<1",
+]
 
 [build-system]
 requires = ["flit_core >=3.4,<4"]

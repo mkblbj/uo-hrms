@@ -151,6 +151,14 @@ class PWANotification(Document):
 		except Exception:
 			self.log_error(f"Error sending push notification: {self.name}")
 
+		# 原生 App 的推送（APNs）另走一路，和网页推送互不影响
+		try:
+			from hrms.utils.apns import queue_push
+
+			queue_push(self)
+		except Exception:
+			self.log_error(f"Error queueing app push notification: {self.name}")
+
 	def get_notification_link(self):
 		base_url = f"{frappe.utils.get_url()}/hrms"
 
