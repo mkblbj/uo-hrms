@@ -1,0 +1,138 @@
+"""原生 App 勤怠页的计算规则。
+
+PWA attendanceCalendarState.test.js 里仍适用的用例逐条翻译过来，另加 M2 的四条新规则：
+按所定时长算加班、未来排班日、周休算「休」、每天先取一位小数再合计。
+"""
+
+import unittest
+from datetime import date
+
+from hrms.utils import mobile_attendance as rules
+
+TODAY = date(2026, 10, 20)
+PAST = date(2026, 10, 5)
+TOMORROW = date(2026, 10, 21)
+ROSTER_8 = {"hours": 8.0}
+
+
+def present(hours, status="Present", **extra):
+	return {"attendance": status, "working_hours": hours, **extra}
+
+
+def state(event=None, holiday=None, roster=None, day=PAST):
+	return rules.derive_day_state(event, holiday, roster, day, TODAY)
+
+
+class TestDayState(unittest.TestCase):
+	def test_anomaly_outranks_everything(self):
+		self.assertEqual(state(present(8, anomaly={"has_issue": True, "codes": ["missing_checkout"]}), {"weekly_off": 0}), "anomaly")
+		self.assertEqual(state(present(8, anomaly={"has_issue": False})), "work")
+
+	def test_status_maps_to_state(self):
+		self.assertEqual(state(present(8)), "work")
+		self.assertEqual(state(present(7, "Work From Home")), "work")
+		self.assertEqual(state(present(4, "Half Day")), "work")
+		self.assertEqual(state({"attendance": "On Leave"}), "leave")
+		# 和 PWA 一样，缺勤先显示成休息
+		self.assertEqual(state({"attendance": "Absent"}), "rest")
+
+	def test_holiday_and_weekly_off(self):
+		self.assertEqual(state({}, {"weekly_off": 0, "description": "山の日"}), "holiday")
+		self.assertEqual(state({}, {"weekly_off": 1, "description": "Sunday"}), "rest")
+		# 新规则 3：hrms 假日表把周休也合成成 Holiday，要按 weekly_off 显示成「休」
+		self.assertEqual(state({"attendance": "Holiday"}, {"weekly_off": 1}), "rest")
+		self.assertEqual(state({"attendance": "Holiday"}, None), "holiday")
+
+	def test_empty_without_records(self):
+		self.assertEqual(state({}), "empty")
+		self.assertEqual(state(None), "empty")
+
+	def test_today_status_before_settlement(self):
+		self.assertEqual(state({"checkin_status": "working"}, day=TODAY), "working")
+		self.assertEqual(state({"checkin_status": "checked_out"}, day=TODAY), "checked_out")
+		holiday = {"weekly_off": 0, "description": "祝日"}
+		self.assertEqual(state({"checkin_status": "working", "attendance": "Holiday"}, holiday, day=TODAY), "working")
+
+	def test_future_rostered_day_is_scheduled(self):
+		self.assertEqual(state({}, roster=ROSTER_8, day=TOMORROW), "scheduled")
+		self.assertEqual(state({"checkin_status": "not_checked_in"}, roster=ROSTER_8, day=TODAY), "scheduled")
+		self.assertEqual(state({}, day=TOMORROW), "empty")
+		self.assertEqual(state({}, {"weekly_off": 0, "description": "文化の日"}, ROSTER_8, TOMORROW), "scheduled")
+		# 过去有排班但没有记录：不是 scheduled
+		self.assertEqual(state({}, roster=ROSTER_8, day=PAST), "empty")
+
+	def test_overtime_against_scheduled_hours(self):
+		self.assertEqual(state(present(8.4), roster=ROSTER_8), "work")
+		self.assertEqual(rules.day_overtime(8.4, 8), 0.4)
+		self.assertEqual(state(present(8.5), roster=ROSTER_8), "overtime")
+		self.assertEqual(rules.day_overtime(8.5, 8), 0.5)
+		self.assertEqual(state(present(7), roster={"hours": 6}), "overtime")
+		self.assertEqual(rules.day_overtime(7, 6), 1.0)
+		self.assertEqual(rules.day_overtime(9.6, None), 1.6)
+		self.assertEqual(rules.day_overtime(None, 8), 0)
+		self.assertEqual(rules.day_overtime(6, 8), 0)
+
+
+class TestDayNumbers(unittest.TestCase):
+	def test_hours_round_to_one_decimal(self):
+		self.assertEqual(rules.day_hours(present(8.46)), 8.5)
+		self.assertEqual(rules.day_hours(present(8.44)), 8.4)
+		self.assertEqual(rules.day_hours(present(8.25)), 8.3)
+		self.assertIsNone(rules.day_hours(present(0)))
+		self.assertIsNone(rules.day_hours({"attendance": "Holiday"}))
+		self.assertIsNone(rules.day_hours({"checkin_status": "working"}))
+		self.assertIsNone(rules.day_hours(None))
+
+	def test_weights(self):
+		self.assertEqual([rules.day_weight(present(8, s)) for s in ("Present", "Work From Home", "Half Day", "On Leave", "Absent")], [1, 1, 0.5, 0, 0])
+		self.assertEqual([rules.leave_weight(present(8, s)) for s in ("Present", "Half Day", "On Leave")], [0, 0.5, 1])
+		self.assertEqual(rules.day_weight(None), 0)
+
+
+def day(state, hours=None, weight=0, leave=0, overtime=0):
+	return {"state": state, "hours": hours, "_weight": weight, "_leave": leave, "_overtime": overtime}
+
+
+class TestSummary(unittest.TestCase):
+	def test_summary_counts_only_settled_work(self):
+		days = [
+			day("work", 8.0, 1),
+			day("overtime", 9.6, 1, overtime=1.6),
+			day("work", 4.0, 0.5, leave=0.5),
+			day("working", 4.0),
+			day("checked_out", 6.0),
+			day("anomaly", 3.0, 1),
+			day("leave", leave=1),
+			day("rest"),
+		]
+		self.assertEqual(
+			rules.summarize_month(days, 21, 9),
+			{
+				"hours": 21.6,
+				"present_days": 2.5,
+				"scheduled_days": 21,
+				"remaining_days": 9,
+				"overtime_hours": 1.6,
+				"leave_days": 1.5,
+				"issue_count": 1,
+			},
+		)
+
+	def test_summary_rounds_each_day_first(self):
+		# 新规则 4：每天 2.04 先取成 2.0；先合计再取整会得到 6.1
+		days = [day("work", rules.day_hours(present(2.04)), 1) for _ in range(3)]
+		self.assertEqual(rules.summarize_month(days, None, None)["hours"], 6.0)
+
+	def test_summary_empty(self):
+		self.assertEqual(
+			rules.summarize_month([], None, None),
+			{
+				"hours": 0,
+				"present_days": 0,
+				"scheduled_days": None,
+				"remaining_days": None,
+				"overtime_hours": 0,
+				"leave_days": 0,
+				"issue_count": 0,
+			},
+		)
