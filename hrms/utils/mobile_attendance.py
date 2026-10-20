@@ -9,7 +9,7 @@ from datetime import date, datetime, timedelta
 from frappe.utils import flt, get_time
 
 from hrms.api.checkin_presence import normalize_coordinates
-from hrms.utils.mobile_home import OVERTIME_THRESHOLD_HOURS, STANDARD_DAY_HOURS, _clock
+from hrms.utils.mobile_home import OVERTIME_THRESHOLD_HOURS, STANDARD_DAY_HOURS, _schedule_clock
 
 STATES = (
 	"work",
@@ -115,9 +115,14 @@ _PUNCH_METHODS = {"QR": "qr", "Passkey": "passkey", "Attendance Correction": "co
 
 
 def shift_window(roster: dict | None, day: date) -> dict | None:
-	"""排班条目 → {start, end, slot, hours}（时间点）；结束早于开始时按跨夜，结束在第二天。"""
-	start_text = _clock((roster or {}).get("start_time"))
-	end_text = _clock((roster or {}).get("end_time"))
+	"""排班条目 → {start, end, slot, hours}（时间点）；结束早于开始时按跨夜，结束在第二天。
+
+	条目可以带 start_time / end_time，也可以只有 scheduled_time（work_roster get_my_schedule 的格式）。
+	"""
+	if not roster:
+		return None
+	start_text = _schedule_clock(roster, "start_time")
+	end_text = _schedule_clock(roster, "end_time")
 	if not start_text or not end_text:
 		return None
 	start = datetime.fromisoformat(f"{day.isoformat()} {start_text}:00")

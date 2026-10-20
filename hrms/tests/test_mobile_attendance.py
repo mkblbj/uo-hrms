@@ -149,6 +149,13 @@ class TestDayDetailRules(unittest.TestCase):
 			{"start": "2026-10-20 09:00:00", "end": "2026-10-20 18:00:00", "slot": "9-18", "hours": 8.0},
 		)
 
+	def test_shift_window_from_scheduled_time(self):
+		# work_roster get_my_schedule 的条目只有 scheduled_time，没有 start_time / end_time
+		self.assertEqual(
+			rules.shift_window({"scheduled_time": "22:00-06:00", "hours": 7.0, "shift_label": "22-6"}, TODAY),
+			{"start": "2026-10-20 22:00:00", "end": "2026-10-21 06:00:00", "slot": "22-6", "hours": 7.0},
+		)
+
 	def test_shift_window_missing_time(self):
 		self.assertIsNone(rules.shift_window(None, TODAY))
 		self.assertIsNone(rules.shift_window({"start_time": "09:00", "end_time": None, "hours": 8}, TODAY))
