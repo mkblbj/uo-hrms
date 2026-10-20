@@ -50,7 +50,7 @@ class EmployeeCheckin(Document):
 
 		attendance: DF.Link | None
 		attendance_correction_request: DF.Link | None
-		checkin_method: DF.Literal["", "QR", "Passkey", "NFC Passkey", "Attendance Correction"]
+		checkin_method: DF.Literal["", "QR", "Passkey", "NFC Passkey", "Attendance Correction", "Device Key"]
 		device_id: DF.Data | None
 		employee: DF.Link
 		employee_name: DF.Data | None

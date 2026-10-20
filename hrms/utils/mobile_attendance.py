@@ -111,7 +111,14 @@ def summarize_month(days: list[dict], scheduled_days: int | None, remaining_days
 # ---- 日详情 ----
 
 _FMT = "%Y-%m-%d %H:%M:%S"
-_PUNCH_METHODS = {"QR": "qr", "Passkey": "passkey", "Attendance Correction": "correction"}
+_PUNCH_METHODS = {
+	"QR": "qr",
+	"Passkey": "passkey",
+	"Device Key": "device_key",
+	"Attendance Correction": "correction",
+}
+# 面容打卡（网页通行密钥、App 手机钥匙）都要先证明在场
+_FACE_METHODS = ("passkey", "device_key")
 
 
 def shift_window(roster: dict | None, day: date) -> dict | None:
@@ -142,9 +149,9 @@ def punch_method(checkin_method: str | None) -> str:
 
 
 def punch_evidence(method: str, latitude, longitude) -> str | None:
-	"""打卡记录里不存在场证明，只能推断，而且只对面容打卡推断：面容打卡必须先证明在场，
-	带定位说明是定位在半径内，不带定位就只能是公司网络。扫码带了定位也不一定核对过距离，不推断。"""
-	if method != "passkey":
+	"""打卡记录里不存在场证明，只能推断，而且只对面容打卡（网页通行密钥、App 手机钥匙）推断：
+	面容打卡必须先证明在场，带定位说明是定位在半径内，不带定位就只能是公司网络。扫码带了定位也不一定核对过距离，不推断。"""
+	if method not in _FACE_METHODS:
 		return None
 	return "gps" if normalize_coordinates(latitude, longitude) else "office_network"
 

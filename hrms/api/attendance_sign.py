@@ -69,7 +69,7 @@ def get_events(location: str) -> dict:
 		filters={
 			"device_id": location,
 			"creation": ["between", [now - timedelta(seconds=30), now]],
-			"checkin_method": ["in", ["QR", "Passkey"]],
+			"checkin_method": ["in", ["QR", "Passkey", "Device Key"]],
 			"log_type": ["in", ["IN", "OUT"]],
 		},
 		fields=["name", "employee", "employee_name", "log_type", "time", "creation"],

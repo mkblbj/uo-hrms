@@ -203,6 +203,12 @@ class TestAttendanceSign(unittest.TestCase):
 		self.assertEqual([x["id"] for x in result["events"]], ["sign-z", "sign-a", "sign-b"])
 		self.assertEqual(result["events"][-1]["action_label"], "退勤完了")
 
+	def test_app_face_checkins_are_events(self):
+		self._row("sign-device-key", method="Device Key")
+		self.assertEqual(
+			[x["id"] for x in attendance_sign.get_events(self.location)["events"]], ["sign-device-key"]
+		)
+
 	def test_returns_twenty_most_recent_events(self):
 		for i in range(25):
 			self._row(f"sign-limit-{i:02d}", age=25 - i)

@@ -10,11 +10,13 @@ from hrms.api.checkin_cooldown import is_checkin_cooldown_exempt
 
 CHECKIN_METHOD_QR = "QR"
 CHECKIN_METHOD_PASSKEY = "Passkey"
+CHECKIN_METHOD_DEVICE_KEY = "Device Key"
 CHECKIN_METHOD_CORRECTION = "Attendance Correction"
 
 AUDIT_TITLES = {
 	CHECKIN_METHOD_QR: "QR Checkin Audit",
 	CHECKIN_METHOD_PASSKEY: "Passkey Checkin Audit",
+	CHECKIN_METHOD_DEVICE_KEY: "Device Key Checkin Audit",
 }
 
 
