@@ -1,0 +1,364 @@
+"<a href=""https://docs.frappe.io/framework/user/en/api/rest#1-token-based-authentication"" target=""_blank"" rel=""noopener noreferrer"">\n  Click here to learn about token-based authentication\n</a>","<a href=""https://docs.frappe.io/framework/user/en/api/rest#1-token-based-authentication"" target=""_blank"" rel=""noopener noreferrer"">\n  点击了解基于令牌的身份验证\n</a>"
+API Access,API 访问
+API Key,API 密钥
+API Key cannot be regenerated,API 密钥无法重新生成
+API Keys,API 密钥
+API Secret,API 私密密钥
+Actions,操作
+Active Sessions,活跃会话
+Activity,动态
+Add Filter,添加筛选条件
+Add {0},添加{0}
+Address,地址
+Address & Contacts,地址及联系方式
+Allow Modules,允许访问的模块
+Allow bulk actions,允许批量操作
+Allow notifications,允许通知
+Allow user to login only after this hour (0-24),仅允许用户在此时间之后登录（0–24 时）
+Allow user to login only before this hour (0-24),仅允许用户在此时间之前登录（0–24 时）
+Allowed In Mentions,允许被提及
+App,应用
+Applicable Holiday List,假期表
+Apply,应用
+Approvers,审批人列表
+Assign To,分配给
+Attachments,附件
+Attendance & Leaves,出勤和休假
+Attendance Correction Approver,考勤更正审批人
+Attendance Device ID (Biometric/RF tag ID),考勤设备(生物识别/RFID)
+Auto follow documents that are assigned to you,自动关注分配给您的单据
+Auto follow documents that are shared with you,自动关注与您共享的单据
+Auto follow documents that you Like,自动关注您点赞的单据
+Auto follow documents that you comment on,自动关注您评论的单据
+Auto follow documents that you create,自动关注您创建的单据
+Automatic,自动
+Awaiting Password,等待设置密码
+Bank,银行
+Bank A/C No.,银行账号
+Bank Details,银行详细信息
+Bank Name,银行名称
+Basic Info,基本信息
+Bio,个人简介
+Bio / Cover Letter,履历/求职信
+Birth Date,出生日期
+Birthday,生日
+Block Module,禁用模块
+Block Modules,禁用模块
+Blood Group,血型
+Bypass Restricted IP Address Check If Two Factor Auth Enabled,启用双重验证时跳过 IP 地址限制
+Cash,现金
+Change Password,修改密码
+Cheque,支票
+Class / Percentage,班/百分比
+Clear,清除
+Clear Filters,清除筛选条件
+Code Editor Type,代码编辑器类型
+Comments,评论
+Company Details,公司信息
+Company Email,公司邮箱
+Confirm,确认
+Confirm New Password,确认新密码
+Confirmation Date,确认日期
+Connections,关联信息
+Contact,联系人
+Contract End Date,合同结束日期
+Copy token to clipboard,复制令牌到剪贴板
+Cost to Company (CTC),公司成本（CTC）
+Create,创建
+Create User,创建用户
+Create User Automatically,自动创建用户
+Create User Email,创建用户邮箱
+Create User Permission,创建用户权限限制
+Created By,创建人
+Created On,创建时间
+"Creates a User account for this employee using the Preferred, Company, or Personal email.",使用首选邮箱、公司邮箱或个人邮箱为此员工创建用户账号。
+Creating User...,正在创建用户...
+Current Address,当前地址
+Current Address Is,当前地址性质
+Daily,每天
+Dark,深色
+Date Of Retirement,退休日期
+Date of Issue,签发日期
+Default App,默认应用
+Default Shift,默认班次
+Default Workspace,默认工作区
+DefaultValue,默认值
+Defaults,默认设置
+Delete,删除
+Desk Settings,桌面设置
+Desk Theme,桌面主题
+Disabled,已禁用
+Divorced,离异
+Document Follow,单据关注
+Document Type,单据类型
+Download,下载
+Edit,编辑
+Education,教育培训
+Educational Qualification,学历
+Email Account,邮件账号
+Email ID,电子邮箱
+Email Signature,邮件签名
+Email is mandatory to create User Email,创建用户邮箱时必须填写电子邮箱
+Email is required to create a user.,创建用户时必须填写电子邮箱。
+Emergency Contact,紧急联系人
+Emergency Contact Name,紧急联系人姓名
+Emergency Phone,紧急电话
+Employee Advance Account,员工预支款科目
+Employee Education,员工教育
+Employee External Work History,员工外部就职经历
+Employee Internal Work History,员工内部就职经历
+Employee List,员工列表
+Employee Number,员工号
+Employment Type,雇佣类型
+Enable Outgoing,启用邮件发送
+Enabled,已启用
+Encashment Date,折现日期
+"Enter First and Last name of Employee, based on Which Full Name will be updated. IN transactions, it will be Full Name which will be fetched.",输入员工姓和名，全称将自动更新。交易中将使用全称
+"Enter default value fields (keys) and values. If you add multiple values for a field, the first one will be picked. These defaults are also used to set ""match"" permission rules. To see list of fields, go to ""Customize Form"".",请输入默认值字段（键）和对应的值。同一字段有多个值时，系统使用第一个值。这些默认值也用于设置匹配权限规则。字段列表可在“自定义表单”中查看。
+Exit,离职
+Exit Interview Held On,离职面谈时间
+Expense Approver,费用审批人
+External Work History,外部就职经历
+Family Background,家庭背景
+Feedback,反馈
+Filters,筛选条件
+First Name,名字
+Form Settings,表单设置
+Frequency,频率
+Full Name,姓名
+Generate Keys,生成密钥
+Get your globally recognized avatar from Gravatar.com,从 Gravatar.com 获取您的通用头像
+Grade,等级
+Graduate,学位
+Has Role,已分配角色
+Health Details,健康信息
+Health Insurance No,健康保险编号
+Health Insurance Provider,健康保险提供商
+"Here you can maintain family details like name and occupation of parent, spouse and children",可以登记家庭详细信息，如姓名，父母、配偶及子女的职业等
+"Here you can maintain height, weight, allergies, medical concerns etc",可以记录身高，体重，是否对某药物过敏等
+"Here, you can select a senior of this Employee. Based on this, Organization Chart will be populated.",此处可选择该员工的上级，组织架构图将基于此生成
+History In Company,公司内履历
+Home Settings,首页设置
+Hourly,每小时
+IBAN,国际银行账号（IBAN）
+IFSC Code,IFSC代码
+IP Address,IP 地址
+If Owner,仅限本人创建的记录
+"If enabled,  user can login from any IP Address using Two Factor Auth, this can also be set for all users in System Settings",启用后，用户可通过双重验证从任意 IP 地址登录。也可在系统设置中为所有用户启用。
+"If left empty, the default workspace will be the last visited workspace",留空时，默认打开上次访问的工作区
+"If the user has any role checked, then the user becomes a ""System User"". ""System User"" has access to the desktop",勾选任何角色后，该用户将成为可访问系统桌面的“系统用户”
+Image,图片
+Impersonate,以此用户身份登录
+Impersonate as {0},以{0}的身份登录
+Import,导入
+Import Employees,导入员工
+Interests,兴趣爱好
+Internal Work History,内部工作经历
+Is Current,当前使用
+Joining,入职
+Key,键
+Language,语言
+Last Active,最近活跃时间
+Last IP,最近登录 IP
+Last Known Versions,最近已知版本
+Last Login,最近登录时间
+Last Modified,最近修改时间
+Last Name,姓氏
+Last Password Reset Date,最近密码重置时间
+Last Reset Password Key Generated On,最近密码重置密钥生成时间
+Last Updated,最近更新时间
+Leave Encashed?,假期已折现？
+Level,级别
+Light,浅色
+List,列表
+List Settings,列表设置
+List View,列表视图
+Location,位置
+Login After,允许登录的开始时间
+Login Before,允许登录的结束时间
+Logout All Sessions,退出所有会话
+Logout From All Devices After Changing Password,修改密码后退出所有设备
+MICR Code,磁墨字符识别码（MICR）
+Major/Optional Subjects,主修/选修科目
+Marital Status,婚姻状况
+Married,已婚
+Menu,菜单
+Middle Name,中间名
+Mobile,手机
+Mobile No,手机号码
+Modified By,修改人
+Module,模块
+Module Profile,模块配置
+Modules HTML,模块列表
+More Information,更多信息
+Mute Sounds,静音
+Name,名称
+Navigation Settings,导航设置
+New,新建
+New Password,新密码
+New Workplace,新工作地点
+New {0},新建{0}
+No,否
+Note: Etc timezones have their signs reversed.,注意：Etc 时区的正负号与实际时差相反。
+Note: This will be shared with user.,注意：此内容将与用户共享。
+Notice (days),通告（天）
+Offer Date,录用日期
+Old Parent,旧上级
+Onboarding Status,入职状态
+Overview,概览
+Owned,自有住房
+PAN Number,永久账号号码
+PartTime,兼职
+Passport Details,护照信息
+Passport Number,护照号码
+Passwords do not match!,两次输入的密码不一致！
+Payroll Cost Center,薪资成本中心
+Permanent Address,永久地址
+Permanent Address Is,永久地址类型
+Permissions,权限
+Personal Details,个人资料
+Personal Email,个人电子邮件
+Phone,电话
+Place of Issue,签发地点
+Post Graduate,研究生
+Preferred Contact Email,首选联系邮箱
+Preferred Email,首选邮箱
+Previous Work Experience,以前工作经验
+Provide Email Address registered in company,提供公司注册邮箱地址
+Provident Fund Account,公积金账号
+Provider,服务提供商
+Qualification,资质
+Reason for Leaving,离职原因
+Redirect URL,跳转网址
+Redirect to the selected app after login,登录后跳转到所选应用
+Refresh,刷新
+Refreshing...,正在刷新…
+Regular,定期
+Relation,关系
+Relieving Date,离职日期
+Rented,租赁住房
+Reports to,上级主管
+Represents a User in the system.,系统中的用户账号。
+Reset LDAP Password,重置 LDAP 密码
+Reset OTP Secret,重置动态验证码密钥
+Reset Password,重置密码
+Reset Password Key,密码重置密钥
+Resignation Letter Date,辞职信日期
+Restrict IP,限制登录 IP
+Restrict user from this IP address only. Multiple IP addresses can be added by separating with commas. Also accepts partial IP addresses like (111.111.111),仅允许用户从指定 IP 地址登录。多个地址用逗号分隔，也支持部分 IP 地址，例如 111.111.111。
+Role,角色
+Role Permissions,角色权限
+Role Profile,角色配置
+Role Profiles,角色配置
+Roles,角色
+Roles & Permissions,角色与权限
+Roles Assigned,已分配角色
+Roles HTML,角色列表
+Salary Currency,薪资货币
+Salary Mode,工资发放方式
+Salutation,称谓
+School/University,学校/大学
+Search...,搜索…
+Security Settings,安全设置
+Select All,全选
+Select Date of Birth. This will validate Employees age and prevent hiring of under-age staff.,选择出生日期。此操作将验证员工年龄并防止雇用未成年人员。
+"Select Date of joining. It will have impact on the first salary calculation, Leave allocation on pro-rata bases.",选择入职日期。这将影响首次薪资计算及按比例分配的年假额度。
+Select a Company this Employee belongs to.,选择该员工所属的公司。
+Select all,全选
+Send Me A Copy of Outgoing Emails,将发送的邮件抄送给我
+Send Notifications For Documents Followed By Me,接收我关注的单据通知
+Send Notifications For Email Threads,接收邮件会话通知
+Send Welcome Email,发送欢迎邮件
+Series,编号规则
+Session Created,会话创建时间
+Sessions,会话
+Set New Password,设置新密码
+Set User Permissions,设置用户权限
+Shift Request Approver,班次申请审批人
+Short biography for website and other publications.,在网站或其他出版物使用的个人简介
+Show absolute datetime in timeline,在时间线中显示完整日期和时间
+Show dashboard,显示仪表板
+Show navigation buttons,显示导航按钮
+Show search bar,显示搜索栏
+Show sidebar,显示侧边栏
+Show timeline,显示时间线
+Show view switcher,显示视图切换器
+Sign Out,退出登录
+Simultaneous Sessions,允许同时登录的会话数
+Single,单身
+Social Logins,第三方账号登录
+Store the API secret securely. It won't be displayed again.,请妥善保管 API 私密密钥，之后将不会再次显示。
+Stores the JSON of last known versions of various installed apps. It is used to show release notes.,以 JSON 格式保存已安装应用的最近已知版本，用于显示更新说明。
+Stores the datetime when the last reset password key was generated.,记录最近一次生成密码重置密钥的日期和时间。
+Student,学生
+Suspended,停职
+System User,系统用户
+"System User (login) ID. If set, it will become default for all HR forms.",系统用户的（登录）ID，将作为人力资源表单的默认ID。
+These values will be automatically updated in transactions and also will be useful to restrict permissions for this user on transactions containing these values.,这些值将自动填入业务单据，也可用于限制该用户对包含这些值的单据的访问权限。
+Third Party Authentication,第三方身份验证
+This will restrict user access to other employee records,这将限制用户访问其他员工记录
+Time Zone,时区
+Total Experience,总经验
+Under Graduate,本科
+Unsubscribed,已取消订阅
+Used OAuth,使用 OAuth 登录
+User,用户
+User Agent,浏览器及设备信息
+User Defaults,用户默认设置
+User Details,用户详情
+User Email,用户邮箱
+User Emails,用户邮箱
+User ID,用户账号
+User Image,用户头像
+User List,用户列表
+User Permission,用户权限
+User Permissions,用户权限
+User Role Profile,用户角色配置
+User Session Display,用户会话
+User Social Login,用户第三方登录
+User Type,用户类型
+User Workspaces,用户工作区
+Username,用户名
+Valid Up To,有效期至
+Value,值
+View Doctype Permissions,查看单据类型权限
+View Permitted Documents,查看允许访问的单据
+Website User,网站用户
+Weekly,每周
+Widowed,丧偶
+Work Category,工作类别
+Workspace,工作区
+Workspaces,工作区
+Year of Passing,毕业年份
+Yes,是
+{0} Year Work Anniversary,入职{0}周年
+{0} Years Work Anniversary,入职{0}周年
+{0} role does not have permission on any doctype,角色{0}没有任何单据类型的权限
+Employee Information Overview,従業員情報一覧
+WeChat ID,WeChat ID
+"Optional. Enter your WeChat ID, not your display name.",任意。表示名ではなくWeChat IDを入力してください。
+Search Employees,従業員を検索
+"Name, employee ID, employee number, mobile or WeChat ID",氏名、従業員ID、社員番号、携帯電話番号、WeChat ID
+Missing Mobile,携帯電話番号が未入力
+Missing Current Address,現住所が未入力
+Not provided,未入力
+Copy Address,住所をコピー
+View and copy full address,住所全文を表示・コピー
+Copy to clipboard,クリップボードにコピー
+Only HR users and administrators can view employee information.,人事担当者と権限のある管理者のみ従業員情報を閲覧できます。
+Employed,在職
+Inactive Employee,無効
+Suspended Employee,休職
+Former Employee,退職
+Quick Edit,クイック編集
+Quick Edit Employee,従業員情報を編集
+Account Email,ログイン用メールアドレス
+Account email is shown when both contact email fields are empty.,会社・個人メールが未入力の場合、一覧にはこのメールアドレスが表示されます。
+Employee information updated.,従業員情報を更新しました。
+Save,保存
+Profile collection is not enabled for your account.,このアカウントでは情報入力をまだ利用できません。
+Invalid profile data.,送信された情報の形式が正しくありません。
+"Mobile, current address and contact email are required.",携帯電話番号・現住所・メールアドレスを入力してください。
+Your profile was updated elsewhere. Reload it before submitting again.,情報が更新されています。再読み込みしてから送信してください。
+Emergency Contact Relationship,親族
+"Emergency contact name, relationship and phone number are required.",緊急連絡先の氏名・親族・電話番号を入力してください。
