@@ -6,6 +6,7 @@
 		</template>
 		<template #body>
 			<div class="home-container">
+				<ProfileCollectionEntry />
 				<CheckInPanel class="w-full flex-1" :work-status="workStatus" />
 			</div>
 		</template>
@@ -20,6 +21,7 @@ import BaseLayout from "@/components/BaseLayout.vue"
 import CheckInPanel from "@/components/CheckInPanel.vue"
 import HomeStatusChip from "@/components/home/HomeStatusChip.vue"
 import ThemeToggle from "@/components/home/ThemeToggle.vue"
+import ProfileCollectionEntry from "@/components/profile/ProfileCollectionEntry.vue"
 import { useTheme } from "@/composables/useTheme"
 import { bindCheckinStatusRefresh } from "@/utils/homeExperience"
 

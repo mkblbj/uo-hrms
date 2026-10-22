@@ -59,6 +59,7 @@
 						</div>
 
 						<!-- Profile Links -->
+						<ProfileCollectionEntry />
 						<div class="flex flex-col gap-5 my-4 w-full">
 							<div class="flex flex-col bg-white rounded-4">
 								<div
@@ -160,6 +161,7 @@ import { formatCurrency } from "@/utils/formatters"
 import ProfileInfoModal from "@/components/ProfileInfoModal.vue"
 import PasskeyManager from "@/components/PasskeyManager.vue"
 import ProfilePhotoSheet from "@/components/profile/ProfilePhotoSheet.vue"
+import ProfileCollectionEntry from "@/components/profile/ProfileCollectionEntry.vue"
 import { refreshProfilePhoto } from "@/data/profilePhoto"
 import { resolveHomeLanguage } from "@/utils/homeExperience"
 import { pickPhotoCopy } from "@/utils/profilePhoto"
