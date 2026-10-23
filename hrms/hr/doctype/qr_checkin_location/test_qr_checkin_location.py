@@ -56,6 +56,18 @@ def _password_digest(name: str, fieldname: str) -> str | None:
 	return hashlib.sha256(value.encode()).hexdigest() if value else None
 
 
+def _stored_ble_key_ciphertext(name: str) -> str | None:
+	"""__Auth 表里 ble_key 的原始密文（解不开也能读），只在测试里和假密文比较。"""
+	auth = frappe.qb.DocType("__Auth")
+	rows = (
+		frappe.qb.from_(auth)
+		.select(auth.password)
+		.where((auth.doctype == "QR Checkin Location") & (auth.name == name) & (auth.fieldname == "ble_key"))
+		.run()
+	)
+	return rows[0][0] if rows else None
+
+
 def _delete_location(name: str):
 	if frappe.db.exists("QR Checkin Location", name):
 		frappe.delete_doc("QR Checkin Location", name, force=True, ignore_permissions=True)
@@ -97,6 +109,7 @@ class TestQRCheckinLocationBleKey(HRMSTestSuite):
 	def test_existing_ble_key_is_kept(self):
 		doc = self.make_location("test-ble-kept")
 		digest_before = _password_digest(doc.name, "ble_key")
+		self.assertTrue(digest_before is not None, "new location has no ble_key to compare with")
 		doc = frappe.get_doc("QR Checkin Location", doc.name)
 		doc.description = "changed"
 		doc.save()
@@ -129,3 +142,25 @@ class TestQRCheckinLocationBleKey(HRMSTestSuite):
 		generate_qr_ble_keys.execute()
 
 		self.assertTrue(_password_is_hex64(masked.name, "ble_key"), "patch did not fill the masked ble_key")
+
+	def test_patch_keeps_key_it_cannot_decrypt(self):
+		"""__Auth 里有解不开的密文（如站点换了加密密钥）：补丁不能当成没有而覆盖。"""
+		from hrms.patches.v16_0 import generate_qr_ble_keys
+
+		fake_ciphertext = "not-a-valid-fernet-token"
+		undecryptable = self.make_location("test-ble-undecryptable")
+		self.clear_ble_key(undecryptable.name, "*" * 10)
+		auth = frappe.qb.DocType("__Auth")
+		frappe.qb.into(auth).columns(
+			auth.doctype, auth.name, auth.fieldname, auth.password, auth.encrypted
+		).insert("QR Checkin Location", undecryptable.name, "ble_key", fake_ciphertext, 1).run()
+		self.assertTrue(
+			_password(undecryptable.name, "ble_key") is None, "the fake ciphertext should not decrypt"
+		)
+
+		generate_qr_ble_keys.execute()
+
+		self.assertTrue(
+			_stored_ble_key_ciphertext(undecryptable.name) == fake_ciphertext,
+			"patch overwrote a ble_key it could not decrypt",
+		)
