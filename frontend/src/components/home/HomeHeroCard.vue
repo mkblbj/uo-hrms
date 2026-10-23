@@ -3,7 +3,7 @@
 		<div class="hero-top">
 			<div class="hero-text">
 				<p class="hero-kicker">
-					{{ dateLabel }}<span v-if="weatherText"> · {{ weatherText }}</span>
+					{{ dateLabel }}
 				</p>
 				<h2 class="hero-title">{{ greeting }}{{ employeeName ? `，${employeeName}` : "" }}</h2>
 			</div>
@@ -105,7 +105,6 @@ const props = defineProps({
 	employeeName: { type: String, default: "" },
 	greeting: { type: String, required: true },
 	dateLabel: { type: String, required: true },
-	weatherText: { type: String, default: "" },
 	workStatus: { type: Object, default: null },
 	stats: { type: Object, default: null },
 	statsLoading: { type: Boolean, default: false },

@@ -36,7 +36,6 @@
 			:employee-name="employee?.data?.first_name || employee?.data?.employee_name || ''"
 			:greeting="getGreeting()"
 			:date-label="formatDate()"
-			:weather-text="weatherSummary"
 			:work-status="props.workStatus?.data"
 			:stats="dashboardStats.data"
 			:stats-loading="dashboardStats.loading"
@@ -261,12 +260,6 @@ const dashboardStats = createResource({
 	auto: true,
 })
 
-const weather = createResource({
-	url: "hrms.api.get_weather_data",
-	auto: true,
-	cache: ["weather_data", 10 * 60 * 1000],
-})
-
 const homeScheduleSummary = createResource({
 	url: "work_roster.api.schedule.get_home_schedule_summary",
 	auto: false,
@@ -286,12 +279,6 @@ const heroCardMeta = computed(() =>
 	})
 )
 const primaryScanMeta = computed(() => heroCardMeta.value.cta)
-const weatherSummary = computed(() => {
-	if (!weather.data) return ""
-	const icon = weather.data?.condition?.text ? "⛅" : ""
-	const temp = Math.round(weather.data.temp_c)
-	return `${icon} ${temp}°`.trim()
-})
 const todaySaleEvent = computed(() => homeScheduleSummary.data?.today_event || null)
 const homePreferenceNotices = computed(() => resolveHomePreferenceNotices(homeScheduleSummary.data))
 
