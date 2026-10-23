@@ -379,11 +379,10 @@ def get_employee_dashboard_stats() -> dict:
 	}
 
 
-@frappe.whitelist()
-def get_weather_data() -> dict:
+def get_weather_data() -> dict | None:
 	"""
-	获取当前天气数据（使用 WeatherAPI.com）
-	包含今天的最高/最低温度
+	获取当前天气数据（使用 WeatherAPI.com），包含今天的最高/最低温度。
+	只给签到牌用（hrms.utils.attendance_sign_weather）；网页版和 App 已不显示天气，不对外开放。
 	"""
 	from datetime import datetime
 
@@ -402,7 +401,7 @@ def get_weather_data() -> dict:
 	try:
 		# 使用 forecast API 获取今天的最高/最低温
 		today = datetime.now().strftime("%Y-%m-%d")
-		url = f"http://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={LAT},{LON}&dt={today}&lang={weather_lang}&aqi=no"
+		url = f"https://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={LAT},{LON}&dt={today}&lang={weather_lang}&aqi=no"
 		response = requests.get(url, timeout=5)
 		response.raise_for_status()
 		data = response.json()
@@ -429,51 +428,8 @@ def get_weather_data() -> dict:
 
 		return result
 	except Exception as e:
-		frappe.log_error(f"Weather API Error: {e!s}", "Weather Widget")
-		return None
-
-
-@frappe.whitelist()
-def get_weather_forecast() -> dict:
-	"""
-	获取明天的天气预报（使用 WeatherAPI.com）
-	"""
-	from datetime import datetime, timedelta
-
-	import requests
-
-	# WeatherAPI 配置
-	API_KEY = "a45ee3456cd14c498f681427250405"
-	LAT = 34.66497
-	LON = 135.15820
-
-	# 获取用户语言设置
-	user_lang = frappe.local.lang or "ja"
-	lang_map = {"zh": "zh", "ja": "ja", "en": "en"}
-	weather_lang = lang_map.get(user_lang, "ja")
-
-	try:
-		# 获取明天的日期
-		tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-
-		url = f"http://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={LAT},{LON}&dt={tomorrow}&lang={weather_lang}&aqi=no"
-		response = requests.get(url, timeout=5)
-		response.raise_for_status()
-		data = response.json()
-
-		if data.get("forecast") and data["forecast"].get("forecastday"):
-			day_data = data["forecast"]["forecastday"][0]["day"]
-			return {
-				"maxtemp_c": day_data["maxtemp_c"],
-				"mintemp_c": day_data["mintemp_c"],
-				"condition": {
-					"text": day_data["condition"]["text"],
-					"icon": f"https:{day_data['condition']['icon']}",
-				},
-			}
-		return None
-	except Exception as e:
-		frappe.log_error(f"Weather Forecast API Error: {e!s}", "Weather Widget")
+		# 异常文字里带着请求网址（含密钥），只记类型
+		frappe.log_error(title="Weather API Error", message=type(e).__name__)
 		return None
 
 

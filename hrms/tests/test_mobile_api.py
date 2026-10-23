@@ -146,22 +146,16 @@ SUMMARY_WITH_SHIFT = {
 	"today_event": {"title": "大促日", "event_type": "Sale", "color": "#F59E0B", "description": "x"},
 	"preference_notices": [],
 }
-WEATHER = {"temp_c": 23.0, "condition": {"text": "晴れ", "icon": "//cdn.weatherapi.com/x.png"}, "maxtemp_c": 25.0, "mintemp_c": 17.0}
 
 
 class TestHomeSnapshot(MobileApiTestCase):
-	def setUp(self):
-		super().setUp()
-		frappe.cache.delete_keys("mobile:weather:")
-
-	def _snapshot(self, summary=None, weather=WEATHER, **patches):
+	def _snapshot(self, summary=None, **patches):
 		summary = summary if summary is not None else SUMMARY_WITH_SHIFT
 		if summary.get("today_entry"):
 			summary = {**summary, "today_entry": {**summary["today_entry"], "date": frappe.utils.nowdate()}}
 		with (
 			patch.object(mobile, "_schedule_summary", return_value=summary),
 			patch.object(mobile, "_scheduled_days", return_value=21),
-			patch.object(mobile, "get_weather_data", **({"return_value": weather} if not isinstance(weather, Exception) else {"side_effect": weather})),
 		):
 			if "calendar" in patches:
 				with patch.object(mobile, "get_attendance_calendar_events", patches["calendar"]):
@@ -182,7 +176,7 @@ class TestHomeSnapshot(MobileApiTestCase):
 		self.assertEqual(snap["heatmap"]["weeks"], 20)
 		self.assertEqual(snap["today_shift"], {"date": frappe.utils.nowdate(), "start_time": "09:00", "end_time": "18:00", "hours": 8.0, "slot": "9-18"})
 		self.assertEqual(snap["sale_event"], {"title": "大促日", "event_type": "Sale", "color": "#F59E0B"})
-		self.assertEqual(snap["weather"], {"temp_c": 23.0, "condition": "晴れ", "icon_url": "https://cdn.weatherapi.com/x.png", "max_c": 25.0, "min_c": 17.0})
+		self.assertIsNone(snap["weather"])
 		self.assertEqual(snap["month"]["scheduled_days"], 21)
 		self.assertIsNotNone(snap["progress"])
 		self.assertEqual(set(snap["checkin"]) >= {"enabled", "has_passkey", "on_office_network", "location_required", "location"}, True)
@@ -195,9 +189,15 @@ class TestHomeSnapshot(MobileApiTestCase):
 		self.assertIsNone(snap["sale_event"])
 		self.assertEqual(snap["work_status"]["status"], "no_checkin_today")
 
-	def test_snapshot_survives_weather_failure(self):
+	def test_weather_is_gone(self):
+		# App 不再显示天气：快照留着 weather 键（已装的旧版 App 照常解码）但永远为 null；
+		# 取天气只剩签到牌在服务器内部用，不再对外开放
+		import hrms.api
+
 		frappe.set_user(USER)
-		self.assertIsNone(self._snapshot(weather=RuntimeError("weather down"))["weather"])
+		self.assertIsNone(self._snapshot()["weather"])
+		self.assertFalse(hasattr(hrms.api, "get_weather_forecast"))
+		self.assertNotIn(hrms.api.get_weather_data, frappe.whitelisted)
 
 	def test_snapshot_requires_employee(self):
 		frappe.set_user(NO_EMPLOYEE_USER)
@@ -221,20 +221,3 @@ class TestHomeSnapshot(MobileApiTestCase):
 		with patch.object(mobile, "get_employee_dashboard_stats", return_value=stats):
 			month = self._snapshot()["month"]
 		self.assertEqual((month["hours"], month["present_days"], month["average_hours"]), (20.0, 2.5, 8.0))
-
-	def test_snapshot_caches_weather_failure(self):
-		# 天气服务挂掉时 get_weather_data 返回 None；短时间内不能每次打开主页都再等一遍
-		frappe.set_user(USER)
-		from unittest.mock import MagicMock
-
-		weather = MagicMock(return_value=None)
-		with (
-			patch.object(mobile, "_schedule_summary", return_value={}),
-			patch.object(mobile, "_scheduled_days", return_value=0),
-			patch.object(mobile, "get_weather_data", weather),
-		):
-			first = mobile.get_home_snapshot()
-			second = mobile.get_home_snapshot()
-		self.assertIsNone(first["weather"])
-		self.assertIsNone(second["weather"])
-		self.assertEqual(weather.call_count, 1)

@@ -30,7 +30,6 @@ from hrms.api import (
 	get_employee_dashboard_stats,
 	get_employee_work_status,
 	get_unread_notifications_count,
-	get_weather_data,
 )
 from hrms.api.checkin_location import get_location_requirement
 from hrms.api.passkey import _passkey_checkin_enabled_for, _passkey_checkin_location, get_checkin_context
@@ -137,11 +136,6 @@ def get_boot() -> dict:
 	}
 
 
-WEATHER_CACHE_SECONDS = 600
-WEATHER_FAILURE_CACHE_SECONDS = 300
-_WEATHER_FAILED = {"_failed": True}
-
-
 def _schedule_summary() -> dict:
 	"""work_roster 的今日 / 下次班次、大促和排班希望；没装 work_roster 时为空。"""
 	if "work_roster" not in frappe.get_installed_apps():
@@ -172,33 +166,6 @@ def _shift(entry: dict | None) -> dict | None:
 		"end_time": end,
 		"hours": flt(entry.get("hours")),
 		"slot": entry.get("wr_shift_slot") or entry.get("shift_label"),
-	}
-
-
-def _weather() -> dict | None:
-	key = f"mobile:weather:{frappe.local.lang}"
-	data = frappe.cache.get_value(key)
-	if data is None:
-		try:
-			data = get_weather_data()
-		except Exception:
-			data = None
-		# 失败也记 5 分钟：天气服务挂掉时不让每次打开主页都等满超时
-		frappe.cache.set_value(
-			key,
-			data or _WEATHER_FAILED,
-			expires_in_sec=WEATHER_CACHE_SECONDS if data else WEATHER_FAILURE_CACHE_SECONDS,
-		)
-	if not data or data == _WEATHER_FAILED:
-		return None
-	condition = data.get("condition") or {}
-	icon = condition.get("icon") or ""
-	return {
-		"temp_c": flt(data.get("temp_c")),
-		"condition": condition.get("text"),
-		"icon_url": f"https:{icon}" if icon.startswith("//") else icon or None,
-		"max_c": data.get("maxtemp_c"),
-		"min_c": data.get("mintemp_c"),
 	}
 
 
@@ -266,7 +233,8 @@ def get_home_snapshot() -> dict:
 			"average_hours": round(month_hours / present_days, 2) if present_days else 0,
 		},
 		"preference_notices": mobile_home.preference_notices(summary, today),
-		"weather": _weather(),
+		# 天气已取消；键留给已装的旧版 App 照常解码
+		"weather": None,
 		"checkin": {**context, "location_required": bool(requirement.get("location_required"))},
 		"reminders": {
 			"profile_photo": _profile_photo_reminder(),

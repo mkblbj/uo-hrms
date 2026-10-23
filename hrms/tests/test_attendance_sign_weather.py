@@ -188,3 +188,20 @@ class TestAttendanceSignWeather(unittest.TestCase):
 			self.assertEqual(frappe.local.lang, "zh")
 		finally:
 			frappe.local.lang = previous
+
+	def test_provider_request_is_https_and_failure_log_hides_url(self):
+		# 天气源只给签到牌用：走 https；失败时日志只记异常类型，不带网址和密钥
+		import requests
+
+		import hrms.api
+
+		failure = requests.ConnectionError("HTTPConnectionPool: /v1/forecast.json?key=SECRET-IN-URL")
+		with (
+			patch("requests.get", side_effect=failure) as get,
+			patch.object(frappe, "log_error") as log_error,
+		):
+			self.assertIsNone(hrms.api.get_weather_data())
+		self.assertTrue(get.call_args.args[0].startswith("https://api.weatherapi.com/"))
+		logged = repr(log_error.call_args)
+		self.assertNotIn("SECRET-IN-URL", logged)
+		self.assertNotIn("key=", logged)
