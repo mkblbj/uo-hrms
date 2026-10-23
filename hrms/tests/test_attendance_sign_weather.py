@@ -1,4 +1,5 @@
 import copy
+import sys
 import unittest
 import uuid
 from unittest.mock import patch
@@ -194,8 +195,6 @@ class TestAttendanceSignWeather(unittest.TestCase):
 		import requests
 
 		import hrms.api
-
-		import sys
 
 		failure = requests.ConnectionError("HTTPConnectionPool: /v1/forecast.json?key=SECRET-IN-URL")
 		raised_at_log_time = []

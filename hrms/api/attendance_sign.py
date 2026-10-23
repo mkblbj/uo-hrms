@@ -40,7 +40,7 @@ def get_qr(location: str) -> dict:
 
 @frappe.whitelist(allow_guest=True, methods=["GET"])
 def get_weather(location: str) -> dict:
-	"""Read the PWA weather source without exposing provider credentials to the sign."""
+	"""Read the server's weather source without exposing provider credentials to the sign."""
 	_require_sign_key(location)
 	from hrms.utils.attendance_sign_weather import get_snapshot
 

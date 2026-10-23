@@ -1,4 +1,4 @@
-"""Compact board weather from the existing PWA source, with site-scoped Redis caching."""
+"""Compact board weather from the server's own weather source (only the sign shows weather now), with site-scoped Redis caching."""
 
 import math
 import re
