@@ -118,3 +118,14 @@ class TestQRCheckinLocationBleKey(HRMSTestSuite):
 		self.assertTrue(
 			digest_kept == _password_digest(kept.name, "ble_key"), "patch changed an existing ble_key"
 		)
+
+	def test_patch_fills_key_when_only_masked_column_is_left(self):
+		"""列里还是星号、__Auth 里的真值没了：补丁也要补出新密钥。"""
+		from hrms.patches.v16_0 import generate_qr_ble_keys
+
+		masked = self.make_location("test-ble-masked")
+		self.clear_ble_key(masked.name, "*" * 10)
+
+		generate_qr_ble_keys.execute()
+
+		self.assertTrue(_password_is_hex64(masked.name, "ble_key"), "patch did not fill the masked ble_key")
