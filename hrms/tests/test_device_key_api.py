@@ -8,7 +8,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 
 import frappe
-from frappe.utils.password import update_password
+from frappe.utils.password import set_encrypted_password, update_password
 
 from erpnext.setup.doctype.employee.test_employee import make_employee
 
@@ -17,13 +17,21 @@ from hrms.api.checkin_service import AUDIT_TITLES, create_checkin
 from hrms.api.passkey_webauthn import store_challenge
 from hrms.tests.test_passkey_api import ensure_location
 from hrms.tests.utils import HRMSTestSuite
-from hrms.utils import mobile_attendance
+from hrms.utils import attendance_beacon, mobile_attendance
+from hrms.utils.attendance_beacon import beacon_code, ble_checkin_enabled_for
 
 API_USER = "device-key-api@example.com"
 OTHER_USER = "device-key-api-other@example.com"
 PASSWORD = "Device-Key-Test-Pass-1"
 OFFICE_IP = "203.0.113.5"
 MOBILE_IP = "198.51.100.1"
+# 公开的测试向量密钥，不是任何真实密钥；固定的时刻落在时间段 179220602
+BEACON_TEST_KEY = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+BEACON_NOW = 1792206020
+BEACON_SLOT = 179220602
+BEACON_LOG_TITLE = "Checkin Beacon Rejected"
+# 打卡点在 (35.6812, 139.7671)，半径 200 米
+NEAR = (35.6813, 139.7672)
 
 
 def b64url(data: bytes) -> str:
@@ -65,7 +73,63 @@ class DeviceKeyTestCase(HRMSTestSuite):
 		settings.passkey_checkin_enabled_for_all = 0
 		settings.set("passkey_checkin_pilot_employees", [{"employee": self.employee}])
 		settings.qr_checkin_allowed_ips = "203.0.113.0/24"
+		settings.ble_checkin_enabled = 1
 		settings.save()
+		self.setup_beacon()
+
+	def setup_beacon(self):
+		"""签到牌蓝牙码：测试打卡点用测试向量密钥，时间固定在向量那一刻（用例结束时一并回滚）。"""
+		set_encrypted_password("QR Checkin Location", self.location, BEACON_TEST_KEY, "ble_key")
+		clock = patch.object(attendance_beacon, "_now", return_value=BEACON_NOW)
+		clock.start()
+		self.addCleanup(clock.stop)
+		# 失败计数在 Redis 里不会回滚，前后都清掉，免得用例之间串数
+		self.clear_rejection_counter()
+		self.addCleanup(self.clear_rejection_counter)
+		frappe.db.delete("Error Log", {"method": BEACON_LOG_TITLE})
+
+	def clear_rejection_counter(self):
+		frappe.cache.delete_value(f"hrms:checkin-beacon-rejections:{API_USER}")
+
+	@property
+	def beacon(self):
+		"""此刻有效的蓝牙码（按当前打卡点算出，和向量用同一把密钥）。"""
+		return {
+			"beacon_slot": BEACON_SLOT,
+			"beacon_code": beacon_code(BEACON_TEST_KEY, self.location, BEACON_SLOT),
+		}
+
+	@property
+	def wrong_beacon(self):
+		code = self.beacon["beacon_code"]
+		return {"beacon_slot": BEACON_SLOT, "beacon_code": code[:-1] + ("0" if code[-1] != "0" else "1")}
+
+	def rejections(self):
+		"""被拒记录；查完回到原来的登录用户，不打断用例里接着的打卡调用。"""
+		user = frappe.session.user
+		frappe.set_user("Administrator")
+		try:
+			return frappe.get_all(
+				"Error Log",
+				filters={"method": BEACON_LOG_TITLE},
+				fields=["method", "error"],
+				order_by="creation",
+			)
+		finally:
+			frappe.set_user(user)
+
+	def begin_recording(self, key_id, **position):
+		"""开始打卡，并返回存进验证码记录的内容（记录在 complete 时才被消耗）。"""
+		with patch.object(device_key, "store_challenge", wraps=device_key.store_challenge) as stored:
+			begin = self.begin(key_id, **position)
+		return begin, stored.call_args.args[2] if stored.called else None
+
+	def audit_message(self):
+		return frappe.db.get_value(
+			"Error Log",
+			{"method": "Device Key Checkin Audit - IN", "error": ("like", f"%{self.employee}%")},
+			"error",
+		)
 
 	def tearDown(self):
 		frappe.set_user("Administrator")
@@ -150,14 +214,31 @@ class TestDeviceKeyContext(DeviceKeyTestCase):
 					or self.location,
 				},
 				"key_count": 1,
+				"ble_checkin": True,
 			},
 		)
 		frappe.set_user(OTHER_USER)
 		with patch.object(device_key, "get_client_ip", return_value=OFFICE_IP):
 			context = device_key.get_checkin_context()
 		self.assertEqual(
-			context, {"enabled": False, "on_office_network": False, "location": None, "key_count": 0}
+			context,
+			{
+				"enabled": False,
+				"on_office_network": False,
+				"location": None,
+				"key_count": 0,
+				"ble_checkin": False,
+			},
 		)
+
+	def test_context_reports_ble(self):
+		frappe.set_user(API_USER)
+		with patch.object(device_key, "get_client_ip", return_value=MOBILE_IP):
+			self.assertIs(device_key.get_checkin_context()["ble_checkin"], True)
+			frappe.set_user("Administrator")
+			frappe.db.set_single_value("HR Settings", "ble_checkin_enabled", 0)
+			frappe.set_user(API_USER)
+			self.assertIs(device_key.get_checkin_context()["ble_checkin"], False)
 
 	def test_key_count_ignores_passkeys(self):
 		frappe.get_doc(
@@ -627,6 +708,211 @@ class TestDeviceKeyCheckin(DeviceKeyTestCase):
 		self.assertEqual(self.checkins(), 0)
 
 
+class TestDeviceKeyBeacon(DeviceKeyTestCase):
+	"""手机靠近签到牌收到的蓝牙码：码对就当作在场；码不对当作没带，继续按定位判断。"""
+
+	def test_beacon_checkin_from_mobile_data(self):
+		key = self.register()
+		frappe.set_user(API_USER)
+		begin, record = self.begin_recording(key.key_id, ip=MOBILE_IP, beacon_rssi=-58, **self.beacon)
+		self.assertEqual(set(begin), {"status", "challenge", "evidence"})
+		self.assertEqual((begin["status"], begin["evidence"]), ("ok", "beacon"))
+		self.assertEqual(
+			(record["beacon_rssi"], record["latitude"], record["evidence"]), (-58, None, "beacon")
+		)
+		result = self.complete(key, begin["challenge"])
+		self.assertEqual((result["status"], result["evidence"]), ("ok", "beacon"))
+		self.assertEqual(
+			set(result),
+			{"status", "log_type", "time", "employee", "employee_name", "location", "evidence"},
+		)
+		frappe.set_user("Administrator")
+		row = frappe.db.get_value(
+			"Employee Checkin",
+			{"employee": self.employee},
+			["presence_evidence", "latitude", "longitude", "checkin_method", "device_id"],
+			as_dict=True,
+		)
+		self.assertEqual(row.presence_evidence, "beacon")
+		self.assertFalse(row.latitude or row.longitude)
+		self.assertEqual((row.checkin_method, row.device_id), ("Device Key", self.location))
+		self.assertIn("Evidence: beacon RSSI: -58 dBm", self.audit_message())
+		self.assertEqual(self.rejections(), [])
+
+	def test_beacon_checkin_without_signal_strength(self):
+		key = self.register()
+		frappe.set_user(API_USER)
+		begin = self.begin(key.key_id, ip=MOBILE_IP, **self.beacon)
+		self.assertEqual((begin["status"], begin["evidence"]), ("ok", "beacon"))
+		self.complete(key, begin["challenge"])
+		self.assertNotIn("RSSI", self.audit_message())
+
+	def test_wrong_beacon_falls_back_to_location(self):
+		key = self.register()
+		frappe.set_user(API_USER)
+		wrong = self.wrong_beacon
+		self.assertEqual(
+			self.begin(key.key_id, ip=MOBILE_IP, beacon_rssi=-70, **wrong),
+			{"status": "need_location", "reason": None},
+		)
+		[log] = self.rejections()
+		# 日志只记时间段偏移、信号强度和机型，不记码
+		self.assertEqual(log.error, "Slot offset: 0\nRSSI: -70\nDevice: Other")
+		self.assertNotIn(wrong["beacon_code"], log.error)
+		begin, record = self.begin_recording(
+			key.key_id,
+			ip=MOBILE_IP,
+			latitude=NEAR[0],
+			longitude=NEAR[1],
+			accuracy=30,
+			beacon_rssi=-70,
+			**wrong,
+		)
+		self.assertEqual((begin["status"], begin["evidence"]), ("ok", "gps"))
+		# 证明在场的不是蓝牙，信号强度就不往验证码记录里存
+		self.assertIsNone(record["beacon_rssi"])
+		result = self.complete(key, begin["challenge"])
+		self.assertEqual(result["evidence"], "gps")
+		# 退回定位后，审计里不留蓝牙的信号强度
+		self.assertNotIn("RSSI", self.audit_message())
+		# 每次带着错码来开始打卡，都记一条
+		self.assertEqual(len(self.rejections()), 2)
+
+	def test_rejection_log_tells_how_far_off_the_slot_was(self):
+		key = self.register()
+		frappe.set_user(API_USER)
+		stale = BEACON_SLOT - 5
+		stale_code = beacon_code(BEACON_TEST_KEY, self.location, stale)
+		self.assertEqual(
+			self.begin(key.key_id, ip=MOBILE_IP, beacon_slot=stale, beacon_code=stale_code)["status"],
+			"need_location",
+		)
+		self.assertEqual(
+			self.begin(key.key_id, ip=MOBILE_IP, beacon_slot=-1, beacon_code=stale_code)["status"],
+			"need_location",
+		)
+		first, second = self.rejections()
+		self.assertEqual(first.error, "Slot offset: -5\nRSSI: -\nDevice: Other")
+		self.assertEqual(second.error, "Slot offset: invalid\nRSSI: -\nDevice: Other")
+		self.assertNotIn(stale_code, first.error + second.error)
+
+	def test_beacon_window_edges(self):
+		key = self.register()
+		for offset, expected in ((-3, "ok"), (1, "ok"), (-4, "need_location"), (2, "need_location")):
+			with self.subTest(offset=offset):
+				slot = BEACON_SLOT + offset
+				code = beacon_code(BEACON_TEST_KEY, self.location, slot)
+				frappe.set_user(API_USER)
+				self.assertEqual(
+					self.begin(key.key_id, ip=MOBILE_IP, beacon_slot=slot, beacon_code=code)["status"],
+					expected,
+				)
+
+	def test_beacon_ignored_when_switch_off(self):
+		key = self.register()
+		frappe.db.set_single_value("HR Settings", "ble_checkin_enabled", 0)
+		frappe.set_user(API_USER)
+		self.assertEqual(
+			self.begin(key.key_id, ip=MOBILE_IP, **self.beacon), {"status": "need_location", "reason": None}
+		)
+		self.assertEqual(
+			self.begin(key.key_id, ip=MOBILE_IP, **self.wrong_beacon),
+			{"status": "need_location", "reason": None},
+		)
+		self.assertEqual(self.rejections(), [])
+
+	def test_beacon_ignored_for_non_pilot(self):
+		# 蓝牙打卡只对开了手机钥匙打卡的人生效：不在试点名单里的人，开始打卡就先被挡住，码根本不会被核对
+		self.assertTrue(ble_checkin_enabled_for(self.employee))
+		self.assertFalse(ble_checkin_enabled_for(self.other_employee))
+		key = self.register(user=OTHER_USER)
+		frappe.set_user(OTHER_USER)
+		self.assertEqual(self.begin(key.key_id, ip=MOBILE_IP, **self.beacon), {"status": "disabled"})
+		self.assertEqual(self.begin(key.key_id, ip=MOBILE_IP, **self.wrong_beacon), {"status": "disabled"})
+		self.assertEqual(self.rejections(), [])
+
+	def test_beacon_ignored_when_location_has_no_key(self):
+		key = self.register()
+		frappe.set_user(API_USER)
+		with patch.object(attendance_beacon, "_location_ble_key", return_value=None):
+			self.assertFalse(ble_checkin_enabled_for(self.employee))
+			self.assertEqual(
+				self.begin(key.key_id, ip=MOBILE_IP, **self.wrong_beacon),
+				{"status": "need_location", "reason": None},
+			)
+		self.assertEqual(self.rejections(), [])
+
+	def test_half_beacon_params_are_ignored(self):
+		key = self.register()
+		frappe.set_user(API_USER)
+		for params in (
+			{"beacon_code": self.beacon["beacon_code"]},
+			{"beacon_slot": BEACON_SLOT},
+			{"beacon_rssi": -60},
+		):
+			with self.subTest(params=params):
+				self.assertEqual(
+					self.begin(key.key_id, ip=MOBILE_IP, **params),
+					{"status": "need_location", "reason": None},
+				)
+		self.assertEqual(self.rejections(), [])
+
+	def test_begin_without_beacon_is_unchanged(self):
+		key = self.register()
+		frappe.set_user(API_USER)
+		self.assertEqual(self.begin(key.key_id, ip=MOBILE_IP), {"status": "need_location", "reason": None})
+		gps = self.begin(key.key_id, ip=MOBILE_IP, latitude=NEAR[0], longitude=NEAR[1], accuracy=30)
+		self.assertEqual(set(gps), {"status", "challenge", "evidence"})
+		self.assertEqual((gps["status"], gps["evidence"]), ("ok", "gps"))
+		self.complete(key, gps["challenge"])
+		frappe.db.delete("Employee Checkin", {"employee": self.employee})
+		office = self.begin(key.key_id)
+		self.assertEqual(set(office), {"status", "challenge", "evidence"})
+		self.assertEqual((office["status"], office["evidence"]), ("ok", "office_network"))
+		self.assertEqual(self.rejections(), [])
+
+	def test_office_network_ignores_beacon(self):
+		key = self.register()
+		frappe.set_user(API_USER)
+		for beacon in (self.beacon, self.wrong_beacon):
+			begin = self.begin(key.key_id, beacon_rssi=-50, **beacon)
+			self.assertEqual((begin["status"], begin["evidence"]), ("ok", "office_network"))
+			self.assertEqual(self.rejections(), [])
+		result = self.complete(key, begin["challenge"])
+		self.assertEqual(result["evidence"], "office_network")
+		frappe.set_user("Administrator")
+		self.assertEqual(
+			frappe.db.get_value("Employee Checkin", {"employee": self.employee}, "presence_evidence"),
+			"office_network",
+		)
+		self.assertNotIn("RSSI", self.audit_message())
+
+	def test_beacon_comes_before_location(self):
+		# 码对时不看定位：人在远处的定位也不会把它挡回去
+		key = self.register()
+		frappe.set_user(API_USER)
+		begin = self.begin(
+			key.key_id, ip=MOBILE_IP, latitude=35.75, longitude=139.9, accuracy=10, **self.beacon
+		)
+		self.assertEqual((begin["status"], begin["evidence"]), ("ok", "beacon"))
+
+	def test_beacon_still_needs_the_device_key_and_cooldown(self):
+		key = self.register()
+		frappe.set_user(API_USER)
+		self.assertEqual(self.begin("missing", ip=MOBILE_IP, **self.beacon), {"status": "no_device_key"})
+		begin = self.begin(key.key_id, ip=MOBILE_IP, **self.beacon)
+		self.complete(key, begin["challenge"])
+		with self.assertRaises(frappe.ValidationError):
+			self.begin(key.key_id, ip=MOBILE_IP, **self.beacon)
+
+	def test_beacon_rejections_are_capped(self):
+		key = self.register()
+		frappe.set_user(API_USER)
+		for _ in range(25):
+			self.begin(key.key_id, ip=MOBILE_IP, **self.wrong_beacon)
+		self.assertEqual(len(self.rejections()), 20)
+
+
 class TestDeviceKeyWithGeolocationTracking(DeviceKeyTestCase):
 	"""正式环境开着「地理位置追踪」：公司网络证明在场时，没有经纬度也能打卡。"""
 
@@ -643,6 +929,25 @@ class TestDeviceKeyWithGeolocationTracking(DeviceKeyTestCase):
 		frappe.set_user(API_USER)
 		result = self.complete(key, self.begin(key.key_id)["challenge"])
 		self.assertEqual((result["status"], result["evidence"]), ("ok", "office_network"))
+
+	def test_beacon_checkin_with_geolocation_tracking_on(self):
+		key = self.register()
+		frappe.set_user(API_USER)
+		# 开着地理位置追踪、不在公司网络、没有经纬度：蓝牙码对就能打卡
+		self.assertEqual(self.begin(key.key_id, ip=MOBILE_IP), {"status": "need_location", "reason": None})
+		begin = self.begin(key.key_id, ip=MOBILE_IP, beacon_rssi=-58, **self.beacon)
+		self.assertEqual((begin["status"], begin["evidence"]), ("ok", "beacon"))
+		result = self.complete(key, begin["challenge"])
+		self.assertEqual((result["status"], result["evidence"]), ("ok", "beacon"))
+		frappe.set_user("Administrator")
+		row = frappe.db.get_value(
+			"Employee Checkin",
+			{"employee": self.employee},
+			["presence_evidence", "latitude", "checkin_method"],
+			as_dict=True,
+		)
+		self.assertEqual((row.presence_evidence, row.checkin_method), ("beacon", "Device Key"))
+		self.assertFalse(row.latitude)
 
 
 class TestDeviceKeyCheckinMethod(HRMSTestSuite):

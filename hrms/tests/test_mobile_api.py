@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import frappe
 from frappe.utils import get_system_timezone
+from frappe.utils.password import set_encrypted_password
 
 from erpnext.setup.doctype.employee.test_employee import make_employee
 
@@ -9,6 +10,8 @@ from hrms.api import mobile
 from hrms.tests.test_passkey_api import ensure_location
 from hrms.tests.utils import HRMSTestSuite
 
+# 公开的测试向量密钥，不是任何真实密钥
+BEACON_TEST_KEY = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
 USER = "mobile-api@example.com"
 OTHER_USER = "mobile-api-other@example.com"
 NO_EMPLOYEE_USER = "mobile-api-no-employee@example.com"
@@ -57,7 +60,14 @@ class TestBoot(MobileApiTestCase):
 			{"name", "employee_name", "first_name", "department", "designation", "company", "reports_to_name"},
 		)
 		self.assertEqual(
-			set(boot["features"]), {"mobile_checkin", "passkey_checkin", "geolocation_required", "profile_collection"}
+			set(boot["features"]),
+			{
+				"mobile_checkin",
+				"passkey_checkin",
+				"geolocation_required",
+				"profile_collection",
+				"ble_checkin",
+			},
 		)
 		self.assertTrue(boot["features"]["geolocation_required"])
 		self.assertIsInstance(boot["unread_notifications"], int)
@@ -83,6 +93,19 @@ class TestBoot(MobileApiTestCase):
 		boot = mobile.get_boot()
 		self.assertFalse(boot["features"]["passkey_checkin"])
 		self.assertIsNone(boot["checkin_location"])
+
+	def test_boot_ble_feature_follows_switch_and_pilot(self):
+		set_encrypted_password("QR Checkin Location", self.location, BEACON_TEST_KEY, "ble_key")
+		for switch, user, expected in (
+			(1, USER, True),
+			(0, USER, False),
+			(1, OTHER_USER, False),
+			(1, NO_EMPLOYEE_USER, False),
+		):
+			frappe.set_user("Administrator")
+			frappe.db.set_single_value("HR Settings", "ble_checkin_enabled", switch)
+			frappe.set_user(user)
+			self.assertIs(mobile.get_boot()["features"]["ble_checkin"], expected, (switch, user))
 
 	def test_boot_mobile_checkin_follows_hr_settings_like_pwa(self):
 		# PWA 用 Boolean(value)：没保存过（None）也算不允许

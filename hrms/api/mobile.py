@@ -36,6 +36,7 @@ from hrms.api.checkin_location import get_location_requirement
 from hrms.api.passkey import _passkey_checkin_enabled_for, _passkey_checkin_location, get_checkin_context
 from hrms.api.profile_photo import get_profile_photo_status
 from hrms.utils import mobile_attendance, mobile_home, mobile_notifications, mobile_roster
+from hrms.utils.attendance_beacon import ble_checkin_enabled_for
 
 API_VERSION = 1
 _TIME_FMT = "%Y-%m-%d %H:%M:%S"
@@ -86,6 +87,7 @@ def get_boot() -> dict:
 	features = {
 		"mobile_checkin": False,
 		"passkey_checkin": False,
+		"ble_checkin": False,
 		"geolocation_required": False,
 		"profile_collection": False,
 	}
@@ -93,6 +95,7 @@ def get_boot() -> dict:
 		features = {
 			"mobile_checkin": _mobile_checkin_allowed(),
 			"passkey_checkin": passkey_enabled,
+			"ble_checkin": passkey_enabled and ble_checkin_enabled_for(employee.name),
 			"geolocation_required": bool(
 				cint(frappe.db.get_single_value("HR Settings", "allow_geolocation_tracking"))
 			),

@@ -24,7 +24,8 @@ from frappe import _
 from frappe.utils import escape_html, get_datetime, now, now_datetime
 from frappe.utils.password import check_password
 
-from hrms.api.checkin_presence import evaluate_presence, normalize_coordinates
+from hrms.api.checkin_location import _count_report, _device_summary
+from hrms.api.checkin_presence import EVIDENCE_BEACON, evaluate_presence, normalize_coordinates
 from hrms.api.checkin_service import CHECKIN_METHOD_DEVICE_KEY, create_checkin, validate_checkin_timing
 from hrms.api.passkey import (
 	VALID_LOG_TYPES,
@@ -34,6 +35,7 @@ from hrms.api.passkey import (
 	_require_employee_user,
 )
 from hrms.api.passkey_webauthn import b64url_decode, b64url_encode, pop_challenge, store_challenge
+from hrms.utils.attendance_beacon import beacon_slot_offset, ble_checkin_enabled_for, verify_beacon
 from hrms.utils.client_network import get_client_ip, is_office_network
 
 DOCTYPE = "Device Checkin Key"
@@ -50,6 +52,9 @@ PASSWORD_FAILURE_WINDOW_SECONDS = 600
 PASSWORD_LOCK_SECONDS = 600
 
 INPUT_ERRORS = (ValueError, TypeError)
+
+BEACON_REJECTION_TITLE = "Checkin Beacon Rejected"
+BEACON_REJECTION_KIND = "checkin-beacon-rejections"
 
 
 class DeviceKeyError(frappe.ValidationError):
@@ -204,6 +209,7 @@ def get_checkin_context() -> dict:
 		if enabled
 		else None,
 		"key_count": _key_count(user),
+		"ble_checkin": enabled and ble_checkin_enabled_for(employee.name),
 	}
 
 
@@ -306,6 +312,9 @@ def begin_checkin(
 	latitude: float | None = None,
 	longitude: float | None = None,
 	accuracy: float | None = None,
+	beacon_slot: int | None = None,
+	beacon_code: str | None = None,
+	beacon_rssi: int | None = None,
 ) -> dict:
 	user, employee = _require_employee_user()
 	if log_type not in VALID_LOG_TYPES:
@@ -315,7 +324,17 @@ def begin_checkin(
 		return {"status": "disabled"}
 
 	client_ip = get_client_ip()
-	presence = evaluate_presence(location, client_ip, latitude, longitude, accuracy)
+	beacon_verified = False
+	# 时间段和码两样都带了才算带了蓝牙；连着公司网络已经证明在场，蓝牙码不看也不记
+	if beacon_slot is not None and beacon_code is not None and not is_office_network(client_ip):
+		# 核对用的是服务器算出的打卡点，不用手机报的；开关没开或这个打卡点没有密钥时当作没带
+		if ble_checkin_enabled_for(employee.name):
+			beacon_verified = verify_beacon(location, beacon_slot, beacon_code)
+			if not beacon_verified:
+				_report_beacon_rejection(user, beacon_slot_offset(beacon_slot), beacon_rssi)
+	presence = evaluate_presence(
+		location, client_ip, latitude, longitude, accuracy, beacon_verified=beacon_verified
+	)
 	if not presence.ok:
 		return {"status": presence.status, "reason": presence.reason}
 
@@ -337,10 +356,26 @@ def begin_checkin(
 			"longitude": coordinates[1],
 			"client_ip": client_ip,
 			"key_id": key_id,
+			# 信号强度只在蓝牙证明在场时留给审计日志
+			"beacon_rssi": beacon_rssi if presence.evidence == EVIDENCE_BEACON else None,
 		},
 		CHECKIN_TIMEOUT_SECONDS,
 	)
 	return {"status": "ok", "challenge": challenge, "evidence": presence.evidence}
+
+
+def _report_beacon_rejection(user: str, offset: int | None, rssi: int | None) -> None:
+	"""蓝牙码没通过时记一条（每人每小时最多 20 条），方便查是时钟偏差还是别的原因；不记码，也不记密钥。"""
+	if not _count_report(user, kind=BEACON_REJECTION_KIND):
+		return
+	frappe.log_error(
+		title=BEACON_REJECTION_TITLE,
+		message=(
+			f"Slot offset: {'invalid' if offset is None else offset}\n"
+			f"RSSI: {'-' if rssi is None else rssi}\n"
+			f"Device: {_device_summary()}"
+		),
+	)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -369,6 +404,7 @@ def complete_checkin(challenge: str, key_id: str, signature: str) -> dict:
 		longitude=record.get("longitude"),
 		evidence=record.get("evidence"),
 		client_ip=record.get("client_ip"),
+		beacon_rssi=record.get("beacon_rssi"),
 	)
 	frappe.db.set_value(DOCTYPE, key_doc.name, "last_used", now(), update_modified=False)
 	return {

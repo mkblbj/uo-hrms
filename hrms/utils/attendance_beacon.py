@@ -5,7 +5,11 @@ import hmac
 import re
 import time
 
+import frappe
+from frappe.utils import cint
 from frappe.utils.password import get_decrypted_password
+
+from hrms.api.passkey import _passkey_checkin_enabled_for, _passkey_checkin_location
 
 SLOT_SECONDS = 10
 PAST_SLOTS = 3
@@ -60,3 +64,15 @@ def verify_beacon(location: str, slot, code, now: float | None = None) -> bool:
 
 	expected = beacon_code(key, location, slot)
 	return hmac.compare_digest(expected.encode(), code.lower().encode())
+
+
+def ble_checkin_enabled_for(employee: str) -> bool:
+	"""蓝牙打卡对这个人是否生效：总开关开着、手机钥匙打卡对他开着、打卡点有合法的蓝牙密钥。"""
+	if not cint(frappe.db.get_single_value("HR Settings", "ble_checkin_enabled")):
+		return False
+	location = _passkey_checkin_location()
+	if not location or not _passkey_checkin_enabled_for(employee):
+		return False
+	# 只用来判断「有没有合法密钥」，不往外传
+	key = _location_ble_key(location)
+	return isinstance(key, str) and bool(_KEY_PATTERN.fullmatch(key))
