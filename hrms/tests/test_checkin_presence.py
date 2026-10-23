@@ -51,3 +51,15 @@ class TestCheckinPresence(unittest.TestCase):
 	def test_location_without_geofence_is_unconfirmed(self):
 		result = self._evaluate(geofence=None, latitude=35.6813, longitude=139.7672)
 		self.assertEqual(result.reason, "no_geofence")
+
+	def test_beacon_beats_location(self):
+		result = self._evaluate(beacon_verified=True)
+		self.assertTrue(result.ok)
+		self.assertEqual(result.evidence, "beacon")
+
+	def test_office_network_beats_beacon(self):
+		result = self._evaluate(office=True, beacon_verified=True)
+		self.assertEqual(result.evidence, "office_network")
+
+	def test_unverified_beacon_needs_location(self):
+		self.assertEqual(self._evaluate(beacon_verified=False).status, "need_location")

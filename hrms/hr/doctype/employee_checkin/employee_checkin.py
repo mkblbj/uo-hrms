@@ -211,8 +211,8 @@ class EmployeeCheckin(Document):
 		):
 			return
 
-		# 打卡接口已凭公司网络确认人在公司：手机定位即使偏了也不再按距离拦
-		if self.flags.trusted_checkin_source and self.flags.presence_evidence == "office_network":
+		# 打卡接口已凭公司网络或签到牌的蓝牙码确认人在公司：手机定位即使偏了也不再按距离拦
+		if self.flags.trusted_checkin_source and self.flags.presence_evidence in ("office_network", "beacon"):
 			return
 
 		if not (self.latitude or self.longitude):

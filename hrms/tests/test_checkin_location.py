@@ -161,6 +161,24 @@ class TestShiftGeofenceWithOfficeNetwork(CheckinLocationTestCase):
 		with self.assertRaises(frappe.ValidationError):
 			self.checkin_far_away("gps")
 
+	def test_beacon_skips_the_shift_distance_check(self):
+		self.assertTrue(self.checkin_far_away("beacon").name)
+
+	def test_untrusted_beacon_still_needs_coordinates(self):
+		doc = frappe.get_doc(
+			{
+				"doctype": "Employee Checkin",
+				"employee": self.employee,
+				"log_type": "IN",
+				"time": f"{getdate()} 08:30:00",
+			}
+		)
+		doc.flags.presence_evidence = "beacon"
+		with self.assertRaisesRegex(
+			frappe.ValidationError, "Latitude and longitude values are required for checking in."
+		):
+			doc.insert()
+
 
 class TestEditingSavedCheckins(CheckinLocationTestCase):
 	"""位置只在打卡那一刻核对；HR 事后在后台改别的字段不该被定位规则拦住。"""
