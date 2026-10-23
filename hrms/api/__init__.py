@@ -428,9 +428,14 @@ def get_weather_data() -> dict | None:
 
 		return result
 	except Exception as e:
-		# 异常文字里带着请求网址（含密钥），只记类型
-		frappe.log_error(title="Weather API Error", message=type(e).__name__)
-		return None
+		# 异常文字里带着请求网址（含密钥）：只记类型和 HTTP 状态码
+		failure = type(e).__name__
+		status = getattr(getattr(e, "response", None), "status_code", None)
+		if status:
+			failure += f" (HTTP {status})"
+	# 放在 except 外面记：这时已没有当前异常，log_error 不会顺带把整个异常交给错误上报
+	frappe.log_error(title="Weather API Error", message=failure)
+	return None
 
 
 @frappe.whitelist()

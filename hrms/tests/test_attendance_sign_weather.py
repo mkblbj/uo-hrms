@@ -195,13 +195,59 @@ class TestAttendanceSignWeather(unittest.TestCase):
 
 		import hrms.api
 
+		import sys
+
 		failure = requests.ConnectionError("HTTPConnectionPool: /v1/forecast.json?key=SECRET-IN-URL")
+		raised_at_log_time = []
 		with (
 			patch("requests.get", side_effect=failure) as get,
-			patch.object(frappe, "log_error") as log_error,
+			patch.object(
+				frappe, "log_error", side_effect=lambda **kw: raised_at_log_time.append(sys.exc_info()[0])
+			) as log_error,
 		):
 			self.assertIsNone(hrms.api.get_weather_data())
 		self.assertTrue(get.call_args.args[0].startswith("https://api.weatherapi.com/"))
 		logged = repr(log_error.call_args)
 		self.assertNotIn("SECRET-IN-URL", logged)
 		self.assertNotIn("key=", logged)
+		self.assertEqual(log_error.call_args.kwargs["message"], "ConnectionError")
+		# 记日志时已不在 except 里，错误上报拿不到带网址的异常
+		self.assertEqual(raised_at_log_time, [None])
+
+	def test_provider_http_error_logs_only_the_status(self):
+		import requests
+
+		import hrms.api
+
+		response = requests.Response()
+		response.status_code = 403
+		failure = requests.HTTPError("403 Client Error for url: https://x/?key=SECRET-IN-URL", response=response)
+		reply = patch("requests.get").start()
+		self.addCleanup(patch.stopall)
+		reply.return_value.raise_for_status.side_effect = failure
+		with patch.object(frappe, "log_error") as log_error:
+			self.assertIsNone(hrms.api.get_weather_data())
+		self.assertEqual(log_error.call_args.kwargs["message"], "HTTPError (HTTP 403)")
+
+	def test_provider_success_is_parsed(self):
+		import hrms.api
+
+		payload = {
+			"current": {"temp_c": 18.5, "condition": {"text": "晴れ", "icon": "//cdn.weatherapi.com/weather/64x64/day/113.png"}},
+			"forecast": {"forecastday": [{"day": {"maxtemp_c": 22.1, "mintemp_c": 12.4}}]},
+		}
+		with patch("requests.get") as get:
+			get.return_value.json.return_value = payload
+			result = hrms.api.get_weather_data()
+		self.assertEqual(
+			result,
+			{
+				"temp_c": 18.5,
+				"condition": {"text": "晴れ", "icon": "https://cdn.weatherapi.com/weather/64x64/day/113.png"},
+				"maxtemp_c": 22.1,
+				"mintemp_c": 12.4,
+			},
+		)
+		url = get.call_args.args[0]
+		self.assertTrue(url.startswith("https://api.weatherapi.com/v1/forecast.json?"))
+		self.assertTrue("&q=34.66497,135.1582&" in url and "&dt=" in url)

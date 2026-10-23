@@ -1,6 +1,6 @@
 # 可直接发给本机 Codex：板端天气 API
 
-请在现有 ESP32-S3-RLCD-4.2 签到牌固件中增加低频天气显示。服务端复用PWA现有WeatherAPI.com天气源，板子只调用HRMS，不持有第三方API密钥，也无需请求第三方天气图片。
+请在现有 ESP32-S3-RLCD-4.2 签到牌固件中增加低频天气显示。服务端使用自己内部的WeatherAPI.com天气源（2026-10-23起PWA和App已不显示天气，只有签到牌在用），板子只调用HRMS，不持有第三方API密钥，也无需请求第三方天气图片。
 
 正式服务端已于2026-10-17部署，日语真实天气及公网设备鉴权验证通过；本机仍需完成固件接入、烧录与真屏验收。
 
@@ -16,7 +16,7 @@ User-Agent: UO-Attendance-Sign/1.0 (ESP32-S3)
 
 - 只支持GET；不需要员工登录会话。即使网页二维码免展示密钥，天气接口仍必须带真实设备密钥，缺失/错误/地点不存在或禁用返回403。
 - 天气描述统一日语，`locale` 固定为 `ja-JP`，无需传语言参数。密钥不拼URL，不写入提交或普通日志。
-- **天气地点沿用PWA的固定坐标 `34.66497,135.15820`**。`location` 是设备鉴权用的打卡点，不表示按各地点GPS、板子IP或手机位置重新选择天气城市。
+- **天气地点为服务器固定坐标 `34.66497,135.15820`**。`location` 是设备鉴权用的打卡点，不表示按各地点GPS、板子IP或手机位置重新选择天气城市。
 
 ## 响应字段
 
@@ -53,14 +53,14 @@ User-Agent: UO-Attendance-Sign/1.0 (ESP32-S3)
 | `locale` | 固定ja-JP，天气文字为日语 |
 | `server_time` | 生成本次响应的Unix秒 |
 | `status` | ok为正常；stale为暂用旧数据；unavailable为无可用天气 |
-| `date` | 服务器站点当天日期，高低温对应PWA的今天预报 |
-| `fetched_at` | 最后成功从PWA天气源取得数据的Unix秒；**不是第三方气象观测时刻**；无数据为null |
+| `date` | 服务器站点当天日期，高低温对应天气源的今天预报 |
+| `fetched_at` | 最后成功从天气源取得数据的Unix秒；**不是第三方气象观测时刻**；无数据为null |
 | `refresh_after` | 距离下次适合获取天气的秒数，按本地单调计时器安排；不是二维码刷新周期 |
 | `weather.temp_c` | 当前温度（摄氏度），可能为0或负数 |
 | `maxtemp_c` / `mintemp_c` | 今日高低温，可单独为null，未知时显示“--”而非0 |
 | `condition_text` | 同源天气文字，可截断/换行显示，不依靠固定emoji猜天气 |
 | `icon_key` | 给板子本地黑白图标用的简化天气类别，不是WeatherAPI原生condition.code |
-| `is_day` | 从PWA图标路径识别昼夜，true/false；无法识别为null |
+| `is_day` | 从天气源图标路径识别昼夜，true/false；无法识别为null |
 
 `weather` 在unavailable时为null，`fetched_at` 也为null；HTTP200不代表一定有天气数据。错误响应不下发供应商URL、密钥或异常详情。
 

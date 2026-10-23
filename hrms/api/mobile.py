@@ -183,7 +183,7 @@ def _profile_photo_reminder() -> dict:
 
 @frappe.whitelist(methods=["GET"])
 def get_home_snapshot() -> dict:
-	"""主页一次取齐：今日卡、热力图、本月统计、班次、希望提醒、天气、打卡入口、提醒卡。"""
+	"""主页一次取齐：今日卡、热力图、本月统计、班次、希望提醒、打卡入口、提醒卡（天气已取消，固定为 null）。"""
 	user = _require_login()
 	employee = _active_employee(user)
 	if not employee:

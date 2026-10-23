@@ -129,7 +129,7 @@ env/bin/python -m unittest hrms.tests.test_attendance_sign_prepare
 
 ## 板端天气服务（2026-10-17）
 
-已部署 `GET /api/method/hrms.api.attendance_sign.get_weather?location=uo-2f-door`，沿用 `X-Attendance-Sign-Key`。复用PWA既有WeatherAPI.com天气源及固定坐标34.66497,135.15820，返回当前温度、今日高低温、天气文字、本地图标代号和昼夜。天气描述统一日语，locale固定ja-JP，无需语言参数；设备不持有第三方密钥。
+已部署 `GET /api/method/hrms.api.attendance_sign.get_weather?location=uo-2f-door`，沿用 `X-Attendance-Sign-Key`。使用服务器内部的WeatherAPI.com天气源及固定坐标34.66497,135.15820（2026-10-23起PWA和App已不显示天气，只有签到牌在用），返回当前温度、今日高低温、天气文字、本地图标代号和昼夜。天气描述统一日语，locale固定ja-JP，无需语言参数；设备不持有第三方密钥。
 
 服务端成功缓存10分钟，响应的 `refresh_after` 为剩余秒数。天气源暂不可用时最多复用同日1小时内数据并标为 `stale`，每分钟重试；无可用数据返回 `unavailable` 和 `weather=null`。天气获取独立于二维码与语音任务，完整字段和本机验收要求见[天气接入说明](attendance-sign-weather-handoff.md)。
 
