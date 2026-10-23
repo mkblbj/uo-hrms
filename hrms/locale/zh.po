@@ -12488,6 +12488,30 @@ msgstr "对全员开启"
 msgid "Pilot Employees"
 msgstr "试用员工"
 
+msgid "Confirm presence with the attendance sign's Bluetooth"
+msgstr "用打卡终端的蓝牙确认到场"
+
+msgid "Off by default. Applies to employees who can use Face ID check-in in the app."
+msgstr "默认关闭。对能在 App 里使用面容打卡的员工生效。"
+
+msgid "Bluetooth Key"
+msgstr "蓝牙密钥"
+
+msgid "Presence Evidence"
+msgstr "到场证明方式"
+
+msgid "office_network"
+msgstr "公司网络"
+
+msgid "gps"
+msgstr "定位"
+
+msgid "beacon"
+msgstr "打卡终端"
+
+msgid "qr"
+msgstr "二维码"
+
 msgid "Require Display Key"
 msgstr "要求展示密钥"
 

@@ -31,6 +31,10 @@ class QRCheckinLocation(Document):
 		if not self.display_key:
 			self.display_key = secrets.token_urlsafe(24)
 
+		# 签到牌蓝牙密钥：首次保存时生成（32 字节，64 位十六进制）
+		if not self.ble_key:
+			self.ble_key = secrets.token_hex(32)
+
 
 def verify_display_key(location_name: str, key: str | None) -> bool:
 	"""打卡点要求展示密钥时，只有带正确密钥的墙上屏能取码。"""

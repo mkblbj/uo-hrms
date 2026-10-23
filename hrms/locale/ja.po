@@ -991,6 +991,30 @@ msgstr "全員に有効化"
 msgid "Pilot Employees"
 msgstr "試用メンバー"
 
+msgid "Confirm presence with the attendance sign's Bluetooth"
+msgstr "打刻端末のBluetoothで在場を確認する"
+
+msgid "Off by default. Applies to employees who can use Face ID check-in in the app."
+msgstr "初期設定はオフです。アプリで顔認証打刻を使える従業員が対象です。"
+
+msgid "Bluetooth Key"
+msgstr "Bluetoothキー"
+
+msgid "Presence Evidence"
+msgstr "在場の確認方法"
+
+msgid "office_network"
+msgstr "社内ネットワーク"
+
+msgid "gps"
+msgstr "位置情報"
+
+msgid "beacon"
+msgstr "打刻端末"
+
+msgid "qr"
+msgstr "QRコード"
+
 msgid "Require Display Key"
 msgstr "表示キーを必須にする"
 

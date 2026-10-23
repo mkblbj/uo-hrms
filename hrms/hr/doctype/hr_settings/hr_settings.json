@@ -54,6 +54,7 @@
   "passkey_checkin_location",
   "passkey_checkin_enabled_for_all",
   "passkey_checkin_pilot_employees",
+  "ble_checkin_enabled",
   "tenure_tab",
   "employee_exit_settings_section",
   "exit_questionnaire_web_form",
@@ -367,6 +368,13 @@
    "options": "Passkey Checkin Pilot Employee"
   },
   {
+   "default": "0",
+   "description": "Off by default. Applies to employees who can use Face ID check-in in the app.",
+   "fieldname": "ble_checkin_enabled",
+   "fieldtype": "Check",
+   "label": "Confirm presence with the attendance sign's Bluetooth"
+  },
+  {
    "fieldname": "attendance_settings_section",
    "fieldtype": "Section Break",
    "label": "Attendance Settings"
@@ -453,7 +461,7 @@
  "idx": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-09-29 15:00:00.000000",
+ "modified": "2026-10-23 16:00:11.000000",
  "modified_by": "Administrator",
  "module": "HR",
  "name": "HR Settings",

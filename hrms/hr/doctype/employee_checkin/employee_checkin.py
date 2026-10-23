@@ -59,6 +59,7 @@ class EmployeeCheckin(Document):
 		longitude: DF.Float
 		offshift: DF.Check
 		overtime_type: DF.Link | None
+		presence_evidence: DF.Literal["", "office_network", "gps", "beacon", "qr"]
 		shift: DF.Link | None
 		shift_actual_end: DF.Datetime | None
 		shift_actual_start: DF.Datetime | None
