@@ -239,7 +239,7 @@ DAY = "2026-05-20"
 SALE = {"event_date": DAY, "title": "楽天スーパーSALE", "event_type": "Major Sale", "color": "#F59E0B"}
 
 
-def punch(employee, time, log_type, method=None, location=None, latitude=None, longitude=None):
+def punch(employee, time, log_type, method=None, location=None, latitude=None, longitude=None, evidence=None):
 	return frappe.get_doc(
 		{
 			"doctype": "Employee Checkin",
@@ -250,6 +250,7 @@ def punch(employee, time, log_type, method=None, location=None, latitude=None, l
 			"device_id": location,
 			"latitude": latitude,
 			"longitude": longitude,
+			"presence_evidence": evidence,
 		}
 	).insert(ignore_permissions=True)
 
@@ -329,6 +330,15 @@ class TestAttendanceDay(MobileAttendanceTestCase):
 		self.assertEqual(result["periods"], [])
 		self.assertIsNone(result["shift"])
 		self.assertEqual((result["scheduled_hours"], result["worked_hours"]), (8.0, 0))
+
+	def test_beacon_punch_in_day_detail(self):
+		employee, _shift = self.make_worker("mobile-beacon")
+		punch(employee, datetime(2026, 5, 20, 9, 0), "IN", "Device Key", evidence="beacon")
+		result = self.day("attendance-settlement-mobile-beacon@example.com", {"entries": [], "holidays": [], "events": []})
+		self.assertEqual(
+			[(row["method"], row["evidence"]) for row in result["punches"]],
+			[("device_key", "beacon")],
+		)
 
 	def test_day_ignores_employee_param(self):
 		employee, _shift = self.make_worker("mobile-other")

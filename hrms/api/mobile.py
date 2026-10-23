@@ -478,7 +478,7 @@ def _punches(checkins: list[dict]) -> list[dict]:
 		for row in frappe.get_all(
 			"Employee Checkin",
 			filters={"name": ["in", names or [""]]},
-			fields=["name", "device_id", "latitude", "longitude"],
+			fields=["name", "device_id", "latitude", "longitude", "presence_evidence"],
 		)
 	}
 	device_ids = {row.device_id for row in extra.values() if row.device_id}
@@ -499,7 +499,9 @@ def _punches(checkins: list[dict]) -> list[dict]:
 				"time": get_datetime(row["time"]).strftime(_TIME_FMT),
 				"log_type": row.get("log_type"),
 				"method": method,
-				"evidence": mobile_attendance.punch_evidence(method, info.latitude, info.longitude),
+				"evidence": mobile_attendance.punch_evidence(
+					method, info.latitude, info.longitude, stored=info.presence_evidence
+				),
 				"location_name": locations.get(info.device_id),
 				"included": bool(row.get("included_in_calculation")),
 			}

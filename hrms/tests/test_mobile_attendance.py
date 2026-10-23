@@ -193,6 +193,15 @@ class TestDayDetailRules(unittest.TestCase):
 		self.assertIsNone(rules.punch_evidence("correction", 35.68, 139.76))
 		self.assertIsNone(rules.punch_evidence("other", 0, 0))
 
+	def test_stored_evidence_wins(self):
+		self.assertEqual(rules.punch_evidence("device_key", None, None, stored="beacon"), "beacon")
+		self.assertEqual(rules.punch_evidence("qr", 35.6, 139.7, stored="qr"), "qr")
+
+	def test_old_records_are_still_inferred(self):
+		self.assertEqual(rules.punch_evidence("passkey", None, None, stored=None), "office_network")
+		self.assertEqual(rules.punch_evidence("passkey", 35.68, 139.76, stored=None), "gps")
+		self.assertIsNone(rules.punch_evidence("qr", 35.68, 139.76, stored=None))
+
 	def test_lunch_segments(self):
 		def period(start, end):
 			return {"counted_in_time": datetime(2026, 10, 20, *start), "counted_out_time": datetime(2026, 10, 20, *end)}

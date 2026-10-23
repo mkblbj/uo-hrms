@@ -158,9 +158,12 @@ def punch_method(checkin_method: str | None) -> str:
 	return _PUNCH_METHODS.get(checkin_method or "", "other")
 
 
-def punch_evidence(method: str, latitude, longitude) -> str | None:
-	"""打卡记录里不存在场证明，只能推断，而且只对面容打卡（网页通行密钥、App 手机钥匙）推断：
-	面容打卡必须先证明在场，带定位说明是定位在半径内，不带定位就只能是公司网络。扫码带了定位也不一定核对过距离，不推断。"""
+def punch_evidence(method: str, latitude, longitude, stored: str | None = None) -> str | None:
+	"""记录里存了在场证明就原样返回（任何打卡方式都一样）。老记录没存，只能推断，而且只对面容打卡（网页通行密钥、
+	App 手机钥匙）推断：面容打卡必须先证明在场，带定位说明是定位在半径内，不带定位就只能是公司网络。
+	扫码带了定位也不一定核对过距离，不推断。"""
+	if stored:
+		return stored
 	if method not in _FACE_METHODS:
 		return None
 	return "gps" if normalize_coordinates(latitude, longitude) else "office_network"
