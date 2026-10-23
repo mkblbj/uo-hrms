@@ -6,9 +6,93 @@ from frappe.app import process_response
 from frappe.utils.response import build_response
 
 from hrms.api import qr_attendance
+from hrms.www import qr_display
 
 
 class TestQRAttendance(unittest.TestCase):
+	def test_two_minute_codes_and_deadlines_follow_location_interval(self):
+		location = frappe._dict(name="interval-door", enabled=1, qr_refresh_interval=120, description="Test")
+		location.get_password = lambda _field: "test-secret"
+		cases = [
+			(61, 0, 120, 240),
+			(119, 0, 120, 240),
+			(120, 1, 240, 360),
+			(239, 1, 240, 360),
+			(240, 2, 360, 480),
+		]
+		with (
+			patch.object(frappe.db, "exists", return_value=True),
+			patch.object(frappe, "get_doc", return_value=location),
+			patch.object(qr_attendance, "verify_display_key", return_value=True),
+		):
+			for now, slot, refresh_at, expires_at in cases:
+				with self.subTest(now=now), patch.object(qr_attendance.time, "time", return_value=now):
+					api = qr_attendance.generate_qr_token(location.name)
+					page = qr_display.generate_token_for_display(location.name)
+					self.assertEqual(api["token"].split("|")[1], str(slot))
+					self.assertEqual(
+						(api["refresh_at"], api["expires_at"], api["expires_in"]),
+						(refresh_at, expires_at, 120),
+					)
+					self.assertEqual(api["token"], page["token"])
+					self.assertEqual((page["refresh_at"], page["expires_at"]), (refresh_at, expires_at))
+
+	def test_configured_intervals_do_not_leak_between_locations(self):
+		with (
+			patch.object(frappe.db, "exists", return_value=True),
+			patch.object(qr_attendance, "verify_display_key", return_value=True),
+			patch.object(qr_attendance.time, "time", return_value=119),
+		):
+			for interval, slot, expiry in [(120, 0, 240), (30, 3, 150)]:
+				location = frappe._dict(
+					name="door-" + str(interval), enabled=1, qr_refresh_interval=interval, description="Test"
+				)
+				location.get_password = lambda _: "test-secret"
+				with patch.object(frappe, "get_doc", return_value=location):
+					result = qr_attendance.generate_qr_token(location.name)
+				self.assertEqual((result["token"].split("|")[1], result["expires_at"]), (str(slot), expiry))
+
+	def test_checkin_accepts_current_and_previous_configured_slot_only(self):
+		class ReachedEmployeeLookup(Exception):
+			pass
+
+		location = frappe._dict(name="interval-door", enabled=1, qr_refresh_interval=120)
+		location.get_password = lambda _: "test-secret"
+		token = "interval-door|0|" + qr_attendance._sign("interval-door", 0, "test-secret")
+		cases = [(61, True), (119, True), (120, True), (239, True), (240, False)]
+		with (
+			patch.object(frappe, "session", frappe._dict(user="qr-interval-test@example.com")),
+			patch.object(qr_attendance, "validate_ip_whitelist"),
+			patch.object(frappe.db, "exists", return_value=True),
+			patch.object(frappe, "get_doc", return_value=location),
+		):
+			for now, accepted in cases:
+				with (
+					self.subTest(now=now),
+					patch.object(qr_attendance.time, "time", return_value=now),
+					patch.object(frappe.db, "get_value", side_effect=ReachedEmployeeLookup) as lookup,
+				):
+					with self.assertRaises(ReachedEmployeeLookup if accepted else frappe.ValidationError):
+						qr_attendance.qr_checkin(token)
+					if not accepted:
+						lookup.assert_not_called()
+
+	def test_checkin_rejects_slot_field_that_does_not_match_signature(self):
+		location = frappe._dict(name="interval-door", enabled=1, qr_refresh_interval=120)
+		location.get_password = lambda _: "test-secret"
+		token = "interval-door|9999|" + qr_attendance._sign("interval-door", 0, "test-secret")
+		with (
+			patch.object(frappe, "session", frappe._dict(user="qr-interval-test@example.com")),
+			patch.object(qr_attendance, "validate_ip_whitelist"),
+			patch.object(frappe.db, "exists", return_value=True),
+			patch.object(frappe, "get_doc", return_value=location),
+			patch.object(qr_attendance.time, "time", return_value=10),
+			patch.object(frappe.db, "get_value") as lookup,
+		):
+			with self.assertRaises(frappe.ValidationError):
+				qr_attendance.qr_checkin(token)
+			lookup.assert_not_called()
+
 	def test_generate_qr_token_uses_one_server_time_for_slot_and_deadlines(self):
 		location = frappe._dict(
 			name="office-10F",
@@ -26,7 +110,9 @@ class TestQRAttendance(unittest.TestCase):
 				self.subTest(server_time=server_time),
 				patch.object(qr_attendance.frappe.db, "exists", return_value=True),
 				patch.object(qr_attendance.frappe, "get_doc", return_value=location),
-				patch.object(qr_attendance.time, "time", side_effect=[server_time, server_time + 1]) as mocked_time,
+				patch.object(
+					qr_attendance.time, "time", side_effect=[server_time, server_time + 1]
+				) as mocked_time,
 			):
 				frappe.local.response = frappe._dict()
 				frappe.local.response_headers.clear()
@@ -84,9 +170,7 @@ class TestQRAttendance(unittest.TestCase):
 			frappe.local.response = frappe._dict()
 			frappe.local.response_headers.clear()
 
-			result = qr_attendance.get_recent_checkins(
-				location="office-10F", limit="99", compact="1"
-			)
+			result = qr_attendance.get_recent_checkins(location="office-10F", limit="99", compact="1")
 
 		self.assertEqual(result, checkins)
 		get_all.assert_called_once_with(

@@ -5,8 +5,9 @@
 """
 
 import io
+import math
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageSequence
 
 import frappe
 from frappe import _
@@ -22,8 +23,8 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_SOURCE_PIXELS = 40_000_000
 
 
-def normalize_photo(content: bytes) -> bytes:
-	"""按 EXIF 转正、居中裁成正方形、缩到最大 512，重新编码成不带 EXIF 的 JPEG。"""
+def normalize_photo(content: bytes, crop: dict | None = None) -> bytes:
+	"""裁成最大 512 的正方形，去掉元数据；GIF 保留动画，其他照片保存为 JPEG。"""
 	if not content:
 		frappe.throw(_("Please choose a photo."))
 	if len(content) > MAX_UPLOAD_BYTES:
@@ -34,16 +35,76 @@ def normalize_photo(content: bytes) -> bytes:
 	if side < PHOTO_MIN_SIDE:
 		frappe.throw(_("This photo is too small. Please choose a clearer one."))
 
-	image = _flatten(image)
-	left = (image.width - side) // 2
-	top = (image.height - side) // 2
-	image = image.crop((left, top, left + side, top + side))
-	if side > PHOTO_MAX_SIDE:
-		image = image.resize((PHOTO_MAX_SIDE, PHOTO_MAX_SIDE), Image.Resampling.LANCZOS)
+	box = _crop_box(image, crop)
+	if image.format == "GIF":
+		return _normalize_gif(image, box)
+	image = _normalize_frame(image, box)
 
 	output = io.BytesIO()
 	image.save(output, format="JPEG", quality=88, optimize=True)
 	return output.getvalue()
+
+
+def _crop_box(image: Image.Image, crop: dict | None) -> tuple[int, int, int, int]:
+	if crop is None:
+		size = min(image.size)
+		left = (image.width - size) // 2
+		top = (image.height - size) // 2
+	else:
+		invalid_crop = _("This photo could not be cropped. Please choose it again.")
+		try:
+			left, top, size = (float(crop[key]) for key in ("sx", "sy", "size"))
+		except (KeyError, TypeError, ValueError):
+			frappe.throw(invalid_crop)
+		if (
+			not all(math.isfinite(value) for value in (left, top, size))
+			or min(left, top) < 0
+			or size < PHOTO_MIN_SIDE
+			or left + size > image.width
+			or top + size > image.height
+		):
+			frappe.throw(invalid_crop)
+		size = round(size)
+		left = min(round(left), image.width - size)
+		top = min(round(top), image.height - size)
+	return (left, top, left + size, top + size)
+
+
+def _normalize_frame(image: Image.Image, box: tuple[int, int, int, int]) -> Image.Image:
+	image = _flatten(image).crop(box)
+	side = box[2] - box[0]
+	if side > PHOTO_MAX_SIDE:
+		image = image.resize((PHOTO_MAX_SIDE, PHOTO_MAX_SIDE), Image.Resampling.LANCZOS)
+	image.info.clear()
+	return image
+
+
+def _normalize_gif(image: Image.Image, box: tuple[int, int, int, int]) -> bytes:
+	try:
+		# 动图按所有帧的总像素计算，沿用原来的解码预算。
+		if image.width * image.height * image.n_frames > MAX_SOURCE_PIXELS:
+			frappe.throw(_("This photo is too large. Please choose a smaller one."))
+		loop = image.info.get("loop")
+		frames = []
+		durations = []
+		for frame in ImageSequence.Iterator(image):
+			durations.append(frame.info.get("duration", 0))
+			# Pillow 会合成局部帧及其背景；裁剪的是每一帧实际显示的画面。
+			frames.append(_normalize_frame(frame, box))
+		output = io.BytesIO()
+		frames[0].save(
+			output,
+			format="GIF",
+			save_all=True,
+			append_images=frames[1:],
+			duration=durations,
+			disposal=2,
+			optimize=True,
+			**({"loop": loop} if loop is not None else {}),
+		)
+		return output.getvalue()
+	except (OSError, ValueError, EOFError):
+		frappe.throw(_("This file could not be read as a photo. Please choose another one."))
 
 
 def _decode(content: bytes) -> Image.Image:
@@ -61,7 +122,8 @@ def _decode(content: bytes) -> Image.Image:
 		frappe.throw(too_large)
 
 	try:
-		image = ImageOps.exif_transpose(image)
+		if image.format != "GIF":
+			image = ImageOps.exif_transpose(image)
 		image.load()
 	except Exception:
 		frappe.throw(unreadable)

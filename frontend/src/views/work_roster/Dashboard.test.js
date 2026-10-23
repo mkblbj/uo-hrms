@@ -20,11 +20,10 @@ test("roster tabs expose accessible selected state", () => {
 	assert.match(source, /update:modelValue/)
 })
 
-test("preference banner keeps existing preference route", () => {
-	const source = readComponent("RosterPreferenceBanner.vue")
-	assert.match(source, /work-roster\/preference/)
-	assert.match(source, /notice\.status/)
-	assert.match(source, /notice\.has_preference/)
+test("home preference card links each month row to its preference page", () => {
+	const source = readComponent("RosterPreferenceGroup.vue")
+	assert.match(source, /<router-link[\s\S]*?:to="row\.to"/)
+	assert.match(source, /row\.done/)
 })
 
 test("month header has navigation and a native department selector", () => {

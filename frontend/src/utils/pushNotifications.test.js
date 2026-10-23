@@ -119,7 +119,7 @@ test("home uses a persistent accessible push activation card", () => {
 test("push activation is the first card in the home content", () => {
 	const source = fs.readFileSync(panelPath, "utf8")
 	const saleBannerIndex = source.indexOf('class="home-sale-banner')
-	const preferenceBannerIndex = source.indexOf("<RosterPreferenceBanner")
+	const preferenceBannerIndex = source.indexOf("<RosterPreferenceGroup")
 	const heroIndex = source.indexOf("<HomeHeroCard")
 	const promptIndex = source.indexOf("<PushNotificationPrompt")
 	const summaryIndex = source.indexOf("<HomeSummaryCard")

@@ -5,10 +5,15 @@
 		type="button"
 		class="roster-day"
 		:class="dayClasses"
-		:aria-label="cell.ariaLabel"
+		:aria-label="ariaLabel"
 		@click="emit('select', cell)"
 	>
-		<span class="roster-day-number">{{ cell.day }}</span>
+		<span class="roster-day-header">
+			<span class="roster-day-number">{{ cell.day }}</span>
+			<span v-if="cell.isHoliday" class="roster-day-holiday" :title="cell.holidayName || labels.holiday">
+				{{ labels.holidayShort }}
+			</span>
+		</span>
 		<span v-if="cell.event" class="roster-day-event">
 			{{ cell.event.title }}
 		</span>
@@ -59,6 +64,12 @@ const props = defineProps({
 
 const emit = defineEmits(["select"])
 const button = ref(null)
+
+const ariaLabel = computed(() =>
+	[props.cell.ariaLabel, props.cell.isHoliday ? props.cell.holidayName || props.labels.holiday : ""]
+		.filter(Boolean)
+		.join(" ")
+)
 
 const dayClasses = computed(() => ({
 	today: props.cell.isToday,
@@ -125,10 +136,30 @@ defineExpose({ focus })
 	background: color-mix(in srgb, var(--h-chip-off-bg, #f4f4f5) 72%, var(--h-bg-card, #ffffff));
 }
 
+.roster-day-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 2px;
+}
+
 .roster-day-number {
+	flex-shrink: 0;
 	font-size: clamp(12px, 3.2vw, 14px);
 	font-weight: 500;
 	line-height: 1;
+}
+
+.roster-day-holiday {
+	flex-shrink: 0;
+	padding: 1px 2px;
+	color: var(--h-attn-holiday-fg, #9b2c2c);
+	font-size: clamp(7px, 1.8vw, 9px);
+	font-weight: 650;
+	line-height: 1;
+	white-space: nowrap;
+	background: var(--h-attn-holiday-bg, #fde8e8);
+	border-radius: 3px;
 }
 
 .roster-day-event {

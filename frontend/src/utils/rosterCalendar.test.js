@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 
 import {
 	addRosterMonth,
+	buildHomePreferenceGroup,
 	buildRosterCalendarCells,
 	createRosterRequestGate,
 	formatRosterPreferenceTitle,
@@ -10,7 +11,7 @@ import {
 	getRosterCopy,
 	normalizeRosterLanguage,
 	resolveRosterFallbackMonth,
-	resolveHomePreferenceNotice,
+	resolveHomePreferenceNotices,
 	resolveRosterInitialState,
 	shouldCloseRosterSheet,
 } from "./rosterCalendar.js"
@@ -26,41 +27,44 @@ test("moves roster month across year boundaries", () => {
 	})
 })
 
-test("home preference reminder is visible only while collecting", () => {
-	const unsubmitted = {
-		period: "Office-2044-10",
-		status: "Collecting",
-		has_preference: false,
-	}
-	const submitted = { ...unsubmitted, has_preference: true }
+test("home lists every month that is collecting preferences", () => {
+	const october = { period: "Office-2044-10", status: "Collecting", has_preference: false }
+	const december = { period: "Office-2044-12", status: "Collecting", has_preference: true }
+	assert.deepEqual(
+		resolveHomePreferenceNotices({
+			preference_notice: october,
+			preference_notices: [october, december],
+		}),
+		[october, december]
+	)
+})
 
-	assert.equal(resolveHomePreferenceNotice(null), null)
-	assert.equal(resolveHomePreferenceNotice({ ...unsubmitted, status: "Scheduling" }), null)
-	assert.equal(
-		resolveHomePreferenceNotice({
-			status: "Collecting",
-			has_preference: false,
+test("home preference reminders skip months that are not collecting or have no period", () => {
+	const october = { period: "Office-2044-10", status: "Collecting", has_preference: false }
+	assert.deepEqual(
+		resolveHomePreferenceNotices({
+			preference_notices: [
+				october,
+				{ ...october, period: "Office-2044-11", status: "Scheduling" },
+				{ ...october, period: "Office-2044-12", status: "Published" },
+				{ ...october, period: "" },
+				{ status: "Collecting", has_preference: false },
+				null,
+			],
 		}),
-		null
+		[october]
 	)
-	assert.equal(
-		resolveHomePreferenceNotice({
-			period: "",
-			status: "Collecting",
-			has_preference: false,
-		}),
-		null
+	assert.deepEqual(resolveHomePreferenceNotices(null), [])
+	assert.deepEqual(resolveHomePreferenceNotices({ preference_notices: [] }), [])
+})
+
+test("an older server that sends a single notice still shows it", () => {
+	const october = { period: "Office-2044-10", status: "Collecting", has_preference: false }
+	assert.deepEqual(resolveHomePreferenceNotices({ preference_notice: october }), [october])
+	assert.deepEqual(
+		resolveHomePreferenceNotices({ preference_notice: { ...october, status: "Scheduling" } }),
+		[]
 	)
-	assert.equal(
-		resolveHomePreferenceNotice({
-			period: "Office-2044-10",
-			status: "Published",
-			has_preference: false,
-		}),
-		null
-	)
-	assert.equal(resolveHomePreferenceNotice(unsubmitted), unsubmitted)
-	assert.equal(resolveHomePreferenceNotice(submitted), submitted)
 })
 
 test("localizes the home preference reminder title from structured period data", () => {
@@ -201,4 +205,105 @@ test("provides complete key labels in zh ja and en", () => {
 	assert.equal(normalizeRosterLanguage("en-US"), "en")
 	assert.equal(getRosterCopy("scheduledPeople", "ja", { count: 6 }), "実 6人")
 	assert.equal(getRosterCopy("departmentSelector", "zh"), "选择部门")
+})
+
+const collecting = (period, year, month, has_preference, preference_deadline = null) => ({
+	period,
+	year,
+	month,
+	department_category: "Office",
+	status: "Collecting",
+	has_preference,
+	preference_deadline,
+})
+
+test("home preference group shows one entry per month with its own state", () => {
+	const group = buildHomePreferenceGroup(
+		[
+			collecting("Office-2026-11", 2026, 11, false, "2026-10-20"),
+			collecting("Office-2026-12", 2026, 12, true),
+			collecting("Office-2027-01", 2027, 1, false),
+		],
+		{ lang: "ja", today: "2026-10-12" }
+	)
+	assert.equal(group.title, "シフト希望")
+	assert.deepEqual([group.countText, group.countTone], ["あと2か月分", "pending"])
+	assert.deepEqual(
+		group.rows.map((row) => [row.period, row.title, row.done, row.actionText, row.deadlineText, row.urgent, row.to]),
+		[
+			["Office-2026-11", "2026年11月 - 事務", false, "希望を入力", "締切 10/20", false, "/work-roster/preference/Office-2026-11"],
+			["Office-2026-12", "2026年12月 - 事務", true, "提出済み", "", false, "/work-roster/preference/Office-2026-12"],
+			["Office-2027-01", "2027年1月 - 事務", false, "希望を入力", "", false, "/work-roster/preference/Office-2027-01"],
+		]
+	)
+})
+
+test("two or more months sit side by side as short month tiles; one month stays a full row", () => {
+	const group = buildHomePreferenceGroup(
+		[
+			collecting("Office-2026-11", 2026, 11, false, "2026-10-15"),
+			collecting("Office-2026-12", 2026, 12, true, "2026-10-13"),
+			collecting("Office-2027-01", 2027, 1, false),
+			collecting("Office-2027-02", 2027, 2, false, "2026-11-30"),
+		],
+		{ lang: "ja", today: "2026-10-12" }
+	)
+	assert.equal(group.layout, "tiles")
+	assert.deepEqual(
+		group.rows.map((row) => [row.monthText, row.statusText, row.tone]),
+		[
+			["11月", "締切 10/15", "urgent"],
+			["12月", "提出済み", "done"],
+			["1月", "未提出", "pending"],
+			["2月", "締切 11/30", "pending"],
+		]
+	)
+	const en = buildHomePreferenceGroup(
+		[collecting("A", 2026, 12, true), collecting("B", 2027, 1, false)],
+		{ lang: "en", today: "2026-10-12" }
+	)
+	assert.deepEqual(
+		en.rows.map((row) => [row.monthText, row.statusText]),
+		[["Dec", "Submitted"], ["Jan", "Not yet"]]
+	)
+	assert.equal(
+		buildHomePreferenceGroup([collecting("A", 2026, 11, false)], { lang: "zh", today: "2026-10-12" }).layout,
+		"list"
+	)
+})
+
+test("home preference group count turns green when every month is submitted and hides for one month", () => {
+	const done = buildHomePreferenceGroup(
+		[collecting("Office-2026-11", 2026, 11, true), collecting("Office-2026-12", 2026, 12, true)],
+		{ lang: "zh", today: "2026-10-12" }
+	)
+	assert.deepEqual([done.countText, done.countTone], ["已全部提交", "done"])
+	const one = buildHomePreferenceGroup([collecting("Office-2026-11", 2026, 11, false)], {
+		lang: "en",
+		today: "2026-10-12",
+	})
+	assert.deepEqual([one.countText, one.countTone], ["", ""])
+	assert.equal(one.rows[0].actionText, "Submit")
+	const single = buildHomePreferenceGroup(
+		[collecting("Office-2026-11", 2026, 11, false), collecting("Office-2026-12", 2026, 12, true)],
+		{ lang: "zh", today: "2026-10-12" }
+	)
+	assert.equal(single.countText, "还差 1 个月")
+})
+
+test("a deadline within a week is urgent, but only for months not yet submitted", () => {
+	const rows = buildHomePreferenceGroup(
+		[
+			collecting("A", 2026, 11, false, "2026-10-19"),
+			collecting("B", 2026, 12, false, "2026-10-20"),
+			collecting("C", 2027, 1, false, "2026-10-01"),
+			collecting("D", 2027, 2, true, "2026-10-13"),
+		],
+		{ lang: "en", today: "2026-10-12" }
+	).rows
+	assert.deepEqual(
+		rows.map((row) => [row.deadlineText, row.urgent]),
+		[["Due 10/19", true], ["Due 10/20", false], ["Due 10/1", true], ["Due 10/13", false]]
+	)
+	assert.deepEqual(buildHomePreferenceGroup([], { lang: "ja", today: "2026-10-12" }).rows, [])
 })

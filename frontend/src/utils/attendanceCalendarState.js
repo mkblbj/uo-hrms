@@ -20,10 +20,14 @@ function round1(value) {
 
 export function deriveAttendanceState(attendanceEntry, holiday) {
 	if (hasAttendanceAnomaly(attendanceEntry?.anomaly)) return "anomaly"
+	if (["working", "checked_out"].includes(attendanceEntry?.checkin_status)) {
+		return attendanceEntry.checkin_status
+	}
 	const mapped = STATUS_TO_STATE[attendanceEntry?.attendance]
 	if (mapped) return mapped
 	if (holiday && !holiday.weekly_off) return "holiday"
 	if (holiday?.weekly_off) return "rest"
+	if (attendanceEntry?.checkin_status === "not_checked_in") return "not_checked_in"
 	return "empty"
 }
 

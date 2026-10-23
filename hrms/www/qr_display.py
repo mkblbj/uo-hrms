@@ -1,31 +1,11 @@
 # Copyright (c) 2025, 株式会社UO and contributors
 # For license information, please see license.txt
 
-import hashlib
-import hmac
-import time
-
 import frappe
 
-# 允许访客访问此页面（无需登录）
+from hrms.utils.attendance_qr import build_qr_payload
+
 no_cache = 1
-
-TIME_SLOT_SECONDS = 30
-
-
-def _get_time_slot(ts=None):
-	"""获取当前时间片编号"""
-	if ts is None:
-		ts = int(time.time())
-	return ts // TIME_SLOT_SECONDS
-
-
-def _sign(location_name: str, time_slot: int, secret: str) -> str:
-	"""生成 HMAC-SHA256 签名（缩短到8字符以减小二维码大小）"""
-	msg = f"{location_name}|{time_slot}"
-	return hmac.new(secret.encode("utf-8"), msg.encode("utf-8"), hashlib.sha256).hexdigest()[
-		:8
-	]  # 缩短到8字符，仍有足够安全性
 
 
 def generate_token_for_display(location_name: str) -> dict:
@@ -40,16 +20,7 @@ def generate_token_for_display(location_name: str) -> dict:
 	if not doc.enabled:
 		frappe.throw(f"打卡地点 {location_name} 已禁用")
 
-	time_slot = _get_time_slot()
-	sig = _sign(doc.name, time_slot, doc.get_password("secret"))
-	token = f"{doc.name}|{time_slot}|{sig}"
-
-	return {
-		"token": token,
-		"expires_in": doc.qr_refresh_interval or TIME_SLOT_SECONDS,
-		"location": doc.name,
-		"description": doc.description,
-	}
+	return build_qr_payload(doc)
 
 
 def get_context(context):

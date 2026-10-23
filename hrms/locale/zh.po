@@ -12488,6 +12488,30 @@ msgstr "对全员开启"
 msgid "Pilot Employees"
 msgstr "试用员工"
 
+msgid "Confirm presence with the attendance sign's Bluetooth"
+msgstr "用打卡终端的蓝牙确认到场"
+
+msgid "Off by default. Applies to employees who can use Face ID check-in in the app."
+msgstr "默认关闭。对能在 App 里使用面容打卡的员工生效。"
+
+msgid "Bluetooth Key"
+msgstr "蓝牙密钥"
+
+msgid "Presence Evidence"
+msgstr "到场证明方式"
+
+msgid "office_network"
+msgstr "公司网络"
+
+msgid "gps"
+msgstr "定位"
+
+msgid "beacon"
+msgstr "打卡终端"
+
+msgid "qr"
+msgstr "二维码"
+
 msgid "Require Display Key"
 msgstr "要求展示密钥"
 
@@ -12557,5 +12581,44 @@ msgstr "照片太小了，请换一张更清晰的。"
 msgid "No active employee is linked to your account."
 msgstr "你的账号没有关联在职员工档案。"
 
+msgid "This photo could not be cropped. Please choose it again."
+msgstr "无法裁剪这张照片，请重新选择。"
+
 msgid "Back to attendance"
 msgstr "返回考勤"
+
+msgid "Device Key"
+msgstr "App 面容打卡"
+
+msgid "Device Checkin Key"
+msgstr "App 面容打卡钥匙"
+
+msgid "Face ID check-in keys of the native app. Each key lives in one phone's Secure Enclave; delete it here when an employee loses the phone."
+msgstr "App 面容打卡用的钥匙，每台手机一把。员工丢了手机时，在这里删除。"
+
+msgid "Key Details"
+msgstr "钥匙详情"
+
+msgid "Key ID"
+msgstr "钥匙 ID"
+
+msgid "Public Key"
+msgstr "公钥"
+
+msgid "Device Name"
+msgstr "设备名称"
+
+msgid "Last Used"
+msgstr "最近使用时间"
+
+msgid "Face ID check-in could not be set up. Please try again."
+msgstr "面容打卡没能设置成功，请再试一次。"
+
+msgid "Setup timed out. Please try again."
+msgstr "设置超时了，请再试一次。"
+
+msgid "You already have {0} devices set up."
+msgstr "已经设置了 {0} 台设备。"
+
+msgid "Face ID could not be verified. Please try again."
+msgstr "面容没能通过验证，请再试一次。"

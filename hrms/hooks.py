@@ -44,7 +44,7 @@ app_include_css = "hrms.bundle.css"
 # webform_include_css = {"doctype": "public/css/doctype.css"}
 
 # include js in page
-# page_js = {"page" : "public/js/file.js"}
+page_js = {"desktop": "public/js/employee_information_desk.js"}
 
 # include js in doctype views
 doctype_js = {

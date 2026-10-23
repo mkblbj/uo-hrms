@@ -3,7 +3,7 @@
 		<div class="hero-top">
 			<div class="hero-text">
 				<p class="hero-kicker">
-					{{ dateLabel }}<span v-if="weatherText"> · {{ weatherText }}</span>
+					{{ dateLabel }}
 				</p>
 				<h2 class="hero-title">{{ greeting }}{{ employeeName ? `，${employeeName}` : "" }}</h2>
 			</div>
@@ -35,6 +35,9 @@
 				<div>
 					<div class="hero-heatmap-title">{{ t("heatmapTitle") }}</div>
 					<div class="hero-heatmap-subtitle">{{ t("heatmapSubtitle") }}</div>
+					<div v-if="todayCheckinStatus" class="hero-today-status">
+						{{ t("today") }} · {{ getAttendanceCopy(`status.${todayCheckinStatus}`, props.lang) }}
+					</div>
 				</div>
 				<div class="hero-heatmap-legend" aria-hidden="true">
 					<span>{{ t("less") }}</span>
@@ -64,7 +67,7 @@
 						v-for="(cell, idx) in heatmapCells"
 						:key="cell.date"
 						class="hero-heatmap-cell"
-						:class="{ 'is-today': cell.isToday, 'is-future': cell.isFuture, 'is-issue': cell.hasIssue, 'is-empty': cell.level === 0 && !cell.hasIssue }"
+						:class="{ 'is-today': cell.isToday, 'is-working': cell.isToday && cell.event?.checkin_status === 'working', 'is-future': cell.isFuture, 'is-issue': cell.hasIssue, 'is-empty': cell.level === 0 && !cell.hasIssue }"
 						:style="{ backgroundColor: cell.color, '--cell-index': idx }"
 						:title="cellLabel(cell)"
 						:aria-label="cellLabel(cell)"
@@ -89,6 +92,7 @@ import { createResource } from "frappe-ui"
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue"
 
 import { buildHeatmapMonthMarkers, buildRecentWeekdayHeatmap } from "@/utils/homeHeatmap"
+import { getAttendanceCopy } from "@/utils/attendanceCalendarCopy"
 import {
 	ATTENDANCE_ANOMALY_COLOR,
 	getAttendanceAnomalyLabel,
@@ -101,7 +105,6 @@ const props = defineProps({
 	employeeName: { type: String, default: "" },
 	greeting: { type: String, required: true },
 	dateLabel: { type: String, required: true },
-	weatherText: { type: String, default: "" },
 	workStatus: { type: Object, default: null },
 	stats: { type: Object, default: null },
 	statsLoading: { type: Boolean, default: false },
@@ -129,6 +132,7 @@ const copy = {
 	anomalyLegend: { zh: "异常", ja: "異常", en: "Issue" },
 	hours: { zh: "小时", ja: "時間", en: "hours" },
 	noRecord: { zh: "无记录", ja: "記録なし", en: "No record" },
+	today: { zh: "今日", ja: "本日", en: "Today" },
 	monthHours: { zh: "本月工时", ja: "今月時間", en: "Month Hours" },
 	monthDays: { zh: "本月出勤", ja: "今月出勤", en: "Month Days" },
 	avgDay: { zh: "日均", ja: "日平均", en: "Avg / Day" },
@@ -233,6 +237,9 @@ const heatmapCells = computed(() =>
 		today: props.today,
 	})
 )
+const todayCheckinStatus = computed(() =>
+	heatmapCells.value.find((cell) => cell.isToday)?.event?.checkin_status || ""
+)
 const monthMarkers = computed(() =>
 	buildHeatmapMonthMarkers({
 		cells: heatmapCells.value,
@@ -333,7 +340,9 @@ function cellLabel(cell) {
 			getAttendanceAnomalyTitle(props.lang)
 		}`
 	}
-	const status = cell.event?.attendance || t("noRecord")
+	const status = cell.event?.checkin_status
+		? getAttendanceCopy(`status.${cell.event.checkin_status}`, props.lang)
+		: cell.event?.attendance || t("noRecord")
 	const hours = cell.event?.working_hours
 	const hoursText = hours ? `, ${hours} ${t("hours")}` : ""
 	return `${cell.date}: ${status}${hoursText}`
@@ -589,6 +598,13 @@ defineExpose({ reloadAttendance, reloadSchedule })
 	color: var(--h-fg-primary);
 }
 
+.hero-today-status {
+	margin-top: 3px;
+	color: var(--h-fg-secondary);
+	font-size: 11px;
+	font-weight: 600;
+}
+
 .hero-heatmap-subtitle {
 	margin-top: 3px;
 	font-size: 11px;
@@ -697,35 +713,23 @@ defineExpose({ reloadAttendance, reloadSchedule })
 	box-shadow: 0 0 0 2px #16a34a, 0 0 8px rgba(22, 163, 74, 0.35);
 }
 
+.hero-heatmap-cell.is-today.is-working {
+	background-color: var(--h-heatmap-working-bg, #bfdbfe) !important;
+	box-shadow: 0 0 0 1px var(--h-heatmap-working-ring, #60a5fa);
+}
+
 .hero-heatmap-cell.is-issue {
 	outline: 1px solid rgba(127, 29, 29, 0.35);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-	.hero-heatmap-cell.is-today {
-		animation: today-pulse 2800ms ease-in-out infinite;
-	}
-}
-
-@keyframes today-pulse {
-	0%, 100% {
-		box-shadow: 0 0 0 2px #16a34a, 0 0 8px rgba(22, 163, 74, 0.35);
-	}
-	50% {
-		box-shadow: 0 0 0 2px #16a34a, 0 0 14px rgba(22, 163, 74, 0.55);
-	}
 }
 
 @media (prefers-reduced-motion: no-preference) {
 	.intro-play .hero-heatmap-cell.is-today {
 		animation:
 			hm-cell-in 560ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
-			today-ring-in 2400ms ease-out forwards,
-			today-pulse 2800ms ease-in-out infinite;
+			today-ring-in 2400ms ease-out forwards;
 		animation-delay:
 			calc(var(--cell-index, 0) * 3.5ms),
-			calc(var(--cell-index, 0) * 3.5ms),
-			calc(var(--cell-index, 0) * 3.5ms + 2400ms);
+			calc(var(--cell-index, 0) * 3.5ms);
 	}
 }
 
@@ -755,6 +759,30 @@ defineExpose({ reloadAttendance, reloadSchedule })
 	to {
 		opacity: 1;
 		transform: translateY(0);
+	}
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.hero-heatmap-cell.is-today.is-working {
+		animation: working-pulse 3600ms ease-in-out infinite;
+	}
+
+	.intro-play .hero-heatmap-cell.is-today.is-working {
+		animation:
+			hm-cell-in 560ms cubic-bezier(0.22, 1, 0.36, 1) forwards,
+			working-pulse 3600ms ease-in-out infinite;
+		animation-delay:
+			calc(var(--cell-index, 0) * 3.5ms),
+			calc(var(--cell-index, 0) * 3.5ms + 560ms);
+	}
+}
+
+@keyframes working-pulse {
+	0%, 100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.72;
 	}
 }
 

@@ -1,0 +1,20 @@
+{
+  "message": {
+    "version": 1,
+    "server_time": 1792022521,
+    "locale": "ja-JP",
+    "events": [
+      {
+        "id": "example-in",
+        "employee_id": "HR-EMP-example",
+        "employee_name": "山田太郎",
+        "log_type": "IN",
+        "time_label": "09:02",
+        "created_at": 1792022520,
+        "action_label": "出勤完了",
+        "greeting": "おはようございます。",
+        "audio_url": "/api/method/hrms.api.attendance_sign.get_audio?location=example-door&asset_id=0000000000000000000000000000000000000000000000000000000000000000"
+      }
+    ]
+  }
+}

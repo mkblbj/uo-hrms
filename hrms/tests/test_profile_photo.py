@@ -1,8 +1,9 @@
 import io
+import json
 import os
 from unittest.mock import patch
 
-from PIL import Image
+from PIL import Image, ImageSequence
 from werkzeug.test import EnvironBuilder
 from werkzeug.wrappers import Request
 
@@ -33,6 +34,27 @@ def make_image(size=(800, 600), color=(200, 30, 30), fmt="JPEG", mode="RGB", exi
 	return buffer.getvalue()
 
 
+def make_gif(size=(800, 600), loop=0, split_at=None):
+	frames = []
+	for color in ((220, 20, 20), (20, 200, 40), (20, 40, 220)):
+		frame = Image.new("RGB", size, color)
+		if split_at:
+			frame.paste(tuple(reversed(color)), (split_at, 0, size[0], size[1]))
+		frames.append(frame)
+	buffer = io.BytesIO()
+	options = {"loop": loop} if loop is not None else {}
+	frames[0].save(
+		buffer,
+		format="GIF",
+		save_all=True,
+		append_images=frames[1:],
+		duration=[80, 160, 240],
+		comment=b"private metadata",
+		**options,
+	)
+	return buffer.getvalue()
+
+
 def photo_files(employee):
 	return frappe.get_all(
 		"File",
@@ -46,6 +68,76 @@ def photo_files(employee):
 
 
 class TestNormalizePhoto(HRMSTestSuite):
+	def test_gif_keeps_animation_timing_and_loop_without_metadata(self):
+		image = Image.open(io.BytesIO(profile_photo.normalize_photo(make_gif(loop=3))))
+		self.assertEqual(image.format, "GIF")
+		self.assertEqual(image.size, (512, 512))
+		self.assertEqual(image.n_frames, 3)
+		self.assertEqual(image.info["loop"], 3)
+		self.assertNotIn("comment", image.info)
+		self.assertEqual([frame.info["duration"] for frame in ImageSequence.Iterator(image)], [80, 160, 240])
+		image.seek(0)
+		self.assertEqual(image.convert("RGB").getpixel((256, 256)), (220, 20, 20))
+		image.seek(2)
+		self.assertEqual(image.convert("RGB").getpixel((256, 256)), (20, 40, 220))
+
+	def test_gif_without_a_loop_setting_still_plays_once(self):
+		image = Image.open(io.BytesIO(profile_photo.normalize_photo(make_gif((200, 200), loop=None))))
+		self.assertEqual(image.format, "GIF")
+		self.assertNotIn("loop", image.info)
+
+	def test_optimized_gif_frames_do_not_leave_old_colors_behind(self):
+		frames = []
+		for color, box in (
+			((220, 20, 20), (10, 10, 60, 60)),
+			((20, 40, 220), (100, 10, 150, 60)),
+			((20, 200, 40), (10, 100, 60, 150)),
+		):
+			frame = Image.new("RGB", (200, 200), "white")
+			frame.paste(color, box)
+			frames.append(frame)
+		buffer = io.BytesIO()
+		frames[0].save(
+			buffer, format="GIF", save_all=True, append_images=frames[1:], duration=100, loop=0, disposal=1
+		)
+		image = Image.open(io.BytesIO(profile_photo.normalize_photo(buffer.getvalue())))
+		colors = [
+			[frame.convert("RGB").getpixel(point) for point in ((30, 30), (120, 30), (30, 120))]
+			for frame in ImageSequence.Iterator(image)
+		]
+		white = (255, 255, 255)
+		self.assertEqual(
+			colors,
+			[[(220, 20, 20), white, white], [white, (20, 40, 220), white], [white, white, (20, 200, 40)]],
+		)
+
+	def test_gif_applies_the_selected_crop_to_every_frame(self):
+		content = make_gif((400, 200), split_at=200)
+		image = Image.open(
+			io.BytesIO(profile_photo.normalize_photo(content, crop={"sx": 260, "sy": 40, "size": 128}))
+		)
+		self.assertEqual(image.size, (128, 128))
+		colors = [frame.convert("RGB").getpixel((64, 64)) for frame in ImageSequence.Iterator(image)]
+		self.assertEqual(colors, [(20, 20, 220), (40, 200, 20), (220, 40, 20)])
+
+	def test_rejects_gifs_whose_frames_exceed_the_existing_pixel_budget(self):
+		with patch.object(profile_photo, "MAX_SOURCE_PIXELS", 80_000):
+			with self.assertRaises(frappe.ValidationError):
+				profile_photo.normalize_photo(make_gif((200, 200)))
+
+	def test_rejects_invalid_crop_bounds(self):
+		for crop in (
+			{"sx": -1, "sy": 0, "size": 128},
+			{"sx": 100, "sy": 0, "size": 128},
+			{"sx": 0, "sy": 0, "size": 1},
+			{"sx": "bad", "sy": 0, "size": 128},
+			{"sx": 0, "sy": 0, "size": float("nan")},
+			[],
+		):
+			with self.subTest(crop=crop):
+				with self.assertRaises(frappe.ValidationError):
+					profile_photo.normalize_photo(make_gif((200, 200)), crop=crop)
+
 	def test_outputs_square_jpeg_capped_at_512(self):
 		image = Image.open(io.BytesIO(profile_photo.normalize_photo(make_image((2000, 1200)))))
 		self.assertEqual(image.format, "JPEG")
@@ -117,6 +209,8 @@ class ProfilePhotoTestCase(HRMSTestSuite):
 
 	def tearDown(self):
 		frappe.set_user("Administrator")
+		# 回滚这条用例的改动：测试跑完 Frappe 会提交一次，不回滚的话 HR 设置等会留在共用的开发站点上
+		super().tearDown()
 
 	def upload(self, content, user=PHOTO_USER):
 		frappe.set_user(user)
@@ -143,6 +237,39 @@ class TestUploadMyPhoto(ProfilePhotoTestCase):
 		employee.image = None
 		employee.save()
 		self.assertFalse(frappe.db.get_value("Raven User", PHOTO_USER, "user_image"))
+
+	def test_invalid_gif_crop_leaves_the_existing_photo_in_place(self):
+		original = self.upload(make_image((200, 200)))["photo"]
+		frappe.set_user(PHOTO_USER)
+		for crop in ("not-json", json.dumps({"sx": 190, "sy": 0, "size": 128})):
+			body = {"file": (io.BytesIO(make_gif((200, 200))), "avatar.gif", "image/gif"), "crop": crop}
+			request = Request(EnvironBuilder(method="POST", data=body).get_environ())
+			with patch.object(frappe.local, "request", request, create=True):
+				with self.assertRaises(frappe.ValidationError):
+					api.upload_my_photo()
+			self.assertEqual(frappe.db.get_value("Employee", self.employee, "image"), original)
+			self.assertEqual(frappe.db.get_value("User", PHOTO_USER, "user_image"), original)
+			self.assertEqual(photo_files(self.employee), [original])
+
+	def test_gif_endpoint_saves_animation_and_updates_the_photo_status(self):
+		body = {
+			"file": (io.BytesIO(make_gif((400, 200), split_at=200)), "avatar.gif", "image/gif"),
+			"crop": json.dumps({"sx": 260, "sy": 40, "size": 128}),
+		}
+		request = Request(EnvironBuilder(method="POST", data=body).get_environ())
+		frappe.set_user(PHOTO_USER)
+		with patch.object(frappe.local, "request", request, create=True):
+			url = api.upload_my_photo()["photo"]
+		self.assertRegex(url, r"^/files/profile-photo-[0-9a-f]{20}\.gif$")
+		self.assertEqual(frappe.db.get_value("Employee", self.employee, "image"), url)
+		self.assertEqual(frappe.db.get_value("User", PHOTO_USER, "user_image"), url)
+		self.assertTrue(api.get_profile_photo_status()["has_photo"])
+		file = frappe.get_doc("File", {"file_url": url})
+		with Image.open(file.get_full_path()) as image:
+			self.assertEqual(image.format, "GIF")
+			self.assertEqual(image.n_frames, 3)
+			self.assertEqual(image.size, (128, 128))
+			self.assertEqual(image.convert("RGB").getpixel((64, 64)), (20, 20, 220))
 
 	def test_sets_employee_and_account_photo_from_a_public_random_file(self):
 		url = self.upload(make_image((1000, 800)))["photo"]
@@ -252,6 +379,37 @@ class TestProfilePhotoStatus(ProfilePhotoTestCase):
 		self.assertTrue(status["has_photo"])
 		self.assertFalse(status["temporary"])
 		self.assertEqual(status["photo"], url)
+
+	def test_clearing_the_account_photo_requires_upload_even_if_the_employee_keeps_an_old_photo(self):
+		url = self.upload(make_image((300, 300)))["photo"]
+		for empty in (None, ""):
+			with self.subTest(user_image=empty):
+				frappe.db.set_value("User", PHOTO_USER, "user_image", empty)
+				self.assertEqual(frappe.db.get_value("Employee", self.employee, "image"), url)
+				status = self.status()
+				self.assertFalse(status["has_photo"])
+				self.assertFalse(status["temporary"])
+				self.assertIsNone(status["photo"])
+
+	def test_a_different_account_photo_does_not_reuse_the_old_employee_upload_approval(self):
+		old = self.upload(make_image((300, 300)))["photo"]
+		account_photo = frappe.get_doc(
+			{
+				"doctype": "File",
+				"file_name": "account-avatar.png",
+				"content": make_image((256, 256), color=(20, 200, 30), fmt="PNG"),
+				"is_private": 0,
+				"attached_to_doctype": "User",
+				"attached_to_name": PHOTO_USER,
+				"attached_to_field": "user_image",
+			}
+		).insert(ignore_permissions=True)
+		frappe.db.set_value("User", PHOTO_USER, "user_image", account_photo.file_url)
+		self.assertEqual(frappe.db.get_value("Employee", self.employee, "image"), old)
+		status = self.status()
+		self.assertFalse(status["has_photo"])
+		self.assertTrue(status["temporary"])
+		self.assertEqual(status["photo"], account_photo.file_url)
 
 	def set_photo_as(self, owner):
 		# 模拟 HR 或脚本替员工设的头像：文件由别人上传、挂在员工头像字段上

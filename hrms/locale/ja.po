@@ -991,6 +991,30 @@ msgstr "全員に有効化"
 msgid "Pilot Employees"
 msgstr "試用メンバー"
 
+msgid "Confirm presence with the attendance sign's Bluetooth"
+msgstr "打刻端末のBluetoothで在場を確認する"
+
+msgid "Off by default. Applies to employees who can use Face ID check-in in the app."
+msgstr "初期設定はオフです。アプリで顔認証打刻を使える従業員が対象です。"
+
+msgid "Bluetooth Key"
+msgstr "Bluetoothキー"
+
+msgid "Presence Evidence"
+msgstr "在場の確認方法"
+
+msgid "office_network"
+msgstr "社内ネットワーク"
+
+msgid "gps"
+msgstr "位置情報"
+
+msgid "beacon"
+msgstr "打刻端末"
+
+msgid "qr"
+msgstr "QRコード"
+
 msgid "Require Display Key"
 msgstr "表示キーを必須にする"
 
@@ -1060,8 +1084,47 @@ msgstr "写真が小さすぎます。もっと鮮明な写真を選んでくだ
 msgid "No active employee is linked to your account."
 msgstr "このアカウントには在籍中の従業員情報が紐付いていません。"
 
+msgid "This photo could not be cropped. Please choose it again."
+msgstr "この写真を切り抜けませんでした。もう一度選んでください。"
+
 msgid "Chat"
 msgstr "チャット"
 
 msgid "Back to attendance"
 msgstr "勤怠に戻る"
+
+msgid "Device Key"
+msgstr "アプリ顔認証"
+
+msgid "Device Checkin Key"
+msgstr "アプリ顔認証キー"
+
+msgid "Face ID check-in keys of the native app. Each key lives in one phone's Secure Enclave; delete it here when an employee loses the phone."
+msgstr "アプリの顔認証打刻に使うキーです。キーは端末ごとに 1 つ作られます。従業員が端末をなくしたときは、ここで削除してください。"
+
+msgid "Key Details"
+msgstr "キーの詳細"
+
+msgid "Key ID"
+msgstr "キー ID"
+
+msgid "Public Key"
+msgstr "公開鍵"
+
+msgid "Device Name"
+msgstr "端末名"
+
+msgid "Last Used"
+msgstr "最終使用日時"
+
+msgid "Face ID check-in could not be set up. Please try again."
+msgstr "顔認証打刻を設定できませんでした。もう一度お試しください。"
+
+msgid "Setup timed out. Please try again."
+msgstr "設定がタイムアウトしました。もう一度お試しください。"
+
+msgid "You already have {0} devices set up."
+msgstr "すでに {0} 台の端末が設定されています。"
+
+msgid "Face ID could not be verified. Please try again."
+msgstr "顔認証を確認できませんでした。もう一度お試しください。"

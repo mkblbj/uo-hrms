@@ -57,6 +57,7 @@ import { toastController } from "@ionic/vue"
 
 import { createFrappeCaller } from "@/utils/passkeyCheckin"
 
+const emit = defineEmits(["registered"])
 const __ = inject("$translate")
 const MAX_DEVICES = 3
 const devices = ref([])
@@ -96,6 +97,7 @@ async function registerPasskey() {
 		})
 		await showToast(__("Passkey registered successfully!"), "success")
 		await loadDevices()
+		emit("registered")
 	} catch (err) {
 		console.error("Passkey registration error:", err)
 		await showToast(err.message || __("Registration failed"), "danger")

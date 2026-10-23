@@ -1,4 +1,4 @@
-"""判断人在不在公司：公司网络，或手机定位在打卡点半径内。"""
+"""判断人在不在公司：公司网络、签到牌的蓝牙码，或手机定位在打卡点半径内。"""
 
 import math
 from dataclasses import dataclass
@@ -9,6 +9,7 @@ from hrms.hr.utils import get_distance_between_coordinates
 from hrms.utils.client_network import is_office_network
 
 EVIDENCE_OFFICE_NETWORK = "office_network"
+EVIDENCE_BEACON = "beacon"
 EVIDENCE_GPS = "gps"
 STATUS_OK = "ok"
 STATUS_NEED_LOCATION = "need_location"
@@ -64,10 +65,19 @@ def get_location_geofence(location_name: str):
 
 
 def evaluate_presence(
-	location_name, client_ip, latitude=None, longitude=None, accuracy=None
+	location_name,
+	client_ip,
+	latitude=None,
+	longitude=None,
+	accuracy=None,
+	beacon_verified: bool = False,
 ) -> PresenceResult:
 	if is_office_network(client_ip):
 		return PresenceResult(STATUS_OK, EVIDENCE_OFFICE_NETWORK)
+
+	# 签到牌的蓝牙码已验过：人就在牌子旁边，不再看手机定位
+	if beacon_verified:
+		return PresenceResult(STATUS_OK, EVIDENCE_BEACON)
 
 	coordinates = _valid_coordinates(latitude, longitude)
 	if not coordinates:

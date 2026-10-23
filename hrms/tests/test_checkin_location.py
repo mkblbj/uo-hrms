@@ -57,6 +57,8 @@ class CheckinLocationTestCase(HRMSTestSuite):
 	def tearDown(self):
 		frappe.set_user("Administrator")
 		frappe.db.set_single_value("HR Settings", "allow_geolocation_tracking", 0)
+		# 回滚这条用例的改动：测试跑完 Frappe 会提交一次，不回滚的话 HR 设置等会留在共用的开发站点上
+		super().tearDown()
 
 	def qr(self, ip, coordinates=(None, None)):
 		secret = frappe.get_doc("QR Checkin Location", LOCATION).get_password("secret")
@@ -159,6 +161,24 @@ class TestShiftGeofenceWithOfficeNetwork(CheckinLocationTestCase):
 		with self.assertRaises(frappe.ValidationError):
 			self.checkin_far_away("gps")
 
+	def test_beacon_skips_the_shift_distance_check(self):
+		self.assertTrue(self.checkin_far_away("beacon").name)
+
+	def test_untrusted_beacon_still_needs_coordinates(self):
+		doc = frappe.get_doc(
+			{
+				"doctype": "Employee Checkin",
+				"employee": self.employee,
+				"log_type": "IN",
+				"time": f"{getdate()} 08:30:00",
+			}
+		)
+		doc.flags.presence_evidence = "beacon"
+		with self.assertRaisesRegex(
+			frappe.ValidationError, "Latitude and longitude values are required for checking in."
+		):
+			doc.insert()
+
 
 class TestEditingSavedCheckins(CheckinLocationTestCase):
 	"""位置只在打卡那一刻核对；HR 事后在后台改别的字段不该被定位规则拦住。"""
@@ -236,3 +256,24 @@ class TestLocationFailureReport(CheckinLocationTestCase):
 		for _ in range(25):
 			self._report("passkey", "timeout", 8000)
 		self.assertEqual(len(self._reports()), 20)
+
+
+class TestReportCounter(HRMSTestSuite):
+	"""每人每小时最多记 20 条：定位失败和蓝牙码被拒各数各的。"""
+
+	def setUp(self):
+		self.keys = [f"hrms:checkin-location-failures:{USER}", f"hrms:checkin-beacon-rejections:{USER}"]
+		frappe.cache.delete_value(self.keys)
+		self.addCleanup(frappe.cache.delete_value, self.keys)
+
+	def test_default_kind_is_location_failures(self):
+		self.assertTrue(checkin_location._count_report(USER))
+		self.assertEqual(frappe.cache.get(frappe.cache.make_key(self.keys[0])), b"1")
+		self.assertIsNone(frappe.cache.get(frappe.cache.make_key(self.keys[1])))
+
+	def test_kinds_are_counted_separately(self):
+		for _ in range(20):
+			self.assertTrue(checkin_location._count_report(USER, kind="checkin-beacon-rejections"))
+		self.assertFalse(checkin_location._count_report(USER, kind="checkin-beacon-rejections"))
+		self.assertTrue(checkin_location._count_report(USER))
+		self.assertGreater(frappe.cache.ttl(frappe.cache.make_key(self.keys[1])), 0)

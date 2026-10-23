@@ -9,6 +9,18 @@ test("copy resolves per language", () => {
 	assert.equal(getAttendanceCopy("legend.overtime", "en"), "Overtime")
 })
 
+test("today's punch states have clear labels in every supported language", () => {
+	assert.equal(getAttendanceCopy("status.working", "zh"), "出勤中")
+	assert.equal(getAttendanceCopy("status.checked_out", "zh"), "已退勤")
+	assert.equal(getAttendanceCopy("status.not_checked_in", "zh"), "未打卡")
+	assert.equal(getAttendanceCopy("status.working", "ja"), "勤務中")
+	assert.equal(getAttendanceCopy("status.checked_out", "ja"), "退勤済")
+	assert.equal(getAttendanceCopy("status.not_checked_in", "ja"), "未打刻")
+	assert.equal(getAttendanceCopy("status.working", "en"), "Working")
+	assert.equal(getAttendanceCopy("status.checked_out", "en"), "Checked out")
+	assert.equal(getAttendanceCopy("status.not_checked_in", "en"), "Not checked in")
+})
+
 test("copy falls back to Chinese for an unknown language", () => {
 	assert.equal(getAttendanceCopy("legend.rest", "fr"), getAttendanceCopy("legend.rest", "zh"))
 	assert.equal(getAttendanceCopy("legend.rest", undefined), getAttendanceCopy("legend.rest", "zh"))

@@ -75,6 +75,11 @@ export function getAttendanceHeatmapCellMeta({
 		return { level: 0, color: NO_ATTENDANCE_COLOR, isFuture: true, isToday, hasIssue: false }
 	}
 
+	if (isToday && ["working", "checked_out"].includes(event?.checkin_status)) {
+		const color = event.checkin_status === "working" ? "#bfdbfe" : LEVEL_COLORS[0]
+		return { level: 1, color, isFuture: false, isToday, hasIssue: false }
+	}
+
 	if (!event || !hasAttendance(status, hours)) {
 		return { level: 0, color: NO_ATTENDANCE_COLOR, isFuture: false, isToday, hasIssue: false }
 	}

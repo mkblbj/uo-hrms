@@ -4,7 +4,7 @@ from frappe.model import get_permitted_fields
 from frappe.model.workflow import get_workflow_name
 from frappe.query_builder import Order
 from frappe.translate import get_all_translations
-from frappe.utils import add_days, date_diff, getdate, strip_html
+from frappe.utils import add_days, date_diff, get_datetime, getdate, strip_html
 
 from erpnext.setup.doctype.employee.employee import get_holiday_list_for_employee
 
@@ -150,6 +150,26 @@ def get_pwa_checkin_log_type(log) -> str:
 	return (log.get("log_type") or "").strip().upper()
 
 
+def build_pwa_today_checkin_event(checkins: list[dict]) -> dict:
+	"""Display today's punch state without creating attendance or calculating hours."""
+	logs = sorted(checkins or [], key=lambda log: get_datetime(log["time"]))
+	if not logs:
+		return {"checkin_status": "not_checked_in", "in_time": None, "out_time": None}
+
+	last_type = get_pwa_checkin_log_type(logs[-1])
+	if last_type not in ("IN", "OUT"):
+		last_type = "IN" if len(logs) % 2 else "OUT"
+	first_in = next((log for log in logs if get_pwa_checkin_log_type(log) == "IN"), None)
+	if not first_in and not any(get_pwa_checkin_log_type(log) for log in logs):
+		first_in = logs[0]
+
+	return {
+		"checkin_status": "working" if last_type == "IN" else "checked_out",
+		"in_time": get_datetime(first_in["time"]).strftime("%H:%M") if first_in else None,
+		"out_time": get_datetime(logs[-1]["time"]).strftime("%H:%M") if last_type == "OUT" else None,
+	}
+
+
 def build_pwa_attendance_anomaly(attendance_date, checkins: list[dict], today=None) -> dict:
 	attendance_date = getdate(attendance_date)
 	today = getdate(today) if today else getdate()
@@ -201,7 +221,7 @@ def group_pwa_checkins_by_attendance_date(
 		if attendance_name and attendance_name in attendance_date_by_name:
 			checkin_date = getdate(attendance_date_by_name[attendance_name])
 		else:
-			checkin_date = getdate(checkin.get("time"))
+			checkin_date = getdate(checkin.get("shift_start") or checkin.get("time"))
 
 		if from_date <= checkin_date <= to_date:
 			grouped.setdefault(checkin_date, []).append(checkin)
@@ -222,7 +242,7 @@ def get_checkins_for_attendance_calendar(
 		for row in frappe.get_all(
 			"Employee Checkin",
 			filters={"employee": employee, "attendance": ["in", attendance_names]},
-			fields=["name", "attendance", "log_type", "time"],
+			fields=["name", "attendance", "log_type", "time", "shift_start"],
 			order_by="time asc",
 		):
 			checkins_by_name[row.name] = row
@@ -233,7 +253,7 @@ def get_checkins_for_attendance_calendar(
 			"employee": employee,
 			"time": ["between", [f"{from_date} 00:00:00", f"{to_date} 23:59:59"]],
 		},
-		fields=["name", "attendance", "log_type", "time"],
+		fields=["name", "attendance", "log_type", "time", "shift_start"],
 		order_by="time asc",
 	):
 		checkins_by_name[row.name] = row
@@ -359,11 +379,10 @@ def get_employee_dashboard_stats() -> dict:
 	}
 
 
-@frappe.whitelist()
-def get_weather_data() -> dict:
+def get_weather_data() -> dict | None:
 	"""
-	获取当前天气数据（使用 WeatherAPI.com）
-	包含今天的最高/最低温度
+	获取当前天气数据（使用 WeatherAPI.com），包含今天的最高/最低温度。
+	只给签到牌用（hrms.utils.attendance_sign_weather）；网页版和 App 已不显示天气，不对外开放。
 	"""
 	from datetime import datetime
 
@@ -382,7 +401,7 @@ def get_weather_data() -> dict:
 	try:
 		# 使用 forecast API 获取今天的最高/最低温
 		today = datetime.now().strftime("%Y-%m-%d")
-		url = f"http://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={LAT},{LON}&dt={today}&lang={weather_lang}&aqi=no"
+		url = f"https://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={LAT},{LON}&dt={today}&lang={weather_lang}&aqi=no"
 		response = requests.get(url, timeout=5)
 		response.raise_for_status()
 		data = response.json()
@@ -409,52 +428,14 @@ def get_weather_data() -> dict:
 
 		return result
 	except Exception as e:
-		frappe.log_error(f"Weather API Error: {e!s}", "Weather Widget")
-		return None
-
-
-@frappe.whitelist()
-def get_weather_forecast() -> dict:
-	"""
-	获取明天的天气预报（使用 WeatherAPI.com）
-	"""
-	from datetime import datetime, timedelta
-
-	import requests
-
-	# WeatherAPI 配置
-	API_KEY = "a45ee3456cd14c498f681427250405"
-	LAT = 34.66497
-	LON = 135.15820
-
-	# 获取用户语言设置
-	user_lang = frappe.local.lang or "ja"
-	lang_map = {"zh": "zh", "ja": "ja", "en": "en"}
-	weather_lang = lang_map.get(user_lang, "ja")
-
-	try:
-		# 获取明天的日期
-		tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
-
-		url = f"http://api.weatherapi.com/v1/forecast.json?key={API_KEY}&q={LAT},{LON}&dt={tomorrow}&lang={weather_lang}&aqi=no"
-		response = requests.get(url, timeout=5)
-		response.raise_for_status()
-		data = response.json()
-
-		if data.get("forecast") and data["forecast"].get("forecastday"):
-			day_data = data["forecast"]["forecastday"][0]["day"]
-			return {
-				"maxtemp_c": day_data["maxtemp_c"],
-				"mintemp_c": day_data["mintemp_c"],
-				"condition": {
-					"text": day_data["condition"]["text"],
-					"icon": f"https:{day_data['condition']['icon']}",
-				},
-			}
-		return None
-	except Exception as e:
-		frappe.log_error(f"Weather Forecast API Error: {e!s}", "Weather Widget")
-		return None
+		# 异常文字里带着请求网址（含密钥）：只记类型和 HTTP 状态码
+		failure = type(e).__name__
+		status = getattr(getattr(e, "response", None), "status_code", None)
+		if status:
+			failure += f" (HTTP {status})"
+	# 放在 except 外面记：这时已没有当前异常，log_error 不会顺带把整个异常交给错误上报
+	frappe.log_error(title="Weather API Error", message=failure)
+	return None
 
 
 @frappe.whitelist()
@@ -546,9 +527,18 @@ def are_push_notifications_enabled() -> bool:
 
 
 # Attendance
+ATTENDANCE_CALENDAR_MAX_DAYS = 400
+
+
 @frappe.whitelist()
 def get_attendance_calendar_events(from_date: str, to_date: str, employee: str | None = None) -> dict:
-	employee = employee or get_current_employee()
+	current_employee = get_current_employee()
+	if employee and employee != current_employee:
+		frappe.throw(_("You can only view your own attendance."), frappe.PermissionError)
+	employee = current_employee
+	if date_diff(to_date, from_date) + 1 > ATTENDANCE_CALENDAR_MAX_DAYS:
+		frappe.throw(_("Date range cannot exceed {0} days.").format(ATTENDANCE_CALENDAR_MAX_DAYS))
+
 	holidays = get_holidays_for_calendar(employee, from_date, to_date)
 	attendance = get_attendance_for_calendar(employee, from_date, to_date)
 	attendance_date_by_name = {
@@ -559,6 +549,7 @@ def get_attendance_calendar_events(from_date: str, to_date: str, employee: str |
 	)
 	shifts = get_shifts_for_calendar(employee, from_date, to_date)
 	events = {}
+	today = getdate()
 
 	date = getdate(from_date)
 	while date_diff(to_date, date) >= 0:
@@ -575,6 +566,9 @@ def get_attendance_calendar_events(from_date: str, to_date: str, employee: str |
 		elif date in holidays:
 			event["attendance"] = "Holiday"
 
+		if date == today and date not in attendance:
+			event.update(build_pwa_today_checkin_event(checkins_by_date.get(date, [])))
+
 		# 排班信息
 		if date_str in shifts:
 			event["shift"] = shifts[date_str]
@@ -588,6 +582,104 @@ def get_attendance_calendar_events(from_date: str, to_date: str, employee: str |
 		date = add_days(date, 1)
 
 	return events
+
+
+@frappe.whitelist()
+def get_attendance_day_details(date: str, employee: str | None = None) -> dict:
+	from hrms.api.attendance_correction import (
+		get_current_employee as get_employee_for_user,
+	)
+	from hrms.api.attendance_correction import (
+		get_employee_shift_for_date,
+		validate_employee_context_access,
+	)
+	from hrms.hr.doctype.shift_type.shift_type import get_working_period_details
+
+	employee = employee or get_employee_for_user()
+	validate_employee_context_access(employee)
+	day = getdate(date)
+	attendance_rows = frappe.get_all(
+		"Attendance",
+		filters={
+			"employee": employee,
+			"attendance_date": ["between", [add_days(day, -1), add_days(day, 1)]],
+			"docstatus": 1,
+		},
+		fields=["name", "attendance_date", "working_hours", "shift"],
+	)
+	day_attendance = [row for row in attendance_rows if row.attendance_date == day]
+	date_by_name = {row.name: row.attendance_date for row in attendance_rows}
+	fields = [
+		"name",
+		"time",
+		"log_type",
+		"attendance",
+		"shift_start",
+		"shift",
+		"skip_auto_attendance",
+		"offshift",
+		"checkin_method",
+	]
+	checkins = frappe.get_all(
+		"Employee Checkin",
+		filters={
+			"employee": employee,
+			"time": ["between", [f"{add_days(day, -1)} 00:00:00", f"{add_days(day, 1)} 23:59:59"]],
+		},
+		fields=fields,
+	)
+	if day_attendance:
+		checkins.extend(
+			frappe.get_all(
+				"Employee Checkin",
+				filters={"employee": employee, "attendance": ["in", [row.name for row in day_attendance]]},
+				fields=fields,
+			)
+		)
+	checkins = list({row.name: row for row in checkins}.values())
+	checkins = group_pwa_checkins_by_attendance_date(checkins, date_by_name, day, day).get(day, [])
+
+	eligible = [row for row in checkins if not row.skip_auto_attendance and not row.offshift]
+	fallback_shift = None
+	if any(not row.shift for row in eligible):
+		fallback_shift = next((row.shift for row in day_attendance if row.shift), None)
+		fallback_shift = fallback_shift or get_employee_shift_for_date(employee, day)
+		fallback_shift = fallback_shift or frappe.db.get_value("Employee", employee, "default_shift")
+	by_shift = {}
+	for row in eligible:
+		if shift_name := row.shift or fallback_shift:
+			by_shift.setdefault(shift_name, []).append(row)
+	periods = []
+	for shift_name, logs in by_shift.items():
+		periods.extend(get_working_period_details(frappe.get_cached_doc("Shift Type", shift_name), logs))
+	periods.sort(key=lambda row: row["in_time"])
+	working_hours = (
+		round(sum(float(row.working_hours or 0) for row in day_attendance), 2) if day_attendance else None
+	)
+	completed_hours = round(sum(row["working_hours"] for row in periods), 2)
+	last = eligible[-1] if eligible else None
+	return {
+		"employee": employee,
+		"attendance_date": str(day),
+		"checkins": [
+			{
+				"name": row.name,
+				"time": row.time,
+				"log_type": row.log_type,
+				"checkin_method": row.checkin_method,
+				"included_in_calculation": not bool(row.skip_auto_attendance or row.offshift),
+			}
+			for row in checkins
+		],
+		"periods": periods,
+		"open_period": {"in_time": last.time} if last and last.log_type == "IN" else None,
+		"working_hours": working_hours,
+		"completed_hours": completed_hours,
+		"is_settled": bool(day_attendance),
+		"has_total_difference": working_hours is not None
+		and bool(periods)
+		and abs(working_hours - completed_hours) > 0.01,
+	}
 
 
 def get_attendance_for_calendar(employee: str, from_date: str, to_date: str) -> dict:

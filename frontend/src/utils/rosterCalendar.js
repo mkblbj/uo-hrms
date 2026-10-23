@@ -49,6 +49,36 @@ const ROSTER_COPY = {
 		ja: "締切 {date}",
 		en: "Due {date}",
 	},
+	homePreferenceTitle: {
+		zh: "排班意愿",
+		ja: "シフト希望",
+		en: "Shift preferences",
+	},
+	homePreferenceRemaining: {
+		zh: "还差 {n} 个月",
+		ja: "あと{n}か月分",
+		en: "{n} months left",
+	},
+	homePreferenceRemainingOne: {
+		zh: "还差 1 个月",
+		ja: "あと1か月分",
+		en: "1 month left",
+	},
+	homePreferenceAllSubmitted: {
+		zh: "已全部提交",
+		ja: "すべて提出済み",
+		en: "All submitted",
+	},
+	homePreferenceSubmit: {
+		zh: "填写意愿",
+		ja: "希望を入力",
+		en: "Submit",
+	},
+	homePreferenceNotSubmitted: {
+		zh: "未提交",
+		ja: "未提出",
+		en: "Not yet",
+	},
 	previousMonth: {
 		zh: "上个月",
 		ja: "前の月",
@@ -83,6 +113,11 @@ const ROSTER_COPY = {
 		zh: "节假日",
 		ja: "祝日",
 		en: "Holiday",
+	},
+	holidayShort: {
+		zh: "祝",
+		ja: "祝",
+		en: "H",
 	},
 	sale: {
 		zh: "促销",
@@ -217,8 +252,97 @@ export function resolveRosterInitialState({ now = new Date(), query = {} }) {
 	}
 }
 
-export function resolveHomePreferenceNotice(notice) {
-	return notice?.status === "Collecting" && String(notice.period || "").trim() ? notice : null
+const URGENT_DEADLINE_DAYS = 7
+
+function parseIsoDate(value) {
+	const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ""))
+	if (!match) return null
+	return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) }
+}
+
+function daysUntil(deadline, today) {
+	const a = parseIsoDate(deadline)
+	const b = parseIsoDate(today)
+	if (!a || !b) return null
+	const span = Date.UTC(a.year, a.month - 1, a.day) - Date.UTC(b.year, b.month - 1, b.day)
+	return Math.round(span / 86400000)
+}
+
+function formatShortMonth(notice, language) {
+	const month = Number(notice?.month)
+	if (!Number.isInteger(month) || month < 1 || month > 12) {
+		return formatRosterPreferenceTitle(notice, language)
+	}
+	if (language !== "en") return `${month}月`
+	return new Intl.DateTimeFormat("en", { month: "short", timeZone: "UTC" }).format(
+		new Date(Date.UTC(2000, month - 1, 1))
+	)
+}
+
+// 首页「シフト希望」卡片：一个月时是一整行；两个月以上并排成小格，月份再多卡片也不变高。
+// 截止日一周内才标醒目色
+export function buildHomePreferenceGroup(notices, { lang = "zh", today = "" } = {}) {
+	const language = normalizeRosterLanguage(lang)
+	const rows = (notices || []).map((notice) => {
+		const done = Boolean(notice.has_preference)
+		const deadline = parseIsoDate(notice.preference_deadline)
+		const remaining = done ? null : daysUntil(notice.preference_deadline, today)
+		const deadlineText = deadline
+			? getRosterCopy("deadline", language, { date: `${deadline.month}/${deadline.day}` })
+			: ""
+		const urgent = remaining !== null && remaining <= URGENT_DEADLINE_DAYS
+		let statusText = deadlineText || getRosterCopy("homePreferenceNotSubmitted", language)
+		let tone = urgent ? "urgent" : "pending"
+		if (done) {
+			statusText = getRosterCopy("submitted", language)
+			tone = "done"
+		}
+		return {
+			period: notice.period,
+			title: formatRosterPreferenceTitle(notice, language),
+			monthText: formatShortMonth(notice, language),
+			done,
+			actionText: getRosterCopy(done ? "submitted" : "homePreferenceSubmit", language),
+			deadlineText,
+			statusText,
+			tone,
+			urgent,
+			to: `/work-roster/preference/${notice.period}`,
+		}
+	})
+	const pending = rows.filter((row) => !row.done).length
+	let countText = ""
+	let countTone = ""
+	if (rows.length > 1) {
+		if (pending === 0) {
+			countText = getRosterCopy("homePreferenceAllSubmitted", language)
+			countTone = "done"
+		} else {
+			countText = getRosterCopy(
+				pending === 1 ? "homePreferenceRemainingOne" : "homePreferenceRemaining",
+				language,
+				{ n: pending }
+			)
+			countTone = "pending"
+		}
+	}
+	return {
+		title: getRosterCopy("homePreferenceTitle", language),
+		layout: rows.length > 1 ? "tiles" : "list",
+		countText,
+		countTone,
+		rows,
+	}
+}
+
+// 首页希望提醒：每个正在收集希望的月份都提示；旧版服务器只给一条 preference_notice
+export function resolveHomePreferenceNotices(summary) {
+	const notices = Array.isArray(summary?.preference_notices)
+		? summary.preference_notices
+		: [summary?.preference_notice]
+	return notices.filter(
+		(notice) => notice?.status === "Collecting" && String(notice.period || "").trim()
+	)
 }
 
 export function getRosterCacheKey(scope, year, month, departmentCategory = "") {

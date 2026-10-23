@@ -46,6 +46,27 @@ test("a day with no attendance record is empty regardless of roster", () => {
 	assert.equal(deriveAttendanceState(null, null), "empty")
 })
 
+test("today has a status before its attendance is settled", () => {
+	assert.equal(deriveAttendanceState({ checkin_status: "working" }, null), "working")
+	assert.equal(deriveAttendanceState({ checkin_status: "checked_out" }, null), "checked_out")
+	assert.equal(deriveAttendanceState({ checkin_status: "not_checked_in" }, null), "not_checked_in")
+})
+
+test("actual checkins show through a holiday while an unpunched holiday stays a holiday", () => {
+	const holiday = { weekly_off: 0 }
+	assert.equal(deriveAttendanceState({ checkin_status: "working", attendance: "Holiday" }, holiday), "working")
+	assert.equal(deriveAttendanceState({ checkin_status: "not_checked_in", attendance: "Holiday" }, holiday), "holiday")
+})
+
+test("unsettled statuses do not add days or hours to the monthly summary", () => {
+	assert.deepEqual(summarizeMonth([
+		{ state: "work", hours: 8 },
+		{ state: "working", hours: 4 },
+		{ state: "checked_out", hours: 6 },
+		{ state: "not_checked_in", hours: 0 },
+	]), { workDays: 1, hours: 8, avg: 8 })
+})
+
 test("overtime starts at ten hours", () => {
 	assert.equal(OVERTIME_HOURS, 10)
 	assert.equal(isOvertime(9.9), false)

@@ -50,7 +50,7 @@ class EmployeeCheckin(Document):
 
 		attendance: DF.Link | None
 		attendance_correction_request: DF.Link | None
-		checkin_method: DF.Literal["", "QR", "Passkey", "NFC Passkey", "Attendance Correction"]
+		checkin_method: DF.Literal["", "QR", "Passkey", "NFC Passkey", "Attendance Correction", "Device Key"]
 		device_id: DF.Data | None
 		employee: DF.Link
 		employee_name: DF.Data | None
@@ -59,6 +59,7 @@ class EmployeeCheckin(Document):
 		longitude: DF.Float
 		offshift: DF.Check
 		overtime_type: DF.Link | None
+		presence_evidence: DF.Literal["", "office_network", "gps", "beacon", "qr"]
 		shift: DF.Link | None
 		shift_actual_end: DF.Datetime | None
 		shift_actual_start: DF.Datetime | None
@@ -210,8 +211,8 @@ class EmployeeCheckin(Document):
 		):
 			return
 
-		# 打卡接口已凭公司网络确认人在公司：手机定位即使偏了也不再按距离拦
-		if self.flags.trusted_checkin_source and self.flags.presence_evidence == "office_network":
+		# 打卡接口已凭公司网络或签到牌的蓝牙码确认人在公司：手机定位即使偏了也不再按距离拦
+		if self.flags.trusted_checkin_source and self.flags.presence_evidence in ("office_network", "beacon"):
 			return
 
 		if not (self.latitude or self.longitude):
@@ -488,6 +489,23 @@ def get_existing_half_day_attendance(employee, attendance_date):
 		attendance_doc = frappe.get_doc("Attendance", attendance_name)
 		return attendance_doc
 	return None
+
+
+def get_working_periods(logs, check_in_out_type) -> list[tuple[datetime, datetime]]:
+	"""Return complete work periods using the shift's configured punch pairing."""
+	if check_in_out_type == "Alternating entries as IN and OUT during the same shift":
+		return [(entry.time, exit.time) for entry, exit in zip(logs[::2], logs[1::2], strict=False)]
+
+	periods = []
+	if check_in_out_type == "Strictly based on Log Type in Employee Checkin":
+		in_time = None
+		for log in logs:
+			if log.log_type == "IN" and in_time is None:
+				in_time = log.time
+			elif log.log_type == "OUT" and in_time is not None:
+				periods.append((in_time, log.time))
+				in_time = None
+	return periods
 
 
 def calculate_working_hours(logs, check_in_out_type, working_hours_calc_type):

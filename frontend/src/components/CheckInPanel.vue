@@ -2,6 +2,13 @@
 	<div class="checkin-panel" :class="{ 'intro-play': introPlay }">
 		<PushNotificationPrompt />
 		<ProfilePhotoReminder :lang="currentLanguage" />
+		<PasskeySetupReminder
+			v-if="isMobileCheckinAllowed"
+			:context="passkeyContext.data"
+			:platform-supported="platformSupported"
+			:lang="currentLanguage"
+			@registered="passkeyContext.reload()"
+		/>
 
 		<section
 			v-if="todaySaleEvent"
@@ -15,7 +22,13 @@
 			</div>
 		</section>
 
-		<RosterPreferenceBanner :notice="homePreferenceNotice" :labels="preferenceLabels" />
+		<RosterPreferenceGroup
+			v-if="homePreferenceNotices.length"
+			class="intro-stagger intro-stagger-0"
+			:notices="homePreferenceNotices"
+			:lang="currentLanguage"
+			:today="homeScheduleSummary.data?.today || ''"
+		/>
 
 		<HomeHeroCard
 			ref="heroCardRef"
@@ -23,7 +36,6 @@
 			:employee-name="employee?.data?.first_name || employee?.data?.employee_name || ''"
 			:greeting="getGreeting()"
 			:date-label="formatDate()"
-			:weather-text="weatherSummary"
 			:work-status="props.workStatus?.data"
 			:stats="dashboardStats.data"
 			:stats-loading="dashboardStats.loading"
@@ -47,6 +59,7 @@
 		:busy="passkeyBusy"
 		:disabled="!isMobileCheckinAllowed || props.workStatus?.loading"
 		@scan="onPrimaryAction"
+		@scan-qr="openQRScanner"
 	/>
 
 	<PasskeyCheckinSheet
@@ -183,12 +196,13 @@ import CheckinSuccessOverlay from "@/components/home/CheckinSuccessOverlay.vue"
 import HomeHeroCard from "@/components/home/HomeHeroCard.vue"
 import PushNotificationPrompt from "@/components/home/PushNotificationPrompt.vue"
 import ProfilePhotoReminder from "@/components/home/ProfilePhotoReminder.vue"
+import PasskeySetupReminder from "@/components/home/PasskeySetupReminder.vue"
 import HomeScanActionBar from "@/components/home/HomeScanActionBar.vue"
 import HomeStatsGrid from "@/components/home/HomeStatsGrid.vue"
 import PasskeyCheckinSheet from "@/components/home/PasskeyCheckinSheet.vue"
 import QRScannerModal from "@/components/QRScannerModal.vue"
 import HomeSummaryCard from "@/components/work_roster/HomeSummaryCard.vue"
-import RosterPreferenceBanner from "@/components/work_roster/RosterPreferenceBanner.vue"
+import RosterPreferenceGroup from "@/components/work_roster/RosterPreferenceGroup.vue"
 import { settings } from "@/data/settings"
 import {
 	acquireCheckinLocation,
@@ -212,11 +226,7 @@ import {
 	runPasskeyCheckin,
 	shouldShowWifiTip,
 } from "@/utils/passkeyCheckin"
-import {
-	formatRosterPreferenceTitle,
-	getRosterCopy,
-	resolveHomePreferenceNotice,
-} from "@/utils/rosterCalendar"
+import { resolveHomePreferenceNotices } from "@/utils/rosterCalendar"
 
 const props = defineProps({
 	workStatus: {
@@ -235,10 +245,6 @@ const qrScannerRef = ref(null)
 const heroCardRef = ref(null)
 const introPlay = ref(false)
 const currentLanguage = resolveHomeLanguage(window.frappe?.boot)
-const PREFERENCE_LABEL_KEYS = ["submitPreference", "editPreference", "submitted", "deadline"]
-const preferenceLabels = Object.fromEntries(
-	PREFERENCE_LABEL_KEYS.map((key) => [key, getRosterCopy(key, currentLanguage)])
-)
 const successOverlayState = reactive({
 	isOpen: false,
 	actionsVisible: false,
@@ -252,12 +258,6 @@ const successOverlayController = createSuccessOverlayController({
 const dashboardStats = createResource({
 	url: "hrms.api.get_employee_dashboard_stats",
 	auto: true,
-})
-
-const weather = createResource({
-	url: "hrms.api.get_weather_data",
-	auto: true,
-	cache: ["weather_data", 10 * 60 * 1000],
 })
 
 const homeScheduleSummary = createResource({
@@ -279,21 +279,8 @@ const heroCardMeta = computed(() =>
 	})
 )
 const primaryScanMeta = computed(() => heroCardMeta.value.cta)
-const weatherSummary = computed(() => {
-	if (!weather.data) return ""
-	const icon = weather.data?.condition?.text ? "⛅" : ""
-	const temp = Math.round(weather.data.temp_c)
-	return `${icon} ${temp}°`.trim()
-})
 const todaySaleEvent = computed(() => homeScheduleSummary.data?.today_event || null)
-const homePreferenceNotice = computed(() => {
-	const notice = resolveHomePreferenceNotice(homeScheduleSummary.data?.preference_notice)
-	if (!notice) return null
-	return {
-		...notice,
-		title: formatRosterPreferenceTitle(notice, currentLanguage),
-	}
-})
+const homePreferenceNotices = computed(() => resolveHomePreferenceNotices(homeScheduleSummary.data))
 
 const openQRScanner = () => {
 	if (

@@ -114,3 +114,30 @@ class TestPasskeyWebAuthn(unittest.TestCase):
 		)
 		self.assertTrue(result.user_verified)
 		self.assertEqual(assertion["response"]["userHandle"], "e2e-passkey@example.com")
+
+
+class TestNativeAppAssertion(unittest.TestCase):
+	"""iOS 原生通行密钥：origin 是 https://erphr.toiroworld.com，不带 transports，用默认（正式）配置也能验过。"""
+
+	def test_native_style_assertion_verifies(self):
+		with patch.dict(frappe.local.conf, {"passkey_rp_id": None, "passkey_origins": None}):
+			authenticator = SoftAuthenticator("erphr.toiroworld.com", "https://erphr.toiroworld.com", b"user@example.com")
+			options = pw.build_registration_options(
+				user="user@example.com", display_name="User", exclude_credential_ids=[], data={"user": "u"}
+			)
+			response = authenticator.register(options["challenge"])
+			response["response"].pop("transports", None)
+			challenge = pw.extract_client_challenge(response)
+			pw.pop_challenge(pw.PURPOSE_REGISTER, challenge)
+			verified = pw.verify_registration(response, expected_challenge_b64=challenge)
+			auth_options = pw.build_authentication_options(
+				allow_credential_ids=[authenticator.credential_id_b64], data={"user": "u"}
+			)
+			assertion = authenticator.authenticate(auth_options["challenge"])
+			result = pw.verify_assertion(
+				assertion,
+				expected_challenge_b64=auth_options["challenge"],
+				public_key_b64=bytes_to_base64url(verified.credential_public_key),
+				current_sign_count=0,
+			)
+		self.assertTrue(result.user_verified)

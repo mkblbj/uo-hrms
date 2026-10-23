@@ -14,6 +14,7 @@ from hrms.hr.doctype.attendance_correction_request.attendance_correction_request
 )
 
 DEFAULT_LIMIT = 20
+PROCESSED_STATUSES = ("Applied", "Rejected", "Apply Failed")
 MAX_LIMIT = 100
 ATTENDANCE_CORRECTION_FIELDS = [
 	"name",
@@ -67,6 +68,8 @@ def build_attendance_correction_context(employee: str, attendance_date) -> dict:
 		"employee": employee,
 		"attendance_date": str(attendance_date),
 		"shift": shift,
+		"approver": _approver_info(employee),
+		"scheduled_shift": _scheduled_shift(employee, attendance_date),
 		"checkins": frappe.get_all(
 			"Employee Checkin",
 			filters={
@@ -83,6 +86,26 @@ def build_attendance_correction_context(employee: str, attendance_date) -> dict:
 			as_dict=True,
 		),
 	}
+
+
+def _approver_info(employee: str) -> dict | None:
+	approvers = get_attendance_correction_approvers(employee)
+	if not approvers:
+		return None
+	return {"user": approvers[0], "full_name": frappe.db.get_value("User", approvers[0], "full_name") or approvers[0]}
+
+
+def _scheduled_shift(employee: str, attendance_date) -> dict | None:
+	"""申请人那一天的排班时间（原生 App 用）；原有的 shift 字段是 Shift Type 名字，PWA 在用，不动。"""
+	from hrms.api.mobile import _roster_entry
+	from hrms.utils.mobile_attendance import shift_window
+
+	try:
+		return shift_window(_roster_entry(employee, getdate(attendance_date)), getdate(attendance_date))
+	except Exception:
+		# 新字段出错时只让它为空，不能拖垮 PWA 在用的上下文和详情接口
+		frappe.log_error(title="Attendance correction scheduled shift")
+		return None
 
 
 def validate_employee_context_access(employee: str):
@@ -126,7 +149,7 @@ def get_checkin_window(attendance_date, shift: str | None):
 	return get_attendance_recalculation_window(frappe.get_doc("Shift Type", shift), attendance_date)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def submit_attendance_correction_request(payload: dict | str) -> dict:
 	payload = _parse_payload(payload)
 	employee = get_current_employee()
@@ -208,6 +231,20 @@ def get_pending_attendance_correction_approvals(limit: int | None = 20) -> list[
 	return _get_pending_attendance_correction_approvals(fields, _normalize_limit(limit))
 
 
+@frappe.whitelist(methods=["GET"])
+def get_processed_attendance_correction_approvals(limit: int | None = 20) -> list[dict]:
+	"""我批准或驳回过的申请，按处理时间倒序。"""
+	fields = [*ATTENDANCE_CORRECTION_FIELDS, "reason", "approved_on", "rejection_reason"]
+	fields.remove("approver")
+	return frappe.get_all(
+		"Attendance Correction Request",
+		filters={"approved_by": frappe.session.user, "status": ["in", PROCESSED_STATUSES]},
+		fields=fields,
+		order_by="approved_on desc",
+		limit_page_length=_normalize_limit(limit),
+	)
+
+
 @frappe.whitelist()
 def get_attendance_correction_request(name: str) -> dict:
 	doc = frappe.get_doc("Attendance Correction Request", name)
@@ -242,7 +279,7 @@ def get_attendance_correction_approval_count() -> int:
 	return rows[0].pending_count if rows else 0
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def approve_attendance_correction_request(name: str) -> dict:
 	doc = frappe.get_doc("Attendance Correction Request", name)
 	approver = doc.approver
@@ -251,7 +288,7 @@ def approve_attendance_correction_request(name: str) -> dict:
 	return {"name": doc.name, "status": doc.status, "attendance": doc.result_attendance}
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def reject_attendance_correction_request(name: str, reason: str) -> dict:
 	doc = frappe.get_doc("Attendance Correction Request", name)
 	approver = doc.approver

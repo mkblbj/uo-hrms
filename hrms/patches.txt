@@ -56,3 +56,6 @@ hrms.patches.v16_0.restrict_employee_checkin_self_service_permissions
 hrms.patches.v16_0.backfill_employee_checkin_method
 hrms.patches.v16_0.migrate_passkey_public_keys
 hrms.patches.v16_0.generate_qr_display_keys
+hrms.patches.v16_0.backfill_pwa_notification_type
+hrms.patches.v16_0.add_employee_wechat_id
+hrms.patches.v16_0.generate_qr_ble_keys

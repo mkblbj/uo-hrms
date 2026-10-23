@@ -42,7 +42,9 @@ class PWANotification(Document):
 		message: DF.TextEditor | None
 		name: DF.Int | None
 		notification_title: DF.Data | None
+		notification_type: DF.Literal["Shift Reminder", "Shift Change", "Approval", "Announcement", "Other"]
 		read: DF.Check
+		reference_date: DF.Date | None
 		reference_document_name: DF.Data | None
 		reference_document_type: DF.Link | None
 		target_route: DF.Data | None
@@ -51,6 +53,8 @@ class PWANotification(Document):
 
 	def validate(self):
 		self.validate_target_route()
+		if not self.notification_type:
+			self.notification_type = "Other"
 
 	def before_insert(self):
 		# 默认来源用户为当前登录用户
@@ -100,6 +104,9 @@ class PWANotification(Document):
 		notification = frappe.new_doc("PWA Notification")
 		notification.from_user = self.from_user or frappe.session.user
 		notification.to_user = user_id
+		notification.notification_title = self.notification_title
+		# 后台群发 / 多选都是 HR 手工发的，算公司通知
+		notification.notification_type = self.notification_type or "Announcement"
 		notification.message = self.message
 		notification.use_html_source = self.use_html_source
 		notification.html_source = self.html_source
@@ -143,6 +150,14 @@ class PWANotification(Document):
 			pass
 		except Exception:
 			self.log_error(f"Error sending push notification: {self.name}")
+
+		# 原生 App 的推送（APNs）另走一路，和网页推送互不影响
+		try:
+			from hrms.utils.apns import queue_push
+
+			queue_push(self)
+		except Exception:
+			self.log_error(f"Error queueing app push notification: {self.name}", frappe.get_traceback())
 
 	def get_notification_link(self):
 		base_url = f"{frappe.utils.get_url()}/hrms"

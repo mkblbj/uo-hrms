@@ -5,6 +5,7 @@ from frappe.utils import add_days, get_datetime, getdate
 
 from hrms.api.checkin_service import CHECKIN_METHOD_CORRECTION
 from hrms.hr.utils import validate_active_employee
+from hrms.utils.correction_notifications import notify_status_change
 
 APPLY_SAVEPOINT = "attendance_correction_apply"
 ATTENDANCE_CORRECTION_MANAGER_ROLE = "Attendance Correction Manager"
@@ -51,6 +52,12 @@ class AttendanceCorrectionRequest(Document):
 		self.validate_requested_time()
 		self.validate_original_checkin()
 		self.validate_duplicate_pending_request()
+
+	def on_update(self):
+		notify_status_change(self)
+
+	def on_update_after_submit(self):
+		notify_status_change(self)
 
 	def normalize_dates(self):
 		if self.attendance_date:

@@ -26,6 +26,8 @@ class TestCheckinService(HRMSTestSuite):
 
 	def tearDown(self):
 		frappe.set_user("Administrator")
+		# 回滚这条用例的改动：测试跑完 Frappe 会提交一次，不回滚的话 HR 设置等会留在共用的开发站点上
+		super().tearDown()
 
 	def _log(self, log_type, minutes_ago):
 		doc = frappe.get_doc(
@@ -93,3 +95,44 @@ class TestCheckinService(HRMSTestSuite):
 			checkin = create_checkin(employee=self.employee, log_type="IN", location="door-a", method="QR")
 		frappe.set_user("Administrator")
 		self.assertTrue(frappe.db.exists("Employee Checkin", checkin.name))
+
+	def _create_with_evidence(self, evidence, **kwargs):
+		with (
+			patch.object(checkin_service.frappe, "publish_realtime"),
+			patch.object(checkin_service.frappe, "log_error") as audit,
+		):
+			checkin = create_checkin(
+				employee=self.employee,
+				log_type="IN",
+				location="door-a",
+				method=CHECKIN_METHOD_PASSKEY,
+				evidence=evidence,
+				client_ip="198.51.100.1",
+				**kwargs,
+			)
+		stored = frappe.db.get_value("Employee Checkin", checkin.name, "presence_evidence")
+		return stored, audit.call_args.kwargs["message"]
+
+	def test_evidence_is_stored(self):
+		stored, message = self._create_with_evidence("beacon", beacon_rssi=-58)
+		self.assertEqual(stored, "beacon")
+		self.assertIn("Evidence: beacon", message)
+		self.assertIn("RSSI: -58 dBm", message)
+		self.assertTrue(message.endswith("RSSI: -58 dBm"))
+
+	def test_qr_evidence_is_stored(self):
+		stored, message = self._create_with_evidence("qr")
+		self.assertEqual(stored, "qr")
+		self.assertNotIn("RSSI", message)
+
+	def test_rssi_is_not_logged_for_other_evidence(self):
+		_, message = self._create_with_evidence("gps", beacon_rssi=-58)
+		self.assertNotIn("RSSI", message)
+
+	def test_beacon_without_rssi_logs_no_rssi(self):
+		_, message = self._create_with_evidence("beacon")
+		self.assertNotIn("RSSI", message)
+
+	def test_no_evidence_leaves_the_field_empty(self):
+		stored, _ = self._create_with_evidence(None)
+		self.assertFalse(stored)

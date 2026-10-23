@@ -45,6 +45,7 @@ const meta = computed(() =>
 	border-radius: 9999px;
 	font-size: 0.75rem;
 	font-weight: 700;
+	white-space: nowrap;
 	transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 

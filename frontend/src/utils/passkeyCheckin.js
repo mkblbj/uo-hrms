@@ -49,6 +49,7 @@ const COPY = {
 		en: "We couldn't get your location. Allow location access, or scan the QR code this time.",
 	},
 	scanQr: { zh: "扫码打卡", ja: "QRコードで打刻", en: "Scan QR Code" },
+	scanShort: { zh: "扫码", ja: "QRコード", en: "QR code" },
 	wifiTip: {
 		zh: "连上公司 Wi-Fi，下次连定位都不用问",
 		ja: "社内Wi-Fiにつなぐと、次回から位置情報の確認が不要になります",

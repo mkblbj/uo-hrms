@@ -21,8 +21,10 @@ class PasskeyApiTestCase(HRMSTestSuite):
 
 	def setUp(self):
 		frappe.set_user("Administrator")
+		# passkey_dev_bypass 固定为关：开发站点自己开着跳过时，测试也不受影响
 		self.conf = patch.dict(
-			frappe.local.conf, {"passkey_rp_id": self.rp_id, "passkey_origins": [self.origin]}
+			frappe.local.conf,
+			{"passkey_rp_id": self.rp_id, "passkey_origins": [self.origin], "passkey_dev_bypass": 0},
 		)
 		self.conf.start()
 		frappe.db.set_single_value("HR Settings", "allow_geolocation_tracking", 0)
@@ -37,6 +39,8 @@ class PasskeyApiTestCase(HRMSTestSuite):
 	def tearDown(self):
 		frappe.set_user("Administrator")
 		self.conf.stop()
+		# 回滚这条用例的改动：测试跑完 Frappe 会提交一次，不回滚的话 HR 设置等会留在共用的开发站点上
+		super().tearDown()
 
 	def register_device(self, user=API_USER, authenticator=None):
 		authenticator = authenticator or SoftAuthenticator(self.rp_id, self.origin, user.encode())
@@ -93,9 +97,11 @@ class TestPasskeyRegistration(PasskeyApiTestCase):
 		mine = passkey.get_my_passkeys()
 		self.assertEqual(len(mine), 1)
 		other_name = frappe.db.get_value("Passkey Credential", {"user": OTHER_USER}, "name")
-		with self.assertRaises(frappe.ValidationError):
-			passkey.delete_passkey(other_name)
-		passkey.delete_passkey(mine[0]["name"])
+		# delete_passkey 自己会提交，不拦住的话这条用例的改动回滚不掉
+		with patch.object(frappe.db, "commit"):
+			with self.assertRaises(frappe.ValidationError):
+				passkey.delete_passkey(other_name)
+			passkey.delete_passkey(mine[0]["name"])
 		self.assertEqual(passkey.get_my_passkeys(), [])
 
 
@@ -290,3 +296,75 @@ class TestCheckinWithGeolocationTracking(PasskeyApiTestCase):
 		doc.flags.presence_evidence = "office_network"
 		with self.assertRaises(frappe.ValidationError):
 			doc.insert()
+
+
+class TestDevBypass(PasskeyApiTestCase):
+	"""开发站点（rp_id=localhost 且开了 passkey_dev_bypass）可以跳过面容，正式域名永远不行。"""
+
+	OFFICE_IP = "203.0.113.5"
+	_begin = TestOneTapCheckin._begin
+
+	def setUp(self):
+		super().setUp()
+		self.location = ensure_location()
+		settings = frappe.get_doc("HR Settings")
+		settings.passkey_checkin_location = self.location
+		settings.passkey_checkin_enabled_for_all = 0
+		settings.set("passkey_checkin_pilot_employees", [{"employee": self.employee}])
+		settings.qr_checkin_allowed_ips = "203.0.113.0/24"
+		settings.save()
+
+	def _checkins(self):
+		return frappe.db.count("Employee Checkin", {"employee": self.employee})
+
+	def _bypass(self, challenge):
+		with patch("frappe.publish_realtime"):
+			return passkey.complete_checkin(json.dumps({"dev_bypass": True, "challenge": challenge}))
+
+	def test_dev_bypass_checks_in_on_localhost(self):
+		with patch.dict(frappe.local.conf, {"passkey_dev_bypass": 1}):
+			frappe.set_user(API_USER)
+			with patch.object(passkey, "get_client_ip", return_value=self.OFFICE_IP):
+				self.assertTrue(passkey.get_checkin_context()["dev_bypass"])
+			begin = self._begin(ip=self.OFFICE_IP)
+			self.assertEqual(begin["status"], "ok")
+			result = self._bypass(begin["options"]["challenge"])
+		self.assertEqual((result["status"], result["log_type"]), ("ok", "IN"))
+		self.assertEqual(self._checkins(), 1)
+
+	def test_dev_bypass_ignored_outside_localhost(self):
+		production = {
+			"passkey_dev_bypass": 1,
+			"passkey_rp_id": "erphr.toiroworld.com",
+			"passkey_origins": ["https://erphr.toiroworld.com"],
+		}
+		with patch.dict(frappe.local.conf, production):
+			frappe.set_user(API_USER)
+			with patch.object(passkey, "get_client_ip", return_value=self.OFFICE_IP):
+				self.assertFalse(passkey.get_checkin_context()["dev_bypass"])
+			self.assertEqual(self._begin(ip=self.OFFICE_IP)["status"], "no_passkey")
+			self.assertIsNone(passkey._dev_bypass_challenge(json.dumps({"dev_bypass": True, "challenge": "x"})))
+			# 登记一台真实设备，拿到服务器真正发出的挑战，再用跳过凭证提交：必须被拒
+			self.register_device(
+				authenticator=SoftAuthenticator(production["passkey_rp_id"], production["passkey_origins"][0], API_USER.encode())
+			)
+			frappe.set_user(API_USER)
+			begin = self._begin(ip=self.OFFICE_IP)
+			self.assertEqual(begin["status"], "ok")
+			with self.assertRaises(frappe.ValidationError):
+				self._bypass(begin["options"]["challenge"])
+		self.assertEqual(self._checkins(), 0)
+
+	def test_dev_bypass_challenge_is_single_use(self):
+		with patch.dict(frappe.local.conf, {"passkey_dev_bypass": 1}):
+			frappe.set_user(API_USER)
+			challenge = self._begin(ip=self.OFFICE_IP)["options"]["challenge"]
+			self._bypass(challenge)
+			with self.assertRaises(frappe.ValidationError):
+				self._bypass(challenge)
+		self.assertEqual(self._checkins(), 1)
+
+	def test_context_reports_no_bypass_by_default(self):
+		frappe.set_user(API_USER)
+		with patch.object(passkey, "get_client_ip", return_value=self.OFFICE_IP):
+			self.assertFalse(passkey.get_checkin_context()["dev_bypass"])

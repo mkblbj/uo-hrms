@@ -187,6 +187,13 @@ def get_custom_fields():
 		],
 		"Employee": [
 			{
+				"fieldname": "custom_wechat_id",
+				"fieldtype": "Data",
+				"label": _("WeChat ID"),
+				"insert_after": "cell_number",
+				"description": _("Optional. Enter your WeChat ID, not your display name."),
+			},
+			{
 				"fieldname": "employment_type",
 				"fieldtype": "Link",
 				"ignore_user_permissions": 1,

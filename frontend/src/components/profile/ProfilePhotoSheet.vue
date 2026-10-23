@@ -1,7 +1,8 @@
 <template>
 	<ion-modal
 		:is-open="isOpen"
-		:backdrop-dismiss="false"
+		:backdrop-dismiss="mandatory"
+		:can-dismiss="canDismiss"
 		class="photo-sheet-modal"
 		@didDismiss="onDismissed"
 	>
@@ -18,6 +19,7 @@
 							<Icon v-else icon="lucide-circle-user-round" class="h-12 w-12" />
 						</div>
 						<h2 class="photo-sheet-title">{{ heading }}</h2>
+						<p v-if="mandatory" class="photo-sheet-required">{{ t("mandatoryNotice") }}</p>
 						<p v-if="mode === 'reminder'" class="photo-sheet-notice">{{ content.lead }}</p>
 						<p v-else class="photo-sheet-lead">{{ t("changeLead") }}</p>
 					</template>
@@ -37,6 +39,7 @@
 
 			<footer class="photo-sheet-actions">
 				<template v-if="step === 'intro'">
+					<p class="photo-sheet-formats">{{ t("supportedFormats") }}</p>
 					<button type="button" class="photo-sheet-button is-primary" @click="pick('camera')">
 						<Icon icon="lucide-camera" class="h-5 w-5" />
 						{{ t("takePhoto") }}
@@ -45,8 +48,14 @@
 						<Icon icon="lucide-image" class="h-5 w-5" />
 						{{ t("choosePhoto") }}
 					</button>
-					<button type="button" class="photo-sheet-link" @click="close(dismissEvent)">
-						{{ mode === "reminder" ? t("later") : t("cancel") }}
+					<button
+						v-if="!mandatory"
+						type="button"
+						class="photo-sheet-link"
+						:disabled="remaining > 0"
+						@click="close(dismissEvent)"
+					>
+						{{ laterLabel }}
 					</button>
 				</template>
 				<template v-else>
@@ -93,26 +102,35 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref } from "vue"
+import { computed, onBeforeUnmount, ref, watch } from "vue"
 import { IonModal } from "@ionic/vue"
 import { Icon } from "frappe-ui"
 
 import ProfilePhotoEditor from "@/components/profile/ProfilePhotoEditor.vue"
-import { getReminderContent, pickPhotoCopy, uploadProfilePhoto } from "@/utils/profilePhoto"
+import {
+	getReminderContent,
+	pickPhotoCopy,
+	preparePhotoUpload,
+	uploadProfilePhoto,
+} from "@/utils/profilePhoto"
 
 const props = defineProps({
 	isOpen: { type: Boolean, default: false },
-	// reminder：带用途和承诺的强提醒；change：个人页里换头像
+	mandatory: { type: Boolean, default: false },
+	// reminder：头像更换和期限提醒；change：个人页里换头像
 	mode: { type: String, default: "reminder" },
 	status: { type: Object, default: null },
 	currentPhoto: { type: String, default: "" },
 	lang: { type: String, default: "zh" },
+	// 「稍后再说」要等这么多秒才能点（每次打开应用的提醒用；自己点开的为 0）
+	snoozeDelay: { type: Number, default: 0 },
 })
 
 const emit = defineEmits(["snooze", "cancel", "uploaded"])
 
 const step = ref("intro")
 const sourceUrl = ref("")
+const sourceFile = ref(null)
 const editorReady = ref(false)
 const uploading = ref(false)
 const errorMessage = ref("")
@@ -129,6 +147,43 @@ const heading = computed(() => {
 })
 const dismissEvent = computed(() => (props.mode === "reminder" ? "snooze" : "cancel"))
 
+const remaining = ref(0)
+let countdownTimer = null
+const laterLabel = computed(() => {
+	const label = props.mode === "reminder" ? t("later") : t("cancel")
+	return remaining.value > 0 ? `${label} (${remaining.value}s)` : label
+})
+
+function stopCountdown() {
+	if (countdownTimer) clearInterval(countdownTimer)
+	countdownTimer = null
+}
+
+// 按结束时刻算剩余秒数：手机切到后台计时器变慢也不会多等
+function startCountdown() {
+	stopCountdown()
+	const delay = Math.max(0, Number(props.snoozeDelay) || 0)
+	const endsAt = Date.now() + delay * 1000
+	const tick = () => {
+		remaining.value = Math.max(0, Math.ceil((endsAt - Date.now()) / 1000))
+		if (remaining.value === 0) stopCountdown()
+	}
+	tick()
+	if (remaining.value > 0) countdownTimer = setInterval(tick, 250)
+}
+
+watch(
+	() => [props.isOpen, props.snoozeDelay],
+	([open]) => {
+		if (open) startCountdown()
+		else {
+			stopCountdown()
+			remaining.value = 0
+		}
+	},
+	{ immediate: true }
+)
+
 function pick(kind) {
 	errorMessage.value = ""
 	const input = kind === "camera" ? cameraInput.value : libraryInput.value
@@ -140,6 +195,7 @@ function onFileChosen(event) {
 	event.target.value = ""
 	if (!file) return
 	releaseSource()
+	sourceFile.value = file
 	sourceUrl.value = URL.createObjectURL(file)
 	errorMessage.value = ""
 	step.value = "edit"
@@ -160,8 +216,8 @@ async function upload() {
 	uploading.value = true
 	errorMessage.value = ""
 	try {
-		const blob = await editorRef.value.exportBlob()
-		const photo = await uploadProfilePhoto(blob)
+		const { blob, crop } = await preparePhotoUpload(sourceFile.value, editorRef.value)
+		const photo = await uploadProfilePhoto(blob, { crop })
 		closedByUs = true
 		emit("uploaded", photo)
 		reset()
@@ -179,9 +235,15 @@ function backToIntro() {
 }
 
 function close(event) {
+	if (props.mandatory || remaining.value > 0) return
 	closedByUs = true
 	emit(event)
 	reset()
+}
+
+function canDismiss() {
+	// 强制模式让 Ionic 接管返回键和 Esc，实际关闭统一由这个条件决定。
+	return (!props.mandatory && remaining.value === 0) || !props.isOpen || closedByUs
 }
 
 // 安卓返回键这类从外面关掉的，按「稍后再说 / 取消」算
@@ -194,6 +256,7 @@ function onDismissed() {
 function releaseSource() {
 	if (sourceUrl.value) URL.revokeObjectURL(sourceUrl.value)
 	sourceUrl.value = ""
+	sourceFile.value = null
 	editorReady.value = false
 }
 
@@ -204,7 +267,11 @@ function reset() {
 	step.value = "intro"
 }
 
-onBeforeUnmount(releaseSource)
+onBeforeUnmount(() => {
+	closedByUs = true
+	stopCountdown()
+	releaseSource()
+})
 </script>
 
 <style scoped>
@@ -290,6 +357,18 @@ onBeforeUnmount(releaseSource)
 	text-align: center;
 }
 
+.photo-sheet-required {
+	width: min(100%, 420px);
+	padding: 12px 16px;
+	border-radius: 12px;
+	color: var(--h-summary-warn-fg);
+	background: var(--h-summary-warn-bg);
+	font-size: 15px;
+	font-weight: 700;
+	line-height: 1.5;
+	text-align: center;
+}
+
 /* 提醒正文比较长，放进卡片里左对齐，好读 */
 .photo-sheet-notice {
 	width: min(100%, 420px);
@@ -335,6 +414,13 @@ onBeforeUnmount(releaseSource)
 	font-weight: 800;
 }
 
+.photo-sheet-formats {
+	color: var(--h-fg-secondary);
+	font-size: 13px;
+	line-height: 1.5;
+	text-align: center;
+}
+
 .photo-sheet-button:disabled {
 	opacity: 0.55;
 }
@@ -355,6 +441,10 @@ onBeforeUnmount(releaseSource)
 	color: var(--h-fg-secondary);
 	font-size: 14px;
 	font-weight: 600;
+}
+
+.photo-sheet-link:disabled {
+	opacity: 0.5;
 }
 
 /* 不能用 display:none，部分 iPhone 上点不开选图 */

@@ -1,0 +1,9 @@
+{
+ "doctype": "Page",
+ "name": "attendance-voice-settings",
+ "page_name": "attendance-voice-settings",
+ "title": "考勤语音设置",
+ "module": "HR",
+ "standard": "Yes",
+ "roles": [{"role": "System Manager"}, {"role": "HR Manager"}]
+}

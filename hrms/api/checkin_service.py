@@ -7,14 +7,17 @@ from frappe import _
 from frappe.utils import get_datetime, now, now_datetime
 
 from hrms.api.checkin_cooldown import is_checkin_cooldown_exempt
+from hrms.api.checkin_presence import EVIDENCE_BEACON
 
 CHECKIN_METHOD_QR = "QR"
 CHECKIN_METHOD_PASSKEY = "Passkey"
+CHECKIN_METHOD_DEVICE_KEY = "Device Key"
 CHECKIN_METHOD_CORRECTION = "Attendance Correction"
 
 AUDIT_TITLES = {
 	CHECKIN_METHOD_QR: "QR Checkin Audit",
 	CHECKIN_METHOD_PASSKEY: "Passkey Checkin Audit",
+	CHECKIN_METHOD_DEVICE_KEY: "Device Key Checkin Audit",
 }
 
 
@@ -69,6 +72,7 @@ def create_checkin(
 	longitude: float | None = None,
 	evidence: str | None = None,
 	client_ip: str | None = None,
+	beacon_rssi: int | None = None,
 ):
 	data = {
 		"doctype": "Employee Checkin",
@@ -82,6 +86,8 @@ def create_checkin(
 	if latitude is not None and longitude is not None:
 		data["latitude"] = latitude
 		data["longitude"] = longitude
+	if evidence is not None:
+		data["presence_evidence"] = evidence
 
 	checkin = frappe.get_doc(data)
 	checkin.flags.trusted_checkin_source = True
@@ -89,12 +95,19 @@ def create_checkin(
 	checkin.flags.presence_evidence = evidence
 	checkin.insert(ignore_permissions=True)
 
-	_write_audit(checkin, method=method, location=location, evidence=evidence, client_ip=client_ip)
+	_write_audit(
+		checkin,
+		method=method,
+		location=location,
+		evidence=evidence,
+		client_ip=client_ip,
+		beacon_rssi=beacon_rssi,
+	)
 	publish_checkin_notification(checkin, location)
 	return checkin
 
 
-def _write_audit(checkin, *, method, location, evidence, client_ip):
+def _write_audit(checkin, *, method, location, evidence, client_ip, beacon_rssi=None):
 	title = AUDIT_TITLES.get(method, "Checkin Audit")
 	geo = ""
 	if checkin.latitude and checkin.longitude:
@@ -103,6 +116,9 @@ def _write_audit(checkin, *, method, location, evidence, client_ip):
 		f"{title}: Employee {checkin.employee} ({checkin.employee_name}) {checkin.log_type} "
 		f"at {location} on {checkin.time}. IP: {client_ip or 'Unknown'}{geo} Evidence: {evidence or '-'}"
 	)
+	# 信号强度只记进审计日志，不参与判断
+	if evidence == EVIDENCE_BEACON and beacon_rssi is not None:
+		message += f" RSSI: {beacon_rssi} dBm"
 	try:
 		frappe.logger().info(message)
 		frappe.log_error(title=f"{title} - {checkin.log_type}", message=message)

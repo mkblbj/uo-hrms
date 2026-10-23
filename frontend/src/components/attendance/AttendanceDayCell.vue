@@ -35,7 +35,9 @@ const emit = defineEmits(["select"])
 const button = ref(null)
 
 const blockKind = computed(() => {
-	const { state, hours } = props.cell
+	const { state, hours, weekday } = props.cell
+	if (state === "rest" && (weekday === 0 || weekday === 6)) return "empty"
+	if (["working", "checked_out", "not_checked_in"].includes(state)) return state
 	if (state === "anomaly") return "anomaly"
 	if (state === "holiday") return "holiday"
 	if (state === "rest" || state === "leave") return "rest"
@@ -47,6 +49,9 @@ const blockKind = computed(() => {
 const blockText = computed(() => {
 	const kind = blockKind.value
 	if (kind === "empty") return ""
+	if (["working", "checked_out", "not_checked_in"].includes(kind)) {
+		return getAttendanceCopy(`badge.${kind}`, props.lang)
+	}
 	// The per-day reason ("退勤なし") does not fit a 36px cell and would render as
 	// "退勤な…". The cell carries the short label; the dialog shows the reason.
 	if (kind === "anomaly") return getAttendanceCopy("legend.anomaly", props.lang)
@@ -159,7 +164,9 @@ defineExpose({ focus })
 	white-space: nowrap;
 }
 
-.attn-block.is-work {
+.attn-block.is-work,
+.attn-block.is-working,
+.attn-block.is-checked_out {
 	color: var(--h-attn-work-fg, #14532d);
 	background: var(--h-attn-work-bg, #dcfce7);
 }
@@ -189,6 +196,17 @@ defineExpose({ focus })
 
 .attn-block.is-empty {
 	background: none;
+}
+
+.attn-block.is-not_checked_in {
+	color: var(--h-attn-rest-fg, #52627a);
+	background: var(--h-attn-rest-bg, #e9edf2);
+}
+
+.attn-block.is-working,
+.attn-block.is-checked_out,
+.attn-block.is-not_checked_in {
+	font-size: clamp(9px, 2.6vw, 11px);
 }
 
 @media (max-width: 340px) {

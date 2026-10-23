@@ -1,14 +1,6 @@
 <template>
 	<ion-page>
-		<ion-header class="ion-no-border">
-			<header class="chat-header">
-				<router-link :to="{ name: 'Home' }" class="chat-return">
-					<Icon icon="lucide-chevron-left" class="h-5 w-5" aria-hidden="true" />
-					<span>{{ __("Back to attendance") }}</span>
-				</router-link>
-				<h1 class="chat-title">{{ __("Chat") }}</h1>
-			</header>
-		</ion-header>
+		<div class="chat-edge sticky top-0" :style="{ background: ravenSurface }" aria-hidden="true" />
 		<ion-content class="ion-no-padding" :scroll-y="false">
 			<iframe
 				v-if="active"
@@ -22,44 +14,64 @@
 </template>
 
 <script setup>
-import { inject, ref } from "vue"
-import { IonPage, IonHeader, IonContent, onIonViewWillEnter, onIonViewDidLeave } from "@ionic/vue"
-import { Icon } from "frappe-ui"
+import { inject, onBeforeUnmount, ref } from "vue"
+import { IonPage, IonContent, onIonViewWillEnter, onIonViewDidLeave } from "@ionic/vue"
+
+import { RAVEN_THEME_KEY, ravenSurfaceColor } from "@/utils/ravenSurface"
 
 const __ = inject("$translate")
 const active = ref(false)
 
-onIonViewWillEnter(() => { active.value = true })
+// iOS 26+ looks 8px below the top edge for a fixed or sticky element and extends
+// its background into the status bar; finding none, it blurs the top of the page.
+// The iframe can't play that part, so a thin sticky band does, wearing the colour
+// of Raven's own top bar. Raven keeps its own light/dark choice, so the band
+// follows it: changes made inside the frame arrive as storage events, and Raven's
+// "system" setting tracks the phone.
+const colorScheme = window.matchMedia("(prefers-color-scheme: dark)")
+const ravenSurface = ref(currentRavenSurface())
+
+function readStoredRavenTheme() {
+	try {
+		return localStorage.getItem(RAVEN_THEME_KEY)
+	} catch {
+		return null
+	}
+}
+
+function currentRavenSurface() {
+	return ravenSurfaceColor({ stored: readStoredRavenTheme(), systemDark: colorScheme.matches })
+}
+
+function syncRavenSurface() {
+	ravenSurface.value = currentRavenSurface()
+}
+
+function onStorage(event) {
+	// A null key means storage was cleared, which puts Raven back on its default.
+	if (event.key === RAVEN_THEME_KEY || event.key === null) syncRavenSurface()
+}
+
+window.addEventListener("storage", onStorage)
+colorScheme.addEventListener("change", syncRavenSurface)
+
+onIonViewWillEnter(() => {
+	syncRavenSurface()
+	active.value = true
+})
 onIonViewDidLeave(() => { active.value = false })
+
+onBeforeUnmount(() => {
+	window.removeEventListener("storage", onStorage)
+	colorScheme.removeEventListener("change", syncRavenSurface)
+})
 </script>
 
 <style scoped>
-.chat-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 12px;
-	padding: 4px 16px;
-	padding-top: calc(4px + var(--ion-safe-area-top, 0px));
-	background: var(--h-bg-page, #f1eee7);
-	color: var(--h-fg-primary, #0a0a0a);
-	border-bottom: 1px solid var(--h-bd-default, #e3dfd4);
-}
-.chat-return {
-	display: inline-flex;
-	align-items: center;
-	gap: 4px;
-	min-height: 48px;
-	font-size: 14px;
-	font-weight: 500;
-}
-.chat-return:active {
-	opacity: 0.65;
-}
-.chat-title {
-	margin: 0;
-	font-size: 16px;
-	font-weight: 600;
+/* Tall enough to cover WebKit's probe 8px below the top edge. */
+.chat-edge {
+	flex: none;
+	height: calc(10px + var(--ion-safe-area-top, 0px));
 }
 .chat-frame {
 	display: block;

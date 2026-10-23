@@ -58,12 +58,12 @@
 		<!-- Day Dialog -->
 		<teleport to="body">
 			<div v-if="dialogCell" class="dlg-mask" @click="closeDialog">
-				<div class="dlg-card" @click.stop>
+				<div ref="dialogCard" class="dlg-card" role="dialog" aria-modal="true" aria-labelledby="attendance-day-title" @click.stop @keydown="handleDialogKeydown">
 					<div class="dlg-header">
 						<div>
 							<div class="dlg-eyebrow">{{ dialogCell.is_today ? t("detail.today") : t("detail.selected") }}</div>
-							<div class="dlg-title">
-								{{ currentMonth }}/{{ dialogCell.day }}
+							<div id="attendance-day-title" class="dlg-title">
+								{{ currentYear }}/{{ currentMonth }}/{{ dialogCell.day }}
 								<span
 									class="dlg-weekday"
 									:style="{ color: dialogCell.weekday === 0 ? colors.red : dialogCell.weekday === 6 ? colors.blue : 'var(--h-fg-secondary, #64748b)' }"
@@ -78,7 +78,7 @@
 								<span>{{ t("detail.saleEvent") }}</span>{{ dialogCell.calendar_event.title }}
 							</div>
 						</div>
-						<button class="dlg-close" @click="closeDialog" :aria-label="t('close')">
+						<button ref="dialogClose" class="dlg-close" @click="closeDialog" :aria-label="t('close')">
 							<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
 								<path d="M6 6l12 12M18 6L6 18" />
 							</svg>
@@ -107,23 +107,13 @@
 						</div>
 					</div>
 
-					<div class="dlg-grid" v-if="isAttendanceDetailVisible(dialogCell)">
-						<div class="data-cell">
-							<div class="dlg-eyebrow">{{ t("detail.in") }}</div>
-							<div class="data-value" :style="{ color: 'var(--h-attn-work-fg, #14532d)' }">{{ dialogCell.in_time || "—:—" }}</div>
-						</div>
-						<div class="data-cell">
-							<div class="dlg-eyebrow">{{ t("detail.out") }}</div>
-							<div
-								class="data-value"
-								:style="{ color: dialogCell.is_today && !dialogCell.out_time ? 'var(--h-fg-muted, #94a3b8)' : colors.red }"
-							>{{ dialogCell.out_time || "—:—" }}</div>
-						</div>
-						<div class="data-cell span-2">
-							<div class="dlg-eyebrow">{{ t("detail.dur") }}</div>
-							<div class="data-value">{{ dialogCell.hours ? `${dialogCell.hours}h` : "—" }}</div>
-						</div>
-					</div>
+					<AttendanceDayDetails
+						:details="dayDetails.state.data"
+						:loading="dayDetails.state.loading"
+						:error="dayDetails.state.error"
+						:lang="lang"
+						@retry="retryDayDetails"
+					/>
 
 					<div class="dlg-shift" v-if="dialogCell.shift_label && dialogCell.state !== 'holiday' && dialogCell.state !== 'rest'">
 						<div class="dlg-shift-head">
@@ -145,7 +135,7 @@
 </template>
 
 <script setup>
-import { computed, h, inject, onBeforeUnmount, reactive, ref, watch } from "vue"
+import { computed, h, inject, nextTick, onBeforeUnmount, reactive, ref, watch } from "vue"
 import { onIonViewWillEnter } from "@ionic/vue"
 import { createResource } from "frappe-ui"
 import { useRouter } from "vue-router"
@@ -161,9 +151,11 @@ import {
 } from "@/utils/attendanceAnomaly"
 import AttendanceAnomalyNotice from "@/components/attendance/AttendanceAnomalyNotice.vue"
 import AttendanceDayCell from "@/components/attendance/AttendanceDayCell.vue"
+import AttendanceDayDetails from "@/components/attendance/AttendanceDayDetails.vue"
 import AttendanceMonthSummary from "@/components/attendance/AttendanceMonthSummary.vue"
 import { getAttendanceCopy } from "@/utils/attendanceCalendarCopy"
 import { deriveAttendanceState } from "@/utils/attendanceCalendarState"
+import { useAttendanceDayDetails } from "@/utils/attendanceDayDetails"
 
 const dayjs = inject("$dayjs")
 const employee = inject("$employee")
@@ -174,6 +166,15 @@ const currentYear = ref(now.getFullYear())
 const currentMonth = ref(now.getMonth() + 1)
 const dialogDay = ref(null)
 const selectedDay = ref(null)
+const dialogCard = ref(null)
+const dialogClose = ref(null)
+let returnFocus = null
+const dayDetails = useAttendanceDayDetails(async (params) => {
+	const resource = createResource({ url: "hrms.api.get_attendance_day_details", auto: false, cache: false })
+	const data = await resource.fetch(params)
+	if (resource.error) throw resource.error
+	return data
+})
 
 // Only the hues the day dialog and weekday header still need. Everything that
 // paints a cell now lives in --h-attn-* tokens.
@@ -508,10 +509,6 @@ function isWorkLike(c) {
 	return c.state === "work" || c.state === "wfh" || c.state === "half"
 }
 
-function isAttendanceDetailVisible(c) {
-	return isWorkLike(c) || c.state === "anomaly"
-}
-
 // The dialog paints the same states as the grid, so it reads the same tokens
 // rather than keeping a second palette that can drift.
 const STATE_TOKENS = {
@@ -526,6 +523,8 @@ const STATE_TOKENS = {
 }
 
 function stateTokens(c) {
+	if (c?.state === "working" || c?.state === "checked_out") return STATE_TOKENS.work
+	if (c?.state === "not_checked_in") return STATE_TOKENS.rest
 	return STATE_TOKENS[c?.state] || STATE_TOKENS.empty
 }
 
@@ -541,6 +540,9 @@ function detailPillStyle(c) {
 }
 
 function statusLabel(c) {
+	if (["working", "checked_out", "not_checked_in"].includes(c.state)) {
+		return getAttendanceCopy(`status.${c.state}`, getLang())
+	}
 	const M = messages[getLang()] || messages.zh
 	return M.legend[c.state] || "—"
 }
@@ -626,8 +628,35 @@ function loadData() {
 
 function openDay(cell) {
 	if (!cell?.day) return
+	returnFocus = document.activeElement
 	selectedDay.value = cell.day
 	dialogDay.value = cell.day
+	dayDetails.load(cell.dateStr, employee?.data?.name)
+	nextTick(() => dialogClose.value?.focus())
+}
+
+async function retryDayDetails() {
+	if (!dialogCell.value) return
+	await dayDetails.load(dialogCell.value.dateStr, employee?.data?.name)
+	nextTick(() => dialogClose.value?.focus())
+}
+
+function handleDialogKeydown(event) {
+	if (event.key === "Escape") {
+		event.preventDefault()
+		closeDialog()
+	} else if (event.key === "Tab") {
+		const buttons = [...dialogCard.value.querySelectorAll("button:not(:disabled), a[href], [tabindex='0']")]
+		const first = buttons[0]
+		const last = buttons[buttons.length - 1]
+		if (event.shiftKey && document.activeElement === first) {
+			event.preventDefault()
+			last?.focus()
+		} else if (!event.shiftKey && document.activeElement === last) {
+			event.preventDefault()
+			first?.focus()
+		}
+	}
 }
 
 function openCorrectionRequest(cell) {
@@ -641,6 +670,9 @@ function openCorrectionRequest(cell) {
 
 function closeDialog() {
 	dialogDay.value = null
+	dayDetails.reset()
+	const target = returnFocus
+	nextTick(() => { if (target?.isConnected) target.focus() })
 }
 
 function prevMonth() {
@@ -661,7 +693,10 @@ function nextMonth() {
 	}
 }
 
-watch([currentYear, currentMonth, () => employee?.data?.name], loadData, { immediate: true })
+watch([currentYear, currentMonth, () => employee?.data?.name], () => {
+	closeDialog()
+	loadData()
+}, { immediate: true })
 
 watch(monthCells, (cells) => {
 	const today = cells.find((c) => c.is_today)
@@ -677,7 +712,7 @@ onIonViewWillEnter(() => {
 })
 
 onBeforeUnmount(() => {
-	themeObserver?.disconnect()
+	dayDetails.reset()
 })
 </script>
 
@@ -810,11 +845,14 @@ onBeforeUnmount(() => {
 	align-items: center;
 	justify-content: center;
 	animation: dlg-fade 180ms ease-out;
-	padding: 20px;
+	padding: 12px;
 }
 .dlg-card {
 	width: 100%;
-	max-width: 360px;
+	max-width: 420px;
+	max-height: calc(100dvh - 32px);
+	overflow-y: auto;
+	overscroll-behavior: contain;
 	background: var(--h-bg-card);
 	border-radius: 18px;
 	padding: 18px;
@@ -830,6 +868,12 @@ onBeforeUnmount(() => {
 	to { opacity: 1; transform: scale(1) translateY(0); }
 }
 .dlg-header {
+	position: sticky;
+	top: -18px;
+	z-index: 2;
+	margin: -18px -18px 0;
+	padding: 18px 18px 10px;
+	background: var(--h-bg-card);
 	display: flex;
 	align-items: flex-start;
 	justify-content: space-between;
@@ -837,8 +881,8 @@ onBeforeUnmount(() => {
 }
 .dlg-eyebrow {
 	font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
-	font-size: 9px;
-	color: var(--h-fg-muted);
+	font-size: 11px;
+	color: var(--h-fg-secondary);
 	letter-spacing: 0.14em;
 	font-weight: 700;
 }
@@ -880,8 +924,8 @@ onBeforeUnmount(() => {
 	text-transform: uppercase;
 }
 .dlg-close {
-	width: 32px;
-	height: 32px;
+	width: 44px;
+	height: 44px;
 	border-radius: 999px;
 	background: var(--h-bg-card-inner);
 	border: 1px solid var(--h-bd-default);
@@ -940,28 +984,6 @@ onBeforeUnmount(() => {
 	justify-content: center;
 	flex-shrink: 0;
 }
-.dlg-grid {
-	margin-top: 10px;
-	display: grid;
-	grid-template-columns: 1fr 1fr;
-	gap: 8px;
-}
-.data-cell {
-	padding: 10px 12px;
-	background: var(--h-bg-card-inner);
-	border-radius: 10px;
-}
-.data-cell.span-2 {
-	grid-column: span 2;
-}
-.data-value {
-	margin-top: 4px;
-	font-size: 20px;
-	font-weight: 700;
-	color: var(--h-fg-primary);
-	font-variant-numeric: tabular-nums;
-	letter-spacing: -0.02em;
-}
 .dlg-shift {
 	margin-top: 10px;
 	padding: 12px 14px;
@@ -1003,7 +1025,7 @@ onBeforeUnmount(() => {
 }
 .dlg-correction-btn {
 	width: 100%;
-	min-height: 42px;
+	min-height: 44px;
 	margin-top: 10px;
 	border: 1px solid var(--h-bd-default);
 	border-radius: 8px;
@@ -1011,5 +1033,9 @@ onBeforeUnmount(() => {
 	color: var(--h-fg-primary);
 	font-size: 14px;
 	font-weight: 700;
+}
+.dlg-close:focus-visible, .dlg-correction-btn:focus-visible { outline: 2px solid var(--h-attn-work-fg); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+	.dlg-mask, .dlg-card { animation: none; }
 }
 </style>

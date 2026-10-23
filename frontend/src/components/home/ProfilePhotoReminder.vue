@@ -1,82 +1,37 @@
 <template>
-	<section
-		v-if="showCard"
-		class="photo-prompt"
-		:class="{ 'is-overdue': card.overdue }"
-		aria-live="polite"
-	>
+	<section v-if="showCard" class="photo-prompt" aria-live="polite">
 		<div class="photo-prompt-icon" aria-hidden="true">
 			<Icon icon="lucide-circle-user-round" class="h-5 w-5" />
 		</div>
 		<div class="photo-prompt-content">
 			<strong>{{ card.title }}</strong>
 			<p>{{ card.message }}</p>
-			<button type="button" class="photo-prompt-button" @click="sheetOpen = true">
+			<button type="button" class="photo-prompt-button" @click="checkProfilePhoto">
 				{{ card.action }}
 			</button>
 		</div>
 	</section>
-
-	<ProfilePhotoSheet
-		:is-open="sheetOpen"
-		mode="reminder"
-		:status="status.data"
-		:current-photo="status.data?.photo || ''"
-		:lang="lang"
-		@snooze="sheetOpen = false"
-		@cancel="sheetOpen = false"
-		@uploaded="onUploaded"
-	/>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue"
-import { onIonViewDidEnter } from "@ionic/vue"
-import { Icon, createResource, toast } from "frappe-ui"
+import { computed } from "vue"
+import { Icon } from "frappe-ui"
 
-import ProfilePhotoSheet from "@/components/profile/ProfilePhotoSheet.vue"
-import { refreshProfilePhoto } from "@/data/profilePhoto"
-import { PHOTO_STATUS_METHOD, getPromptCardContent, pickPhotoCopy } from "@/utils/profilePhoto"
+import { openPhotoReminder, profilePhotoStatus as status } from "@/data/profilePhoto"
+import { getPromptCardContent } from "@/utils/profilePhoto"
 
 const props = defineProps({
 	lang: { type: String, default: "zh" },
 })
 
-// 不自动弹窗：只显示卡片，点卡片上的按钮才打开
-const sheetOpen = ref(false)
-
-const status = createResource({
-	url: PHOTO_STATUS_METHOD,
-	auto: true,
-})
-
 const showCard = computed(() => Boolean(status.data?.required && !status.data?.has_photo))
 const card = computed(() => getPromptCardContent(status.data, props.lang))
 
-function recheck() {
-	if (!sheetOpen.value && !status.loading) status.reload()
+// 自己点开的提醒不用倒计时；顺便刷新一下状态
+function checkProfilePhoto() {
+	openPhotoReminder(0)
+	status.reload().catch(() => {})
 }
-
-function onVisibilityChange() {
-	if (document.visibilityState === "visible") recheck()
-}
-
-function onUploaded() {
-	sheetOpen.value = false
-	toast.success(pickPhotoCopy("uploaded", props.lang))
-	status.reload()
-	refreshProfilePhoto()
-}
-
-onIonViewDidEnter(recheck)
-
-onMounted(() => {
-	document.addEventListener("visibilitychange", onVisibilityChange)
-})
-
-onBeforeUnmount(() => {
-	document.removeEventListener("visibilitychange", onVisibilityChange)
-})
 </script>
 
 <style scoped>
@@ -92,12 +47,6 @@ onBeforeUnmount(() => {
 	border-radius: 16px;
 }
 
-.photo-prompt.is-overdue {
-	color: var(--h-summary-warn-fg);
-	background: var(--h-summary-warn-bg);
-	border-color: var(--h-summary-warn-bd);
-}
-
 .photo-prompt-icon {
 	display: grid;
 	flex: 0 0 44px;
@@ -107,12 +56,6 @@ onBeforeUnmount(() => {
 	color: var(--h-tab-active);
 	background: var(--h-bg-card-inner);
 	border-radius: 12px;
-}
-
-.is-overdue .photo-prompt-icon {
-	color: var(--h-summary-warn-fg);
-	background: var(--h-summary-warn-bg);
-	border: 1px solid var(--h-summary-warn-bd);
 }
 
 .photo-prompt-content {
@@ -132,10 +75,6 @@ onBeforeUnmount(() => {
 	color: var(--h-fg-secondary);
 	font-size: 14px;
 	line-height: 1.5;
-}
-
-.is-overdue .photo-prompt-content p {
-	color: var(--h-summary-warn-fg);
 }
 
 .photo-prompt-button {

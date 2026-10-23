@@ -47,9 +47,9 @@ def report_location_failure(flow: str, reason: str, elapsed_ms: int | None = Non
 	return {"status": "ok"}
 
 
-def _count_report(user: str) -> bool:
-	"""每人每小时最多记 REPORTS_PER_HOUR 条，防止反复重试把日志刷满。"""
-	key = frappe.cache.make_key(f"hrms:checkin-location-failures:{user}")
+def _count_report(user: str, kind: str = "checkin-location-failures") -> bool:
+	"""每人每小时最多记 REPORTS_PER_HOUR 条，防止反复重试把日志刷满；kind 区分各类记录，各数各的。"""
+	key = frappe.cache.make_key(f"hrms:{kind}:{user}")
 	count = frappe.cache.incr(key)
 	# 首次计数设一小时过期；上次设过期失败留下的无期限计数也补上，免得一直被拦
 	if count == 1 or frappe.cache.ttl(key) < 0:

@@ -33,7 +33,6 @@ const checkinSuccessOverlayPath = path.resolve(
 	currentDir,
 	"../components/home/CheckinSuccessOverlay.vue"
 )
-const weatherWidgetPath = path.resolve(currentDir, "../components/WeatherWidget.vue")
 const homeViewPath = path.resolve(currentDir, "../views/Home.vue")
 const baseLayoutPath = path.resolve(currentDir, "../components/BaseLayout.vue")
 const bottomTabsPath = path.resolve(currentDir, "../components/BottomTabs.vue")
@@ -647,6 +646,15 @@ test("home v3 keeps the existing BaseLayout logo and BottomTabs active indicator
 	assert.doesNotMatch(panelSource, /BottomTabs/)
 })
 
+test("home no longer shows or fetches weather", () => {
+	const panelSource = fs.readFileSync(checkInPanelPath, "utf8")
+	const heroSource = fs.readFileSync(homeHeroCardPath, "utf8")
+
+	assert.doesNotMatch(panelSource, /weather/i)
+	assert.doesNotMatch(heroSource, /weather/i)
+	assert.equal(fs.existsSync(path.resolve(currentDir, "../components/WeatherWidget.vue")), false)
+})
+
 test("home modules share one language helper instead of local fallbacks", () => {
 	const panelSource = fs.readFileSync(checkInPanelPath, "utf8")
 	const summarySource = fs.readFileSync(homeSummaryCardPath, "utf8")
@@ -657,9 +665,6 @@ test("home modules share one language helper instead of local fallbacks", () => 
 
 	assert.match(panelSource, /resolveHomeLanguage/)
 	assert.match(panelSource, /<HomeSummaryCard\b[^>]*:lang="currentLanguage"/)
-	assert.match(panelSource, /weatherSummary/)
-	assert.match(panelSource, /hrms\.api\.get_weather_data/)
-	assert.doesNotMatch(panelSource, /<WeatherWidget/)
 	assert.doesNotMatch(panelSource, /frappe\.boot(?:\?\.|\.?)lang/)
 
 	assert.match(summarySource, /resolveHomeLanguage/)

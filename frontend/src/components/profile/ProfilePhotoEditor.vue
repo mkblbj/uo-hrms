@@ -216,7 +216,7 @@ function exportBlob() {
 	})
 }
 
-defineExpose({ exportBlob })
+defineExpose({ exportBlob, getCrop: () => cropRect(geometry()) })
 
 onMounted(() => {
 	measure()

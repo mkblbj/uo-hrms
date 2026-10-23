@@ -87,6 +87,36 @@ test("maps attendance anomalies to red before normal heat levels", () => {
 	assert.equal(meta.level, 0)
 })
 
+test("working today is distinct from checked-out and historical attendance", () => {
+	const working = getAttendanceHeatmapCellMeta({
+		event: { checkin_status: "working" }, date: "2026-09-30", today: "2026-09-30",
+	})
+	const checkedOut = getAttendanceHeatmapCellMeta({
+		event: { checkin_status: "checked_out" }, date: "2026-09-30", today: "2026-09-30",
+	})
+	const history = getAttendanceHeatmapCellMeta({
+		event: { attendance: "Present", working_hours: 8 }, date: "2026-09-29", today: "2026-09-30",
+	})
+	assert.notEqual(working.color, checkedOut.color)
+	assert.notEqual(working.color, history.color)
+	assert.equal(checkedOut.color, "#bbf7d0")
+	for (const meta of [working, checkedOut]) {
+		assert.equal(meta.level, 1)
+		assert.equal(meta.hasIssue, false)
+	}
+})
+
+test("an unpunched today stays neutral and future days stay empty", () => {
+	const today = getAttendanceHeatmapCellMeta({
+		event: { checkin_status: "not_checked_in" }, date: "2026-09-30", today: "2026-09-30",
+	})
+	assert.equal(today.color, "#e2e8f0")
+	assert.equal(today.isToday, true)
+	assert.equal(getAttendanceHeatmapCellMeta({
+		event: { checkin_status: "working" }, date: "2026-10-01", today: "2026-09-30",
+	}).level, 0)
+})
+
 test("builds a 13 week by 7 day grid ending at the current week", () => {
 	const cells = buildRecentWeekdayHeatmap({
 		events: {

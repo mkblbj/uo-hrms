@@ -6,7 +6,6 @@
 完全对接 hrms.hr.doctype.employee_checkin 的标准流程
 """
 
-import hashlib
 import hmac
 import time
 
@@ -19,10 +18,22 @@ from hrms.api.checkin_presence import EVIDENCE_OFFICE_NETWORK, normalize_coordin
 from hrms.api.checkin_service import CHECKIN_METHOD_QR, create_checkin, validate_checkin_timing
 from hrms.hr.doctype.qr_checkin_location.qr_checkin_location import verify_display_key
 from hrms.hr.utils import get_distance_between_coordinates
+from hrms.utils.attendance_qr import (
+	TIME_SLOT_SECONDS as TIME_SLOT_SECONDS,
+)
+from hrms.utils.attendance_qr import (
+	_get_time_slot as _get_time_slot,
+)
+from hrms.utils.attendance_qr import (
+	_sign as _sign,
+)
+from hrms.utils.attendance_qr import (
+	build_qr_payload,
+	get_refresh_interval,
+)
 from hrms.utils.client_network import get_client_ip, is_office_network, parse_network_list
 from hrms.utils.profile_photo import can_see_photos
 
-TIME_SLOT_SECONDS = 30  # 二维码时间片,与前端保持一致
 ATTENDANCE_STATUS_LABELS = {
 	"working": "出勤中",
 	"off_work": "退勤済",
@@ -51,21 +62,6 @@ def validate_ip_whitelist():
 			),
 			exc=frappe.exceptions.SecurityException,
 		)
-
-
-def _get_time_slot(ts=None):
-	"""获取当前时间片编号"""
-	if ts is None:
-		ts = int(time.time())
-	return ts // TIME_SLOT_SECONDS
-
-
-def _sign(location_name: str, time_slot: int, secret: str) -> str:
-	"""生成 HMAC-SHA256 签名"""
-	msg = f"{location_name}|{time_slot}"
-	return hmac.new(secret.encode("utf-8"), msg.encode("utf-8"), hashlib.sha256).hexdigest()[
-		:8
-	]  # 缩短到8字符以减小二维码大小
 
 
 @frappe.whitelist(allow_guest=True)
@@ -97,10 +93,6 @@ def generate_qr_token(location_name: str, key: str | None = None):
 	if not doc.enabled:
 		frappe.throw(_("Check-in location {0} is disabled").format(location_name))
 
-	server_time = int(time.time())
-	time_slot = _get_time_slot(server_time)
-	sig = _sign(doc.name, time_slot, doc.get_password("secret"))
-	token = f"{doc.name}|{time_slot}|{sig}"
 	frappe.local.response_headers.update(
 		{
 			"Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
@@ -109,15 +101,7 @@ def generate_qr_token(location_name: str, key: str | None = None):
 		}
 	)
 
-	return {
-		"token": token,
-		"expires_in": doc.qr_refresh_interval or TIME_SLOT_SECONDS,
-		"location": doc.name,
-		"description": doc.description,
-		"server_time": server_time,
-		"refresh_at": (time_slot + 1) * TIME_SLOT_SECONDS,
-		"expires_at": (time_slot + 2) * TIME_SLOT_SECONDS,
-	}
+	return build_qr_payload(doc)
 
 
 @frappe.whitelist(allow_guest=False)
@@ -182,11 +166,12 @@ def qr_checkin(
 
 	# 4. 验证签名和时效(允许当前和前一个时间片)
 	valid = False
-	current_slot = _get_time_slot()
+	current_slot = _get_time_slot(interval=get_refresh_interval(doc))
 
-	# 允许当前时间片和前一个时间片(共60秒有效期)
-	# delta=0: 当前30秒, delta=-1: 前30秒
+	# 保持当前和上一时槽的过渡规则，时槽长度取地点配置。
 	for delta in (0, -1):
+		if _time_slot != current_slot + delta:
+			continue
 		expected_sig = _sign(location_name, current_slot + delta, secret)
 		if hmac.compare_digest(expected_sig, sig):
 			valid = True

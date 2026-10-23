@@ -1,0 +1,38 @@
+Employee List,员工列表
+User List,用户列表
+Employee Information Overview,员工信息总表
+WeChat ID,微信号
+"Optional. Enter your WeChat ID, not your display name.",选填。请填写微信号，而非微信昵称。
+Search Employees,搜索员工
+"Name, employee ID, employee number, mobile or WeChat ID",姓名、员工编号、工号、手机号或微信号
+Missing Mobile,未填写电话
+Missing Current Address,未填写住址
+Not provided,未填写
+Copy Address,复制地址
+View and copy full address,查看并复制完整地址
+Copy to clipboard,复制到剪贴板
+Only HR users and administrators can view employee information.,仅 HR 和有权限的管理员可查看员工信息。
+Employed,在职
+Inactive Employee,停用
+Suspended Employee,停职
+Former Employee,离职
+Mobile,手机号
+Current Address,现住址
+Quick Edit,快速编辑
+Quick Edit Employee,快速编辑员工资料
+Account Email,登录账号邮箱
+Account email is shown when both contact email fields are empty.,公司邮箱和个人邮箱均未填写时，总表显示此账号邮箱。
+Employee information updated.,员工资料已更新。
+Edit,编辑
+Save,保存
+Company Email,公司邮箱
+Personal Email,个人邮箱
+Profile collection is not enabled for your account.,当前账号暂未开放资料填写功能。
+Invalid profile data.,提交的资料格式不正确。
+"Mobile, current address and contact email are required.",请填写手机号、现住址和联系邮箱。
+Your profile was updated elsewhere. Reload it before submitting again.,资料已被更新，请重新读取后再提交。
+Emergency Contact,紧急联系人
+Emergency Contact Name,紧急联系人姓名
+Emergency Contact Relationship,亲属
+Emergency Phone,紧急联系电话
+"Emergency contact name, relationship and phone number are required.",请填写紧急联系人姓名、亲属和紧急联系电话。
