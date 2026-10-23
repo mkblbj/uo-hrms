@@ -7,6 +7,7 @@ from frappe import _
 from frappe.utils import get_datetime, now, now_datetime
 
 from hrms.api.checkin_cooldown import is_checkin_cooldown_exempt
+from hrms.api.checkin_presence import EVIDENCE_BEACON
 
 CHECKIN_METHOD_QR = "QR"
 CHECKIN_METHOD_PASSKEY = "Passkey"
@@ -116,7 +117,7 @@ def _write_audit(checkin, *, method, location, evidence, client_ip, beacon_rssi=
 		f"at {location} on {checkin.time}. IP: {client_ip or 'Unknown'}{geo} Evidence: {evidence or '-'}"
 	)
 	# 信号强度只记进审计日志，不参与判断
-	if evidence == "beacon" and beacon_rssi is not None:
+	if evidence == EVIDENCE_BEACON and beacon_rssi is not None:
 		message += f" RSSI: {beacon_rssi} dBm"
 	try:
 		frappe.logger().info(message)

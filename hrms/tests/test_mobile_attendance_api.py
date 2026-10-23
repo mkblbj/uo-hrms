@@ -334,7 +334,10 @@ class TestAttendanceDay(MobileAttendanceTestCase):
 	def test_beacon_punch_in_day_detail(self):
 		employee, _shift = self.make_worker("mobile-beacon")
 		punch(employee, datetime(2026, 5, 20, 9, 0), "IN", "Device Key", evidence="beacon")
-		result = self.day("attendance-settlement-mobile-beacon@example.com", {"entries": [], "holidays": [], "events": []})
+		result = self.day(
+			"attendance-settlement-mobile-beacon@example.com",
+			{"entries": [], "holidays": [], "events": []},
+		)
 		self.assertEqual(
 			[(row["method"], row["evidence"]) for row in result["punches"]],
 			[("device_key", "beacon")],
